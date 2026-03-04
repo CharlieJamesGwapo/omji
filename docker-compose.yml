@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: omji_user
+      POSTGRES_PASSWORD: omji_password
+      POSTGRES_DB: omji_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: omji_user
+      DB_PASSWORD: omji_password
+      DB_NAME: omji_db
+      JWT_SECRET: your-super-secret-key-change-in-production
+    depends_on:
+      - postgres
+
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8080
+
+  admin:
+    build: ./admin
+    ports:
+      - "3001:3001"
+    environment:
+      REACT_APP_API_URL: http://localhost:8080
+
+volumes:
+  postgres_data:

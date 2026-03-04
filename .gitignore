@@ -1,0 +1,32 @@
+# Environment files (NEVER commit passwords!)
+*.env
+*.env.local
+*.env.production
+.env.supabase
+
+# Backend
+backend/.env
+backend/bin/
+backend/tmp/
+backend/*.db
+
+# Admin
+admin/.env
+admin/.env.local
+admin/.env.production
+admin/dist/
+admin/node_modules/
+
+# Mobile
+mobile/.env
+mobile/.expo/
+mobile/node_modules/
+mobile/.expo-shared/
+mobile/dist/
+
+# General
+.DS_Store
+*.log
+node_modules/
+dist/
+build/
