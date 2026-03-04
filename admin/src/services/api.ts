@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Use environment variable for API URL, fallback to production
+const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.com/api/v1';
+
 const API = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: API_URL,
 });
 
 API.interceptors.request.use((config) => {
