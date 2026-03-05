@@ -70,6 +70,7 @@ export const rideService = {
   cancelRide: (id: number) => api.put(`/rides/${id}/cancel`),
   rateRide: (id: number, rating: number, review: string) =>
     api.post(`/rides/${id}/rate`, { rating, review }),
+  getRideHistory: () => api.get('/rides/history'),
 };
 
 // Ride Sharing Services
@@ -87,6 +88,7 @@ export const deliveryService = {
   cancelDelivery: (id: number) => api.put(`/deliveries/${id}/cancel`),
   rateDelivery: (id: number, rating: number) =>
     api.post(`/deliveries/${id}/rate`, { rating }),
+  getDeliveryHistory: () => api.get('/deliveries/history'),
 };
 
 // Store Services
@@ -130,6 +132,8 @@ export const driverService = {
   getEarnings: () => api.get('/driver/earnings'),
   setAvailability: (data: { available: boolean; latitude?: number; longitude?: number }) =>
     api.post('/driver/availability', data),
+  updateRideStatus: (id: number, status: string) =>
+    api.put(`/driver/rides/${id}/status`, { status }),
 };
 
 // Chat Services

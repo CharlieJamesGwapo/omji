@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,57 +9,72 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { chatService } from '../../services/api';
 
 export default function ChatScreen({ route, navigation }: any) {
-  const { rider: routeRider } = route.params || {};
+  const { rider: routeRider, rideId, deliveryId } = route.params || {};
+  const chatId = rideId || deliveryId || 0;
+  const receiverId = routeRider?.user_id || routeRider?.id || 0;
+
   const rider = routeRider || {
-    name: 'Juan Dela Cruz',
-    rating: 4.8,
-    photo: 'https://via.placeholder.com/50?text=Rider',
+    name: 'Driver',
+    rating: 0,
+    photo: '',
   };
 
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      text: 'Hello! I am on my way to the pickup location.',
-      sender: 'rider',
-      time: '2:30 PM',
-    },
-    {
-      id: '2',
-      text: 'Great! Thank you.',
-      sender: 'user',
-      time: '2:31 PM',
-    },
-    {
-      id: '3',
-      text: 'I will arrive in about 5 minutes.',
-      sender: 'rider',
-      time: '2:32 PM',
-    },
-    {
-      id: '4',
-      text: 'Okay, I\'ll be waiting outside.',
-      sender: 'user',
-      time: '2:33 PM',
-    },
-  ]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
 
   const quickReplies = [
-    'I\'m waiting outside',
+    "I'm waiting outside",
     'Running a bit late',
     'Where are you?',
     'Thanks!',
   ];
 
-  const sendMessage = (text?: string) => {
+  useEffect(() => {
+    if (chatId) {
+      fetchMessages();
+      const interval = setInterval(fetchMessages, 5000);
+      return () => clearInterval(interval);
+    } else {
+      setLoading(false);
+    }
+  }, [chatId]);
+
+  const fetchMessages = async () => {
+    try {
+      const response = await chatService.getMessages(chatId);
+      const raw = response.data?.data;
+      const msgs = Array.isArray(raw) ? raw : [];
+      setMessages(msgs.map((m: any) => ({
+        id: m.id?.toString() || Date.now().toString(),
+        text: m.message || m.text || '',
+        sender: m.sender_id === receiverId ? 'rider' : 'user',
+        time: m.created_at
+          ? new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+          : '',
+      })));
+    } catch {
+      // Silent fail for polling
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async (text?: string) => {
     const messageText = text || message.trim();
     if (!messageText) return;
 
-    const newMessage = {
+    const tempMessage = {
       id: Date.now().toString(),
       text: messageText,
       sender: 'user',
@@ -69,22 +84,19 @@ export default function ChatScreen({ route, navigation }: any) {
       }),
     };
 
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, tempMessage]);
     setMessage('');
 
-    // Simulate rider reply
-    setTimeout(() => {
-      const riderReply = {
-        id: (Date.now() + 1).toString(),
-        text: 'Got it!',
-        sender: 'rider',
-        time: new Date().toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
-      };
-      setMessages((prev) => [...prev, riderReply]);
-    }, 1000);
+    if (chatId && receiverId) {
+      setSending(true);
+      try {
+        await chatService.sendMessage(chatId, receiverId, messageText);
+      } catch {
+        // Message already shown locally
+      } finally {
+        setSending(false);
+      }
+    }
   };
 
   const renderMessage = ({ item }: any) => {
@@ -97,7 +109,13 @@ export default function ChatScreen({ route, navigation }: any) {
         ]}
       >
         {!isUser && (
-          <Image source={{ uri: rider.photo }} style={styles.messageAvatar} />
+          rider.photo ? (
+            <Image source={{ uri: rider.photo }} style={styles.messageAvatar} />
+          ) : (
+            <View style={[styles.messageAvatar, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="person" size={16} color="#9CA3AF" />
+            </View>
+          )
         )}
         <View
           style={[
@@ -113,14 +131,16 @@ export default function ChatScreen({ route, navigation }: any) {
           >
             {item.text}
           </Text>
-          <Text
-            style={[
-              styles.messageTime,
-              isUser ? styles.userMessageTime : styles.riderMessageTime,
-            ]}
-          >
-            {item.time}
-          </Text>
+          {!!(item.time) && (
+            <Text
+              style={[
+                styles.messageTime,
+                isUser ? styles.userMessageTime : styles.riderMessageTime,
+              ]}
+            >
+              {item.time}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -138,28 +158,56 @@ export default function ChatScreen({ route, navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Image source={{ uri: rider.photo }} style={styles.headerAvatar} />
-          <View style={styles.headerText}>
-            <Text style={styles.headerName}>{rider.name}</Text>
-            <View style={styles.headerRating}>
-              <Ionicons name="star" size={12} color="#FBBF24" />
-              <Text style={styles.headerRatingText}>{rider.rating}</Text>
+          {rider.photo ? (
+            <Image source={{ uri: rider.photo }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatar, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="person" size={20} color="#9CA3AF" />
             </View>
+          )}
+          <View style={styles.headerText}>
+            <Text style={styles.headerName}>{rider.name || 'Driver'}</Text>
+            {!!(rider.rating) && (
+              <View style={styles.headerRating}>
+                <Ionicons name="star" size={12} color="#FBBF24" />
+                <Text style={styles.headerRatingText}>{rider.rating}</Text>
+              </View>
+            )}
           </View>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => {
+          const phone = rider?.phone;
+          if (phone) {
+            Linking.openURL(`tel:${phone}`);
+          } else {
+            Alert.alert('No Phone', 'Phone number not available');
+          }
+        }}>
           <Ionicons name="call" size={24} color="#10B981" />
         </TouchableOpacity>
       </View>
 
       {/* Messages */}
-      <FlatList
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        inverted={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </View>
+      ) : messages.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubbles-outline" size={48} color="#D1D5DB" />
+          <Text style={styles.emptyText}>No messages yet</Text>
+          <Text style={styles.emptySubtext}>Send a message to start chatting</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+      )}
 
       {/* Quick Replies */}
       <View style={styles.quickRepliesContainer}>
@@ -181,9 +229,6 @@ export default function ChatScreen({ route, navigation }: any) {
 
       {/* Input */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity style={styles.attachButton}>
-          <Ionicons name="image-outline" size={24} color="#6B7280" />
-        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -193,15 +238,19 @@ export default function ChatScreen({ route, navigation }: any) {
           maxLength={500}
         />
         <TouchableOpacity
-          style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!message.trim() || sending) && styles.sendButtonDisabled]}
           onPress={() => sendMessage()}
-          disabled={!message.trim()}
+          disabled={!message.trim() || sending}
         >
-          <Ionicons
-            name="send"
-            size={20}
-            color={message.trim() ? '#ffffff' : '#D1D5DB'}
-          />
+          {sending ? (
+            <ActivityIndicator size="small" color="#D1D5DB" />
+          ) : (
+            <Ionicons
+              name="send"
+              size={20}
+              color={message.trim() ? '#ffffff' : '#D1D5DB'}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -254,6 +303,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#92400E',
     marginLeft: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 4,
   },
   messagesList: {
     padding: 20,
@@ -339,10 +409,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-  },
-  attachButton: {
-    padding: 8,
-    marginRight: 8,
   },
   input: {
     flex: 1,

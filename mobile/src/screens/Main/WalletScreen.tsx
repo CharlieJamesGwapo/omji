@@ -11,68 +11,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 export default function WalletScreen({ navigation }: any) {
-  const [balance] = useState(500);
+  const [balance] = useState(0);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('gcash');
 
-  const transactions = [
-    {
-      id: '1',
-      type: 'debit',
-      title: 'Ride to Market',
-      description: 'Pasabay Service',
-      amount: -60,
-      date: '2024-01-20 2:30 PM',
-      status: 'completed',
-      icon: 'bicycle',
-      color: '#10B981',
-    },
-    {
-      id: '2',
-      type: 'credit',
-      title: 'Top Up',
-      description: 'GCash',
-      amount: 500,
-      date: '2024-01-20 10:00 AM',
-      status: 'completed',
-      icon: 'add-circle',
-      color: '#3B82F6',
-    },
-    {
-      id: '3',
-      type: 'debit',
-      title: 'Delivery Fee',
-      description: 'Pasugo Service',
-      amount: -80,
-      date: '2024-01-19 4:15 PM',
-      status: 'completed',
-      icon: 'cube',
-      color: '#3B82F6',
-    },
-    {
-      id: '4',
-      type: 'debit',
-      title: 'Jollibee Order',
-      description: 'Food Delivery',
-      amount: -285,
-      date: '2024-01-19 12:30 PM',
-      status: 'completed',
-      icon: 'storefront',
-      color: '#EF4444',
-    },
-    {
-      id: '5',
-      type: 'debit',
-      title: 'Pickup Service',
-      description: 'Pasundo Service',
-      amount: -70,
-      date: '2024-01-18 3:00 PM',
-      status: 'completed',
-      icon: 'people',
-      color: '#F59E0B',
-    },
-  ];
+  const transactions: any[] = [];
 
   const topUpOptions = [
     { amount: 100, label: '₱100' },
@@ -220,51 +164,61 @@ export default function WalletScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {transactions.map((transaction) => (
-            <View key={transaction.id} style={styles.transactionCard}>
-              <View
-                style={[
-                  styles.transactionIcon,
-                  { backgroundColor: `${transaction.color}20` },
-                ]}
-              >
-                <Ionicons
-                  name={transaction.icon as any}
-                  size={24}
-                  color={transaction.color}
-                />
-              </View>
-              <View style={styles.transactionInfo}>
-                <Text style={styles.transactionTitle}>{transaction.title}</Text>
-                <Text style={styles.transactionDescription}>
-                  {transaction.description}
-                </Text>
-                <Text style={styles.transactionDate}>{transaction.date}</Text>
-              </View>
-              <View style={styles.transactionAmount}>
-                <Text
-                  style={[
-                    styles.amountText,
-                    transaction.type === 'credit'
-                      ? styles.amountCredit
-                      : styles.amountDebit,
-                  ]}
-                >
-                  {transaction.type === 'credit' ? '+' : ''}₱{Math.abs(transaction.amount)}
-                </Text>
+          {transactions.length === 0 ? (
+            <View style={styles.emptyTransactions}>
+              <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
+              <Text style={styles.emptyTransactionsSubtext}>
+                Your transaction history will appear here
+              </Text>
+            </View>
+          ) : (
+            transactions.map((transaction) => (
+              <View key={transaction.id} style={styles.transactionCard}>
                 <View
                   style={[
-                    styles.statusBadge,
-                    transaction.status === 'completed' && styles.statusCompleted,
+                    styles.transactionIcon,
+                    { backgroundColor: `${transaction.color}20` },
                   ]}
                 >
-                  <Text style={styles.statusText}>
-                    {transaction.status}
+                  <Ionicons
+                    name={transaction.icon as any}
+                    size={24}
+                    color={transaction.color}
+                  />
+                </View>
+                <View style={styles.transactionInfo}>
+                  <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                  <Text style={styles.transactionDescription}>
+                    {transaction.description}
                   </Text>
+                  <Text style={styles.transactionDate}>{transaction.date}</Text>
+                </View>
+                <View style={styles.transactionAmount}>
+                  <Text
+                    style={[
+                      styles.amountText,
+                      transaction.type === 'credit'
+                        ? styles.amountCredit
+                        : styles.amountDebit,
+                    ]}
+                  >
+                    {transaction.type === 'credit' ? '+' : ''}₱{Math.abs(transaction.amount)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      transaction.status === 'completed' && styles.statusCompleted,
+                    ]}
+                  >
+                    <Text style={styles.statusText}>
+                      {transaction.status}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Quick Actions */}
@@ -531,6 +485,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#059669',
     textTransform: 'capitalize',
+  },
+  emptyTransactions: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyTransactionsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 12,
+  },
+  emptyTransactionsSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 4,
   },
   quickActions: {
     flexDirection: 'row',

@@ -97,6 +97,7 @@ type Ride struct {
 	UserReview          string    `json:"user_review"`
 	DriverRating        *float64  `json:"driver_rating,omitempty"`
 	DriverReview        string    `json:"driver_review"`
+	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
 	ScheduledFor        *time.Time `json:"scheduled_for,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CompletedAt         *time.Time `json:"completed_at,omitempty"`
@@ -147,6 +148,7 @@ type Delivery struct {
 	DeliveryFee         float64   `json:"delivery_fee"`
 	Tip                 float64   `gorm:"default:0" json:"tip"`
 	Status              string    `gorm:"default:'pending'" json:"status"` // pending, accepted, in_progress, completed, cancelled
+	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
 	BarcodeNumber       string    `json:"barcode_number"`
 	PromoID             *uint     `json:"promo_id,omitempty"`
 	Promo               *Promo

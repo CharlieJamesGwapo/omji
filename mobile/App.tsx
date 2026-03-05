@@ -168,12 +168,12 @@ const MainStack = () => (
     <Stack.Screen
       name="Tracking"
       component={TrackingScreen}
-      options={{ title: 'Track Order' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Chat"
       component={ChatScreen}
-      options={{ title: 'Chat with Rider' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Wallet"
@@ -211,17 +211,27 @@ const RiderStack = () => (
     <Stack.Screen
       name="RiderDashboard"
       component={RiderDashboardScreen}
-      options={{ title: 'Rider Dashboard' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="RiderEarnings"
       component={RiderEarningsScreen}
-      options={{ title: 'Earnings' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="RiderProfile"
       component={RiderProfileScreen}
-      options={{ title: 'Rider Profile' }}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Tracking"
+      component={TrackingScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Chat"
+      component={ChatScreen}
+      options={{ headerShown: false }}
     />
   </Stack.Navigator>
 );
@@ -234,7 +244,7 @@ const RootNavigator = () => {
     return <LoadingScreen />;
   }
 
-  // If admin user tries to access mobile app, show message and redirect to web
+  // If admin user tries to access mobile app, show message
   if (user && user.role === 'admin') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#F3F4F6' }}>
@@ -264,7 +274,7 @@ const RootNavigator = () => {
       <StatusBar style="auto" />
       {!user ? (
         <AuthStack />
-      ) : user.role === 'rider' ? (
+      ) : user.role === 'rider' || user.role === 'driver' ? (
         <RiderStack />
       ) : (
         <MainStack />

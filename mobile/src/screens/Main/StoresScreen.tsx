@@ -203,7 +203,7 @@ export default function StoresScreen({ navigation }: any) {
                     <Ionicons name="location-outline" size={16} color="#6B7280" />
                     <Text style={styles.storeInfoText} numberOfLines={1}>{store.address || 'Balingasag'}</Text>
                   </View>
-                  {store.phone && (
+                  {!!store.phone && (
                     <View style={styles.storeInfo}>
                       <Ionicons name="call-outline" size={16} color="#6B7280" />
                       <Text style={styles.storeInfoText}>{store.phone}</Text>

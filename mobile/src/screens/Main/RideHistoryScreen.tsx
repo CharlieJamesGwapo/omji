@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { rideService } from '../../services/api';
+import { rideService, deliveryService } from '../../services/api';
 
 interface RideItem {
   id: number;
@@ -35,9 +35,24 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   const fetchRides = useCallback(async () => {
     try {
-      const response = await rideService.getActiveRides();
-      const data = response.data?.data;
-      setRides(Array.isArray(data) ? data : []);
+      const [ridesRes, deliveriesRes] = await Promise.allSettled([
+        rideService.getRideHistory(),
+        deliveryService.getDeliveryHistory(),
+      ]);
+
+      const rideData = ridesRes.status === 'fulfilled' ? ridesRes.value?.data?.data : [];
+      const deliveryData = deliveriesRes.status === 'fulfilled' ? deliveriesRes.value?.data?.data : [];
+
+      const allRides = [
+        ...(Array.isArray(rideData) ? rideData : []),
+        ...(Array.isArray(deliveryData) ? deliveryData.map((d: any) => ({
+          ...d,
+          estimated_fare: d.delivery_fee || d.estimated_fare || 0,
+          vehicle_type: 'motorcycle',
+        })) : []),
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setRides(allRides);
     } catch (error) {
       console.error('Error fetching rides:', error);
       setRides([]);

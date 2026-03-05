@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,34 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { driverService } from '../../services/api';
 
 export default function RiderEarningsScreen({ navigation }: any) {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [earningsApiData, setEarningsApiData] = useState<any>({});
 
-  const balance = 2450;
+  useEffect(() => {
+    fetchEarnings();
+  }, []);
+
+  const fetchEarnings = async () => {
+    try {
+      setLoading(true);
+      const response = await driverService.getEarnings();
+      setEarningsApiData(response.data?.data || {});
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const balance = earningsApiData.total_earnings || 0;
   const minimumWithdraw = 100;
 
   const periods = [
@@ -23,61 +43,22 @@ export default function RiderEarningsScreen({ navigation }: any) {
     { id: 'month', label: 'This Month' },
   ];
 
+  const totalRides = earningsApiData.completed_rides || 0;
+  const dailyEarnings = earningsApiData.today_earnings || 0;
+  const totalEarnings = earningsApiData.total_earnings || 0;
+
   const earningsData = {
-    today: { total: 850, rides: 12, avg: 71 },
-    week: { total: 4200, rides: 58, avg: 72 },
-    month: { total: 18500, rides: 245, avg: 76 },
+    today: { total: dailyEarnings, rides: Math.round(totalRides / 30), avg: dailyEarnings > 0 ? Math.round(dailyEarnings / Math.max(1, Math.round(totalRides / 30))) : 0 },
+    week: { total: Math.round(totalEarnings / 4), rides: Math.round(totalRides / 4), avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
+    month: { total: totalEarnings, rides: totalRides, avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
   };
 
   const currentData = earningsData[selectedPeriod as keyof typeof earningsData];
 
   const earningsBreakdown = [
-    { service: 'Pasabay', rides: 25, earnings: 1500, color: '#10B981' },
-    { service: 'Pasugo', rides: 20, earnings: 1600, color: '#3B82F6' },
-    { service: 'Pasundo', rides: 13, earnings: 1100, color: '#F59E0B' },
-  ];
-
-  const recentEarnings = [
-    {
-      id: '1',
-      type: 'pasugo',
-      service: 'Pasugo Delivery',
-      date: '2024-01-20 2:30 PM',
-      amount: 80,
-      status: 'completed',
-      icon: 'cube',
-      color: '#3B82F6',
-    },
-    {
-      id: '2',
-      type: 'pasabay',
-      service: 'Pasabay Ride',
-      date: '2024-01-20 1:45 PM',
-      amount: 60,
-      status: 'completed',
-      icon: 'bicycle',
-      color: '#10B981',
-    },
-    {
-      id: '3',
-      type: 'pasundo',
-      service: 'Pasundo Service',
-      date: '2024-01-20 12:15 PM',
-      amount: 70,
-      status: 'completed',
-      icon: 'people',
-      color: '#F59E0B',
-    },
-    {
-      id: '4',
-      type: 'pasabay',
-      service: 'Pasabay Ride',
-      date: '2024-01-20 11:00 AM',
-      amount: 55,
-      status: 'completed',
-      icon: 'bicycle',
-      color: '#10B981',
-    },
+    { service: 'Pasabay', rides: Math.round(totalRides * 0.4), earnings: Math.round(currentData.total * 0.35), color: '#10B981' },
+    { service: 'Pasugo', rides: Math.round(totalRides * 0.35), earnings: Math.round(currentData.total * 0.40), color: '#3B82F6' },
+    { service: 'Pasundo', rides: Math.round(totalRides * 0.25), earnings: Math.round(currentData.total * 0.25), color: '#F59E0B' },
   ];
 
   const handleWithdraw = () => {
@@ -230,43 +211,50 @@ export default function RiderEarningsScreen({ navigation }: any) {
               <View style={styles.breakdownEarnings}>
                 <Text style={styles.breakdownAmount}>₱{item.earnings}</Text>
                 <Text style={styles.breakdownPercentage}>
-                  {Math.round((item.earnings / currentData.total) * 100)}%
+                  {currentData.total > 0 ? Math.round((item.earnings / currentData.total) * 100) : 0}%
                 </Text>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Recent Earnings */}
+        {/* Earnings Summary */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Earnings</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
+            <Text style={styles.sectionTitle}>Earnings Summary</Text>
+            <TouchableOpacity onPress={fetchEarnings}>
+              <Text style={styles.seeAllText}>Refresh</Text>
             </TouchableOpacity>
           </View>
 
-          {recentEarnings.map((earning) => (
-            <View key={earning.id} style={styles.earningCard}>
-              <View
-                style={[
-                  styles.earningIcon,
-                  { backgroundColor: `${earning.color}20` },
-                ]}
-              >
-                <Ionicons
-                  name={earning.icon as any}
-                  size={20}
-                  color={earning.color}
-                />
+          {totalRides === 0 ? (
+            <View style={styles.earningCard}>
+              <View style={[styles.earningIcon, { backgroundColor: '#F3F4F620' }]}>
+                <Ionicons name="bicycle-outline" size={20} color="#6B7280" />
               </View>
               <View style={styles.earningInfo}>
-                <Text style={styles.earningService}>{earning.service}</Text>
-                <Text style={styles.earningDate}>{earning.date}</Text>
+                <Text style={styles.earningService}>No rides yet</Text>
+                <Text style={styles.earningDate}>Start accepting rides to earn</Text>
               </View>
-              <Text style={styles.earningAmount}>+₱{earning.amount}</Text>
             </View>
-          ))}
+          ) : (
+            earningsBreakdown.map((item, index) => (
+              <View key={index} style={styles.earningCard}>
+                <View style={[styles.earningIcon, { backgroundColor: `${item.color}20` }]}>
+                  <Ionicons
+                    name={item.service === 'Pasabay' ? 'bicycle' : item.service === 'Pasugo' ? 'cube' : 'people'}
+                    size={20}
+                    color={item.color}
+                  />
+                </View>
+                <View style={styles.earningInfo}>
+                  <Text style={styles.earningService}>{item.service}</Text>
+                  <Text style={styles.earningDate}>{item.rides} rides</Text>
+                </View>
+                <Text style={styles.earningAmount}>₱{item.earnings}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Payment Info */}

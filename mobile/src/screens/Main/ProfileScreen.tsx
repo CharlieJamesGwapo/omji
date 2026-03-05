@@ -80,10 +80,10 @@ export default function ProfileScreen({ navigation }: any) {
     {
       title: 'Account',
       items: [
-        { icon: 'person-outline', label: 'Edit Profile', screen: 'Profile' },
+        { icon: 'person-outline', label: 'Edit Profile', screen: null, action: () => Alert.alert('Edit Profile', 'Coming soon!') },
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
-        { icon: 'location-outline', label: 'Saved Addresses', screen: 'Profile' },
-        { icon: 'card-outline', label: 'Payment Methods', screen: 'Profile' },
+        { icon: 'location-outline', label: 'Saved Addresses', screen: null, action: () => Alert.alert('Saved Addresses', 'Coming soon!') },
+        { icon: 'card-outline', label: 'Payment Methods', screen: null, action: () => Alert.alert('Payment Methods', 'Coming soon!') },
       ],
     },
     {
@@ -91,24 +91,24 @@ export default function ProfileScreen({ navigation }: any) {
       items: [
         { icon: 'receipt-outline', label: 'Order History', screen: 'Orders' },
         { icon: 'time-outline', label: 'Ride History', screen: 'RideHistory' },
-        { icon: 'heart-outline', label: 'Favorites', screen: 'Profile' },
+        { icon: 'heart-outline', label: 'Favorites', screen: null, action: () => Alert.alert('Favorites', 'Coming soon!') },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', screen: 'Profile' },
-        { icon: 'chatbubble-outline', label: 'Contact Support', screen: 'Profile' },
-        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: 'Profile' },
-        { icon: 'information-circle-outline', label: 'About OMJI', screen: 'Profile' },
+        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Alert.alert('Help Center', 'Coming soon!') },
+        { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Alert.alert('Contact Support', 'Coming soon!') },
+        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Alert.alert('Terms & Privacy', 'Coming soon!') },
+        { icon: 'information-circle-outline', label: 'About OMJI', screen: null, action: () => Alert.alert('About OMJI', 'OMJI - Your ride-hailing and delivery app\nVersion 1.0.0') },
       ],
     },
     {
       title: 'Settings',
       items: [
-        { icon: 'notifications-outline', label: 'Notifications', screen: 'Profile' },
-        { icon: 'language-outline', label: 'Language', screen: 'Profile' },
-        { icon: 'shield-outline', label: 'Privacy & Security', screen: 'Profile' },
+        { icon: 'notifications-outline', label: 'Notifications', screen: null, action: () => Alert.alert('Notifications', 'Coming soon!') },
+        { icon: 'language-outline', label: 'Language', screen: null, action: () => Alert.alert('Language', 'Coming soon!') },
+        { icon: 'shield-outline', label: 'Privacy & Security', screen: null, action: () => Alert.alert('Privacy & Security', 'Coming soon!') },
       ],
     },
   ];
@@ -195,7 +195,7 @@ export default function ProfileScreen({ navigation }: any) {
                     styles.menuItem,
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
                   ]}
-                  onPress={() => navigation.navigate(item.screen)}
+                  onPress={() => item.screen ? navigation.navigate(item.screen) : item.action?.()}
                 >
                   <Ionicons name={item.icon as any} size={22} color="#6B7280" />
                   <Text style={styles.menuLabel}>{item.label}</Text>

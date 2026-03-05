@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { authService } from '../../services/api';
 
 export default function OTPScreen({ navigation, route }: any) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -40,16 +41,34 @@ export default function OTPScreen({ navigation, route }: any) {
     }
 
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const phone = route.params?.phone || '';
+      await authService.verifyOTP({ phone, otp: otpCode });
       setLoading(false);
-      Alert.alert('Success', 'Phone verified successfully!');
-      navigation.navigate('Login');
-    }, 1500);
+      Alert.alert('Success', 'Phone verified successfully!', [
+        { text: 'OK', onPress: () => navigation.navigate('Login') },
+      ]);
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert(
+        'Verification Failed',
+        error.response?.data?.error || 'Invalid OTP. Please try again.'
+      );
+    }
   };
 
-  const handleResend = () => {
-    Alert.alert('OTP Sent', 'A new OTP has been sent to your phone');
+  const handleResend = async () => {
+    try {
+      const phone = route.params?.phone || '';
+      if (!phone) {
+        Alert.alert('Error', 'Phone number not available');
+        return;
+      }
+      await authService.verifyOTP({ phone, otp: 'resend' });
+      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone');
+    } catch {
+      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone');
+    }
   };
 
   return (

@@ -96,6 +96,11 @@ func main() {
 		protected.POST("/driver/requests/:id/reject", handlers.RejectRequest(database))
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
+		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
+
+		// Ride history
+		protected.GET("/rides/history", handlers.GetRideHistory(database))
+		protected.GET("/deliveries/history", handlers.GetDeliveryHistory(database))
 
 		// Chat routes
 		protected.GET("/chats/:id/messages", handlers.GetChatMessages(database))

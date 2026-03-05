@@ -183,7 +183,7 @@ export default function OrdersScreen({ navigation }: any) {
       </View>
 
       <View style={styles.orderBody}>
-        {order.from && (
+        {!!order.from && (
           <View style={styles.orderRow}>
             <Ionicons name="location-outline" size={16} color="#6B7280" />
             <Text style={styles.orderText} numberOfLines={1}>
@@ -191,7 +191,7 @@ export default function OrdersScreen({ navigation }: any) {
             </Text>
           </View>
         )}
-        {order.to && (
+        {!!order.to && (
           <View style={styles.orderRow}>
             <Ionicons name="flag-outline" size={16} color="#6B7280" />
             <Text style={styles.orderText} numberOfLines={1}>
@@ -200,11 +200,11 @@ export default function OrdersScreen({ navigation }: any) {
           </View>
         )}
 
-        {order.driverName && (
+        {!!order.driverName && (
           <View style={styles.riderInfo}>
             <Ionicons name="person-circle-outline" size={20} color="#3B82F6" />
             <Text style={styles.riderName}>{order.driverName}</Text>
-            {order.driverRating && (
+            {!!order.driverRating && (
               <>
                 <Ionicons name="star" size={14} color="#FBBF24" />
                 <Text style={styles.riderRating}>{order.driverRating.toFixed(1)}</Text>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,50 +7,44 @@ import {
   StyleSheet,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { orderService } from '../../services/api';
+import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 
 export default function CartScreen({ route, navigation }: any) {
-  const { store } = route.params || {};
+  const { store, cartItems: initialCartItems } = route.params || {};
 
-  const [cartItems, setCartItems] = useState([
-    {
-      id: '1',
-      name: 'Chickenjoy with Rice',
-      price: 89,
-      quantity: 2,
-      image: 'https://via.placeholder.com/80?text=Chickenjoy',
-    },
-    {
-      id: '2',
-      name: 'Jolly Spaghetti',
-      price: 65,
-      quantity: 1,
-      image: 'https://via.placeholder.com/80?text=Spaghetti',
-    },
-    {
-      id: '3',
-      name: 'Peach Mango Pie',
-      price: 35,
-      quantity: 3,
-      image: 'https://via.placeholder.com/80?text=Pie',
-    },
-  ]);
-
-  const [deliveryAddress, setDeliveryAddress] = useState('123 Main St, Balingasag');
+  const [cartItems, setCartItems] = useState(initialCartItems || []);
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const updateQuantity = (id: string, delta: number) => {
-    setCartItems(items =>
-      items.map(item =>
+  const deliveryAddress = 'Current Location';
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      }
+    })();
+  }, []);
+
+  const updateQuantity = (id: number, delta: number) => {
+    setCartItems((items: any[]) =>
+      items.map((item: any) =>
         item.id === id
           ? { ...item, quantity: Math.max(0, item.quantity + delta) }
           : item
-      ).filter(item => item.quantity > 0)
+      ).filter((item: any) => item.quantity > 0)
     );
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (id: number) => {
     Alert.alert(
       'Remove Item',
       'Are you sure you want to remove this item from your cart?',
@@ -59,18 +53,18 @@ export default function CartScreen({ route, navigation }: any) {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => setCartItems(items => items.filter(item => item.id !== id)),
+          onPress: () => setCartItems((items: any[]) => items.filter((item: any) => item.id !== id)),
         },
       ]
     );
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const deliveryFee = store?.deliveryFee || 30;
   const serviceFee = 10;
   const total = subtotal + deliveryFee + serviceFee;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cartItems.length === 0) {
       Alert.alert('Empty Cart', 'Your cart is empty!');
       return;
@@ -83,13 +77,39 @@ export default function CartScreen({ route, navigation }: any) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Place Order',
-          onPress: () => {
-            Alert.alert('Success', 'Your order has been placed!', [
-              {
-                text: 'OK',
-                onPress: () => navigation.navigate('Orders'),
-              },
-            ]);
+          onPress: async () => {
+            setCheckingOut(true);
+            try {
+              await orderService.createOrder({
+                store_id: store?.id,
+                items: cartItems.map((item: any) => ({
+                  item_id: item.id,
+                  quantity: item.quantity,
+                  price: item.price,
+                })),
+                subtotal,
+                delivery_fee: deliveryFee,
+                tax: serviceFee,
+                total_amount: total,
+                payment_method: paymentMethod,
+                delivery_location: deliveryAddress,
+                delivery_latitude: userLocation?.latitude || 0,
+                delivery_longitude: userLocation?.longitude || 0,
+              });
+              Alert.alert('Success', 'Your order has been placed!', [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate('Orders'),
+                },
+              ]);
+            } catch (error: any) {
+              Alert.alert(
+                'Order Failed',
+                error.response?.data?.error || 'Failed to place order. Please try again.'
+              );
+            } finally {
+              setCheckingOut(false);
+            }
           },
         },
       ]
@@ -111,12 +131,14 @@ export default function CartScreen({ route, navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Store Info */}
-        {store && (
+        {!!store && (
           <View style={styles.storeCard}>
             <Ionicons name="storefront" size={24} color="#EF4444" />
             <View style={styles.storeInfo}>
               <Text style={styles.storeName}>{store.name}</Text>
-              <Text style={styles.storeTime}>{store.deliveryTime}</Text>
+              {!!(store.deliveryTime) && (
+                <Text style={styles.storeTime}>{store.deliveryTime}</Text>
+              )}
             </View>
           </View>
         )}
@@ -124,12 +146,18 @@ export default function CartScreen({ route, navigation }: any) {
         {/* Cart Items */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items ({cartItems.length})</Text>
-          {cartItems.map((item) => (
+          {cartItems.map((item: any) => (
             <View key={item.id} style={styles.cartItem}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              {item.image ? (
+                <Image source={{ uri: item.image }} style={styles.itemImage} />
+              ) : (
+                <View style={[styles.itemImage, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Ionicons name="fast-food-outline" size={24} color="#D1D5DB" />
+                </View>
+              )}
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>₱{item.price}</Text>
+                <Text style={styles.itemPrice}>₱{item.price * item.quantity}</Text>
               </View>
               <View style={styles.quantityControl}>
                 <TouchableOpacity
@@ -161,9 +189,9 @@ export default function CartScreen({ route, navigation }: any) {
               <Text style={styles.emptyText}>Your cart is empty</Text>
               <TouchableOpacity
                 style={styles.browseButton}
-                onPress={() => navigation.navigate('Stores')}
+                onPress={() => navigation.goBack()}
               >
-                <Text style={styles.browseButtonText}>Browse Stores</Text>
+                <Text style={styles.browseButtonText}>Back to Store</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -171,42 +199,14 @@ export default function CartScreen({ route, navigation }: any) {
 
         {cartItems.length > 0 && (
           <>
-            {/* Delivery Address */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery Address</Text>
-              <TouchableOpacity style={styles.addressCard}>
-                <Ionicons name="location" size={24} color="#3B82F6" />
-                <View style={styles.addressInfo}>
-                  <Text style={styles.addressText}>{deliveryAddress}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
             {/* Payment Method */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Payment Method</Text>
-              <View style={styles.paymentOptions}>
-                {['cash', 'gcash', 'maya', 'wallet'].map((method) => (
-                  <TouchableOpacity
-                    key={method}
-                    style={[
-                      styles.paymentOption,
-                      paymentMethod === method && styles.paymentOptionActive,
-                    ]}
-                    onPress={() => setPaymentMethod(method)}
-                  >
-                    <Text
-                      style={[
-                        styles.paymentText,
-                        paymentMethod === method && styles.paymentTextActive,
-                      ]}
-                    >
-                      {method.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <PaymentMethodSelector
+                selected={paymentMethod}
+                onSelect={setPaymentMethod}
+                accentColor="#EF4444"
+              />
             </View>
 
             {/* Order Summary */}
@@ -245,9 +245,19 @@ export default function CartScreen({ route, navigation }: any) {
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>₱{total}</Text>
           </View>
-          <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
-            <Text style={styles.checkoutButtonText}>Place Order</Text>
-            <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+          <TouchableOpacity
+            style={[styles.checkoutButton, checkingOut && styles.checkoutButtonDisabled]}
+            onPress={handleCheckout}
+            disabled={checkingOut}
+          >
+            {checkingOut ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Text style={styles.checkoutButtonText}>Place Order</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -395,23 +405,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  addressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  addressInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  addressText: {
-    fontSize: 15,
-    color: '#1F2937',
-  },
   paymentOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -506,6 +499,9 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkoutButtonDisabled: {
+    opacity: 0.6,
   },
   checkoutButtonText: {
     color: '#ffffff',

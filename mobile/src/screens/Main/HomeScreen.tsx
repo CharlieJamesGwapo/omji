@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -56,8 +57,8 @@ export default function HomeScreen({ navigation }: any) {
   const quickActions = [
     { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
     { icon: 'time-outline', label: 'History', screen: 'RideHistory' },
-    { icon: 'gift-outline', label: 'Promos', screen: 'Profile' },
-    { icon: 'help-circle-outline', label: 'Help', screen: 'Profile' },
+    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!') },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app') },
   ];
 
   return (
@@ -68,9 +69,8 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity style={styles.notificationButton} onPress={() => Alert.alert('Notifications', 'No new notifications')}>
           <Ionicons name="notifications-outline" size={24} color="#1F2937" />
-          <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
 
@@ -121,7 +121,7 @@ export default function HomeScreen({ navigation }: any) {
               <TouchableOpacity
                 key={index}
                 style={styles.quickActionButton}
-                onPress={() => navigation.navigate(action.screen)}
+                onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
               >
                 <View style={styles.quickActionIcon}>
                   <Ionicons name={action.icon as any} size={24} color="#3B82F6" />
@@ -133,7 +133,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Promo Banner */}
-        <TouchableOpacity style={styles.promoBanner}>
+        <TouchableOpacity style={styles.promoBanner} onPress={() => Alert.alert('Special Promo', 'Use code OMJI20 for 20% off your first ride!')}>
           <Ionicons name="gift" size={32} color="#F59E0B" />
           <View style={styles.promoText}>
             <Text style={styles.promoTitle}>Special Promo!</Text>
@@ -179,15 +179,6 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
   },
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,

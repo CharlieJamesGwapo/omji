@@ -11,26 +11,37 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { driverService } from '../../services/api';
 
 interface DriverRequest {
   id: number;
-  type: string;
-  pickup_location: string;
-  dropoff_location: string;
-  distance: number;
-  estimated_fare: number;
-  vehicle_type: string;
+  type?: string;
+  pickup_location?: string;
+  pickup?: string;
+  dropoff_location?: string;
+  dropoff?: string;
+  distance?: number;
+  distance_km?: number;
+  estimated_fare?: number;
+  delivery_fee?: number;
+  vehicle_type?: string;
   status: string;
+  passenger_name?: string;
+  passenger_phone?: string;
+  item_description?: string;
+  payment_method?: string;
   user?: { name: string };
+  User?: { name: string };
 }
 
 export default function RiderDashboardScreen({ navigation }: any) {
   const [isOnline, setIsOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [earnings, setEarnings] = useState<any>({ daily_earnings: 0, total_earnings: 0, total_rides: 0 });
+  const [earnings, setEarnings] = useState<any>({ today_earnings: 0, total_earnings: 0, completed_rides: 0 });
   const [requests, setRequests] = useState<DriverRequest[]>([]);
+  const [activeJobs, setActiveJobs] = useState<DriverRequest[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -46,6 +57,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
       if (requestsRes.status === 'fulfilled') {
         const data = requestsRes.value?.data?.data;
         setRequests(Array.isArray(data) ? data : []);
+        const activeData = requestsRes.value?.data?.active;
+        setActiveJobs(Array.isArray(activeData) ? activeData : []);
       }
     } catch (error) {
       console.error('Error fetching driver data:', error);
@@ -76,7 +89,14 @@ export default function RiderDashboardScreen({ navigation }: any) {
             text: 'Go Online',
             onPress: async () => {
               try {
-                await driverService.setAvailability({ available: true, latitude: 8.4343, longitude: 124.5000 });
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                let lat = 8.4343, lng = 124.5000;
+                if (status === 'granted') {
+                  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                  lat = loc.coords.latitude;
+                  lng = loc.coords.longitude;
+                }
+                await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
                 setIsOnline(true);
                 fetchData();
               } catch (error: any) {
@@ -98,9 +118,23 @@ export default function RiderDashboardScreen({ navigation }: any) {
   };
 
   const handleAcceptJob = (request: DriverRequest) => {
+    const fareAmount = request.estimated_fare || request.delivery_fee || 0;
+    const pickupAddr = request.pickup_location || request.pickup || 'Pickup';
+    const dropoffAddr = request.dropoff_location || request.dropoff || 'Dropoff';
+    const isDelivery = request.type === 'delivery';
+    const jobLabel = isDelivery ? 'Delivery' : 'Ride';
+
+    let details = `Accept ${jobLabel.toLowerCase()} for ₱${fareAmount.toFixed(0)}?\n\nPickup: ${pickupAddr}\nDropoff: ${dropoffAddr}`;
+    if (isDelivery && request.item_description) {
+      details += `\nItem: ${request.item_description}`;
+    }
+    if (request.passenger_name) {
+      details += `\nCustomer: ${request.passenger_name}`;
+    }
+
     Alert.alert(
-      'Accept Ride',
-      `Accept ride for ₱${request.estimated_fare?.toFixed(0)}?\n\nPickup: ${request.pickup_location}\nDropoff: ${request.dropoff_location}`,
+      `Accept ${jobLabel}`,
+      details,
       [
         { text: 'Decline', style: 'cancel' },
         {
@@ -108,10 +142,16 @@ export default function RiderDashboardScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await driverService.acceptRequest(request.id);
-              Alert.alert('Success', 'Ride accepted! Navigate to pickup location.');
               fetchData();
+              navigation.navigate('Tracking', {
+                type: isDelivery ? 'delivery' : 'ride',
+                rideId: request.id,
+                pickup: pickupAddr,
+                dropoff: dropoffAddr,
+                fare: fareAmount,
+              });
             } catch (error: any) {
-              const msg = error.response?.data?.error || 'Failed to accept ride';
+              const msg = error.response?.data?.error || 'Failed to accept request';
               Alert.alert('Error', msg);
             }
           },
@@ -126,11 +166,26 @@ export default function RiderDashboardScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  const getJobIcon = (vehicleType: string) => {
-    switch (vehicleType) {
+  const getJobIcon = (request: DriverRequest) => {
+    if (request.type === 'delivery') return 'cube';
+    switch (request.vehicle_type) {
       case 'motorcycle': return 'bicycle';
       case 'car': return 'car';
       default: return 'bicycle';
+    }
+  };
+
+  const getJobColor = (request: DriverRequest) => {
+    return request.type === 'delivery' ? '#3B82F6' : '#10B981';
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'accepted': return 'Accepted - Head to pickup';
+      case 'driver_arrived': return 'At pickup location';
+      case 'picked_up': return 'Item picked up';
+      case 'in_progress': return 'In progress';
+      default: return status;
     }
   };
 
@@ -191,6 +246,45 @@ export default function RiderDashboardScreen({ navigation }: any) {
           />
         </View>
 
+        {/* Active Jobs Banner */}
+        {activeJobs.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Active Jobs</Text>
+            {activeJobs.map((job) => (
+              <TouchableOpacity
+                key={`active-${job.type}-${job.id}`}
+                style={styles.activeJobCard}
+                onPress={() => navigation.navigate('Tracking', {
+                  type: job.type === 'delivery' ? 'delivery' : 'ride',
+                  rideId: job.id,
+                  pickup: job.pickup_location || job.pickup || 'Pickup',
+                  dropoff: job.dropoff_location || job.dropoff || 'Dropoff',
+                  fare: job.estimated_fare || job.delivery_fee || 0,
+                })}
+              >
+                <View style={[styles.activeJobIcon, { backgroundColor: `${getJobColor(job)}20` }]}>
+                  <Ionicons name={getJobIcon(job) as any} size={24} color={getJobColor(job)} />
+                </View>
+                <View style={styles.activeJobInfo}>
+                  <Text style={styles.activeJobTitle}>
+                    {job.type === 'delivery' ? 'Delivery' : 'Ride'} #{job.id}
+                  </Text>
+                  <Text style={styles.activeJobStatus}>{getStatusLabel(job.status)}</Text>
+                  <Text style={styles.activeJobRoute} numberOfLines={1}>
+                    {job.pickup_location || job.pickup} → {job.dropoff_location || job.dropoff}
+                  </Text>
+                </View>
+                <View style={styles.activeJobRight}>
+                  <Text style={[styles.activeJobFare, { color: getJobColor(job) }]}>
+                    ₱{(job.estimated_fare || job.delivery_fee || 0).toFixed(0)}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Today's Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Summary</Text>
@@ -199,7 +293,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <View style={[styles.statIcon, { backgroundColor: '#DCFCE7' }]}>
                 <Ionicons name="cash" size={24} color="#10B981" />
               </View>
-              <Text style={styles.statValue}>₱{earnings.daily_earnings || 0}</Text>
+              <Text style={styles.statValue}>₱{earnings.today_earnings || 0}</Text>
               <Text style={styles.statLabel}>Today</Text>
             </View>
             <View style={styles.statCard}>
@@ -213,7 +307,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="bicycle" size={24} color="#F59E0B" />
               </View>
-              <Text style={styles.statValue}>{earnings.total_rides || 0}</Text>
+              <Text style={styles.statValue}>{earnings.completed_rides || 0}</Text>
               <Text style={styles.statLabel}>Rides</Text>
             </View>
             <View style={styles.statCard}>
@@ -242,7 +336,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
             <Ionicons name="stats-chart-outline" size={24} color="#3B82F6" />
             <Text style={styles.quickActionText}>Stats</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionButton}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => Alert.alert('Help', 'For rider support, contact us at support@omji.app')}
+          >
             <Ionicons name="help-circle-outline" size={24} color="#6B7280" />
             <Text style={styles.quickActionText}>Help</Text>
           </TouchableOpacity>
@@ -267,27 +364,27 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     <View
                       style={[
                         styles.jobIcon,
-                        { backgroundColor: '#10B98120' },
+                        { backgroundColor: `${getJobColor(request)}20` },
                       ]}
                     >
                       <Ionicons
-                        name={getJobIcon(request.vehicle_type) as any}
+                        name={getJobIcon(request) as any}
                         size={24}
-                        color="#10B981"
+                        color={getJobColor(request)}
                       />
                     </View>
                     <View style={styles.jobHeaderInfo}>
                       <Text style={styles.jobService}>
-                        {request.vehicle_type === 'motorcycle' ? 'Motorcycle' : 'Car'} Ride
+                        {request.type === 'delivery' ? 'Delivery' : request.vehicle_type === 'motorcycle' ? 'Motorcycle Ride' : request.vehicle_type === 'car' ? 'Car Ride' : 'Ride'}
                       </Text>
                       <View style={styles.jobMetrics}>
                         <Text style={styles.jobMetric}>
-                          {request.distance?.toFixed(1) || '0'} km
+                          {(request.distance_km || request.distance || 0).toFixed(1)} km
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.jobFare}>
-                      ₱{request.estimated_fare?.toFixed(0) || '0'}
+                    <Text style={[styles.jobFare, { color: getJobColor(request) }]}>
+                      ₱{(request.estimated_fare || request.delivery_fee || 0).toFixed(0)}
                     </Text>
                   </View>
 
@@ -295,7 +392,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     <View style={styles.locationRow}>
                       <View style={styles.locationDot} />
                       <Text style={styles.locationText} numberOfLines={1}>
-                        {request.pickup_location}
+                        {request.pickup_location || request.pickup || 'Pickup'}
                       </Text>
                     </View>
                     <View style={styles.locationConnector} />
@@ -304,25 +401,36 @@ export default function RiderDashboardScreen({ navigation }: any) {
                         style={[styles.locationDot, styles.locationDotDropoff]}
                       />
                       <Text style={styles.locationText} numberOfLines={1}>
-                        {request.dropoff_location}
+                        {request.dropoff_location || request.dropoff || 'Dropoff'}
                       </Text>
                     </View>
                   </View>
 
-                  {request.user?.name && (
+                  {!!(request.passenger_name || request.user?.name || request.User?.name) && (
                     <View style={styles.passengersInfo}>
                       <Ionicons name="person" size={16} color="#6B7280" />
                       <Text style={styles.passengersText}>
-                        {request.user.name}
+                        {request.passenger_name || request.user?.name || request.User?.name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {!!(request.type === 'delivery' && request.item_description) && (
+                    <View style={[styles.passengersInfo, { marginTop: request.passenger_name ? 4 : 0 }]}>
+                      <Ionicons name="cube-outline" size={16} color="#3B82F6" />
+                      <Text style={[styles.passengersText, { color: '#3B82F6' }]} numberOfLines={1}>
+                        {request.item_description}
                       </Text>
                     </View>
                   )}
 
                   <TouchableOpacity
-                    style={styles.acceptButton}
+                    style={[styles.acceptButton, { backgroundColor: getJobColor(request) }]}
                     onPress={() => handleAcceptJob(request)}
                   >
-                    <Text style={styles.acceptButtonText}>Accept Ride</Text>
+                    <Text style={styles.acceptButtonText}>
+                      Accept {request.type === 'delivery' ? 'Delivery' : 'Ride'}
+                    </Text>
                     <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
@@ -672,5 +780,56 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  activeJobCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  activeJobIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeJobInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  activeJobTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  activeJobStatus: {
+    fontSize: 13,
+    color: '#F59E0B',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  activeJobRoute: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  activeJobRight: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+  },
+  activeJobFare: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
 });

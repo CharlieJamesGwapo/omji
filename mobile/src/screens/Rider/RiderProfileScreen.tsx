@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,39 +7,61 @@ import {
   StyleSheet,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { driverService } from '../../services/api';
 
 export default function RiderProfileScreen({ navigation }: any) {
-  const { logout } = useAuth();
-  const riderProfile = {
-    name: 'Juan Dela Cruz',
-    email: 'juan.delacruz@example.com',
-    phone: '+63 912 345 6789',
-    avatar: 'https://via.placeholder.com/100?text=Rider',
-    rating: 4.9,
-    totalRides: 245,
-    vehicleType: 'Motorcycle',
-    plateNumber: 'ABC 1234',
-    licenseNumber: 'N01-23-456789',
-    joinedDate: 'January 2024',
+  const { user, logout } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [earningsData, setEarningsData] = useState<any>({});
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const res = await driverService.getEarnings();
+      setEarningsData(res.data?.data || {});
+    } catch (error) {
+      console.error('Error fetching rider data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const riderProfile = {
+    name: user?.name || 'Rider',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
+    rating: user?.rating || earningsData.rating || 5.0,
+    totalRides: earningsData.completed_rides || 0,
+    vehicleType: 'Motorcycle',
+    plateNumber: '-',
+    licenseNumber: '-',
+    joinedDate: 'Member',
+  };
+
+  const totalRides = riderProfile.totalRides;
+
   const stats = [
-    { label: 'Total Rides', value: '245', icon: 'bicycle', color: '#3B82F6' },
-    { label: 'Rating', value: '4.9', icon: 'star', color: '#FBBF24' },
-    { label: 'Acceptance', value: '95%', icon: 'checkmark-circle', color: '#10B981' },
-    { label: 'Completion', value: '98%', icon: 'checkmark-done', color: '#10B981' },
+    { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: '#3B82F6' },
+    { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: '#FBBF24' },
+    { label: 'Acceptance', value: totalRides > 0 ? '95%' : '-', icon: 'checkmark-circle', color: '#10B981' },
+    { label: 'Completion', value: totalRides > 0 ? '98%' : '-', icon: 'checkmark-done', color: '#10B981' },
   ];
 
   const achievements = [
-    { title: '100 Rides', icon: 'trophy', color: '#FBBF24', earned: true },
-    { title: '5-Star Rider', icon: 'star', color: '#FBBF24', earned: true },
-    { title: 'Early Bird', icon: 'sunny', color: '#F59E0B', earned: true },
-    { title: '200 Rides', icon: 'trophy', color: '#3B82F6', earned: true },
-    { title: 'Night Owl', icon: 'moon', color: '#6366F1', earned: false },
-    { title: '500 Rides', icon: 'trophy', color: '#EF4444', earned: false },
+    { title: 'First Ride', icon: 'trophy', color: '#FBBF24', earned: totalRides >= 1 },
+    { title: '5-Star Rider', icon: 'star', color: '#FBBF24', earned: riderProfile.rating >= 4.5 },
+    { title: '10 Rides', icon: 'sunny', color: '#F59E0B', earned: totalRides >= 10 },
+    { title: '50 Rides', icon: 'trophy', color: '#3B82F6', earned: totalRides >= 50 },
+    { title: '100 Rides', icon: 'moon', color: '#6366F1', earned: totalRides >= 100 },
+    { title: '500 Rides', icon: 'trophy', color: '#EF4444', earned: totalRides >= 500 },
   ];
 
   const menuSections = [
