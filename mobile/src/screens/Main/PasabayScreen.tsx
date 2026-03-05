@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { rideService } from '../../services/api';
+import * as Location from 'expo-location';
+import { rideService, rideShareService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 
 export default function PasabayScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
   const [showDropoffMap, setShowDropoffMap] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(true);
 
   const [pickupLocation, setPickupLocation] = useState({
     address: '',
@@ -30,11 +32,73 @@ export default function PasabayScreen({ navigation }: any) {
     longitude: 0,
   });
 
+  // Auto-detect current location as pickup
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setDetectingLocation(false); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const result = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+        const addr = result?.[0];
+        const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
+        const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
+        setPickupLocation({
+          address: formatted || 'Current Location',
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      } catch (e) {
+        console.log('Auto-detect location failed:', e);
+      } finally {
+        setDetectingLocation(false);
+      }
+    })();
+  }, []);
+
   const [passengers, setPassengers] = useState(1);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [rideType, setRideType] = useState('single');
   const [loading, setLoading] = useState(false);
+  const [availableRides, setAvailableRides] = useState<any[]>([]);
+  const [loadingRides, setLoadingRides] = useState(false);
+  const [mode, setMode] = useState<'book' | 'join'>('book');
+
+  const fetchAvailableRides = useCallback(async () => {
+    setLoadingRides(true);
+    try {
+      const response = await rideShareService.getAvailableRideShares();
+      const data = response.data?.data;
+      setAvailableRides(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching rideshares:', error);
+      setAvailableRides([]);
+    } finally {
+      setLoadingRides(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAvailableRides();
+  }, [fetchAvailableRides]);
+
+  const handleJoinRideShare = async (rideShareId: number) => {
+    try {
+      setLoading(true);
+      await rideShareService.joinRideShare(rideShareId);
+      Alert.alert('Joined!', 'You have successfully joined this ride share.');
+      fetchAvailableRides();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to join ride share';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const rideTypes = [
     { id: 'single', name: 'Single Ride', icon: 'bicycle', basePrice: 40, vehicleType: 'motorcycle' },
@@ -103,14 +167,14 @@ export default function PasabayScreen({ navigation }: any) {
                 dropoff_longitude: dropoffLocation.longitude,
                 vehicle_type: vehicleType,
               });
-              const ride = response.data.data;
+              const ride = response.data?.data || {};
               Alert.alert(
                 'Ride Booked!',
                 `Fare: ₱${ride.estimated_fare?.toFixed(2) || estimatedFare.toFixed(2)}\nLooking for nearby riders...`,
               );
               navigation.navigate('Tracking', {
                 type: 'ride',
-                rideId: ride.id,
+                rideId: ride.id || 0,
                 pickup: pickupLocation.address,
                 dropoff: dropoffLocation.address,
                 fare: ride.estimated_fare || estimatedFare,
@@ -138,6 +202,66 @@ export default function PasabayScreen({ navigation }: any) {
         </Text>
       </View>
 
+      {/* Mode Toggle */}
+      <View style={styles.modeToggle}>
+        <TouchableOpacity
+          style={[styles.modeButton, mode === 'book' && styles.modeButtonActive]}
+          onPress={() => setMode('book')}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={mode === 'book' ? '#ffffff' : '#6B7280'} />
+          <Text style={[styles.modeText, mode === 'book' && styles.modeTextActive]}>Book a Ride</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeButton, mode === 'join' && styles.modeButtonActive]}
+          onPress={() => { setMode('join'); fetchAvailableRides(); }}
+        >
+          <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#ffffff' : '#6B7280'} />
+          <Text style={[styles.modeText, mode === 'join' && styles.modeTextActive]}>Join a Ride</Text>
+        </TouchableOpacity>
+      </View>
+
+      {mode === 'join' ? (
+        <View style={styles.section}>
+          <Text style={styles.label}>Available Ride Shares</Text>
+          {loadingRides ? (
+            <ActivityIndicator size="large" color="#10B981" style={{ marginVertical: 40 }} />
+          ) : availableRides.length > 0 ? (
+            availableRides.map((ride: any) => (
+              <View key={ride.id} style={styles.rideShareCard}>
+                <View style={styles.rideShareHeader}>
+                  <Ionicons name="car" size={24} color="#10B981" />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.rideShareRoute}>{ride.pickup || ride.pickup_location} → {ride.dropoff || ride.dropoff_location}</Text>
+                    <Text style={styles.rideShareInfo}>
+                      {ride.available_seats || ride.total_seats || '?'} seats available · ₱{ride.base_fare || ride.estimated_fare || 0}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.joinButton}
+                  onPress={() => handleJoinRideShare(ride.id)}
+                  disabled={loading}
+                >
+                  <Text style={styles.joinButtonText}>Join Ride</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyRides}>
+              <Ionicons name="car-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No available ride shares right now</Text>
+              <Text style={styles.emptySubtext}>Book your own ride instead</Text>
+              <TouchableOpacity
+                style={styles.switchModeButton}
+                onPress={() => setMode('book')}
+              >
+                <Text style={styles.switchModeText}>Book a Ride</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      ) : (
+        <>
       {/* Ride Type Selection */}
       <View style={styles.section}>
         <Text style={styles.label}>Select Ride Type</Text>
@@ -185,9 +309,16 @@ export default function PasabayScreen({ navigation }: any) {
           onPress={() => setShowPickupMap(true)}
         >
           <Ionicons name="location-outline" size={20} color="#10B981" />
-          <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
-            {pickupLocation.address || 'Select pickup location on map'}
-          </Text>
+          {detectingLocation ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <ActivityIndicator size="small" color="#10B981" />
+              <Text style={{ marginLeft: 8, color: '#6B7280', fontSize: 14 }}>Detecting your location...</Text>
+            </View>
+          ) : (
+            <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
+              {pickupLocation.address || 'Select pickup location on map'}
+            </Text>
+          )}
           <Ionicons name="navigate" size={20} color="#10B981" />
         </TouchableOpacity>
       </View>
@@ -322,6 +453,8 @@ export default function PasabayScreen({ navigation }: any) {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
+        </>
+      )}
 
       {/* Pickup Map Modal */}
       <Modal visible={showPickupMap} animationType="slide">
@@ -593,5 +726,93 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     color: '#9CA3AF',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    margin: 20,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  modeButtonActive: {
+    backgroundColor: '#10B981',
+  },
+  modeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modeTextActive: {
+    color: '#ffffff',
+  },
+  rideShareCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  rideShareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rideShareRoute: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  rideShareInfo: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  joinButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  joinButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyRides: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginTop: 8,
+  },
+  switchModeButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    marginTop: 16,
+  },
+  switchModeText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

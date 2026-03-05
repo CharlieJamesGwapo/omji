@@ -48,12 +48,12 @@ const PromosPage: React.FC = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Promo Codes</h1>
-          <p className="text-gray-500">{promos.length} total promos</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Promo Codes</h1>
+          <p className="text-gray-500 text-sm">{promos.length} total promos</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto">
           {showForm ? 'Cancel' : '+ Create Promo'}
         </button>
       </div>
@@ -83,42 +83,68 @@ const PromosPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Code</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Description</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Discount</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Usage</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Applies To</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {promos.map((promo) => (
-              <tr key={promo.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-mono font-bold text-blue-600">{promo.code}</td>
-                <td className="px-6 py-4 text-sm text-gray-600">{promo.description}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}
-                  {promo.max_discount > 0 && <span className="text-gray-400 text-xs ml-1">(max P{promo.max_discount})</span>}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">{promo.usage_count || 0} / {promo.usage_limit}</td>
-                <td className="px-6 py-4"><span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 capitalize">{promo.applicable_to}</span></td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded-full ${promo.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {promo.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
-                </td>
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-4">
+        {promos.map((promo) => (
+          <div key={promo.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex justify-between items-start mb-3">
+              <span className="font-mono font-bold text-blue-600">{promo.code}</span>
+              <span className={`px-2 py-1 text-xs rounded-full ${promo.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {promo.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">{promo.description}</p>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div><span className="text-gray-500">Discount:</span> <span className="font-medium">{promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}</span></div>
+              <div><span className="text-gray-500">Usage:</span> <span className="font-medium">{promo.usage_count || 0}/{promo.usage_limit}</span></div>
+              <div><span className="text-gray-500">Applies to:</span> <span className="capitalize font-medium">{promo.applicable_to}</span></div>
+              {promo.max_discount > 0 && <div><span className="text-gray-500">Max:</span> <span className="font-medium">P{promo.max_discount}</span></div>}
+            </div>
+            <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+          </div>
+        ))}
+        {promos.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl">No promos yet</div>}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Code</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Description</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Discount</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Usage</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Applies To</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {promos.map((promo) => (
+                <tr key={promo.id} className="hover:bg-gray-50">
+                  <td className="px-4 lg:px-6 py-4 text-sm font-mono font-bold text-blue-600">{promo.code}</td>
+                  <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.description}</td>
+                  <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                    {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}
+                    {promo.max_discount > 0 && <span className="text-gray-400 text-xs ml-1">(max P{promo.max_discount})</span>}
+                  </td>
+                  <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.usage_count || 0} / {promo.usage_limit}</td>
+                  <td className="px-4 lg:px-6 py-4"><span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 capitalize">{promo.applicable_to}</span></td>
+                  <td className="px-4 lg:px-6 py-4">
+                    <span className={`px-2 py-1 text-xs rounded-full ${promo.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {promo.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-4 lg:px-6 py-4">
+                    <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {promos.length === 0 && <div className="text-center py-12 text-gray-400">No promos yet</div>}
       </div>
     </div>

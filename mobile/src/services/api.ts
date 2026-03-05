@@ -1,14 +1,11 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Change this to your machine's local IP for physical device testing
-// For physical device: use your computer's local IP
-// For simulator: use localhost
-const API_BASE_URL = 'http://192.168.0.28:8080/api/v1';
+const API_BASE_URL = 'https://omji-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // Increased to 30 seconds
+  timeout: 120000,
 });
 
 // Add token to requests
@@ -19,6 +16,28 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+// Handle 401 responses - clear expired/invalid tokens
+let onUnauthorized: (() => void) | null = null;
+
+export const setOnUnauthorized = (callback: () => void) => {
+  onUnauthorized = callback;
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token is expired or invalid - clear stored auth
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      if (onUnauthorized) {
+        onUnauthorized();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth Services
 export const authService = {

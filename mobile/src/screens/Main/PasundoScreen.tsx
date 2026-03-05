@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { rideService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 
 export default function PasundoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
   const [showDropoffMap, setShowDropoffMap] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(true);
 
   const [pickupLocation, setPickupLocation] = useState({
     address: '',
@@ -29,6 +31,33 @@ export default function PasundoScreen({ navigation }: any) {
     latitude: 0,
     longitude: 0,
   });
+
+  // Auto-detect current location as pickup
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setDetectingLocation(false); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const result = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+        const addr = result?.[0];
+        const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
+        const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
+        setPickupLocation({
+          address: formatted || 'Current Location',
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      } catch (e) {
+        console.log('Auto-detect location failed:', e);
+      } finally {
+        setDetectingLocation(false);
+      }
+    })();
+  }, []);
 
   const [pickupType, setPickupType] = useState('person');
   const [personName, setPersonName] = useState('');
@@ -103,14 +132,14 @@ export default function PasundoScreen({ navigation }: any) {
                 dropoff_longitude: dropoffLocation.longitude,
                 vehicle_type: 'motorcycle',
               });
-              const ride = response.data.data;
+              const ride = response.data?.data || {};
               Alert.alert(
                 'Ride Booked!',
                 `Fare: ₱${ride.estimated_fare?.toFixed(2) || estimatedFare.toFixed(2)}\nLooking for nearby riders...`,
               );
               navigation.navigate('Tracking', {
-                type: 'pickup',
-                rideId: ride.id,
+                type: 'ride',
+                rideId: ride.id || 0,
                 pickup: pickupLocation.address,
                 dropoff: dropoffLocation.address,
                 fare: ride.estimated_fare || estimatedFare,
@@ -210,9 +239,16 @@ export default function PasundoScreen({ navigation }: any) {
           onPress={() => setShowPickupMap(true)}
         >
           <Ionicons name="location-outline" size={20} color="#F59E0B" />
-          <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
-            {pickupLocation.address || 'Select where to pick up on map'}
-          </Text>
+          {detectingLocation ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <ActivityIndicator size="small" color="#F59E0B" />
+              <Text style={{ marginLeft: 8, color: '#6B7280', fontSize: 14 }}>Detecting your location...</Text>
+            </View>
+          ) : (
+            <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
+              {pickupLocation.address || 'Select where to pick up on map'}
+            </Text>
+          )}
           <Ionicons name="navigate" size={20} color="#F59E0B" />
         </TouchableOpacity>
       </View>

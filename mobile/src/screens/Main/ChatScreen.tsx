@@ -13,7 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ChatScreen({ route, navigation }: any) {
-  const { rider } = route.params || {
+  const { rider: routeRider } = route.params || {};
+  const rider = routeRider || {
     name: 'Juan Dela Cruz',
     rating: 4.8,
     photo: 'https://via.placeholder.com/50?text=Rider',
@@ -68,7 +69,7 @@ export default function ChatScreen({ route, navigation }: any) {
       }),
     };
 
-    setMessages([...messages, newMessage]);
+    setMessages(prev => [...prev, newMessage]);
     setMessage('');
 
     // Simulate rider reply

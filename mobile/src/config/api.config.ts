@@ -3,18 +3,14 @@
 
 const ENV = {
   dev: {
-    apiUrl: 'http://192.168.0.28:8080/api/v1',
+    apiUrl: 'https://omji-backend.onrender.com/api/v1',
   },
   prod: {
     apiUrl: 'https://omji-backend.onrender.com/api/v1',
   },
 };
 
-// Automatically use production in production builds
 const getEnvVars = () => {
-  if (__DEV__) {
-    return ENV.dev;
-  }
   return ENV.prod;
 };
 

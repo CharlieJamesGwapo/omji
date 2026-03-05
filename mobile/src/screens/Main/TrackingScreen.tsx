@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { rideService, deliveryService } from '../../services/api';
 
 const { width, height } = Dimensions.get('window');
 
 export default function TrackingScreen({ route, navigation }: any) {
-  const { rideId, pickup, dropoff, fare, type = 'delivery' } = route.params || {};
+  const { rideId, pickup, dropoff, fare, type = 'ride' } = route.params || {};
+  const mapRef = useRef<MapView>(null);
   const [status, setStatus] = useState('pending');
   const [rideData, setRideData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,9 +40,9 @@ export default function TrackingScreen({ route, navigation }: any) {
       const response = type === 'delivery'
         ? await deliveryService.getDeliveryDetails(rideId)
         : await rideService.getRideDetails(rideId);
-      const data = response.data.data;
+      const data = response.data?.data;
       setRideData(data);
-      setStatus(data.status || 'pending');
+      setStatus(data?.status || 'pending');
     } catch (error) {
       console.error('Error fetching ride details:', error);
     } finally {
@@ -91,10 +92,16 @@ export default function TrackingScreen({ route, navigation }: any) {
     ]);
   };
 
-  const pickupLabel = rideData?.pickup_location || pickup || 'Pickup';
-  const dropoffLabel = rideData?.dropoff_location || dropoff || 'Dropoff';
-  const ridefare = rideData?.estimated_fare || rideData?.fare || fare || 0;
-  const driverInfo = rideData?.driver;
+  // Delivery uses: pickup_location, dropoff_location, pickup_latitude, pickup_longitude, delivery_fee
+  // Ride uses: pickup, dropoff, pickup_lat, pickup_lng, estimated_fare
+  const pickupLabel = rideData?.pickup_location || rideData?.pickup || pickup || 'Pickup';
+  const dropoffLabel = rideData?.dropoff_location || rideData?.dropoff || dropoff || 'Dropoff';
+  const ridefare = rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
+  const pickupLat = rideData?.pickup_latitude || rideData?.pickup_lat || 8.4343;
+  const pickupLng = rideData?.pickup_longitude || rideData?.pickup_lng || 124.5000;
+  const dropoffLat = rideData?.dropoff_latitude || rideData?.dropoff_lat || 8.4400;
+  const dropoffLng = rideData?.dropoff_longitude || rideData?.dropoff_lng || 124.5050;
+  const driverInfo = rideData?.driver || rideData?.Driver;
 
   if (loading) {
     return (
@@ -109,48 +116,76 @@ export default function TrackingScreen({ route, navigation }: any) {
     <View style={styles.container}>
       {/* Map */}
       <MapView
+        ref={mapRef}
         provider={PROVIDER_DEFAULT}
         style={styles.map}
         initialRegion={{
-          latitude: rideData?.pickup_latitude || 8.4343,
-          longitude: rideData?.pickup_longitude || 124.5000,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
+          latitude: (pickupLat + dropoffLat) / 2,
+          longitude: (pickupLng + dropoffLng) / 2,
+          latitudeDelta: Math.abs(pickupLat - dropoffLat) * 2.5 + 0.01,
+          longitudeDelta: Math.abs(pickupLng - dropoffLng) * 2.5 + 0.01,
+        }}
+        showsUserLocation
+        showsMyLocationButton={false}
+        onLayout={() => {
+          const coords = [
+            { latitude: pickupLat, longitude: pickupLng },
+            { latitude: dropoffLat, longitude: dropoffLng },
+          ];
+          if (driverInfo?.latitude) {
+            coords.push({ latitude: driverInfo.latitude, longitude: driverInfo.longitude });
+          }
+          mapRef.current?.fitToCoordinates(coords, {
+            edgePadding: { top: 80, right: 60, bottom: height * 0.45, left: 60 },
+            animated: false,
+          });
         }}
       >
+        {/* Route line */}
+        <Polyline
+          coordinates={[
+            { latitude: pickupLat, longitude: pickupLng },
+            { latitude: dropoffLat, longitude: dropoffLng },
+          ]}
+          strokeColor="#3B82F6"
+          strokeWidth={4}
+          lineDashPattern={[0]}
+        />
+
         <Marker
           coordinate={{
-            latitude: rideData?.pickup_latitude || 8.4343,
-            longitude: rideData?.pickup_longitude || 124.5000,
+            latitude: pickupLat,
+            longitude: pickupLng,
           }}
           title={pickupLabel}
         >
           <View style={styles.markerPickup}>
-            <Ionicons name="location" size={24} color="#10B981" />
+            <Ionicons name="radio-button-on" size={16} color="#ffffff" />
           </View>
         </Marker>
 
         <Marker
           coordinate={{
-            latitude: rideData?.dropoff_latitude || 8.4400,
-            longitude: rideData?.dropoff_longitude || 124.5050,
+            latitude: dropoffLat,
+            longitude: dropoffLng,
           }}
           title={dropoffLabel}
         >
           <View style={styles.markerDropoff}>
-            <Ionicons name="flag" size={24} color="#EF4444" />
+            <Ionicons name="flag" size={16} color="#ffffff" />
           </View>
         </Marker>
 
         {driverInfo && status !== 'pending' && (
           <Marker
             coordinate={{
-              latitude: driverInfo.latitude || 8.4370,
-              longitude: driverInfo.longitude || 124.5025,
+              latitude: driverInfo.latitude || pickupLat,
+              longitude: driverInfo.longitude || pickupLng,
             }}
+            title={driverInfo.name || 'Rider'}
           >
             <View style={styles.markerRider}>
-              <Ionicons name="bicycle" size={20} color="#ffffff" />
+              <Ionicons name="bicycle" size={18} color="#ffffff" />
             </View>
           </Marker>
         )}
@@ -280,7 +315,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                 <Ionicons name="speedometer-outline" size={20} color="#6B7280" />
                 <Text style={styles.fareLabel}>Distance</Text>
                 <Text style={styles.fareValue}>
-                  {rideData?.distance_km?.toFixed(1) || rideData?.distance?.toFixed(1) || '—'} km
+                  {(rideData?.distance_km || rideData?.distance || 0).toFixed(1)} km
                 </Text>
               </View>
               <View style={styles.fareDivider} />
@@ -331,24 +366,34 @@ const styles = StyleSheet.create({
     height: height * 0.5,
   },
   markerPickup: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   markerDropoff: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   markerRider: {
     width: 36,
@@ -359,6 +404,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   backButton: {
     position: 'absolute',

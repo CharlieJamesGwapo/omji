@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '../services/api';
+import { authService, setOnUnauthorized } from '../services/api';
 
 interface User {
   id: number;
@@ -30,6 +30,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     loadUser();
+    // Auto-logout on 401 (expired/invalid token)
+    setOnUnauthorized(() => setUser(null));
   }, []);
 
   const loadUser = async () => {
@@ -61,7 +63,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('✅ Login response received:', response.data);
 
       // Backend returns: { success: true, data: { token, user } }
-      const { token, user: userData } = response.data.data;
+      const data = response.data?.data;
+      if (!data?.token || !data?.user) {
+        throw new Error('Invalid login response from server');
+      }
+      const { token, user: userData } = data;
 
       await AsyncStorage.setItem('token', token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
@@ -82,7 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('✅ Register response received:', response.data);
 
       // Backend returns: { success: true, data: { token, user, otp } }
-      const { token, user: userData } = response.data.data;
+      const data = response.data?.data;
+      if (!data?.token || !data?.user) {
+        throw new Error('Invalid registration response from server');
+      }
+      const { token, user: userData } = data;
 
       await AsyncStorage.setItem('token', token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));

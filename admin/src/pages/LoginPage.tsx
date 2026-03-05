@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../services/api';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.com/api/v1';
+const HEALTH_URL = API_URL.replace('/api/v1', '/health');
 
 interface LoginPageProps {
   onLogin: (token: string, user: any) => void;
@@ -10,6 +14,27 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'waking'>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+    const wakeServer = async () => {
+      try {
+        await axios.get(HEALTH_URL, { timeout: 5000 });
+        if (!cancelled) setServerStatus('online');
+      } catch {
+        if (!cancelled) setServerStatus('waking');
+        try {
+          await axios.get(HEALTH_URL, { timeout: 120000 });
+          if (!cancelled) setServerStatus('online');
+        } catch {
+          if (!cancelled) setServerStatus('waking');
+        }
+      }
+    };
+    wakeServer();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +60,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
       onLogin(token, user);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      if (err.code === 'ECONNABORTED' || !err.response) {
+        setError('Server is starting up. Please wait a moment and try again.');
+        setServerStatus('waking');
+        // Retry waking the server
+        axios.get(HEALTH_URL, { timeout: 120000 }).then(() => setServerStatus('online')).catch(() => {});
+      } else {
+        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      }
     }
     setLoading(false);
   };
@@ -44,17 +76,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo Section */}
-        <div className="text-center mb-8">
-          <div className="w-24 h-24 bg-red-50 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-red-600 shadow-lg shadow-red-600/30 overflow-hidden">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-red-50 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center border-4 border-red-600 shadow-lg shadow-red-600/30 overflow-hidden">
             <img src="/logo.png" alt="OMJI Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-4xl font-bold text-red-600 mb-1 tracking-wide">OMJI</h1>
-          <p className="text-gray-600 text-sm font-medium">Admin Dashboard</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-red-600 mb-1 tracking-wide">OMJI</h1>
+          <p className="text-gray-600 text-xs sm:text-sm font-medium">Admin Dashboard</p>
         </div>
 
+        {/* Server Status */}
+        {serverStatus !== 'online' && (
+          <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 ${
+            serverStatus === 'checking' ? 'bg-blue-50 text-blue-700' : 'bg-yellow-50 text-yellow-700'
+          }`}>
+            <svg className="w-5 h-5 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {serverStatus === 'checking' ? 'Connecting to server...' : 'Server is waking up, please wait...'}
+          </div>
+        )}
+        {serverStatus === 'online' && (
+          <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 bg-green-50 text-green-700">
+            <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0"></div>
+            Server is online
+          </div>
+        )}
+
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Welcome Back!</h2>
+        <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-8 border border-gray-100">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">Welcome Back!</h2>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">

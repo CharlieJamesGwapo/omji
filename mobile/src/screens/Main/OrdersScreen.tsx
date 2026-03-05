@@ -43,7 +43,7 @@ export default function OrdersScreen({ navigation }: any) {
       const allOrders: OrderItem[] = [];
 
       if (ridesRes.status === 'fulfilled') {
-        const ridesData = ridesRes.value.data.data;
+        const ridesData = ridesRes.value?.data?.data;
         if (Array.isArray(ridesData)) {
           ridesData.forEach((ride: any) => {
             allOrders.push({
@@ -51,12 +51,12 @@ export default function OrdersScreen({ navigation }: any) {
               type: 'ride',
               service: 'Pasundo',
               status: ride.status,
-              from: ride.pickup_location || '',
-              to: ride.dropoff_location || '',
+              from: ride.pickup_location || ride.pickup || '',
+              to: ride.dropoff_location || ride.dropoff || '',
               fare: ride.estimated_fare || 0,
               createdAt: ride.created_at || '',
-              driverName: ride.driver?.name,
-              driverRating: ride.driver?.rating,
+              driverName: ride.driver?.name || ride.Driver?.name,
+              driverRating: ride.driver?.rating || ride.Driver?.rating,
               icon: 'bicycle',
               color: '#10B981',
             });
@@ -65,7 +65,7 @@ export default function OrdersScreen({ navigation }: any) {
       }
 
       if (deliveriesRes.status === 'fulfilled') {
-        const deliveriesData = deliveriesRes.value.data.data;
+        const deliveriesData = deliveriesRes.value?.data?.data;
         if (Array.isArray(deliveriesData)) {
           deliveriesData.forEach((delivery: any) => {
             allOrders.push({
@@ -75,10 +75,10 @@ export default function OrdersScreen({ navigation }: any) {
               status: delivery.status,
               from: delivery.pickup_location || '',
               to: delivery.dropoff_location || '',
-              fare: delivery.estimated_fare || delivery.fare || 0,
+              fare: delivery.delivery_fee || delivery.estimated_fare || delivery.fare || 0,
               createdAt: delivery.created_at || '',
-              driverName: delivery.driver?.name,
-              driverRating: delivery.driver?.rating,
+              driverName: delivery.driver?.name || delivery.Driver?.name,
+              driverRating: delivery.driver?.rating || delivery.Driver?.rating,
               icon: 'cube',
               color: '#3B82F6',
             });
@@ -87,7 +87,7 @@ export default function OrdersScreen({ navigation }: any) {
       }
 
       if (ordersRes.status === 'fulfilled') {
-        const ordersData = ordersRes.value.data.data;
+        const ordersData = ordersRes.value?.data?.data;
         if (Array.isArray(ordersData)) {
           ordersData.forEach((order: any) => {
             allOrders.push({
@@ -158,8 +158,9 @@ export default function OrdersScreen({ navigation }: any) {
       key={`${order.type}-${order.id}`}
       style={styles.orderCard}
       onPress={() => {
-        if (order.type === 'ride') {
+        if (order.type === 'ride' || order.type === 'delivery') {
           navigation.navigate('Tracking', {
+            type: order.type === 'delivery' ? 'delivery' : 'ride',
             rideId: order.id,
             pickup: order.from,
             dropoff: order.to,
@@ -218,11 +219,12 @@ export default function OrdersScreen({ navigation }: any) {
           <Text style={styles.fareLabel}>Total Fare</Text>
           <Text style={styles.fareValue}>₱{order.fare?.toFixed(0) || '0'}</Text>
         </View>
-        {activeTab === 'ongoing' && order.type === 'ride' && (
+        {activeTab === 'ongoing' && (order.type === 'ride' || order.type === 'delivery') && (
           <TouchableOpacity
             style={styles.trackButton}
             onPress={() =>
               navigation.navigate('Tracking', {
+                type: order.type === 'delivery' ? 'delivery' : 'ride',
                 rideId: order.id,
                 pickup: order.from,
                 dropoff: order.to,

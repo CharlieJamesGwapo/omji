@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { deliveryService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 
 export default function PasugoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
   const [showDropoffMap, setShowDropoffMap] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(true);
 
   const [pickupLocation, setPickupLocation] = useState({
     address: '',
@@ -31,6 +33,33 @@ export default function PasugoScreen({ navigation }: any) {
     latitude: 0,
     longitude: 0,
   });
+
+  // Auto-detect current location as pickup
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setDetectingLocation(false); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const result = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+        const addr = result?.[0];
+        const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
+        const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
+        setPickupLocation({
+          address: formatted || 'Current Location',
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      } catch (e) {
+        console.log('Auto-detect location failed:', e);
+      } finally {
+        setDetectingLocation(false);
+      }
+    })();
+  }, []);
 
   const [itemDescription, setItemDescription] = useState('');
   const [notes, setNotes] = useState('');
@@ -107,17 +136,18 @@ export default function PasugoScreen({ navigation }: any) {
                 item_photo: itemPhoto || '',
                 notes: notes,
               });
-              const delivery = response.data.data;
+              const delivery = response.data?.data || {};
+              const finalFare = delivery.delivery_fee || delivery.estimated_fare || estimatedFare;
               Alert.alert(
                 'Delivery Booked!',
-                `Fare: ₱${delivery.estimated_fare?.toFixed(2) || estimatedFare.toFixed(2)}\nLooking for nearby riders...`,
+                `Fare: ₱${typeof finalFare === 'number' ? finalFare.toFixed(2) : finalFare}\nLooking for nearby riders...`,
               );
               navigation.navigate('Tracking', {
                 type: 'delivery',
-                rideId: delivery.id,
+                rideId: delivery.id || 0,
                 pickup: pickupLocation.address,
                 dropoff: dropoffLocation.address,
-                fare: delivery.estimated_fare || estimatedFare,
+                fare: finalFare,
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book delivery';
@@ -150,9 +180,16 @@ export default function PasugoScreen({ navigation }: any) {
           onPress={() => setShowPickupMap(true)}
         >
           <Ionicons name="location-outline" size={20} color="#DC2626" />
-          <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
-            {pickupLocation.address || 'Select pickup location on map'}
-          </Text>
+          {detectingLocation ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <ActivityIndicator size="small" color="#DC2626" />
+              <Text style={{ marginLeft: 8, color: '#6B7280', fontSize: 14 }}>Detecting your location...</Text>
+            </View>
+          ) : (
+            <Text style={[styles.input, !pickupLocation.address && styles.placeholder]}>
+              {pickupLocation.address || 'Select pickup location on map'}
+            </Text>
+          )}
           <Ionicons name="navigate" size={20} color="#DC2626" />
         </TouchableOpacity>
       </View>

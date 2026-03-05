@@ -40,11 +40,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
       ]);
 
       if (earningsRes.status === 'fulfilled') {
-        setEarnings(earningsRes.value.data.data || {});
+        setEarnings(earningsRes.value?.data?.data || {});
       }
 
       if (requestsRes.status === 'fulfilled') {
-        const data = requestsRes.value.data.data;
+        const data = requestsRes.value?.data?.data;
         setRequests(Array.isArray(data) ? data : []);
       }
     } catch (error) {

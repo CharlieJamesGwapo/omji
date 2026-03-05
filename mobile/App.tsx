@@ -59,6 +59,7 @@ const AuthStack = () => (
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
     <Stack.Screen name="OTP" component={OTPScreen} />
+    <Stack.Screen name="RiderRegistration" component={RiderRegistrationScreen} options={{ headerShown: true, title: 'Become a Rider', headerStyle: { backgroundColor: '#10B981' }, headerTintColor: '#ffffff' }} />
   </Stack.Navigator>
 );
 

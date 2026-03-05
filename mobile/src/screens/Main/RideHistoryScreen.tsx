@@ -13,14 +13,18 @@ import { rideService } from '../../services/api';
 
 interface RideItem {
   id: number;
-  pickup_location: string;
-  dropoff_location: string;
+  pickup_location?: string;
+  dropoff_location?: string;
+  pickup?: string;
+  dropoff?: string;
   status: string;
   vehicle_type: string;
   estimated_fare: number;
-  distance: number;
+  distance?: number;
+  distance_km?: number;
   created_at: string;
   driver?: { name: string; rating: number };
+  Driver?: { name: string; rating: number };
 }
 
 export default function RideHistoryScreen({ navigation }: any) {
@@ -32,7 +36,7 @@ export default function RideHistoryScreen({ navigation }: any) {
   const fetchRides = useCallback(async () => {
     try {
       const response = await rideService.getActiveRides();
-      const data = response.data.data;
+      const data = response.data?.data;
       setRides(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching rides:', error);
@@ -168,9 +172,10 @@ export default function RideHistoryScreen({ navigation }: any) {
               style={styles.rideCard}
               onPress={() =>
                 navigation.navigate('Tracking', {
+                  type: 'ride',
                   rideId: ride.id,
-                  pickup: ride.pickup_location,
-                  dropoff: ride.dropoff_location,
+                  pickup: ride.pickup || ride.pickup_location || '',
+                  dropoff: ride.dropoff || ride.dropoff_location || '',
                   fare: ride.estimated_fare,
                 })
               }
@@ -189,40 +194,40 @@ export default function RideHistoryScreen({ navigation }: any) {
                   <Text style={styles.rideService}>Pasundo Ride</Text>
                   <Text style={styles.rideDate}>{formatDate(ride.created_at)}</Text>
                 </View>
-                <Text style={styles.rideFare}>₱{ride.estimated_fare?.toFixed(0) || '0'}</Text>
+                <Text style={styles.rideFare}>₱{(ride.estimated_fare || 0).toFixed(0)}</Text>
               </View>
 
               <View style={styles.rideBody}>
                 <View style={styles.locationRow}>
                   <View style={styles.locationDot} />
                   <Text style={styles.locationText} numberOfLines={1}>
-                    {ride.pickup_location}
+                    {ride.pickup || ride.pickup_location || 'Pickup'}
                   </Text>
                 </View>
                 <View style={styles.locationConnector} />
                 <View style={styles.locationRow}>
                   <View style={[styles.locationDot, styles.locationDotDropoff]} />
                   <Text style={styles.locationText} numberOfLines={1}>
-                    {ride.dropoff_location}
+                    {ride.dropoff || ride.dropoff_location || 'Dropoff'}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.rideFooter}>
-                {ride.driver && (
+                {(ride.driver || ride.Driver) && (
                   <View style={styles.riderInfo}>
                     <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
-                    <Text style={styles.riderName}>{ride.driver.name}</Text>
+                    <Text style={styles.riderName}>{(ride.driver || ride.Driver)?.name}</Text>
                     <Ionicons name="star" size={12} color="#FBBF24" />
-                    <Text style={styles.riderRating}>{ride.driver.rating?.toFixed(1)}</Text>
+                    <Text style={styles.riderRating}>{(ride.driver || ride.Driver)?.rating?.toFixed(1)}</Text>
                   </View>
                 )}
                 <View style={styles.rideMetrics}>
                   <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ride.status) }]}>
                     <Text style={styles.statusText}>{ride.status}</Text>
                   </View>
-                  {ride.distance > 0 && (
-                    <Text style={styles.rideMetric}>{ride.distance.toFixed(1)} km</Text>
+                  {(ride.distance_km || ride.distance || 0) > 0 && (
+                    <Text style={styles.rideMetric}>{(ride.distance_km || ride.distance || 0).toFixed(1)} km</Text>
                   )}
                 </View>
               </View>

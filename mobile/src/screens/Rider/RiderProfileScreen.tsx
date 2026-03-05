@@ -9,8 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 
 export default function RiderProfileScreen({ navigation }: any) {
+  const { logout } = useAuth();
   const riderProfile = {
     name: 'Juan Dela Cruz',
     email: 'juan.delacruz@example.com',
@@ -79,10 +81,7 @@ export default function RiderProfileScreen({ navigation }: any) {
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
-          // Handle logout
-          navigation.navigate('Home');
-        },
+        onPress: () => logout(),
       },
     ]);
   };

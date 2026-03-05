@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 export default function StoreDetailScreen({ route, navigation }: any) {
-  const { store } = route.params;
+  const { store } = route.params || {};
   const [cartCount, setCartCount] = useState(0);
 
   const products = [
@@ -96,7 +96,9 @@ export default function StoreDetailScreen({ route, navigation }: any) {
       {/* Store Header */}
       <ScrollView>
         <View style={styles.storeHeader}>
-          <Image source={{ uri: store.image }} style={styles.headerImage} />
+          <View style={[styles.headerImage, { backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="storefront" size={64} color="#3B82F6" />
+          </View>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -109,30 +111,32 @@ export default function StoreDetailScreen({ route, navigation }: any) {
         </View>
 
         <View style={styles.storeInfo}>
-          <Text style={styles.storeName}>{store.name}</Text>
+          <Text style={styles.storeName}>{store?.name || 'Store'}</Text>
           <View style={styles.storeMetrics}>
             <View style={styles.metricItem}>
               <Ionicons name="star" size={16} color="#FBBF24" />
-              <Text style={styles.metricText}>{store.rating}</Text>
+              <Text style={styles.metricText}>{store.rating?.toFixed(1) || 'N/A'}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.metricText}>{store.deliveryTime}</Text>
+              <Text style={styles.metricText}>{store.deliveryTime || '20-30 min'}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Ionicons name="bicycle-outline" size={16} color="#6B7280" />
-              <Text style={styles.metricText}>₱{store.deliveryFee}</Text>
+              <Text style={styles.metricText}>₱{store.deliveryFee || 0}</Text>
             </View>
           </View>
-          <View style={styles.storeTags}>
-            {store.tags.map((tag: string, index: number) => (
-              <View key={index} style={styles.tagChip}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
+          {(store.tags || [store.category]).length > 0 && (
+            <View style={styles.storeTags}>
+              {(store.tags || [store.category].filter(Boolean)).map((tag: string, index: number) => (
+                <View key={index} style={styles.tagChip}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Category Filter */}

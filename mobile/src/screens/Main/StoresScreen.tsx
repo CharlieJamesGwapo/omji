@@ -44,7 +44,7 @@ export default function StoresScreen({ navigation }: any) {
     try {
       const category = selectedCategory === 'all' ? undefined : selectedCategory;
       const response = await storeService.getStores(category);
-      const data = response.data.data;
+      const data = response.data?.data;
       setStores(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching stores:', error);

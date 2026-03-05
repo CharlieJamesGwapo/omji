@@ -21,82 +21,165 @@ const navItems = [
   { path: '/promos', label: 'Promos', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
 ];
 
-const Sidebar: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, user }) => {
+const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClose: () => void }> = ({ onLogout, user, open, onClose }) => {
   const location = useLocation();
 
   return (
-    <div className="w-64 bg-gradient-to-b from-red-600 to-red-700 min-h-screen flex flex-col shadow-xl">
-      <div className="p-6 border-b border-red-500/30">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-md">
-            <img src="/logo.png" alt="OMJI Logo" className="w-full h-full object-cover" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">OMJI</h1>
-          </div>
-        </div>
-        <p className="text-red-100 text-xs font-medium">Admin Dashboard</p>
-      </div>
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden" onClick={onClose} />
+      )}
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-white text-red-600 shadow-lg'
-                  : 'text-red-50 hover:bg-red-500/50 hover:text-white'
-              }`}
-            >
+      {/* Sidebar */}
+      <div className={`
+        fixed lg:sticky top-0 left-0 z-50 h-screen
+        w-72 bg-white flex flex-col shadow-2xl border-r border-gray-200/80
+        transform transition-transform duration-300 ease-in-out
+        ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+      `}>
+        {/* Brand Header */}
+        <div className="p-5 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-red-600 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-red-600/25">
+                <img src="/logo.png" alt="OMJI Logo" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">OMJI</h1>
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest">Admin Panel</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="p-4 border-t border-red-500/30">
-        <div className="flex items-center gap-3 mb-3 px-2">
-          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-red-600 text-sm font-bold shadow-md">
-            {(user?.name || 'A')[0].toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">{user?.name || 'Admin'}</p>
-            <p className="text-xs text-red-100 truncate">{user?.email || ''}</p>
+            </button>
           </div>
         </div>
-        <button
-          onClick={onLogout}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-red-800/50 hover:bg-red-800 rounded-lg transition-all shadow-md hover:shadow-lg"
-        >
-          Logout
-        </button>
+
+        {/* Divider */}
+        <div className="mx-5 border-t border-gray-100" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-4 space-y-0.5 overflow-y-auto">
+          <p className="px-3 pb-2 pt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Menu</p>
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 group ${
+                  isActive
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
+                    : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
+                }`}
+              >
+                <svg className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${
+                  isActive ? 'text-white' : 'text-gray-400 group-hover:text-red-500'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                </svg>
+                <span className="truncate">{item.label}</span>
+                {isActive && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/80" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Section */}
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 px-2 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-md shadow-red-600/20 flex-shrink-0">
+              {(user?.name || 'A')[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'Admin'}</p>
+              <p className="text-xs text-gray-400 truncate">{user?.email || 'Administrator'}</p>
+            </div>
+          </div>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-500 bg-gray-50 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200 group"
+          >
+            <svg className="w-4 h-4 text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
 const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, user }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Get current page title
+  const currentPage = navItems.find(item => item.path === location.pathname);
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar onLogout={onLogout} user={user} />
-      <div className="flex-1 p-8 overflow-auto">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/drivers" element={<DriversPage />} />
-          <Route path="/rider-approval" element={<RiderApprovalPage />} />
-          <Route path="/activity-logs" element={<ActivityLogsPage />} />
-          <Route path="/stores" element={<StoresPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/promos" element={<PromosPage />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+    <div className="flex min-h-screen bg-gray-50/80">
+      <Sidebar onLogout={onLogout} user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar */}
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200/60 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="lg:hidden flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center overflow-hidden shadow-sm">
+                <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">OMJI</span>
+            </div>
+            <div className="hidden lg:block">
+              <h2 className="text-lg font-bold text-gray-900">{currentPage?.label || 'Dashboard'}</h2>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              Online
+            </div>
+            <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm lg:hidden">
+              {(user?.name || 'A')[0].toUpperCase()}
+            </div>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/drivers" element={<DriversPage />} />
+            <Route path="/rider-approval" element={<RiderApprovalPage />} />
+            <Route path="/activity-logs" element={<ActivityLogsPage />} />
+            <Route path="/stores" element={<StoresPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/promos" element={<PromosPage />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
       </div>
     </div>
   );
@@ -141,8 +224,11 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-400 text-sm font-medium">Loading...</p>
+        </div>
       </div>
     );
   }

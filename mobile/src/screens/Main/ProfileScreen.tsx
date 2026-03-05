@@ -27,32 +27,27 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       setLoading(true);
 
-      // Fetch rides
-      const ridesResponse = await rideService.getActiveRides();
-      const rides = Array.isArray(ridesResponse.data.data) ? ridesResponse.data.data : [];
+      const [ridesRes, ordersRes, deliveriesRes] = await Promise.allSettled([
+        rideService.getActiveRides(),
+        orderService.getActiveOrders(),
+        deliveryService.getActiveDeliveries(),
+      ]);
 
-      // Fetch orders
-      const ordersResponse = await orderService.getActiveOrders();
-      const orders = Array.isArray(ordersResponse.data.data) ? ordersResponse.data.data : [];
+      const rides = ridesRes.status === 'fulfilled' && Array.isArray(ridesRes.value?.data?.data)
+        ? ridesRes.value.data.data : [];
+      const orders = ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value?.data?.data)
+        ? ordersRes.value.data.data : [];
+      const deliveries = deliveriesRes.status === 'fulfilled' && Array.isArray(deliveriesRes.value?.data?.data)
+        ? deliveriesRes.value.data.data : [];
 
-      // Fetch deliveries
-      const deliveriesResponse = await deliveryService.getActiveDeliveries();
-      const deliveries = Array.isArray(deliveriesResponse.data.data) ? deliveriesResponse.data.data : [];
-
-      // Calculate total rides (including all types)
       const totalRides = rides.length + deliveries.length;
 
-      // Calculate total spent
       const ridesSpent = rides.reduce((sum: number, ride: any) => sum + (ride.final_fare || ride.estimated_fare || 0), 0);
       const ordersSpent = orders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0);
       const deliveriesSpent = deliveries.reduce((sum: number, delivery: any) => sum + (delivery.delivery_fee || 0), 0);
       const totalSpent = ridesSpent + ordersSpent + deliveriesSpent;
 
-      // Get rating from user profile
       const rating = user?.rating || 5.0;
-
-      // Calculate wallet balance (for now use 0, will be updated when wallet API is added)
-      const balance = 0;
 
       setStats({
         rides: totalRides,
@@ -60,10 +55,11 @@ export default function ProfileScreen({ navigation }: any) {
         spent: totalSpent,
       });
 
-      setWalletBalance(balance);
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-      // Keep default values on error
+      setWalletBalance(0);
+    } catch (error: any) {
+      if (error.response?.status !== 401) {
+        console.warn('Could not fetch user stats:', error.message);
+      }
     } finally {
       setLoading(false);
     }
