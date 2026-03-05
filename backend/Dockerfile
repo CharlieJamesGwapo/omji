@@ -3,9 +3,16 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
+# Set Go proxy with fallback
+ENV GOPROXY=https://proxy.golang.org,direct
+ENV GOSUMDB=sum.golang.org
+ENV CGO_ENABLED=0
+
 # Copy go mod files
 COPY go.mod go.sum ./
-RUN go mod download
+
+# Download dependencies with retry
+RUN go mod download || go mod download || go mod download
 
 # Copy source code
 COPY . .
