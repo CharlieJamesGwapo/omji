@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { rideService, rideShareService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import Toast, { ToastType } from '../../components/Toast';
 
 export default function PasabayScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -70,6 +71,9 @@ export default function PasabayScreen({ navigation }: any) {
   const [mode, setMode] = useState<'book' | 'join'>('book');
   const [activeRide, setActiveRide] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -127,10 +131,7 @@ export default function PasabayScreen({ navigation }: any) {
 
   const handleJoinRideShare = async (ride: any) => {
     if (activeRide) {
-      Alert.alert('Active Ride', 'You already have an active ride. Please complete or cancel it first.', [
-        { text: 'Track Ride', onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }) },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
       return;
     }
 
@@ -161,7 +162,7 @@ export default function PasabayScreen({ navigation }: any) {
               }
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to join ride share';
-              Alert.alert('Error', msg);
+              showToast(msg, 'error');
             } finally {
               setLoading(false);
             }
@@ -209,15 +210,12 @@ export default function PasabayScreen({ navigation }: any) {
 
   const handleBookRide = () => {
     if (activeRide) {
-      Alert.alert('Active Ride', 'You already have an active ride. Please complete or cancel it first.', [
-        { text: 'Track Ride', onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }) },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
       return;
     }
 
     if (!pickupLocation.latitude || !dropoffLocation.latitude) {
-      Alert.alert('Error', 'Please select pickup and dropoff locations');
+      showToast('Please select pickup and dropoff locations.', 'warning');
       return;
     }
 
@@ -255,7 +253,7 @@ export default function PasabayScreen({ navigation }: any) {
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book ride';
-              Alert.alert('Booking Failed', msg);
+              showToast(msg, 'error');
             } finally {
               setLoading(false);
             }
@@ -564,6 +562,8 @@ export default function PasabayScreen({ navigation }: any) {
           <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
         </View>
       </Modal>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

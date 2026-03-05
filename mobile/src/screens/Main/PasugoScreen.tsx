@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +18,7 @@ import * as Location from 'expo-location';
 import { deliveryService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import Toast, { ToastType } from '../../components/Toast';
 
 export default function PasugoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -70,6 +72,9 @@ export default function PasugoScreen({ navigation }: any) {
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -137,19 +142,16 @@ export default function PasugoScreen({ navigation }: any) {
 
   const handleBookDelivery = () => {
     if (activeDelivery) {
-      Alert.alert('Active Delivery', 'You already have an active delivery. Please complete or cancel it first.', [
-        { text: 'Track Delivery', onPress: () => navigation.navigate('Tracking', { type: 'delivery', rideId: activeDelivery.id, pickup: activeDelivery.pickup_location, dropoff: activeDelivery.dropoff_location, fare: activeDelivery.delivery_fee }) },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      showToast('You have an active delivery. Tap the banner above to track it.', 'warning');
       return;
     }
 
     if (!pickupLocation.latitude || !dropoffLocation.latitude) {
-      Alert.alert('Missing Location', 'Please select both pickup and dropoff locations.');
+      showToast('Please select both pickup and dropoff locations.', 'warning');
       return;
     }
     if (!itemDescription.trim()) {
-      Alert.alert('Missing Info', 'Please describe what you are sending.');
+      showToast('Please describe what you are sending.', 'warning');
       return;
     }
 
@@ -198,7 +200,7 @@ export default function PasugoScreen({ navigation }: any) {
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book delivery';
-              Alert.alert('Booking Failed', msg);
+              showToast(msg, 'error');
             } finally {
               setLoading(false);
             }
@@ -413,6 +415,8 @@ export default function PasugoScreen({ navigation }: any) {
           <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
         </View>
       </Modal>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

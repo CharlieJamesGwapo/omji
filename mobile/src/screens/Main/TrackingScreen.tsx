@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Toast, { ToastType } from '../../components/Toast';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,6 +52,9 @@ export default function TrackingScreen({ route, navigation }: any) {
   const [review, setReview] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [hasRated, setHasRated] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const statusSteps = ['pending', 'accepted', 'in_progress', 'completed'];
 
@@ -117,7 +121,7 @@ export default function TrackingScreen({ route, navigation }: any) {
             fetchRideDetails();
           } catch (error: any) {
             const msg = error.response?.data?.error || 'Failed to update status';
-            Alert.alert('Error', msg);
+            showToast(msg, 'error');
           } finally {
             setUpdatingStatus(false);
           }
@@ -142,11 +146,11 @@ export default function TrackingScreen({ route, navigation }: any) {
             } else {
               await rideService.cancelRide(rideId);
             }
-            Alert.alert('Cancelled', `Your ${itemType} has been cancelled.`);
-            navigation.goBack();
+            showToast(`Your ${itemType} has been cancelled.`, 'success');
+            setTimeout(() => navigation.goBack(), 1000);
           } catch (error: any) {
             const msg = error.response?.data?.error || `Failed to cancel ${itemType}`;
-            Alert.alert('Error', msg);
+            showToast(msg, 'error');
           } finally {
             setCancelling(false);
           }
@@ -188,10 +192,10 @@ export default function TrackingScreen({ route, navigation }: any) {
       }
       setHasRated(true);
       setShowRating(false);
-      Alert.alert('Thank You!', 'Your rating has been submitted.');
+      showToast('Thank you! Your rating has been submitted.', 'success');
     } catch (error: any) {
       const msg = error.response?.data?.error || 'Failed to submit rating';
-      Alert.alert('Error', msg);
+      showToast(msg, 'error');
     } finally {
       setSubmittingRating(false);
     }
@@ -484,6 +488,8 @@ export default function TrackingScreen({ route, navigation }: any) {
           <View style={{ height: 20 }} />
         </ScrollView>
       </View>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
 
       {/* Rating Modal */}
       <Modal visible={showRating} animationType="slide" transparent>

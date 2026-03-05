@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,17 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { rideService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import Toast, { ToastType } from '../../components/Toast';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PasundoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -67,6 +72,14 @@ export default function PasundoScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [activeRide, setActiveRide] = useState<any>(null);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -144,20 +157,17 @@ export default function PasundoScreen({ navigation }: any) {
 
   const handleBookPickup = async () => {
     if (activeRide) {
-      Alert.alert('Active Ride', 'You already have an active ride. Please complete or cancel it first.', [
-        { text: 'Track Ride', onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }) },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
       return;
     }
 
     if (!pickupLocation.latitude || !dropoffLocation.latitude) {
-      Alert.alert('Missing Location', 'Please select both pickup and dropoff locations on the map.');
+      showToast('Please select both pickup and dropoff locations on the map.', 'warning');
       return;
     }
 
     if (pickupType === 'person' && !personName.trim()) {
-      Alert.alert('Missing Info', "Please enter the person's name to pick up.");
+      showToast("Please enter the person's name to pick up.", 'warning');
       return;
     }
 
@@ -193,7 +203,7 @@ export default function PasundoScreen({ navigation }: any) {
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book ride';
-              Alert.alert('Booking Failed', msg);
+              showToast(msg, 'error');
             } finally {
               setLoading(false);
             }
@@ -414,6 +424,8 @@ export default function PasundoScreen({ navigation }: any) {
           <MapPicker title="Where to drop off?" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
         </View>
       </Modal>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

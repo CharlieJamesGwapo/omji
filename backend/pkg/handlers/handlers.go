@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -32,6 +33,12 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		var input RegisterInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		// Validate phone format (digits only, 10-15 chars, optional leading +)
+		phoneRegex := regexp.MustCompile(`^\+?\d{10,15}$`)
+		if !phoneRegex.MatchString(input.Phone) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid phone number format. Must be 10-15 digits, optionally starting with +"})
 			return
 		}
 		var existing models.User
@@ -98,11 +105,11 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			q = q.Where("phone = ?", input.Phone)
 		}
 		if err := q.First(&user).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid credentials"})
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "No account found with that phone number or email"})
 			return
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid credentials"})
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
 			return
 		}
 		token, _ := GenerateToken(user.ID, user.Email, user.Role)
@@ -1082,9 +1089,9 @@ func GetRideHistory(db *gorm.DB) gin.HandlerFunc {
 		db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&rides)
 		results := make([]gin.H, len(rides))
 		for i, r := range rides {
-			result := gin.H{"id": r.ID, "status": r.Status, "pickup": r.PickupLocation, "dropoff": r.DropoffLocation, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt, "completed_at": r.CompletedAt}
+			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt, "completed_at": r.CompletedAt}
 			if r.Driver != nil {
-				result["driver"] = gin.H{"id": r.Driver.ID, "name": r.Driver.User.Name, "rating": r.Driver.Rating}
+				result["driver"] = gin.H{"id": r.Driver.ID, "name": r.Driver.User.Name, "phone": r.Driver.User.Phone, "rating": r.Driver.Rating, "vehicle_type": r.Driver.VehicleType, "plate_number": r.Driver.VehiclePlate}
 			}
 			results[i] = result
 		}
@@ -1099,9 +1106,9 @@ func GetDeliveryHistory(db *gorm.DB) gin.HandlerFunc {
 		db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&deliveries)
 		results := make([]gin.H, len(deliveries))
 		for i, d := range deliveries {
-			result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "dropoff_location": d.DropoffLocation, "distance": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt, "completed_at": d.CompletedAt}
+			result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "pickup_latitude": d.PickupLatitude, "pickup_longitude": d.PickupLongitude, "dropoff_location": d.DropoffLocation, "dropoff_latitude": d.DropoffLatitude, "dropoff_longitude": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt, "completed_at": d.CompletedAt}
 			if d.Driver != nil {
-				result["driver"] = gin.H{"id": d.Driver.ID, "name": d.Driver.User.Name, "rating": d.Driver.Rating}
+				result["driver"] = gin.H{"id": d.Driver.ID, "name": d.Driver.User.Name, "phone": d.Driver.User.Phone, "rating": d.Driver.Rating, "vehicle_type": d.Driver.VehicleType, "plate_number": d.Driver.VehiclePlate}
 			}
 			results[i] = result
 		}

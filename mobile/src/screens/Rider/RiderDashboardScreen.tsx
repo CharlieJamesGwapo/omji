@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService } from '../../services/api';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface DriverRequest {
   id: number;
@@ -42,6 +43,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [earnings, setEarnings] = useState<any>({ today_earnings: 0, total_earnings: 0, completed_rides: 0 });
   const [requests, setRequests] = useState<DriverRequest[]>([]);
   const [activeJobs, setActiveJobs] = useState<DriverRequest[]>([]);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchData = useCallback(async () => {
     try {
@@ -98,10 +102,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 }
                 await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
                 setIsOnline(true);
+                showToast('You are now online! Waiting for requests...', 'success');
                 fetchData();
               } catch (error: any) {
                 const msg = error.response?.data?.error || 'Failed to go online';
-                Alert.alert('Error', msg);
+                showToast(msg, 'error');
               }
             },
           },
@@ -111,6 +116,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       try {
         await driverService.setAvailability({ available: false });
         setIsOnline(false);
+        showToast('You are now offline.', 'info');
       } catch (error) {
         console.error('Failed to go offline:', error);
       }
@@ -142,6 +148,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await driverService.acceptRequest(request.id);
+              showToast(`${jobLabel} accepted! Heading to pickup.`, 'success');
               fetchData();
               navigation.navigate('Tracking', {
                 type: isDelivery ? 'delivery' : 'ride',
@@ -152,7 +159,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to accept request';
-              Alert.alert('Error', msg);
+              showToast(msg, 'error');
             }
           },
         },
@@ -465,6 +472,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

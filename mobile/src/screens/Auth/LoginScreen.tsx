@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,34 +8,176 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   Dimensions,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
+type BannerType = 'error' | 'success';
+
+interface BannerState {
+  visible: boolean;
+  message: string;
+  type: BannerType;
+}
+
 export default function LoginScreen({ navigation }: any) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [banner, setBanner] = useState<BannerState>({
+    visible: false,
+    message: '',
+    type: 'error',
+  });
+
   const { login } = useAuth();
 
+  // Animation refs
+  const bannerSlideAnim = useRef(new Animated.Value(-100)).current;
+  const bannerOpacityAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dismissTimer.current) {
+        clearTimeout(dismissTimer.current);
+      }
+    };
+  }, []);
+
+  const showBanner = useCallback(
+    (message: string, type: BannerType) => {
+      // Clear any existing dismiss timer
+      if (dismissTimer.current) {
+        clearTimeout(dismissTimer.current);
+      }
+
+      setBanner({ visible: true, message, type });
+
+      // Reset and animate in
+      bannerSlideAnim.setValue(-100);
+      bannerOpacityAnim.setValue(0);
+
+      Animated.parallel([
+        Animated.spring(bannerSlideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 10,
+        }),
+        Animated.timing(bannerOpacityAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Auto-dismiss after 4 seconds
+      dismissTimer.current = setTimeout(() => {
+        hideBanner();
+      }, 4000);
+    },
+    [bannerSlideAnim, bannerOpacityAnim],
+  );
+
+  const hideBanner = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(bannerSlideAnim, {
+        toValue: -100,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bannerOpacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setBanner((prev) => ({ ...prev, visible: false }));
+    });
+  }, [bannerSlideAnim, bannerOpacityAnim]);
+
+  const triggerShake = useCallback(() => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 8,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: -8,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 4,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [shakeAnim]);
+
+  const clearFieldErrors = () => {
+    setPhoneError('');
+    setPasswordError('');
+  };
+
   const handleLogin = async () => {
-    if (!phone || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    clearFieldErrors();
+
+    // Inline field validation
+    let hasError = false;
+    if (!phone.trim()) {
+      setPhoneError('Phone number or email is required');
+      hasError = true;
+    }
+    if (!password) {
+      setPasswordError('Password is required');
+      hasError = true;
+    }
+    if (hasError) {
+      triggerShake();
       return;
     }
 
     setLoading(true);
     try {
       await login(phone, password);
+      // Show success banner briefly before navigation handles the transition
+      showBanner('Login successful! Redirecting...', 'success');
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
+      const message = error.message || 'Invalid credentials';
+      showBanner(message, 'error');
+      triggerShake();
     } finally {
       setLoading(false);
     }
@@ -63,31 +205,116 @@ export default function LoginScreen({ navigation }: any) {
           </View>
 
           {/* Compact Login Form */}
-          <View style={styles.formContainer}>
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { transform: [{ translateX: shakeAnim }] },
+            ]}
+          >
             <Text style={styles.welcomeText}>Welcome Back!</Text>
 
+            {/* Toast Banner */}
+            {banner.visible && (
+              <Animated.View
+                style={[
+                  styles.banner,
+                  banner.type === 'error'
+                    ? styles.bannerError
+                    : styles.bannerSuccess,
+                  {
+                    transform: [{ translateY: bannerSlideAnim }],
+                    opacity: bannerOpacityAnim,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    banner.type === 'error'
+                      ? 'alert-circle'
+                      : 'checkmark-circle'
+                  }
+                  size={20}
+                  color={banner.type === 'error' ? '#DC2626' : '#059669'}
+                  style={styles.bannerIcon}
+                />
+                <Text
+                  style={[
+                    styles.bannerText,
+                    banner.type === 'error'
+                      ? styles.bannerTextError
+                      : styles.bannerTextSuccess,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {banner.message}
+                </Text>
+                <TouchableOpacity onPress={hideBanner} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons
+                    name="close"
+                    size={18}
+                    color={banner.type === 'error' ? '#DC2626' : '#059669'}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
             {/* Phone/Email Input */}
-            <View style={styles.inputWrapper}>
-              <Ionicons name="person" size={20} color="#DC2626" style={styles.icon} />
+            <View
+              style={[
+                styles.inputWrapper,
+                phoneFocused && styles.inputWrapperFocused,
+                phoneError ? styles.inputWrapperError : null,
+              ]}
+            >
+              <Ionicons
+                name="person"
+                size={20}
+                color={phoneFocused ? '#DC2626' : phoneError ? '#EF4444' : '#DC2626'}
+                style={styles.icon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Phone Number or Email"
                 placeholderTextColor="#9CA3AF"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (phoneError) setPhoneError('');
+                }}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
                 autoCapitalize="none"
               />
             </View>
+            {phoneError ? (
+              <Text style={styles.fieldError}>{phoneError}</Text>
+            ) : null}
 
             {/* Password Input */}
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed" size={20} color="#DC2626" style={styles.icon} />
+            <View
+              style={[
+                styles.inputWrapper,
+                passwordFocused && styles.inputWrapperFocused,
+                passwordError ? styles.inputWrapperError : null,
+              ]}
+            >
+              <Ionicons
+                name="lock-closed"
+                size={20}
+                color={passwordFocused ? '#DC2626' : passwordError ? '#EF4444' : '#DC2626'}
+                style={styles.icon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
                 placeholderTextColor="#9CA3AF"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError('');
+                }}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -102,6 +329,9 @@ export default function LoginScreen({ navigation }: any) {
                 />
               </TouchableOpacity>
             </View>
+            {passwordError ? (
+              <Text style={styles.fieldError}>{passwordError}</Text>
+            ) : null}
 
             {/* Forgot Password */}
             <TouchableOpacity style={styles.forgotButton}>
@@ -135,7 +365,8 @@ export default function LoginScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Register')}
             >
               <Text style={styles.signupText}>
-                Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
+                Don't have an account?{' '}
+                <Text style={styles.signupLink}>Sign Up</Text>
               </Text>
             </TouchableOpacity>
 
@@ -146,10 +377,11 @@ export default function LoginScreen({ navigation }: any) {
             >
               <Ionicons name="car-sport" size={18} color="#10B981" />
               <Text style={styles.driverSignupText}>
-                Want to earn? <Text style={styles.driverSignupLink}>Become a Driver</Text>
+                Want to earn?{' '}
+                <Text style={styles.driverSignupLink}>Become a Driver</Text>
               </Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </>
@@ -216,6 +448,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
+    overflow: 'hidden',
   },
   welcomeText: {
     fontSize: 22,
@@ -223,6 +456,39 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 20,
     textAlign: 'center',
+  },
+
+  // Toast Banner
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  bannerError: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#DC2626',
+  },
+  bannerSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
+  },
+  bannerIcon: {
+    marginRight: 8,
+  },
+  bannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  bannerTextError: {
+    color: '#DC2626',
+  },
+  bannerTextSuccess: {
+    color: '#059669',
   },
 
   // Input Fields
@@ -237,6 +503,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 14,
   },
+  inputWrapperFocused: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FFFBFB',
+  },
+  inputWrapperError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
   icon: {
     marginRight: 10,
   },
@@ -244,6 +518,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#111827',
+  },
+
+  // Inline field error
+  fieldError: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: -10,
+    marginBottom: 10,
+    marginLeft: 14,
+    fontWeight: '500',
   },
 
   // Forgot Password
