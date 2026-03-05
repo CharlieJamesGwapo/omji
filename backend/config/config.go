@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -43,6 +44,10 @@ func LoadConfig() *Config {
 func (c *Config) GetDSN() string {
 	// Check if DATABASE_URL is set (for Render/Supabase deployment)
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		// Append sslmode=require for Supabase if not already present
+		if !strings.Contains(databaseURL, "sslmode=") {
+			return databaseURL + "?sslmode=require"
+		}
 		return databaseURL
 	}
 
