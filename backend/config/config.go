@@ -41,6 +41,12 @@ func LoadConfig() *Config {
 }
 
 func (c *Config) GetDSN() string {
+	// Check if DATABASE_URL is set (for Render/Supabase deployment)
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		return databaseURL
+	}
+
+	// Fall back to individual environment variables (for local development)
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode,
