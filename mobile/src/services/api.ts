@@ -6,6 +6,11 @@ const API_BASE_URL = 'https://omji-backend.onrender.com/api/v1';
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 120000,
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  },
 });
 
 // Add token to requests
@@ -50,6 +55,9 @@ export const authService = {
   verifyOTP: (data: { phone: string; otp: string }) =>
     api.post('/public/auth/verify-otp', data),
 
+  resendOTP: (data: { phone: string }) =>
+    api.post('/public/auth/resend-otp', data),
+
   registerRider: (data: any) => api.post('/driver/register', data),
 };
 
@@ -83,6 +91,26 @@ export const rideShareService = {
 // Delivery Services
 export const deliveryService = {
   createDelivery: (data: any) => api.post('/deliveries/create', data),
+  createDeliveryWithPhoto: (data: any, photoUri: string | null) => {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      formData.append(key, String(data[key]));
+    });
+    if (photoUri) {
+      const filename = photoUri.split('/').pop() || 'photo.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      formData.append('item_photo', {
+        uri: photoUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+    }
+    return api.post('/deliveries/create', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180000,
+    });
+  },
   getActiveDeliveries: () => api.get('/deliveries/active'),
   getDeliveryDetails: (id: number) => api.get(`/deliveries/${id}`),
   cancelDelivery: (id: number) => api.put(`/deliveries/${id}/cancel`),
@@ -105,6 +133,30 @@ export const orderService = {
   cancelOrder: (id: number) => api.put(`/orders/${id}/cancel`),
   rateOrder: (id: number, rating: number) =>
     api.post(`/orders/${id}/rate`, { rating }),
+  getOrderHistory: () => api.get('/orders/history'),
+};
+
+// Wallet Services
+export const walletService = {
+  getBalance: () => api.get('/wallet/balance'),
+  topUp: (data: { amount: number; payment_method: string }) =>
+    api.post('/wallet/top-up', data),
+  withdraw: (data: { amount: number; payment_method: string }) =>
+    api.post('/wallet/withdraw', data),
+};
+
+// Favorites Services
+export const favoritesService = {
+  getFavorites: (type?: string) => api.get('/favorites', { params: type ? { type } : {} }),
+  addFavorite: (data: { type: string; item_id: number }) => api.post('/favorites', data),
+  deleteFavorite: (id: number) => api.delete(`/favorites/${id}`),
+  checkFavorite: (type: string, itemId: number) => api.get('/favorites/check', { params: { type, item_id: itemId } }),
+};
+
+// Notification Services
+export const notificationService = {
+  getNotifications: () => api.get('/notifications'),
+  markAsRead: (id: number) => api.put(`/notifications/${id}/read`),
 };
 
 // Payment Services

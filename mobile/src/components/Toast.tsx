@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { RESPONSIVE, verticalScale, moderateScale, isIOS } from '../utils/responsive';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -70,13 +71,13 @@ export default function Toast({ visible, message, type = 'info', duration = 3500
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
-    left: 16,
-    right: 16,
+    top: isIOS ? verticalScale(50) : verticalScale(35),
+    left: RESPONSIVE.paddingHorizontal,
+    right: RESPONSIVE.paddingHorizontal,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
+    padding: moderateScale(14),
+    borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -87,9 +88,9 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    marginHorizontal: 10,
-    fontSize: 14,
+    marginHorizontal: moderateScale(10),
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '500',
-    lineHeight: 20,
+    lineHeight: verticalScale(20),
   },
 });

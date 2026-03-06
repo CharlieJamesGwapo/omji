@@ -246,7 +246,7 @@ export default function RideHistoryScreen({ navigation }: any) {
               </View>
 
               <View style={styles.rideFooter}>
-                {(ride.driver || ride.Driver) && (
+                {!!(ride.driver || ride.Driver) && (
                   <View style={styles.riderInfo}>
                     <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
                     <Text style={styles.riderName}>{(ride.driver || ride.Driver)?.name}</Text>

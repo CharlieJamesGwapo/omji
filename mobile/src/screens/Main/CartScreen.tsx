@@ -29,7 +29,10 @@ export default function CartScreen({ route, navigation }: any) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+          const loc = await Promise.race([locationPromise, timeoutPromise]);
+          if (!loc || !('coords' in loc)) return;
           setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           const result = await Location.reverseGeocodeAsync({
             latitude: loc.coords.latitude,

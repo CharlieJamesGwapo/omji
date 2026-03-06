@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function OTPScreen({ navigation, route }: any) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -58,16 +59,19 @@ export default function OTPScreen({ navigation, route }: any) {
   };
 
   const handleResend = async () => {
+    const phone = route.params?.phone || '';
+    if (!phone) {
+      Alert.alert('Error', 'Phone number not available');
+      return;
+    }
     try {
-      const phone = route.params?.phone || '';
-      if (!phone) {
-        Alert.alert('Error', 'Phone number not available');
-        return;
-      }
-      await authService.verifyOTP({ phone, otp: 'resend' });
-      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone');
-    } catch {
-      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone');
+      setLoading(true);
+      await authService.resendOTP({ phone });
+      setLoading(false);
+      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone.');
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to resend OTP. Please try again.');
     }
   };
 
@@ -141,63 +145,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   backButton: {
-    width: 40,
+    width: moderateScale(40),
   },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
+    marginBottom: verticalScale(32),
   },
   title: {
-    fontSize: 28,
+    fontSize: RESPONSIVE.fontSize.title,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 24,
+    marginBottom: verticalScale(40),
+    lineHeight: fontScale(24),
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: verticalScale(40),
   },
   otpInput: {
-    width: 50,
-    height: 60,
+    width: moderateScale(50),
+    height: moderateScale(60),
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
-    marginHorizontal: 6,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    marginHorizontal: moderateScale(6),
     textAlign: 'center',
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
     backgroundColor: '#ffffff',
   },
   verifyButton: {
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 64,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: verticalScale(16),
+    paddingHorizontal: moderateScale(64),
     alignItems: 'center',
   },
   verifyButtonDisabled: {
@@ -205,20 +209,20 @@ const styles = StyleSheet.create({
   },
   verifyButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
   resendContainer: {
     flexDirection: 'row',
-    marginTop: 24,
+    marginTop: verticalScale(24),
   },
   resendText: {
     color: '#6B7280',
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
   },
   resendLink: {
     color: '#3B82F6',
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: 'bold',
   },
 });

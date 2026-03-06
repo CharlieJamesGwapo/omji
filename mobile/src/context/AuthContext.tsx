@@ -11,6 +11,7 @@ interface User {
   profile_image?: string;
   is_verified?: boolean;
   rating?: number;
+  total_ratings?: number;
 }
 
 interface AuthContextType {
@@ -40,7 +41,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userData = await AsyncStorage.getItem('user');
 
       if (token && userData) {
-        setUser(JSON.parse(userData));
+        try {
+          setUser(JSON.parse(userData));
+        } catch {
+          // Corrupted user data - clear storage and force re-login
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);

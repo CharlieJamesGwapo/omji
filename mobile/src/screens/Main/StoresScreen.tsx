@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { storeService } from '../../services/api';
@@ -32,6 +33,8 @@ export default function StoresScreen({ navigation }: any) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   const categories = [
     { id: 'all', name: 'All', icon: 'grid-outline' },
@@ -43,17 +46,25 @@ export default function StoresScreen({ navigation }: any) {
 
   const fetchStores = useCallback(async () => {
     try {
+      setFetchError(false);
       const category = selectedCategory === 'all' ? undefined : selectedCategory;
       const response = await storeService.getStores(category);
       const data = response.data?.data;
       setStores(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching stores:', error);
+      setFetchError(true);
       setStores([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [selectedCategory]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStores();
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -73,7 +84,7 @@ export default function StoresScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Stores</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Favorites')}>
           <Ionicons name="heart-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
@@ -132,6 +143,7 @@ export default function StoresScreen({ navigation }: any) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Featured Stores */}
         {selectedCategory === 'all' && searchQuery === '' && (
@@ -215,7 +227,14 @@ export default function StoresScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
 
-          {!loading && filteredStores.length === 0 && (
+          {!loading && fetchError && filteredStores.length === 0 && (
+            <View style={styles.emptyState}>
+              <Ionicons name="cloud-offline-outline" size={64} color="#EF4444" />
+              <Text style={styles.emptyText}>Could not load stores</Text>
+              <Text style={styles.emptySubtext}>Pull down to refresh or check your connection</Text>
+            </View>
+          )}
+          {!loading && !fetchError && filteredStores.length === 0 && (
             <View style={styles.emptyState}>
               <Ionicons name="storefront-outline" size={64} color="#D1D5DB" />
               <Text style={styles.emptyText}>No stores found</Text>

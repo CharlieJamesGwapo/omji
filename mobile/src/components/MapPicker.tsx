@@ -13,6 +13,7 @@ import {
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 
@@ -68,25 +69,48 @@ export default function MapPicker({
       setLocationPermission(granted);
 
       if (granted && !initialLocation) {
-        const loc = await Location.getCurrentPositionAsync({
+        // Use timeout to prevent hanging on Android
+        const locationPromise = Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        const coords = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        };
-        setCenterCoord(coords);
-        setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
-        mapRef.current?.animateToRegion(
-          { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-          500
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 5000)
         );
-        await getAddressFromCoords(coords.latitude, coords.longitude);
+
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
+
+        if (loc && 'coords' in loc) {
+          const coords = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          };
+          setCenterCoord(coords);
+          setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
+          mapRef.current?.animateToRegion(
+            { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+            500
+          );
+          await getAddressFromCoords(coords.latitude, coords.longitude);
+        } else {
+          // Timeout: use last known location or default
+          try {
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            if (lastKnown) {
+              const coords = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+              setCenterCoord(coords);
+              setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
+              await getAddressFromCoords(coords.latitude, coords.longitude);
+            }
+          } catch {}
+          // Default coords (Balingasag) are already set, just show the map
+          setAddress('Move the map to select location');
+        }
       } else if (initialLocation) {
         await getAddressFromCoords(initialLocation.latitude, initialLocation.longitude);
       }
     } catch (error) {
-      console.error('Location init error:', error);
+      console.log('Location init error:', error);
+      setAddress('Move the map to select location');
     } finally {
       setLoading(false);
     }
@@ -99,19 +123,27 @@ export default function MapPicker({
     }
     try {
       setResolving(true);
-      const loc = await Location.getCurrentPositionAsync({
+      const locationPromise = Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      const coords = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      };
-      setCenterCoord(coords);
-      mapRef.current?.animateToRegion(
-        { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-        600
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 5000)
       );
-      await getAddressFromCoords(coords.latitude, coords.longitude);
+      const loc = await Promise.race([locationPromise, timeoutPromise]);
+      if (loc && 'coords' in loc) {
+        const coords = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        };
+        setCenterCoord(coords);
+        mapRef.current?.animateToRegion(
+          { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+          600
+        );
+        await getAddressFromCoords(coords.latitude, coords.longitude);
+      } else {
+        Alert.alert('Timeout', 'Could not get location. Please move the map manually.');
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to get current location');
     } finally {
@@ -187,20 +219,25 @@ export default function MapPicker({
     }
   };
 
-  const confirmLocation = () => {
-    if (!address || address === 'Selected location') {
-      // Still resolve if address wasn't set
-      getAddressFromCoords(centerCoord.latitude, centerCoord.longitude).then(() => {
-        onLocationSelect({
-          address: address || searchQuery || 'Selected location',
+  const confirmLocation = async () => {
+    let finalAddress = address;
+    if (!finalAddress || finalAddress === 'Selected location') {
+      // Resolve address before confirming
+      try {
+        const result = await Location.reverseGeocodeAsync({
           latitude: centerCoord.latitude,
           longitude: centerCoord.longitude,
         });
-      });
-      return;
+        if (result && result.length > 0) {
+          const loc = result[0];
+          const parts = [loc.streetNumber, loc.street, loc.subregion, loc.city, loc.region].filter(Boolean);
+          finalAddress = parts.length > 0 ? parts.join(', ') : [loc.name, loc.city, loc.region].filter(Boolean).join(', ');
+        }
+      } catch {}
+      if (!finalAddress) finalAddress = searchQuery || 'Selected location';
     }
     onLocationSelect({
-      address,
+      address: finalAddress,
       latitude: centerCoord.latitude,
       longitude: centerCoord.longitude,
     });
@@ -320,8 +357,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 15,
+    marginTop: verticalScale(10),
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
   },
   map: {
@@ -331,18 +368,18 @@ const styles = StyleSheet.create({
   // Search overlay
   searchOverlay: {
     position: 'absolute',
-    top: 12,
-    left: 16,
-    right: 16,
+    top: verticalScale(10),
+    left: RESPONSIVE.paddingHorizontal,
+    right: RESPONSIVE.paddingHorizontal,
     zIndex: 10,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: moderateScale(10),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -351,19 +388,19 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 15,
+    marginLeft: moderateScale(10),
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
     paddingVertical: 2,
   },
   searchGo: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: moderateScale(30),
+    height: moderateScale(30),
+    borderRadius: moderateScale(15),
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
 
   // Center pin
@@ -391,11 +428,11 @@ const styles = StyleSheet.create({
   // Current location FAB
   currentLocationFab: {
     position: 'absolute',
-    right: 16,
-    bottom: 160,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    right: RESPONSIVE.paddingHorizontal,
+    bottom: verticalScale(150),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -414,11 +451,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 32,
+    borderTopLeftRadius: RESPONSIVE.borderRadius.xlarge,
+    borderTopRightRadius: RESPONSIVE.borderRadius.xlarge,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: verticalScale(16),
+    paddingBottom: verticalScale(28),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
@@ -428,43 +465,43 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: verticalScale(12),
   },
   addressDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
     backgroundColor: '#EF4444',
     marginTop: 4,
-    marginRight: 12,
+    marginRight: moderateScale(12),
   },
   addressContent: {
     flex: 1,
   },
   addressLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#9CA3AF',
     marginBottom: 2,
   },
   addressText: {
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#1F2937',
-    lineHeight: 20,
+    lineHeight: verticalScale(20),
   },
   resolvingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: moderateScale(8),
   },
   resolvingText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   confirmButton: {
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(16),
     alignItems: 'center',
   },
   confirmButtonDisabled: {
@@ -472,7 +509,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
 });

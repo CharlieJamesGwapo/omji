@@ -24,14 +24,18 @@ export default function WalletScreen({ navigation }: any) {
   const [selectedMethod, setSelectedMethod] = useState('gcash');
   const [topUpLoading, setTopUpLoading] = useState(false);
 
+  const [fetchError, setFetchError] = useState(false);
+
   const fetchWallet = useCallback(async () => {
     try {
+      setFetchError(false);
       const response = await walletService.getBalance();
       const data = response.data?.data;
       setBalance(data?.balance || 0);
       setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
-    } catch (error) {
+    } catch (error: any) {
       console.log('Wallet fetch error:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -257,7 +261,21 @@ export default function WalletScreen({ navigation }: any) {
         <View style={styles.historySection}>
           <Text style={styles.sectionTitle}>Transaction History</Text>
 
-          {transactions.length === 0 ? (
+          {fetchError ? (
+            <View style={styles.emptyTransactions}>
+              <Ionicons name="cloud-offline-outline" size={48} color="#EF4444" />
+              <Text style={styles.emptyTransactionsText}>Could not load wallet</Text>
+              <Text style={styles.emptyTransactionsSubtext}>
+                Pull down to refresh or check your connection
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: '#3B82F6', borderRadius: RESPONSIVE.borderRadius.small, paddingHorizontal: moderateScale(20), paddingVertical: moderateScale(10), marginTop: verticalScale(12) }}
+                onPress={() => { setLoading(true); fetchWallet(); }}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : transactions.length === 0 ? (
             <View style={styles.emptyTransactions}>
               <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
               <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
@@ -281,7 +299,7 @@ export default function WalletScreen({ navigation }: any) {
                     <Text style={styles.transactionDate}>{formatDate(tx.created_at)}</Text>
                   </View>
                   <Text style={[styles.amountText, isCredit ? styles.amountCredit : styles.amountDebit]}>
-                    {isCredit ? '+' : '-'}₱{Math.abs(tx.amount).toFixed(0)}
+                    {isCredit ? '+' : '-'}₱{Math.abs(tx.amount).toFixed(2)}
                   </Text>
                 </View>
               );

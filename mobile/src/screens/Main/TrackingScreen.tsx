@@ -261,7 +261,7 @@ export default function TrackingScreen({ route, navigation }: any) {
             <Ionicons name="flag" size={14} color="#ffffff" />
           </View>
         </Marker>
-        {driverInfo && status !== 'pending' && (
+        {!!driverInfo && status !== 'pending' && (
           <Marker
             coordinate={{
               latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || pickupLat,
@@ -340,7 +340,7 @@ export default function TrackingScreen({ route, navigation }: any) {
           )}
 
           {/* Driver Card */}
-          {driverInfo && status !== 'pending' && (
+          {!!driverInfo && status !== 'pending' && (
             <View style={styles.driverCard}>
               <View style={styles.driverInfo}>
                 {driverInfo.profile_image ? (
@@ -442,7 +442,7 @@ export default function TrackingScreen({ route, navigation }: any) {
           </View>
 
           {/* Driver Status Update Button */}
-          {isDriver && getNextDriverStatus() && (
+          {isDriver && !!getNextDriverStatus() && (
             <TouchableOpacity
               style={styles.driverActionButton}
               onPress={handleUpdateStatus}
@@ -481,7 +481,7 @@ export default function TrackingScreen({ route, navigation }: any) {
 
           {status === 'completed' && !isDriver && (
             <View>
-              {!hasRated && driverInfo && (
+              {!hasRated && !!driverInfo && (
                 <TouchableOpacity
                   style={styles.rateButton}
                   onPress={() => setShowRating(true)}
@@ -521,7 +521,7 @@ export default function TrackingScreen({ route, navigation }: any) {
         <View style={styles.ratingOverlay}>
           <View style={styles.ratingModal}>
             <Text style={styles.ratingTitle}>Rate Your Rider</Text>
-            {driverInfo && (
+            {!!driverInfo && (
               <Text style={styles.ratingDriverName}>{driverInfo.name || 'Driver'}</Text>
             )}
 

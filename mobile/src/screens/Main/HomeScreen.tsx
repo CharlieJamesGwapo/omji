@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getCardWidth, RESPONSIVE, isTablet } from '../../utils/responsive';
-import { rideService, deliveryService } from '../../services/api';
+import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import { rideService, deliveryService, notificationService } from '../../services/api';
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -95,7 +95,20 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton} onPress={() => Alert.alert('Notifications', 'No new notifications')}>
+        <TouchableOpacity style={styles.notificationButton} onPress={async () => {
+          try {
+            const res = await notificationService.getNotifications();
+            const notifs = res.data?.data || [];
+            if (notifs.length === 0) {
+              Alert.alert('Notifications', 'No new notifications');
+            } else {
+              const msg = notifs.slice(0, 5).map((n: any) => `${n.title}: ${n.body}`).join('\n\n');
+              Alert.alert('Notifications', msg);
+            }
+          } catch {
+            Alert.alert('Notifications', 'No new notifications');
+          }
+        }}>
           <Ionicons name="notifications-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
@@ -112,7 +125,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.estimated_fare })}
           >
             <View style={[styles.activeDot, { backgroundColor: '#F59E0B' }]} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={styles.activeTitle}>Active Ride</Text>
               <Text style={styles.activeSub} numberOfLines={1}>{ride.dropoff_location || 'In progress'} - {ride.status?.replace('_', ' ')}</Text>
             </View>
@@ -126,7 +139,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: del.id, pickup: del.pickup_location, dropoff: del.dropoff_location, fare: del.delivery_fee })}
           >
             <View style={[styles.activeDot, { backgroundColor: '#DC2626' }]} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={[styles.activeTitle, { color: '#991B1B' }]}>Active Delivery</Text>
               <Text style={[styles.activeSub, { color: '#B91C1C' }]} numberOfLines={1}>{del.dropoff_location || 'In progress'} - {del.status?.replace('_', ' ')}</Text>
             </View>
@@ -220,7 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    paddingTop: isTablet() ? 40 : 60,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: RESPONSIVE.paddingVertical,
     backgroundColor: '#ffffff',
   },
@@ -379,25 +392,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(12),
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
   activeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
   },
   activeTitle: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#92400E',
   },
   activeSub: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#B45309',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
 });

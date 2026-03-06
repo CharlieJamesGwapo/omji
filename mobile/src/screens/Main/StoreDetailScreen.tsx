@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { storeService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import { storeService, favoritesService } from '../../services/api';
 
 export default function StoreDetailScreen({ route, navigation }: any) {
   const { store } = route.params || {};
@@ -19,17 +20,42 @@ export default function StoreDetailScreen({ route, navigation }: any) {
   const [error, setError] = useState('');
   const [cartItems, setCartItems] = useState<Record<number, { item: any; quantity: number }>>({});
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     fetchMenu();
   }, []);
+
+  useEffect(() => {
+    if (store?.id) {
+      favoritesService.checkFavorite('store', store.id)
+        .then(res => setIsFavorite(res.data?.data?.is_favorite || false))
+        .catch(() => {});
+    }
+  }, [store?.id]);
+
+  const toggleFavorite = async () => {
+    try {
+      if (isFavorite) {
+        // Need to get favorite ID first
+        const res = await favoritesService.getFavorites('store');
+        const fav = (res.data?.data || []).find((f: any) => f.item_id === store?.id);
+        if (fav) await favoritesService.deleteFavorite(fav.id);
+      } else {
+        await favoritesService.addFavorite({ type: 'store', item_id: store?.id });
+      }
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.log('Favorite toggle error:', error);
+    }
+  };
 
   const fetchMenu = async () => {
     try {
       setLoading(true);
       setError('');
       const response = await storeService.getStoreMenu(store?.id);
-      const data = response.data;
+      const data = response.data?.data || response.data;
       const items = Array.isArray(data) ? data : data?.menu || data?.items || [];
       setMenuItems(items);
     } catch (err: any) {
@@ -88,8 +114,8 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.favoriteButton}>
-            <Ionicons name="heart-outline" size={24} color="#1F2937" />
+          <TouchableOpacity style={styles.favoriteButton} onPress={toggleFavorite}>
+            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={24} color={isFavorite ? "#EF4444" : "#1F2937"} />
           </TouchableOpacity>
         </View>
 
@@ -242,16 +268,16 @@ const styles = StyleSheet.create({
   },
   headerImage: {
     width: '100%',
-    height: 200,
+    height: verticalScale(200),
     resizeMode: 'cover',
   },
   backButton: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: isIOS ? verticalScale(50) : verticalScale(35),
+    left: RESPONSIVE.paddingHorizontal,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -263,11 +289,11 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: isIOS ? verticalScale(50) : verticalScale(35),
+    right: RESPONSIVE.paddingHorizontal,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -279,35 +305,35 @@ const styles = StyleSheet.create({
   },
   storeInfo: {
     backgroundColor: '#ffffff',
-    padding: 20,
+    padding: RESPONSIVE.paddingHorizontal,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   storeName: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   storeMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   metricItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   metricText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   metricDivider: {
     width: 1,
-    height: 16,
+    height: moderateScale(16),
     backgroundColor: '#D1D5DB',
-    marginHorizontal: 12,
+    marginHorizontal: moderateScale(12),
   },
   storeTags: {
     flexDirection: 'row',
@@ -315,35 +341,35 @@ const styles = StyleSheet.create({
   },
   tagChip: {
     backgroundColor: '#F3F4F6',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 8,
-    marginTop: 4,
+    borderRadius: moderateScale(6),
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: verticalScale(4),
+    marginRight: moderateScale(8),
+    marginTop: verticalScale(4),
   },
   tagText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   categoryScroll: {
     backgroundColor: '#ffffff',
   },
   categoryContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(16),
   },
   categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(8),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     backgroundColor: '#F3F4F6',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   categoryChipActive: {
     backgroundColor: '#EF4444',
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -351,43 +377,43 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   productsSection: {
-    padding: 20,
+    padding: RESPONSIVE.paddingHorizontal,
   },
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(60),
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: verticalScale(12),
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(60),
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: verticalScale(12),
   },
   retryButton: {
-    marginTop: 16,
+    marginTop: verticalScale(16),
     backgroundColor: '#EF4444',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(24),
+    paddingVertical: verticalScale(10),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   retryButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
   },
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    marginBottom: verticalScale(16),
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -396,24 +422,24 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   productImage: {
-    width: 100,
-    height: 100,
+    width: moderateScale(100),
+    height: moderateScale(100),
     resizeMode: 'cover',
   },
   productInfo: {
     flex: 1,
-    padding: 12,
+    padding: moderateScale(12),
   },
   productName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   productDescription: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   productFooter: {
     flexDirection: 'row',
@@ -421,7 +447,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productPrice: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#EF4444',
   },
@@ -430,15 +456,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inCartText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#10B981',
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
@@ -448,13 +474,13 @@ const styles = StyleSheet.create({
   },
   cartButton: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: verticalScale(20),
+    left: RESPONSIVE.paddingHorizontal,
+    right: RESPONSIVE.paddingHorizontal,
     flexDirection: 'row',
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -466,24 +492,24 @@ const styles = StyleSheet.create({
   cartBadge: {
     position: 'absolute',
     top: -8,
-    left: 20,
+    left: RESPONSIVE.paddingHorizontal,
     backgroundColor: '#FBBF24',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    minWidth: moderateScale(24),
+    height: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: moderateScale(6),
   },
   cartBadgeText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   cartButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
 });

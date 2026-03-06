@@ -41,19 +41,23 @@ export default function PasabayScreen({ navigation }: any) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setDetectingLocation(false); return; }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const result = await Location.reverseGeocodeAsync({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-        const addr = result?.[0];
-        const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
-        const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
-        setPickupLocation({
-          address: formatted || 'Current Location',
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
+        const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
+        if (loc && 'coords' in loc) {
+          const result = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          const addr = result?.[0];
+          const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
+          const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
+          setPickupLocation({
+            address: formatted || 'Current Location',
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        }
       } catch (e) {
         console.log('Auto-detect location failed:', e);
       } finally {
@@ -337,7 +341,7 @@ export default function PasabayScreen({ navigation }: any) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}
       >
         {/* Active Ride Banner */}
-        {activeRide && (
+        {!!activeRide && (
           <TouchableOpacity
             style={styles.activeBanner}
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare })}
@@ -645,7 +649,7 @@ export default function PasabayScreen({ navigation }: any) {
             <Text style={styles.modalTitle}>Select Dropoff</Text>
             <View style={{ width: moderateScale(28) }} />
           </View>
-          <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
+          <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
       </Modal>
 

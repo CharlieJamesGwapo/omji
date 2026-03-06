@@ -12,6 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, isTablet } from '../../utils/responsive';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 
@@ -90,7 +91,7 @@ export default function RegisterScreen({ navigation }: any) {
     const hasError = !!fieldErrors[fieldKey];
     const isFocused = focusedField === fieldKey;
     return (
-      <View style={{ marginBottom: 14 }}>
+      <View style={{ marginBottom: moderateScale(14) }}>
         <View
           style={[
             styles.inputContainer,
@@ -186,31 +187,31 @@ export default function RegisterScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  scrollContent: { flexGrow: 1, padding: 20, paddingTop: 60 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 32 },
-  backButton: { marginRight: 16 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#1F2937' },
+  scrollContent: { flexGrow: 1, padding: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35) },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(28) },
+  backButton: { marginRight: moderateScale(16) },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937' },
   formContainer: {
-    backgroundColor: '#ffffff', borderRadius: 20, padding: 24,
+    backgroundColor: '#ffffff', borderRadius: moderateScale(20), padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
   },
-  welcomeText: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', marginBottom: 8, textAlign: 'center' },
-  subtitleText: { fontSize: 14, color: '#6B7280', marginBottom: 24, textAlign: 'center' },
+  welcomeText: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937', marginBottom: verticalScale(8), textAlign: 'center' },
+  subtitleText: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280', marginBottom: verticalScale(20), textAlign: 'center' },
   inputContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1.5, borderColor: '#E5E7EB',
+    borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(12), borderWidth: 1.5, borderColor: '#E5E7EB',
   },
   inputFocused: { borderColor: '#3B82F6', backgroundColor: '#F8FAFF' },
   inputError: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  input: { flex: 1, marginLeft: 12, fontSize: 16, color: '#1F2937' },
-  errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginLeft: 4 },
-  errorText: { fontSize: 12, color: '#EF4444', marginLeft: 4 },
+  input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(4), marginLeft: moderateScale(4) },
+  errorText: { fontSize: RESPONSIVE.fontSize.small, color: '#EF4444', marginLeft: moderateScale(4) },
   registerButton: {
-    backgroundColor: '#3B82F6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 16,
+    backgroundColor: '#3B82F6', borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(16), alignItems: 'center', marginTop: verticalScale(8), marginBottom: verticalScale(12),
   },
   registerButtonDisabled: { opacity: 0.6 },
-  registerButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
-  loginText: { color: '#6B7280', fontSize: 14 },
-  loginLink: { color: '#3B82F6', fontSize: 14, fontWeight: 'bold' },
+  registerButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold' },
+  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8) },
+  loginText: { color: '#6B7280', fontSize: RESPONSIVE.fontSize.medium },
+  loginLink: { color: '#3B82F6', fontSize: RESPONSIVE.fontSize.medium, fontWeight: 'bold' },
 });

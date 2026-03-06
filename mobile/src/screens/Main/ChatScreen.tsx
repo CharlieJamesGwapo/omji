@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function ChatScreen({ route, navigation }: any) {
   const { rider: routeRider, rideId, deliveryId } = route.params || {};
@@ -92,7 +93,9 @@ export default function ChatScreen({ route, navigation }: any) {
       try {
         await chatService.sendMessage(chatId, receiverId, messageText);
       } catch {
-        // Message already shown locally
+        // Remove the optimistic message and show error
+        setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+        Alert.alert('Send Failed', 'Message could not be sent. Please try again.');
       } finally {
         setSending(false);
       }
@@ -265,9 +268,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -276,33 +279,33 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 16,
+    marginLeft: moderateScale(16),
   },
   headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     borderWidth: 2,
     borderColor: '#3B82F6',
   },
   headerText: {
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   headerName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   headerRating: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerRatingText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#92400E',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   loadingContainer: {
     flex: 1,
@@ -315,23 +318,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: verticalScale(12),
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: verticalScale(4),
   },
   messagesList: {
-    padding: 20,
-    paddingBottom: 10,
+    padding: RESPONSIVE.paddingHorizontal,
+    paddingBottom: verticalScale(10),
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
     alignItems: 'flex-end',
   },
   userMessage: {
@@ -341,31 +344,31 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    marginRight: moderateScale(8),
   },
   messageBubble: {
     maxWidth: '75%',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(10),
   },
   userBubble: {
     backgroundColor: '#3B82F6',
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: moderateScale(4),
   },
   riderBubble: {
     backgroundColor: '#ffffff',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: moderateScale(4),
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    marginBottom: 4,
+    fontSize: fontScale(15),
+    lineHeight: fontScale(20),
+    marginBottom: verticalScale(4),
   },
   userMessageText: {
     color: '#ffffff',
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   messageTime: {
-    fontSize: 11,
+    fontSize: fontScale(11),
   },
   userMessageTime: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -384,28 +387,28 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   quickRepliesContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(12),
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
   quickReply: {
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(8),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    marginRight: moderateScale(8),
   },
   quickReplyText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#374151',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(12),
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -413,21 +416,21 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: '#F3F4F6',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(10),
+    fontSize: fontScale(15),
     maxHeight: 100,
     color: '#1F2937',
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
   sendButtonDisabled: {
     backgroundColor: '#F3F4F6',

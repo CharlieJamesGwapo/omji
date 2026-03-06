@@ -43,19 +43,23 @@ export default function PasugoScreen({ navigation }: any) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setDetectingLocation(false); return; }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const result = await Location.reverseGeocodeAsync({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-        const addr = result?.[0];
-        const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
-        const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
-        setPickupLocation({
-          address: formatted || 'Current Location',
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
+        const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
+        if (loc && 'coords' in loc) {
+          const result = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          const addr = result?.[0];
+          const parts = [addr?.streetNumber, addr?.street, addr?.subregion, addr?.city, addr?.region].filter(Boolean);
+          const formatted = parts.length > 0 ? parts.join(', ') : [addr?.name, addr?.city, addr?.region].filter(Boolean).join(', ');
+          setPickupLocation({
+            address: formatted || 'Current Location',
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        }
       } catch (e) {
         console.log('Auto-detect location failed:', e);
       } finally {
@@ -106,7 +110,7 @@ export default function PasugoScreen({ navigation }: any) {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -280,7 +284,7 @@ export default function PasugoScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Active Delivery Banner */}
-        {activeDelivery && (
+        {!!activeDelivery && (
           <TouchableOpacity
             style={styles.activeBanner}
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: activeDelivery.id, pickup: activeDelivery.pickup_location, dropoff: activeDelivery.dropoff_location, fare: activeDelivery.delivery_fee })}
@@ -498,7 +502,7 @@ export default function PasugoScreen({ navigation }: any) {
             <Text style={styles.modalTitle}>Select Dropoff Location</Text>
             <View style={{ width: 28 }} />
           </View>
-          <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
+          <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
       </Modal>
 

@@ -12,15 +12,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { authService } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { driverService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function RiderRegistrationScreen({ navigation }: any) {
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Personal Information
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  // Personal Information (pre-filled from user profile)
+  const [fullName, setFullName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [address, setAddress] = useState('');
 
   // Vehicle Information
@@ -42,7 +46,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
 
   const pickImage = async (type: 'profile' | 'license' | 'orcr' | 'id') => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -92,26 +96,23 @@ export default function RiderRegistrationScreen({ navigation }: any) {
     try {
       // In a real app, you would upload images to a server
       // For now, we'll just send the data
-      const response = await authService.registerRider({
-        name: fullName,
-        phone,
-        email,
-        address,
-        vehicle_type: vehicleType,
-        plate_number: plateNumber,
-        vehicle_model: vehicleModel,
-        vehicle_color: vehicleColor,
+      const response = await driverService.registerDriver({
+        vehicle_type: vehicleType.toLowerCase(),
+        vehicle_model: `${vehicleModel} (${vehicleColor})`,
+        vehicle_plate: plateNumber,
         license_number: licenseNumber,
-        // Documents would be uploaded separately in production
-        profile_photo: profilePhoto,
-        license_photo: licensePhoto,
-        orcr_photo: orCrPhoto,
-        valid_id_photo: validIdPhoto,
       });
+
+      // Update token and user role to driver
+      const data = response.data?.data;
+      if (data?.token) {
+        await AsyncStorage.setItem('token', data.token);
+      }
+      updateUser({ role: 'driver' });
 
       Alert.alert(
         'Success!',
-        'Your rider application has been submitted. Please wait for admin approval.',
+        'You are now registered as a driver! The app will switch to Driver mode.',
         [
           {
             text: 'OK',
@@ -328,81 +329,81 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#ffffff',
-    padding: 24,
+    padding: moderateScale(24),
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 12,
+    marginTop: verticalScale(12),
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: verticalScale(8),
   },
   card: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: moderateScale(16),
+    marginTop: verticalScale(16),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
   },
   cardSubtitle: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
   },
   section: {
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
   },
   label: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   input: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(12),
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
   },
   textArea: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(12),
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
     textAlignVertical: 'top',
-    minHeight: 80,
+    minHeight: verticalScale(80),
   },
   vehicleTypes: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: moderateScale(8),
   },
   vehicleTypeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(10),
+    borderRadius: RESPONSIVE.borderRadius.small,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#ffffff',
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
     borderColor: '#DC2626',
   },
   vehicleTypeText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   uploadButton: {
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#E5E7EB',
@@ -429,33 +430,33 @@ const styles = StyleSheet.create({
   uploadPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    padding: moderateScale(40),
     backgroundColor: '#F9FAFB',
   },
   uploadText: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: verticalScale(8),
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   uploadedImage: {
     width: '100%',
-    height: 200,
+    height: verticalScale(200),
     resizeMode: 'cover',
   },
   submitButton: {
     flexDirection: 'row',
     backgroundColor: '#DC2626',
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: moderateScale(16),
+    marginTop: verticalScale(24),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
 });

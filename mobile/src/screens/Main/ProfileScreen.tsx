@@ -150,7 +150,7 @@ export default function ProfileScreen({ navigation }: any) {
               <>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{stats.rides}</Text>
-                  <Text style={styles.statLabel}>Rides</Text>
+                  <Text style={styles.statLabel}>Active</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>

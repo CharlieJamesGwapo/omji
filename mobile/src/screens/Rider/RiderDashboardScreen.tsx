@@ -102,9 +102,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
             onPress: async () => {
               try {
                 const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Location Required', 'Please enable location access in settings to go online.');
+                  return;
+                }
                 let lat = 8.4343, lng = 124.5000;
-                if (status === 'granted') {
-                  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+                const loc = await Promise.race([locationPromise, timeoutPromise]);
+                if (loc && 'coords' in loc) {
                   lat = loc.coords.latitude;
                   lng = loc.coords.longitude;
                 }

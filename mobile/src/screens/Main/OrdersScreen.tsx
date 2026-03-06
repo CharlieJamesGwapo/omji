@@ -366,7 +366,7 @@ export default function OrdersScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {currentOrders && currentOrders.length > 0 ? (
+        {Array.isArray(currentOrders) && currentOrders.length > 0 ? (
           currentOrders.map(renderOrderCard)
         ) : (
           <View style={styles.emptyState}>

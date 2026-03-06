@@ -30,6 +30,10 @@ import TrackingScreen from './src/screens/Main/TrackingScreen';
 import ChatScreen from './src/screens/Main/ChatScreen';
 import WalletScreen from './src/screens/Main/WalletScreen';
 import RideHistoryScreen from './src/screens/Main/RideHistoryScreen';
+import EditProfileScreen from './src/screens/Main/EditProfileScreen';
+import SavedAddressesScreen from './src/screens/Main/SavedAddressesScreen';
+import PaymentMethodsScreen from './src/screens/Main/PaymentMethodsScreen';
+import FavoritesScreen from './src/screens/Main/FavoritesScreen';
 
 // Screens - Rider
 import RiderDashboardScreen from './src/screens/Rider/RiderDashboardScreen';
@@ -39,9 +43,13 @@ import RiderRegistrationScreen from './src/screens/Auth/RiderRegistrationScreen'
 
 // Admin screens removed - Admin functionality is web-only
 
-// Ignore specific warnings
-LogBox.ignoreLogs(['Warning: ...']);
-LogBox.ignoreAllLogs();
+// Ignore specific non-critical warnings
+LogBox.ignoreLogs([
+  'Warning: ...',
+  'Sending `onAnimatedValueUpdate`',
+  'Non-serializable values were found in the navigation state',
+  'Text strings must be rendered within a <Text> component',
+]);
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -143,27 +151,27 @@ const MainStack = () => (
     <Stack.Screen
       name="Pasugo"
       component={PasugoScreen}
-      options={{ title: 'Pasugo - Delivery' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Pasabay"
       component={PasabayScreen}
-      options={{ title: 'Pasabay - Ride Sharing' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Pasundo"
       component={PasundoScreen}
-      options={{ title: 'Pasundo - Pick-up Service' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="StoreDetail"
       component={StoreDetailScreen}
-      options={{ title: 'Store' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Cart"
       component={CartScreen}
-      options={{ title: 'Shopping Cart' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="Tracking"
@@ -178,17 +186,37 @@ const MainStack = () => (
     <Stack.Screen
       name="Wallet"
       component={WalletScreen}
-      options={{ title: 'OMJI Wallet' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="RideHistory"
       component={RideHistoryScreen}
-      options={{ title: 'Ride History' }}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="RiderRegistration"
       component={RiderRegistrationScreen}
-      options={{ title: 'Become a Rider - Driver Signup' }}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="EditProfile"
+      component={EditProfileScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="SavedAddresses"
+      component={SavedAddressesScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="PaymentMethods"
+      component={PaymentMethodsScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Favorites"
+      component={FavoritesScreen}
+      options={{ headerShown: false }}
     />
   </Stack.Navigator>
 );
@@ -252,11 +280,8 @@ const RootNavigator = () => {
           <Ionicons name="desktop-outline" size={80} color="#DC2626" style={{ marginBottom: 20 }} />
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>Admin Access</Text>
           <Text style={{ fontSize: 16, color: '#6B7280', marginBottom: 20, textAlign: 'center', lineHeight: 24 }}>
-            Admin panel is only available on the web interface.
-            {'\n\n'}
-            Please visit the web admin dashboard at:
-            {'\n'}
-            <Text style={{ color: '#DC2626', fontWeight: 'bold' }}>http://localhost:3001</Text>
+            {"Admin panel is only available on the web interface.\n\nPlease visit the web admin dashboard at:\n"}
+            <Text style={{ color: '#DC2626', fontWeight: 'bold' }}>{"http://localhost:3001"}</Text>
           </Text>
           <TouchableOpacity
             onPress={logout}
