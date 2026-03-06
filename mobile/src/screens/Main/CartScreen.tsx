@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { orderService } from '../../services/api';
+import { orderService, walletService } from '../../services/api';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function CartScreen({ route, navigation }: any) {
   const { store, cartItems: initialCartItems } = route.params || {};
@@ -21,15 +22,27 @@ export default function CartScreen({ route, navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [checkingOut, setCheckingOut] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  const deliveryAddress = 'Current Location';
+  const [deliveryAddress, setDeliveryAddress] = useState('Current Location');
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          const result = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          if (result?.[0]) {
+            const addr = result[0];
+            const parts = [addr.streetNumber, addr.street, addr.subregion, addr.city].filter(Boolean);
+            setDeliveryAddress(parts.length > 0 ? parts.join(', ') : 'Current Location');
+          }
+        }
+      } catch (e) {
+        console.log('Location error:', e);
       }
     })();
   }, []);
@@ -60,14 +73,29 @@ export default function CartScreen({ route, navigation }: any) {
   };
 
   const subtotal = cartItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
-  const deliveryFee = store?.deliveryFee || 30;
-  const serviceFee = 10;
-  const total = subtotal + deliveryFee + serviceFee;
+  const deliveryFee = 30;
+  const tax = Math.round(subtotal * 0.05 * 100) / 100;
+  const total = subtotal + deliveryFee + tax;
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
       Alert.alert('Empty Cart', 'Your cart is empty!');
       return;
+    }
+
+    // Check wallet balance if paying with wallet
+    if (paymentMethod === 'wallet') {
+      try {
+        const walletRes = await walletService.getBalance();
+        const balance = walletRes.data?.data?.balance || 0;
+        if (balance < total) {
+          Alert.alert('Insufficient Balance', `Your wallet balance (₱${balance.toFixed(0)}) is less than the total (₱${total.toFixed(0)}). Please top up or choose another payment method.`);
+          return;
+        }
+      } catch {
+        Alert.alert('Error', 'Could not verify wallet balance. Please try again.');
+        return;
+      }
     }
 
     Alert.alert(
@@ -89,7 +117,7 @@ export default function CartScreen({ route, navigation }: any) {
                 })),
                 subtotal,
                 delivery_fee: deliveryFee,
-                tax: serviceFee,
+                tax,
                 total_amount: total,
                 payment_method: paymentMethod,
                 delivery_location: deliveryAddress,
@@ -215,20 +243,20 @@ export default function CartScreen({ route, navigation }: any) {
               <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Subtotal</Text>
-                  <Text style={styles.summaryValue}>₱{subtotal}</Text>
+                  <Text style={styles.summaryValue}>₱{subtotal.toFixed(2)}</Text>
                 </View>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Delivery Fee</Text>
                   <Text style={styles.summaryValue}>₱{deliveryFee}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Service Fee</Text>
-                  <Text style={styles.summaryValue}>₱{serviceFee}</Text>
+                  <Text style={styles.summaryLabel}>Tax (5%)</Text>
+                  <Text style={styles.summaryValue}>₱{tax.toFixed(0)}</Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryTotalLabel}>Total</Text>
-                  <Text style={styles.summaryTotalValue}>₱{total}</Text>
+                  <Text style={styles.summaryTotalValue}>₱{total.toFixed(2)}</Text>
                 </View>
               </View>
             </View>
@@ -243,7 +271,7 @@ export default function CartScreen({ route, navigation }: any) {
         <View style={styles.footer}>
           <View style={styles.totalSection}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>₱{total}</Text>
+            <Text style={styles.totalValue}>₱{total.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
             style={[styles.checkoutButton, checkingOut && styles.checkoutButtonDisabled]}
@@ -274,20 +302,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: moderateScale(16),
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   clearText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#EF4444',
     fontWeight: '600',
   },
@@ -295,65 +323,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(16),
+    padding: moderateScale(16),
+    borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   storeInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   storeName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   storeTime: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
     marginTop: 2,
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(24),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   cartItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(12),
+    marginBottom: verticalScale(12),
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: RESPONSIVE.borderRadius.small,
     resizeMode: 'cover',
   },
   itemInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   itemName: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   itemPrice: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#EF4444',
   },
@@ -361,48 +389,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 4,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(4),
   },
   quantityButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   quantity: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginHorizontal: 12,
+    marginHorizontal: moderateScale(12),
   },
   removeButton: {
-    padding: 8,
-    marginLeft: 8,
+    padding: moderateScale(8),
+    marginLeft: moderateScale(8),
   },
   emptyCart: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(60),
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(24),
   },
   browseButton: {
     backgroundColor: '#EF4444',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(24),
+    paddingVertical: verticalScale(12),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   browseButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
   paymentOptions: {
@@ -410,13 +438,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   paymentOption: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(12),
+    borderRadius: RESPONSIVE.borderRadius.small,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: moderateScale(8),
+    marginBottom: verticalScale(8),
     backgroundColor: '#ffffff',
   },
   paymentOptionActive: {
@@ -424,7 +452,7 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
   },
   paymentText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -433,37 +461,37 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
+    padding: moderateScale(16),
+    borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   summaryLabel: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     color: '#6B7280',
   },
   summaryValue: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     color: '#1F2937',
     fontWeight: '600',
   },
   summaryDivider: {
     height: 1,
     backgroundColor: '#E5E7EB',
-    marginVertical: 8,
+    marginVertical: verticalScale(8),
   },
   summaryTotalLabel: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   summaryTotalValue: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#EF4444',
   },
@@ -475,28 +503,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    padding: 20,
+    padding: RESPONSIVE.paddingHorizontal,
   },
   totalSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   totalLabel: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
   },
   totalValue: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   checkoutButton: {
     flexDirection: 'row',
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -505,8 +533,8 @@ const styles = StyleSheet.create({
   },
   checkoutButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
 });

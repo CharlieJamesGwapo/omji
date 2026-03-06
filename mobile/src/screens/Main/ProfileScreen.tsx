@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { rideService, orderService, deliveryService } from '../../services/api';
+import { rideService, orderService, deliveryService, walletService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -27,10 +28,11 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       setLoading(true);
 
-      const [ridesRes, ordersRes, deliveriesRes] = await Promise.allSettled([
+      const [ridesRes, ordersRes, deliveriesRes, walletRes] = await Promise.allSettled([
         rideService.getActiveRides(),
         orderService.getActiveOrders(),
         deliveryService.getActiveDeliveries(),
+        walletService.getBalance(),
       ]);
 
       const rides = ridesRes.status === 'fulfilled' && Array.isArray(ridesRes.value?.data?.data)
@@ -55,7 +57,9 @@ export default function ProfileScreen({ navigation }: any) {
         spent: totalSpent,
       });
 
-      setWalletBalance(0);
+      if (walletRes.status === 'fulfilled') {
+        setWalletBalance(walletRes.value?.data?.data?.balance || 0);
+      }
     } catch (error: any) {
       if (error.response?.status !== 401) {
         console.warn('Could not fetch user stats:', error.message);
@@ -80,10 +84,11 @@ export default function ProfileScreen({ navigation }: any) {
     {
       title: 'Account',
       items: [
-        { icon: 'person-outline', label: 'Edit Profile', screen: null, action: () => Alert.alert('Edit Profile', 'Coming soon!') },
+        { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
-        { icon: 'location-outline', label: 'Saved Addresses', screen: null, action: () => Alert.alert('Saved Addresses', 'Coming soon!') },
-        { icon: 'card-outline', label: 'Payment Methods', screen: null, action: () => Alert.alert('Payment Methods', 'Coming soon!') },
+        { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
+        { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
+        { icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' },
       ],
     },
     {
@@ -91,24 +96,16 @@ export default function ProfileScreen({ navigation }: any) {
       items: [
         { icon: 'receipt-outline', label: 'Order History', screen: 'Orders' },
         { icon: 'time-outline', label: 'Ride History', screen: 'RideHistory' },
-        { icon: 'heart-outline', label: 'Favorites', screen: null, action: () => Alert.alert('Favorites', 'Coming soon!') },
+        { icon: 'heart-outline', label: 'Favorites', screen: 'Favorites' },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Alert.alert('Help Center', 'Coming soon!') },
-        { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Alert.alert('Contact Support', 'Coming soon!') },
-        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Alert.alert('Terms & Privacy', 'Coming soon!') },
-        { icon: 'information-circle-outline', label: 'About OMJI', screen: null, action: () => Alert.alert('About OMJI', 'OMJI - Your ride-hailing and delivery app\nVersion 1.0.0') },
-      ],
-    },
-    {
-      title: 'Settings',
-      items: [
-        { icon: 'notifications-outline', label: 'Notifications', screen: null, action: () => Alert.alert('Notifications', 'Coming soon!') },
-        { icon: 'language-outline', label: 'Language', screen: null, action: () => Alert.alert('Language', 'Coming soon!') },
-        { icon: 'shield-outline', label: 'Privacy & Security', screen: null, action: () => Alert.alert('Privacy & Security', 'Coming soon!') },
+        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Alert.alert('Help Center', 'For assistance, email us at support@omji.app or call +63 912 345 6789.\n\nFAQ:\n- How to book a ride?\n- How to track my delivery?\n- How to become a driver?') },
+        { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Alert.alert('Contact Support', 'Email: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily') },
+        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Alert.alert('Terms & Privacy', 'By using OMJI, you agree to our Terms of Service and Privacy Policy.\n\nWe collect location data to provide ride and delivery services. Your data is securely stored and never shared with third parties without consent.') },
+        { icon: 'information-circle-outline', label: 'About OMJI', screen: null, action: () => Alert.alert('About OMJI', 'OMJI - Balingasag\nYour ride-hailing and delivery app\n\nServices:\n- Pasundo (Pick-up)\n- Pasugo (Delivery)\n- Pasabay (Ride Sharing)\n- Store Orders\n\nVersion 1.0.0') },
       ],
     },
   ];
@@ -118,7 +115,11 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Settings', 'App Settings', [
+          { text: 'Edit Profile', onPress: () => navigation.navigate('EditProfile') },
+          { text: 'Notifications', onPress: () => navigation.navigate('Notifications') },
+          { text: 'Cancel', style: 'cancel' },
+        ])}>
           <Ionicons name="settings-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
@@ -133,7 +134,7 @@ export default function ProfileScreen({ navigation }: any) {
               }}
               style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editAvatarButton}>
+            <TouchableOpacity style={styles.editAvatarButton} onPress={() => navigation.navigate('EditProfile')}>
               <Ionicons name="camera" size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
@@ -178,7 +179,7 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={styles.walletLabel}>Wallet Balance</Text>
             <Text style={styles.walletBalance}>₱{walletBalance.toFixed(2)}</Text>
           </View>
-          <TouchableOpacity style={styles.topUpButton}>
+          <TouchableOpacity style={styles.topUpButton} onPress={() => navigation.navigate('Wallet')}>
             <Text style={styles.topUpButtonText}>Top Up</Text>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -195,7 +196,7 @@ export default function ProfileScreen({ navigation }: any) {
                     styles.menuItem,
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
                   ]}
-                  onPress={() => item.screen ? navigation.navigate(item.screen) : item.action?.()}
+                  onPress={() => item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.())}
                 >
                   <Ionicons name={item.icon as any} size={22} color="#6B7280" />
                   <Text style={styles.menuLabel}>{item.label}</Text>
@@ -230,22 +231,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(12),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: RESPONSIVE.fontSize.title,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   userCard: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 16,
-    padding: 20,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(16),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: RESPONSIVE.paddingHorizontal,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -255,12 +256,12 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: verticalScale(12),
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
     borderWidth: 4,
     borderColor: '#E5E7EB',
   },
@@ -268,9 +269,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -279,28 +280,28 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: verticalScale(16),
   },
   userName: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   userEmail: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   userPhone: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    paddingTop: 20,
+    paddingTop: verticalScale(16),
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
@@ -309,28 +310,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   statDivider: {
     width: 1,
-    height: 40,
+    height: moderateScale(40),
     backgroundColor: '#E5E7EB',
   },
   walletCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(12),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -338,53 +339,53 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   walletIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   walletInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   walletLabel: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   walletBalance: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   topUpButton: {
     backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(8),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   topUpButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
   },
   menuSection: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(20),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   menuCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: RESPONSIVE.paddingHorizontal,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
@@ -403,32 +404,32 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
-    marginLeft: 16,
+    marginLeft: moderateScale(16),
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(20),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     borderWidth: 1,
     borderColor: '#FEE2E2',
   },
   logoutText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#EF4444',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
   versionText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#9CA3AF',
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: verticalScale(20),
   },
 });

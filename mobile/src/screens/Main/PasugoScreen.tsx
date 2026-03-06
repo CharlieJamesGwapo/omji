@@ -15,7 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { deliveryService } from '../../services/api';
+import { deliveryService, walletService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
@@ -140,7 +141,7 @@ export default function PasugoScreen({ navigation }: any) {
   const perKmRate = 15;
   const estimatedFare = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
 
-  const handleBookDelivery = () => {
+  const handleBookDelivery = async () => {
     if (activeDelivery) {
       showToast('You have an active delivery. Tap the banner above to track it.', 'warning');
       return;
@@ -153,6 +154,21 @@ export default function PasugoScreen({ navigation }: any) {
     if (!itemDescription.trim()) {
       showToast('Please describe what you are sending.', 'warning');
       return;
+    }
+
+    // Check wallet balance if paying with wallet
+    if (paymentMethod === 'wallet') {
+      try {
+        const balRes = await walletService.getBalance();
+        const balance = balRes.data?.data?.balance ?? balRes.data?.balance ?? 0;
+        if (balance < estimatedFare) {
+          Alert.alert('Insufficient wallet balance', 'Please top up your wallet.');
+          return;
+        }
+      } catch {
+        Alert.alert('Error', 'Could not verify wallet balance. Please try again.');
+        return;
+      }
     }
 
     const weight = sizeOptions.find(s => s.id === itemSize)?.weight || 1;
@@ -177,7 +193,7 @@ export default function PasugoScreen({ navigation }: any) {
                 if (recipientPhone.trim()) dropoffLabel += `, ${recipientPhone.trim()}`;
                 dropoffLabel += ']';
               }
-              const response = await deliveryService.createDelivery({
+              const deliveryData = {
                 pickup_location: pickupLabel,
                 pickup_latitude: pickupLocation.latitude,
                 pickup_longitude: pickupLocation.longitude,
@@ -185,11 +201,13 @@ export default function PasugoScreen({ navigation }: any) {
                 dropoff_latitude: dropoffLocation.latitude,
                 dropoff_longitude: dropoffLocation.longitude,
                 item_description: `[${itemSize.toUpperCase()}] ${itemDescription}`,
-                item_photo: itemPhoto || '',
                 notes: notes,
                 weight: weight,
                 payment_method: paymentMethod,
-              });
+              };
+              const response = itemPhoto
+                ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
+                : await deliveryService.createDelivery(deliveryData);
               const delivery = response.data?.data || {};
               navigation.navigate('Tracking', {
                 type: 'delivery',
@@ -375,7 +393,7 @@ export default function PasugoScreen({ navigation }: any) {
         <TouchableOpacity
           style={[styles.bookButton, (loading || !!activeDelivery) && { opacity: 0.7 }]}
           onPress={handleBookDelivery}
-          disabled={loading}
+          disabled={loading || !!activeDelivery}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
@@ -423,37 +441,37 @@ export default function PasugoScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
-  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', marginHorizontal: 20, marginTop: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' },
-  activeBannerDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#DC2626' },
-  activeBannerTitle: { fontSize: 14, fontWeight: '600' },
-  activeBannerSub: { fontSize: 12, marginTop: 2 },
-  section: { paddingHorizontal: 20, paddingTop: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  input: { flex: 1, marginLeft: 12, fontSize: 15, color: '#1F2937' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#1F2937' },
+  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FECACA' },
+  activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#DC2626' },
+  activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600' },
+  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, marginTop: 2 },
+  section: { paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(14) },
+  label: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#374151', marginBottom: verticalScale(6) },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: moderateScale(12), borderWidth: 1, borderColor: '#E5E7EB' },
+  input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },
   placeholder: { color: '#9CA3AF' },
-  textArea: { backgroundColor: '#ffffff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', fontSize: 15, color: '#1F2937', textAlignVertical: 'top', minHeight: 80 },
-  sizeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8, borderWidth: 2, borderColor: '#E5E7EB' },
+  textArea: { backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB', fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937', textAlignVertical: 'top', minHeight: verticalScale(70) },
+  sizeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(14), paddingHorizontal: moderateScale(8), borderWidth: 2, borderColor: '#E5E7EB' },
   sizeCardActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
-  sizeName: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 6 },
-  sizeDesc: { fontSize: 11, color: '#9CA3AF', marginTop: 2, textAlign: 'center' },
-  photoButton: { borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed' },
-  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#F9FAFB' },
-  photoText: { marginTop: 8, fontSize: 14, color: '#6B7280' },
-  photoPreview: { width: '100%', height: 180, resizeMode: 'cover' },
-  priceCard: { backgroundColor: '#ffffff', marginHorizontal: 20, marginTop: 16, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  priceLabel: { fontSize: 14, color: '#6B7280' },
-  priceValue: { fontSize: 14, color: '#1F2937', fontWeight: '600' },
-  priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 8 },
-  priceTotalLabel: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
-  priceTotalValue: { fontSize: 18, fontWeight: 'bold', color: '#DC2626' },
-  bookButton: { flexDirection: 'row', backgroundColor: '#DC2626', marginHorizontal: 20, marginTop: 20, borderRadius: 12, padding: 16, alignItems: 'center', justifyContent: 'center' },
-  bookButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginRight: 8 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  sizeName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#374151', marginTop: 6 },
+  sizeDesc: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: 2, textAlign: 'center' },
+  photoButton: { borderRadius: RESPONSIVE.borderRadius.medium, overflow: 'hidden', borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed' },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: moderateScale(32), backgroundColor: '#F9FAFB' },
+  photoText: { marginTop: 8, fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
+  photoPreview: { width: '100%', height: verticalScale(160), resizeMode: 'cover' },
+  priceCard: { backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(14), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: verticalScale(6) },
+  priceLabel: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
+  priceValue: { fontSize: RESPONSIVE.fontSize.medium, color: '#1F2937', fontWeight: '600' },
+  priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: verticalScale(6) },
+  priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
+  priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#DC2626' },
+  bookButton: { flexDirection: 'row', backgroundColor: '#DC2626', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(16), alignItems: 'center', justifyContent: 'center' },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: 8 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

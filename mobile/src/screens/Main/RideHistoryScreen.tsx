@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { rideService, deliveryService } from '../../services/api';
+import { rideService, deliveryService, orderService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 interface RideItem {
   id: number;
@@ -25,6 +26,8 @@ interface RideItem {
   created_at: string;
   driver?: { name: string; rating: number };
   Driver?: { name: string; rating: number };
+  _type?: string;
+  _key?: string;
 }
 
 export default function RideHistoryScreen({ navigation }: any) {
@@ -35,20 +38,33 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   const fetchRides = useCallback(async () => {
     try {
-      const [ridesRes, deliveriesRes] = await Promise.allSettled([
+      const [ridesRes, deliveriesRes, ordersRes] = await Promise.allSettled([
         rideService.getRideHistory(),
         deliveryService.getDeliveryHistory(),
+        orderService.getOrderHistory(),
       ]);
 
       const rideData = ridesRes.status === 'fulfilled' ? ridesRes.value?.data?.data : [];
       const deliveryData = deliveriesRes.status === 'fulfilled' ? deliveriesRes.value?.data?.data : [];
+      const orderData = ordersRes.status === 'fulfilled' ? ordersRes.value?.data?.data : [];
 
       const allRides = [
-        ...(Array.isArray(rideData) ? rideData : []),
+        ...(Array.isArray(rideData) ? rideData.map((r: any) => ({ ...r, _type: 'ride', _key: `ride-${r.id}` })) : []),
         ...(Array.isArray(deliveryData) ? deliveryData.map((d: any) => ({
           ...d,
           estimated_fare: d.delivery_fee || d.estimated_fare || 0,
           vehicle_type: 'motorcycle',
+          _type: 'delivery',
+          _key: `delivery-${d.id}`,
+        })) : []),
+        ...(Array.isArray(orderData) ? orderData.map((o: any) => ({
+          ...o,
+          estimated_fare: o.total_amount || 0,
+          vehicle_type: 'order',
+          pickup_location: o.store_name || 'Store',
+          dropoff_location: o.delivery_address || 'Delivery',
+          _type: 'order',
+          _key: `order-${o.id}`,
         })) : []),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -98,9 +114,10 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   const getServiceIcon = (vehicleType: string) => {
     switch (vehicleType) {
-      case 'motorcycle': return 'bicycle';
+      case 'motorcycle': return 'navigate-circle';
       case 'car': return 'car';
-      default: return 'bicycle';
+      case 'order': return 'storefront';
+      default: return 'navigate-circle';
     }
   };
 
@@ -183,11 +200,11 @@ export default function RideHistoryScreen({ navigation }: any) {
         <View style={styles.historySection}>
           {filteredRides.map((ride) => (
             <TouchableOpacity
-              key={ride.id}
+              key={ride._key || ride.id}
               style={styles.rideCard}
               onPress={() =>
                 navigation.navigate('Tracking', {
-                  type: 'ride',
+                  type: ride._type === 'delivery' ? 'delivery' : 'ride',
                   rideId: ride.id,
                   pickup: ride.pickup || ride.pickup_location || '',
                   dropoff: ride.dropoff || ride.dropoff_location || '',
@@ -206,7 +223,7 @@ export default function RideHistoryScreen({ navigation }: any) {
                   />
                 </View>
                 <View style={styles.rideHeaderInfo}>
-                  <Text style={styles.rideService}>Pasundo Ride</Text>
+                  <Text style={styles.rideService}>{ride._type === 'order' ? 'Store Order' : ride._type === 'delivery' ? 'Pasugo Delivery' : 'Pasundo Ride'}</Text>
                   <Text style={styles.rideDate}>{formatDate(ride.created_at)}</Text>
                 </View>
                 <Text style={styles.rideFare}>₱{(ride.estimated_fare || 0).toFixed(0)}</Text>
@@ -262,7 +279,7 @@ export default function RideHistoryScreen({ navigation }: any) {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(90) }} />
       </ScrollView>
     </View>
   );
@@ -277,28 +294,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(12),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(16),
   },
   statCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: moderateScale(4),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -306,35 +323,35 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: verticalScale(6),
+    marginBottom: verticalScale(3),
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
     textAlign: 'center',
   },
   filtersContainer: {
-    marginBottom: 16,
+    marginBottom: verticalScale(12),
   },
   filtersContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: moderateScale(8),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     backgroundColor: '#F3F4F6',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   filterChipActive: {
     backgroundColor: '#3B82F6',
   },
   filterText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -342,13 +359,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   historySection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   rideCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(12),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -358,48 +375,48 @@ const styles = StyleSheet.create({
   rideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
   },
   rideIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   rideHeaderInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   rideService: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   rideDate: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   rideFare: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   rideBody: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(12),
+    marginBottom: verticalScale(10),
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   locationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
     backgroundColor: '#10B981',
   },
   locationDotDropoff: {
@@ -407,16 +424,16 @@ const styles = StyleSheet.create({
   },
   locationConnector: {
     width: 2,
-    height: 16,
+    height: verticalScale(14),
     backgroundColor: '#D1D5DB',
-    marginLeft: 4,
-    marginVertical: 4,
+    marginLeft: moderateScale(4),
+    marginVertical: verticalScale(3),
   },
   locationText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#374151',
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   rideFooter: {
     flexDirection: 'row',
@@ -428,33 +445,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   riderName: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginLeft: 6,
-    marginRight: 8,
+    marginLeft: moderateScale(6),
+    marginRight: moderateScale(8),
   },
   riderRating: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#92400E',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   rideMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: moderateScale(8),
   },
   rideMetric: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(3),
+    borderRadius: moderateScale(6),
   },
   statusText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: '#ffffff',
     textTransform: 'capitalize',
@@ -462,18 +479,18 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(50),
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginTop: 16,
+    marginTop: verticalScale(12),
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#9CA3AF',
-    marginTop: 8,
+    marginTop: verticalScale(6),
     textAlign: 'center',
   },
 });

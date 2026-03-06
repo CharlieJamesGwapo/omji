@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 interface OrderItem {
   id: number;
@@ -57,7 +58,7 @@ export default function OrdersScreen({ navigation }: any) {
               createdAt: ride.created_at || '',
               driverName: ride.driver?.name || ride.Driver?.name,
               driverRating: ride.driver?.rating || ride.Driver?.rating,
-              icon: 'bicycle',
+              icon: 'navigate-circle',
               color: '#10B981',
             });
           });
@@ -95,8 +96,8 @@ export default function OrdersScreen({ navigation }: any) {
               type: 'order',
               service: 'Store Order',
               status: order.status,
-              from: order.store_name || 'Store',
-              to: order.delivery_address || '',
+              from: order.Store?.name || order.store_name || 'Store',
+              to: order.delivery_location || order.delivery_address || '',
               fare: order.total_amount || 0,
               createdAt: order.created_at || '',
               icon: 'storefront',
@@ -147,6 +148,7 @@ export default function OrdersScreen({ navigation }: any) {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''} ago`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
@@ -178,7 +180,7 @@ export default function OrdersScreen({ navigation }: any) {
           <Text style={styles.orderTime}>{formatDate(order.createdAt)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-          <Text style={styles.statusText}>{order.status.replace('_', ' ')}</Text>
+          <Text style={styles.statusText}>{order.status.replace(/_/g, ' ')}</Text>
         </View>
       </View>
 
@@ -334,37 +336,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: RESPONSIVE.fontSize.title,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingBottom: verticalScale(12),
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    borderRadius: 8,
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: moderateScale(16),
+    marginRight: moderateScale(8),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   tabActive: {
     backgroundColor: '#EFF6FF',
   },
   tabText: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -373,19 +375,19 @@ const styles = StyleSheet.create({
   },
   tabBadge: {
     backgroundColor: '#E5E7EB',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(20),
+    height: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 6,
-    paddingHorizontal: 6,
+    marginLeft: moderateScale(6),
+    paddingHorizontal: moderateScale(6),
   },
   tabBadgeActive: {
     backgroundColor: '#3B82F6',
   },
   tabBadgeText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: 'bold',
     color: '#6B7280',
   },
@@ -393,13 +395,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   scrollContent: {
-    padding: 20,
+    padding: RESPONSIVE.paddingHorizontal,
   },
   orderCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    marginBottom: verticalScale(16),
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -411,81 +413,81 @@ const styles = StyleSheet.create({
   orderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   orderHeaderInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   serviceName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   orderTime: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: verticalScale(4),
+    borderRadius: moderateScale(6),
   },
   statusText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#ffffff',
     textTransform: 'capitalize',
   },
   orderBody: {
-    paddingVertical: 8,
+    paddingVertical: verticalScale(8),
   },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: verticalScale(6),
   },
   orderText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#374151',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
     flex: 1,
   },
   riderInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 8,
+    padding: moderateScale(10),
+    borderRadius: RESPONSIVE.borderRadius.small,
+    marginTop: verticalScale(8),
   },
   riderName: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#1F2937',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
     flex: 1,
   },
   riderRating: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '600',
     color: '#92400E',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: verticalScale(12),
+    paddingTop: verticalScale(12),
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
@@ -493,12 +495,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fareLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   fareValue: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
@@ -506,31 +508,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(8),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   trackButtonText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#3B82F6',
-    marginRight: 4,
+    marginRight: moderateScale(4),
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: verticalScale(80),
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginTop: 16,
+    marginTop: verticalScale(16),
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#9CA3AF',
-    marginTop: 8,
+    marginTop: verticalScale(8),
     textAlign: 'center',
   },
 });

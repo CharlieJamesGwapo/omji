@@ -10,16 +10,14 @@ import {
   ActivityIndicator,
   Modal,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { rideService } from '../../services/api';
+import { rideService, walletService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
 export default function PasundoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -171,6 +169,21 @@ export default function PasundoScreen({ navigation }: any) {
       return;
     }
 
+    // Check wallet balance if paying with wallet
+    if (paymentMethod === 'wallet') {
+      try {
+        const balRes = await walletService.getBalance();
+        const balance = balRes.data?.data?.balance ?? balRes.data?.balance ?? 0;
+        if (balance < estimatedFare) {
+          Alert.alert('Insufficient wallet balance', 'Please top up your wallet.');
+          return;
+        }
+      } catch {
+        Alert.alert('Error', 'Could not verify wallet balance. Please try again.');
+        return;
+      }
+    }
+
     const pickupLabel = buildPickupLabel();
 
     Alert.alert(
@@ -224,10 +237,10 @@ export default function PasundoScreen({ navigation }: any) {
           <Ionicons name="people" size={28} color="#F59E0B" />
           <Text style={styles.headerTitle}>Pasundo Service</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <View style={{ width: moderateScale(40) }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: verticalScale(32) }}>
         {/* Active Ride Banner */}
         {activeRide && (
           <TouchableOpacity
@@ -235,7 +248,7 @@ export default function PasundoScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare })}
           >
             <View style={styles.activeBannerDot} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={styles.activeBannerTitle}>Active ride in progress</Text>
               <Text style={styles.activeBannerSub}>Tap to track • {activeRide.status?.replace('_', ' ')}</Text>
             </View>
@@ -287,9 +300,9 @@ export default function PasundoScreen({ navigation }: any) {
           <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)}>
             <Ionicons name="location-outline" size={20} color="#F59E0B" />
             {detectingLocation ? (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: moderateScale(12) }}>
                 <ActivityIndicator size="small" color="#F59E0B" />
-                <Text style={{ marginLeft: 8, color: '#6B7280', fontSize: 14 }}>Detecting location...</Text>
+                <Text style={{ marginLeft: moderateScale(8), color: '#6B7280', fontSize: RESPONSIVE.fontSize.medium }}>Detecting location...</Text>
               </View>
             ) : (
               <Text style={[styles.input, !pickupLocation.address && styles.placeholder]} numberOfLines={1}>
@@ -315,7 +328,7 @@ export default function PasundoScreen({ navigation }: any) {
         {/* Vehicle Type */}
         <View style={styles.section}>
           <Text style={styles.label}>Vehicle Type</Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: moderateScale(12) }}>
             {vehicleTypes.map((v) => (
               <TouchableOpacity
                 key={v.id}
@@ -384,7 +397,7 @@ export default function PasundoScreen({ navigation }: any) {
         <TouchableOpacity
           style={[styles.bookButton, (loading || !!activeRide) && styles.bookButtonDisabled]}
           onPress={handleBookPickup}
-          disabled={loading}
+          disabled={loading || !!activeRide}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
@@ -405,7 +418,7 @@ export default function PasundoScreen({ navigation }: any) {
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Pickup Location</Text>
-            <View style={{ width: 28 }} />
+            <View style={{ width: moderateScale(28) }} />
           </View>
           <MapPicker title="Where to pick up?" onLocationSelect={handlePickupSelect} initialLocation={pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
@@ -419,7 +432,7 @@ export default function PasundoScreen({ navigation }: any) {
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Dropoff Location</Text>
-            <View style={{ width: 28 }} />
+            <View style={{ width: moderateScale(28) }} />
           </View>
           <MapPicker title="Where to drop off?" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : undefined} />
         </View>
@@ -432,42 +445,42 @@ export default function PasundoScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
-  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', marginHorizontal: 20, marginTop: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A' },
-  activeBannerDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#F59E0B' },
-  activeBannerTitle: { fontSize: 14, fontWeight: '600', color: '#92400E' },
-  activeBannerSub: { fontSize: 12, color: '#B45309', marginTop: 2 },
-  section: { paddingHorizontal: 20, paddingTop: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#1F2937' },
+  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FDE68A' },
+  activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#F59E0B' },
+  activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#92400E' },
+  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, color: '#B45309', marginTop: verticalScale(2) },
+  section: { paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(12) },
+  label: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#374151', marginBottom: moderateScale(8) },
   typeContainer: { flexDirection: 'row', justifyContent: 'space-between' },
-  typeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, padding: 14, marginHorizontal: 4, borderWidth: 2, borderColor: '#E5E7EB' },
+  typeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), marginHorizontal: moderateScale(4), borderWidth: 2, borderColor: '#E5E7EB' },
   typeCardActive: { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' },
-  typeName: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginTop: 6 },
+  typeName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#6B7280', marginTop: verticalScale(6) },
   typeNameActive: { color: '#F59E0B' },
-  typeDesc: { fontSize: 11, color: '#9CA3AF', marginTop: 2, textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  input: { flex: 1, marginLeft: 12, fontSize: 15, color: '#1F2937' },
+  typeDesc: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(2), textAlign: 'center' },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: moderateScale(12), borderWidth: 1, borderColor: '#E5E7EB' },
+  input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },
   placeholder: { color: '#9CA3AF' },
-  vehicleCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, padding: 14, borderWidth: 2, borderColor: '#E5E7EB' },
+  vehicleCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), borderWidth: 2, borderColor: '#E5E7EB' },
   vehicleCardActive: { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' },
-  vehicleName: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginTop: 6 },
-  vehiclePrice: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  textArea: { backgroundColor: '#ffffff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', fontSize: 15, color: '#1F2937', textAlignVertical: 'top', minHeight: 80 },
-  priceCard: { backgroundColor: '#ffffff', marginHorizontal: 20, marginTop: 16, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  priceLabel: { fontSize: 14, color: '#6B7280' },
-  priceValue: { fontSize: 14, color: '#1F2937', fontWeight: '600' },
-  priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 8 },
-  priceTotalLabel: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
-  priceTotalValue: { fontSize: 18, fontWeight: 'bold', color: '#F59E0B' },
-  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14, marginHorizontal: 20, marginTop: 16 },
-  infoText: { flex: 1, marginLeft: 12, fontSize: 13, color: '#92400E' },
-  bookButton: { flexDirection: 'row', backgroundColor: '#F59E0B', marginHorizontal: 20, marginTop: 20, borderRadius: 12, padding: 16, alignItems: 'center', justifyContent: 'center' },
+  vehicleName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#6B7280', marginTop: verticalScale(6) },
+  vehiclePrice: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(2) },
+  textArea: { backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB', fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937', textAlignVertical: 'top', minHeight: verticalScale(70) },
+  priceCard: { backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: moderateScale(8) },
+  priceLabel: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
+  priceValue: { fontSize: RESPONSIVE.fontSize.medium, color: '#1F2937', fontWeight: '600' },
+  priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: moderateScale(8) },
+  priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
+  priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#F59E0B' },
+  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12) },
+  infoText: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.small, color: '#92400E' },
+  bookButton: { flexDirection: 'row', backgroundColor: '#F59E0B', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, alignItems: 'center', justifyContent: 'center' },
   bookButtonDisabled: { opacity: 0.7 },
-  bookButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginRight: 8 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: moderateScale(8) },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

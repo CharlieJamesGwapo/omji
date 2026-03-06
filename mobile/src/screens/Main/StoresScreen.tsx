@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { storeService } from '../../services/api';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 const { width } = Dimensions.get('window');
 
@@ -214,7 +215,7 @@ export default function StoresScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
 
-          {filteredStores.length === 0 && (
+          {!loading && filteredStores.length === 0 && (
             <View style={styles.emptyState}>
               <Ionicons name="storefront-outline" size={64} color="#D1D5DB" />
               <Text style={styles.emptyText}>No stores found</Text>
@@ -236,19 +237,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: RESPONSIVE.fontSize.title,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   searchSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(16),
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -257,116 +258,116 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(12),
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
+    marginLeft: moderateScale(8),
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
   },
   categoriesSection: {
     backgroundColor: '#ffffff',
   },
   categoriesContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingVertical: verticalScale(16),
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(10),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     backgroundColor: '#F3F4F6',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   categoryChipActive: {
     backgroundColor: '#EF4444',
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
-    marginLeft: 6,
+    marginLeft: moderateScale(6),
   },
   categoryTextActive: {
     color: '#ffffff',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: verticalScale(100),
   },
   section: {
-    marginTop: 20,
+    marginTop: verticalScale(20),
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    marginBottom: verticalScale(16),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   featuredContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   featuredCard: {
-    width: 200,
-    marginRight: 16,
+    width: moderateScale(200),
+    marginRight: moderateScale(16),
   },
   featuredImageContainer: {
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
   },
   featuredImage: {
-    width: 200,
-    height: 120,
+    width: moderateScale(200),
+    height: verticalScale(120),
     resizeMode: 'cover',
   },
   featuredBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: verticalScale(8),
+    right: moderateScale(8),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: verticalScale(4),
   },
   featuredBadgeText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   featuredName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 8,
+    marginTop: verticalScale(8),
   },
   featuredInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: verticalScale(4),
   },
   featuredInfoText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   featuredDivider: {
     color: '#D1D5DB',
-    marginHorizontal: 6,
+    marginHorizontal: moderateScale(6),
   },
   storeCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginBottom: verticalScale(16),
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -376,20 +377,20 @@ const styles = StyleSheet.create({
   },
   storeImage: {
     width: '100%',
-    height: 140,
+    height: verticalScale(140),
     resizeMode: 'cover',
   },
   storeContent: {
-    padding: 16,
+    padding: moderateScale(16),
   },
   storeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   storeName: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
     flex: 1,
@@ -398,25 +399,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: verticalScale(4),
   },
   ratingText: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: 'bold',
     color: '#92400E',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   storeTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   tag: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   storeFooter: {
     flexDirection: 'row',
@@ -427,24 +428,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   storeInfoText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginLeft: 6,
+    marginLeft: moderateScale(6),
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(60),
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginTop: 16,
+    marginTop: verticalScale(16),
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#9CA3AF',
-    marginTop: 8,
+    marginTop: verticalScale(8),
   },
 });

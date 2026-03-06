@@ -12,9 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { driverService } from '../../services/api';
+import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function RiderProfileScreen({ navigation }: any) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [earningsData, setEarningsData] = useState<any>({});
 
@@ -22,10 +23,20 @@ export default function RiderProfileScreen({ navigation }: any) {
     fetchData();
   }, []);
 
+  const [driverData, setDriverData] = useState<any>({});
+
   const fetchData = async () => {
     try {
-      const res = await driverService.getEarnings();
-      setEarningsData(res.data?.data || {});
+      const [earningsRes, profileRes] = await Promise.allSettled([
+        driverService.getEarnings(),
+        driverService.getProfile(),
+      ]);
+      if (earningsRes.status === 'fulfilled') {
+        setEarningsData(earningsRes.value?.data?.data || {});
+      }
+      if (profileRes.status === 'fulfilled') {
+        setDriverData(profileRes.value?.data?.data || {});
+      }
     } catch (error) {
       console.error('Error fetching rider data:', error);
     } finally {
@@ -38,12 +49,12 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: user?.rating || earningsData.rating || 5.0,
+    rating: Number(user?.rating || earningsData.rating || 5.0),
     totalRides: earningsData.completed_rides || 0,
-    vehicleType: 'Motorcycle',
-    plateNumber: '-',
-    licenseNumber: '-',
-    joinedDate: 'Member',
+    vehicleType: driverData.vehicle_type || 'Motorcycle',
+    plateNumber: driverData.vehicle_plate || '-',
+    licenseNumber: driverData.vehicle_model || '-',
+    joinedDate: (user as any)?.created_at ? new Date((user as any).created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Member',
   };
 
   const totalRides = riderProfile.totalRides;
@@ -68,31 +79,31 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Vehicle',
       items: [
-        { icon: 'bicycle-outline', label: 'Vehicle Details', screen: 'RiderProfile' },
-        { icon: 'document-text-outline', label: 'Documents', screen: 'RiderProfile' },
+        { icon: 'bicycle-outline', label: 'Vehicle Details', action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${riderProfile.licenseNumber}`) },
+        { icon: 'document-text-outline', label: 'Documents', action: () => Alert.alert('Documents', 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.') },
       ],
     },
     {
       title: 'Performance',
       items: [
-        { icon: 'stats-chart-outline', label: 'Statistics', screen: 'RiderProfile' },
-        { icon: 'star-outline', label: 'Ratings & Reviews', screen: 'RiderProfile' },
+        { icon: 'stats-chart-outline', label: 'Statistics', action: () => navigation.navigate('RiderEarnings') },
+        { icon: 'star-outline', label: 'Ratings & Reviews', action: () => Alert.alert('Ratings', `Your Rating: ${riderProfile.rating.toFixed(1)} \u2B50\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!`) },
       ],
     },
     {
       title: 'Account',
       items: [
-        { icon: 'person-outline', label: 'Edit Profile', screen: 'RiderProfile' },
-        { icon: 'card-outline', label: 'Bank Account', screen: 'RiderProfile' },
-        { icon: 'shield-outline', label: 'Privacy & Security', screen: 'RiderProfile' },
+        { icon: 'person-outline', label: 'Edit Profile', action: () => Alert.alert('Edit Profile', `Name: ${riderProfile.name}\nEmail: ${riderProfile.email}\nPhone: ${riderProfile.phone}\n\nContact support to update your profile information.`) },
+        { icon: 'card-outline', label: 'Bank Account', action: () => Alert.alert('Bank Account', 'Manage your payout account.\n\nCurrently using the account registered during signup.\nContact support to update your bank details.') },
+        { icon: 'shield-outline', label: 'Privacy & Security', action: () => Alert.alert('Privacy & Security', 'Your data is encrypted and protected.\n\n\u2022 Location shared only during active rides\n\u2022 Personal info never shared with passengers\n\u2022 You can request data deletion anytime') },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', screen: 'RiderProfile' },
-        { icon: 'book-outline', label: 'Rider Guide', screen: 'RiderProfile' },
-        { icon: 'chatbubble-outline', label: 'Contact Support', screen: 'RiderProfile' },
+        { icon: 'help-circle-outline', label: 'Help Center', action: () => Alert.alert('Help Center', 'For assistance:\n\nEmail: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily\n\nFAQ:\n\u2022 How to accept rides?\n\u2022 How to withdraw earnings?\n\u2022 How to update vehicle info?') },
+        { icon: 'book-outline', label: 'Rider Guide', action: () => Alert.alert('Rider Guide', 'OMJI Rider Guide\n\n1. Go online to receive ride requests\n2. Accept requests within 30 seconds\n3. Navigate to pickup location\n4. Confirm pickup with customer\n5. Complete the ride at destination\n6. Earnings are added to your wallet\n\nTips:\n\u2022 Maintain a high rating\n\u2022 Stay in busy areas\n\u2022 Be polite and professional') },
+        { icon: 'chatbubble-outline', label: 'Contact Support', action: () => Alert.alert('Contact Support', 'Email: driver-support@omji.app\nPhone: +63 912 345 6789\nHours: 24/7 for driver support') },
       ],
     },
   ];
@@ -116,7 +127,19 @@ export default function RiderProfileScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Settings', 'Rider Settings', [
+          { text: 'View Earnings', onPress: () => navigation.navigate('RiderEarnings') },
+          { text: 'Switch to User Mode', onPress: () => {
+            Alert.alert('Switch Mode', 'Switch back to user mode?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Switch', onPress: () => {
+                updateUser({ role: 'user' });
+              }},
+            ]);
+          }},
+          { text: 'Logout', style: 'destructive', onPress: handleLogout },
+          { text: 'Cancel', style: 'cancel' },
+        ])}>
           <Ionicons name="settings-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
@@ -167,25 +190,58 @@ export default function RiderProfileScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Verification Status */}
+        <View style={[styles.vehicleCard, { marginBottom: 0 }]}>
+          <View style={styles.vehicleHeader}>
+            <Ionicons
+              name={driverData.verified ? 'shield-checkmark' : 'shield-outline'}
+              size={28}
+              color={driverData.verified ? '#10B981' : '#F59E0B'}
+            />
+            <Text style={styles.vehicleTitle}>Verification Status</Text>
+            <View style={{
+              marginLeft: 'auto',
+              backgroundColor: driverData.verified ? '#ECFDF5' : '#FEF3C7',
+              paddingHorizontal: moderateScale(12),
+              paddingVertical: moderateScale(4),
+              borderRadius: RESPONSIVE.borderRadius.small,
+            }}>
+              <Text style={{
+                fontSize: RESPONSIVE.fontSize.small,
+                fontWeight: '600',
+                color: driverData.verified ? '#10B981' : '#F59E0B',
+              }}>
+                {driverData.verified ? 'Verified' : 'Pending'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Vehicle Info */}
         <View style={styles.vehicleCard}>
           <View style={styles.vehicleHeader}>
-            <Ionicons name="bicycle" size={28} color="#3B82F6" />
+            <Ionicons name={(driverData.vehicle_type === 'car' ? 'car' : 'navigate-circle') as any} size={28} color="#3B82F6" />
             <Text style={styles.vehicleTitle}>Vehicle Information</Text>
           </View>
           <View style={styles.vehicleDetails}>
             <View style={styles.vehicleRow}>
               <Text style={styles.vehicleLabel}>Type</Text>
-              <Text style={styles.vehicleValue}>{riderProfile.vehicleType}</Text>
+              <Text style={styles.vehicleValue}>{driverData.vehicle_type || riderProfile.vehicleType}</Text>
             </View>
             <View style={styles.vehicleRow}>
               <Text style={styles.vehicleLabel}>Plate Number</Text>
-              <Text style={styles.vehicleValue}>{riderProfile.plateNumber}</Text>
+              <Text style={styles.vehicleValue}>{driverData.vehicle_plate || riderProfile.plateNumber}</Text>
             </View>
             <View style={styles.vehicleRow}>
-              <Text style={styles.vehicleLabel}>License Number</Text>
-              <Text style={styles.vehicleValue}>{riderProfile.licenseNumber}</Text>
+              <Text style={styles.vehicleLabel}>Model</Text>
+              <Text style={styles.vehicleValue}>{driverData.vehicle_model || riderProfile.licenseNumber}</Text>
             </View>
+            {!!driverData.license_number && (
+              <View style={styles.vehicleRow}>
+                <Text style={styles.vehicleLabel}>License Number</Text>
+                <Text style={styles.vehicleValue}>{driverData.license_number}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -238,7 +294,7 @@ export default function RiderProfileScreen({ navigation }: any) {
                     styles.menuItem,
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
                   ]}
-                  onPress={() => navigation.navigate(item.screen)}
+                  onPress={() => item.action?.()}
                 >
                   <Ionicons name={item.icon as any} size={22} color="#6B7280" />
                   <Text style={styles.menuLabel}>{item.label}</Text>
@@ -273,38 +329,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   profileCard: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 16,
-    padding: 24,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(20),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(24),
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    borderWidth: moderateScale(4),
     borderColor: '#E5E7EB',
   },
   verifiedBadge: {
@@ -312,155 +368,155 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
   },
   profileName: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   profileEmail: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   profileMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: verticalScale(4),
   },
   profilePhone: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginLeft: 6,
+    marginLeft: moderateScale(6),
   },
   profileJoined: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginLeft: 6,
+    marginLeft: moderateScale(6),
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    marginTop: 20,
+    paddingHorizontal: moderateScale(16),
+    marginTop: verticalScale(20),
   },
   statCard: {
     width: '48%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     alignItems: 'center',
-    margin: 4,
+    margin: moderateScale(4),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   statValue: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
     textAlign: 'center',
   },
   vehicleCard: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 12,
-    padding: 20,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(20),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(20),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   vehicleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 16,
+    marginBottom: verticalScale(16),
+    paddingBottom: verticalScale(16),
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
   vehicleTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   vehicleDetails: {},
   vehicleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: verticalScale(10),
   },
   vehicleLabel: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   vehicleValue: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#1F2937',
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(24),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
+    marginHorizontal: moderateScale(-4),
   },
   achievementCard: {
     width: '31%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(12),
     alignItems: 'center',
-    margin: 4,
+    margin: moderateScale(4),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   achievementCardLocked: {
     opacity: 0.5,
   },
   achievementIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   achievementTitle: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
@@ -469,31 +525,31 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   menuSection: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(24),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   menuSectionTitle: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: moderateScale(0.5),
   },
   menuCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: moderateScale(16),
   },
   menuItemBorder: {
     borderBottomWidth: 1,
@@ -501,32 +557,32 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
-    marginLeft: 16,
+    marginLeft: moderateScale(16),
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(24),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     borderWidth: 1,
     borderColor: '#FEE2E2',
   },
   logoutText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#EF4444',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
   versionText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#9CA3AF',
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: verticalScale(24),
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService } from '../../services/api';
 import Toast, { ToastType } from '../../components/Toast';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 interface DriverRequest {
   id: number;
@@ -46,6 +48,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
+  const previousRequestCount = useRef(-1);
 
   const fetchData = useCallback(async () => {
     try {
@@ -60,7 +63,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
       if (requestsRes.status === 'fulfilled') {
         const data = requestsRes.value?.data?.data;
-        setRequests(Array.isArray(data) ? data : []);
+        const newRequests = Array.isArray(data) ? data : [];
+        if (newRequests.length > previousRequestCount.current) {
+          Vibration.vibrate(500);
+        }
+        previousRequestCount.current = newRequests.length;
+        setRequests(newRequests);
         const activeData = requestsRes.value?.data?.active;
         setActiveJobs(Array.isArray(activeData) ? activeData : []);
       }
@@ -117,8 +125,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
         await driverService.setAvailability({ available: false });
         setIsOnline(false);
         showToast('You are now offline.', 'info');
-      } catch (error) {
-        console.error('Failed to go offline:', error);
+      } catch (error: any) {
+        const msg = error.response?.data?.error || 'Failed to go offline. Please try again.';
+        showToast(msg, 'error');
       }
     }
   };
@@ -148,8 +157,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await driverService.acceptRequest(request.id);
+              await fetchData();
               showToast(`${jobLabel} accepted! Heading to pickup.`, 'success');
-              fetchData();
               navigation.navigate('Tracking', {
                 type: isDelivery ? 'delivery' : 'ride',
                 rideId: request.id,
@@ -167,6 +176,32 @@ export default function RiderDashboardScreen({ navigation }: any) {
     );
   };
 
+  const handleDeclineJob = (request: DriverRequest) => {
+    const isDelivery = request.type === 'delivery';
+    const jobLabel = isDelivery ? 'Delivery' : 'Ride';
+    Alert.alert(
+      `Decline ${jobLabel}`,
+      `Are you sure you want to decline this ${jobLabel.toLowerCase()}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await driverService.rejectRequest(request.id);
+              showToast(`${jobLabel} declined.`, 'info');
+              fetchData();
+            } catch (error: any) {
+              const msg = error.response?.data?.error || 'Failed to decline request';
+              showToast(msg, 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -176,9 +211,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const getJobIcon = (request: DriverRequest) => {
     if (request.type === 'delivery') return 'cube';
     switch (request.vehicle_type) {
-      case 'motorcycle': return 'bicycle';
+      case 'motorcycle': return 'navigate-circle';
       case 'car': return 'car';
-      default: return 'bicycle';
+      default: return 'navigate-circle';
     }
   };
 
@@ -278,7 +313,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                   </Text>
                   <Text style={styles.activeJobStatus}>{getStatusLabel(job.status)}</Text>
                   <Text style={styles.activeJobRoute} numberOfLines={1}>
-                    {job.pickup_location || job.pickup} → {job.dropoff_location || job.dropoff}
+                    {job.pickup_location || job.pickup || 'Pickup'} → {job.dropoff_location || job.dropoff || 'Dropoff'}
                   </Text>
                 </View>
                 <View style={styles.activeJobRight}>
@@ -300,14 +335,14 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <View style={[styles.statIcon, { backgroundColor: '#DCFCE7' }]}>
                 <Ionicons name="cash" size={24} color="#10B981" />
               </View>
-              <Text style={styles.statValue}>₱{earnings.today_earnings || 0}</Text>
+              <Text style={styles.statValue}>₱{(earnings.today_earnings || 0).toFixed(0)}</Text>
               <Text style={styles.statLabel}>Today</Text>
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
                 <Ionicons name="wallet" size={24} color="#3B82F6" />
               </View>
-              <Text style={styles.statValue}>₱{earnings.total_earnings || 0}</Text>
+              <Text style={styles.statValue}>₱{(earnings.total_earnings || 0).toFixed(0)}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
             <View style={styles.statCard}>
@@ -345,7 +380,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => Alert.alert('Help', 'For rider support, contact us at support@omji.app')}
+            onPress={() => Alert.alert('Rider Help', 'Need assistance?\n\nEmail: driver-support@omji.app\nPhone: +63 912 345 6789\n\nCommon Issues:\n\u2022 Can\'t go online? Check GPS and internet\n\u2022 Ride not showing? Pull down to refresh\n\u2022 Payment issues? Contact support\n\nHours: 24/7 driver support')}
           >
             <Ionicons name="help-circle-outline" size={24} color="#6B7280" />
             <Text style={styles.quickActionText}>Help</Text>
@@ -431,15 +466,41 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     </View>
                   )}
 
-                  <TouchableOpacity
-                    style={[styles.acceptButton, { backgroundColor: getJobColor(request) }]}
-                    onPress={() => handleAcceptJob(request)}
-                  >
-                    <Text style={styles.acceptButtonText}>
-                      Accept {request.type === 'delivery' ? 'Delivery' : 'Ride'}
-                    </Text>
-                    <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-                  </TouchableOpacity>
+                  {!!request.passenger_phone && (
+                    <View style={[styles.passengersInfo, { marginTop: 4 }]}>
+                      <Ionicons name="call-outline" size={16} color="#10B981" />
+                      <Text style={[styles.passengersText, { color: '#10B981' }]}>
+                        {request.passenger_phone}
+                      </Text>
+                    </View>
+                  )}
+
+                  {!!request.payment_method && (
+                    <View style={[styles.passengersInfo, { marginTop: 4 }]}>
+                      <Ionicons name="cash-outline" size={16} color="#F59E0B" />
+                      <Text style={[styles.passengersText, { color: '#F59E0B' }]}>
+                        Payment: {request.payment_method.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.declineButton}
+                      onPress={() => handleDeclineJob(request)}
+                    >
+                      <Text style={styles.declineButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.acceptButton, { backgroundColor: getJobColor(request), flex: 1 }]}
+                      onPress={() => handleAcceptJob(request)}
+                    >
+                      <Text style={styles.acceptButtonText}>
+                        Accept {request.type === 'delivery' ? 'Delivery' : 'Ride'}
+                      </Text>
+                      <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             ) : (
@@ -487,30 +548,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(12),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   toggleCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(16),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -523,10 +584,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    marginRight: moderateScale(12),
   },
   statusOnline: {
     backgroundColor: '#10B981',
@@ -538,55 +599,55 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toggleTitle: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   toggleSubtitle: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(20),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   availableBadge: {
     backgroundColor: '#10B981',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    minWidth: moderateScale(24),
+    height: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
-    paddingHorizontal: 8,
+    marginLeft: moderateScale(8),
+    paddingHorizontal: moderateScale(8),
   },
   availableBadgeText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
+    marginHorizontal: moderateScale(-4),
   },
   statCard: {
     width: '48%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    margin: 4,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    margin: moderateScale(4),
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -595,35 +656,35 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
   },
   statValue: {
-    fontSize: 24,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   quickActions: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginTop: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(16),
   },
   quickActionButton: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: moderateScale(4),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -631,16 +692,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   quickActionText: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#374151',
-    marginTop: 8,
+    marginTop: verticalScale(6),
   },
   jobCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(10),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -651,52 +712,52 @@ const styles = StyleSheet.create({
   jobHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
   },
   jobIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   jobHeaderInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   jobService: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   jobMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   jobMetric: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   jobFare: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#10B981',
   },
   jobBody: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(12),
+    marginBottom: verticalScale(10),
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   locationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
     backgroundColor: '#10B981',
   },
   locationDotDropoff: {
@@ -704,62 +765,81 @@ const styles = StyleSheet.create({
   },
   locationConnector: {
     width: 2,
-    height: 16,
+    height: verticalScale(14),
     backgroundColor: '#D1D5DB',
-    marginLeft: 4,
-    marginVertical: 4,
+    marginLeft: moderateScale(4),
+    marginVertical: verticalScale(3),
   },
   locationText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#374151',
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   passengersInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: moderateScale(10),
+    borderRadius: RESPONSIVE.borderRadius.small,
+    marginBottom: verticalScale(10),
   },
   passengersText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#374151',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: moderateScale(8),
+  },
+  declineButton: {
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    paddingHorizontal: moderateScale(20),
+  },
+  declineButtonText: {
+    color: '#EF4444',
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: 'bold',
   },
   acceptButton: {
     flexDirection: 'row',
     backgroundColor: '#10B981',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    padding: moderateScale(14),
     alignItems: 'center',
     justifyContent: 'center',
   },
   acceptButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   emptyJobs: {
     alignItems: 'center',
-    padding: 40,
+    padding: moderateScale(36),
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
   },
   emptyJobsText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: verticalScale(10),
   },
   offlineCard: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 40,
-    borderRadius: 16,
-    padding: 40,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(32),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(36),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -767,36 +847,36 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   offlineTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: verticalScale(12),
+    marginBottom: verticalScale(6),
   },
   offlineText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: verticalScale(20),
   },
   goOnlineButton: {
     backgroundColor: '#10B981',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: moderateScale(32),
+    paddingVertical: moderateScale(12),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   goOnlineButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
   activeJobCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(8),
     borderLeftWidth: 4,
     borderLeftColor: '#10B981',
     shadowColor: '#000',
@@ -806,39 +886,39 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   activeJobIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeJobInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   activeJobTitle: {
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   activeJobStatus: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#F59E0B',
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   activeJobRoute: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   activeJobRight: {
     alignItems: 'flex-end',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
   activeJobFare: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
 });

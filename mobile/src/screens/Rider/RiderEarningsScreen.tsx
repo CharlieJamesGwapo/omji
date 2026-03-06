@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { driverService } from '../../services/api';
+import { driverService, walletService } from '../../services/api';
+import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function RiderEarningsScreen({ navigation }: any) {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
@@ -47,19 +48,47 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const dailyEarnings = earningsApiData.today_earnings || 0;
   const totalEarnings = earningsApiData.total_earnings || 0;
 
+  // Real per-service data from backend
+  const rideEarnings = earningsApiData.ride_earnings || 0;
+  const rideCount = earningsApiData.ride_count || 0;
+  const deliveryEarnings = earningsApiData.delivery_earnings || 0;
+  const deliveryCount = earningsApiData.delivery_count || 0;
+  const todayRideEarnings = earningsApiData.today_ride_earnings || 0;
+  const todayDeliveryEarnings = earningsApiData.today_delivery_earnings || 0;
+
+  const todayRideCount = earningsApiData.today_ride_count || 0;
+  const todayDeliveryCount = earningsApiData.today_delivery_count || 0;
+  const todayTotalTrips = todayRideCount + todayDeliveryCount;
+
   const earningsData = {
-    today: { total: dailyEarnings, rides: Math.round(totalRides / 30), avg: dailyEarnings > 0 ? Math.round(dailyEarnings / Math.max(1, Math.round(totalRides / 30))) : 0 },
-    week: { total: Math.round(totalEarnings / 4), rides: Math.round(totalRides / 4), avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
+    today: { total: dailyEarnings, rides: todayTotalTrips, avg: todayTotalTrips > 0 ? Math.round(dailyEarnings / todayTotalTrips) : 0 },
+    week: { total: totalEarnings, rides: totalRides, avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
     month: { total: totalEarnings, rides: totalRides, avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
   };
 
   const currentData = earningsData[selectedPeriod as keyof typeof earningsData];
 
-  const earningsBreakdown = [
-    { service: 'Pasabay', rides: Math.round(totalRides * 0.4), earnings: Math.round(currentData.total * 0.35), color: '#10B981' },
-    { service: 'Pasugo', rides: Math.round(totalRides * 0.35), earnings: Math.round(currentData.total * 0.40), color: '#3B82F6' },
-    { service: 'Pasundo', rides: Math.round(totalRides * 0.25), earnings: Math.round(currentData.total * 0.25), color: '#F59E0B' },
-  ];
+  // Calculate breakdown based on period
+  const getBreakdown = () => {
+    if (selectedPeriod === 'today') {
+      return [
+        { service: 'Pasundo (Rides)', rides: todayRideCount, earnings: Math.round(todayRideEarnings), color: '#F59E0B' },
+        { service: 'Pasugo (Deliveries)', rides: todayDeliveryCount, earnings: Math.round(todayDeliveryEarnings), color: '#3B82F6' },
+      ];
+    }
+    if (selectedPeriod === 'week') {
+      return [
+        { service: 'Pasundo (Rides)', rides: Math.round(rideCount / 4), earnings: Math.round(rideEarnings / 4), color: '#F59E0B' },
+        { service: 'Pasugo (Deliveries)', rides: Math.round(deliveryCount / 4), earnings: Math.round(deliveryEarnings / 4), color: '#3B82F6' },
+      ];
+    }
+    return [
+      { service: 'Pasundo (Rides)', rides: rideCount, earnings: Math.round(rideEarnings), color: '#F59E0B' },
+      { service: 'Pasugo (Deliveries)', rides: deliveryCount, earnings: Math.round(deliveryEarnings), color: '#3B82F6' },
+    ];
+  };
+
+  const earningsBreakdown = getBreakdown();
 
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
@@ -84,9 +113,15 @@ export default function RiderEarningsScreen({ navigation }: any) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => {
-            setWithdrawAmount('');
-            Alert.alert('Success', 'Withdrawal request submitted!');
+          onPress: async () => {
+            try {
+              await walletService.withdraw({ amount, payment_method: 'gcash' });
+              setWithdrawAmount('');
+              Alert.alert('Success', 'Withdrawal request submitted! Processing within 1-3 business days.');
+              fetchEarnings(); // Refresh data
+            } catch (error: any) {
+              Alert.alert('Withdrawal Failed', error.response?.data?.error || 'Failed to process withdrawal. Please try again.');
+            }
           },
         },
       ]
@@ -101,7 +136,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Download Report', 'Coming soon! Earnings report download will be available in a future update.')}>
           <Ionicons name="download-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
@@ -229,7 +264,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
           {totalRides === 0 ? (
             <View style={styles.earningCard}>
-              <View style={[styles.earningIcon, { backgroundColor: '#F3F4F620' }]}>
+              <View style={[styles.earningIcon, { backgroundColor: 'rgba(243,244,246,0.13)' }]}>
                 <Ionicons name="bicycle-outline" size={20} color="#6B7280" />
               </View>
               <View style={styles.earningInfo}>
@@ -242,7 +277,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
               <View key={index} style={styles.earningCard}>
                 <View style={[styles.earningIcon, { backgroundColor: `${item.color}20` }]}>
                   <Ionicons
-                    name={item.service === 'Pasabay' ? 'bicycle' : item.service === 'Pasugo' ? 'cube' : 'people'}
+                    name={item.service.includes('Deliveries') ? 'cube' : 'navigate-circle'}
                     size={20}
                     color={item.color}
                   />
@@ -281,105 +316,105 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   balanceCard: {
     backgroundColor: '#10B981',
-    margin: 20,
-    borderRadius: 16,
-    padding: 24,
+    margin: moderateScale(20),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(24),
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowRadius: moderateScale(12),
     elevation: 8,
   },
   balanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: verticalScale(16),
   },
   balanceLabel: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: 'rgba(255, 255, 255, 0.9)',
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   balanceAmount: {
-    fontSize: 40,
+    fontSize: fontScale(40),
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 20,
+    marginBottom: verticalScale(20),
   },
   withdrawSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   withdrawInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginRight: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(16),
+    marginRight: moderateScale(12),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   currencySymbol: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   withdrawInput: {
     flex: 1,
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#ffffff',
-    paddingVertical: 12,
+    paddingVertical: verticalScale(12),
   },
   withdrawButton: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: moderateScale(24),
+    paddingVertical: verticalScale(12),
+    borderRadius: RESPONSIVE.borderRadius.medium,
   },
   withdrawButtonText: {
     color: '#10B981',
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
   withdrawHint: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: 'rgba(255, 255, 255, 0.8)',
   },
   periodSelector: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(20),
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: verticalScale(10),
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    marginHorizontal: 4,
-    borderRadius: 8,
+    marginHorizontal: moderateScale(4),
+    borderRadius: RESPONSIVE.borderRadius.small,
   },
   periodButtonActive: {
     backgroundColor: '#3B82F6',
   },
   periodText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -387,18 +422,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   summarySection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(24),
   },
   summaryCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(20),
+    marginBottom: verticalScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   summaryItem: {
@@ -406,65 +441,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryInfo: {
-    marginLeft: 16,
+    marginLeft: moderateScale(16),
   },
   summaryValue: {
-    fontSize: 28,
+    fontSize: RESPONSIVE.fontSize.title,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   summaryRow: {
     flexDirection: 'row',
-    marginHorizontal: -4,
+    marginHorizontal: moderateScale(-4),
   },
   summarySmallCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: moderateScale(4),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   summarySmallValue: {
-    fontSize: 20,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: verticalScale(8),
+    marginBottom: verticalScale(4),
   },
   summarySmallLabel: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
     textAlign: 'center',
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(24),
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   seeAllText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#3B82F6',
   },
@@ -472,90 +507,90 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    marginBottom: verticalScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   breakdownIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   breakdownDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
   },
   breakdownInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   breakdownService: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   breakdownRides: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
   },
   breakdownEarnings: {
     alignItems: 'flex-end',
   },
   breakdownAmount: {
-    fontSize: 18,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#10B981',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   breakdownPercentage: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   earningCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    marginBottom: verticalScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: moderateScale(4),
     elevation: 2,
   },
   earningIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
   },
   earningInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   earningService: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: verticalScale(2),
   },
   earningDate: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
   },
   earningAmount: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#10B981',
   },
@@ -563,16 +598,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginBottom: verticalScale(20),
   },
   paymentInfoText: {
     flex: 1,
-    marginLeft: 12,
-    fontSize: 13,
+    marginLeft: moderateScale(12),
+    fontSize: fontScale(13),
     color: '#1E40AF',
-    lineHeight: 18,
+    lineHeight: fontScale(18),
   },
 });

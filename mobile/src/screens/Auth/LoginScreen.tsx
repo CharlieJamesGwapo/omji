@@ -9,14 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Dimensions,
   StatusBar,
   Animated,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, isTablet } from '../../utils/responsive';
 
 type BannerType = 'error' | 'success';
 
@@ -334,7 +333,7 @@ export default function LoginScreen({ navigation }: any) {
             ) : null}
 
             {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotButton}>
+            <TouchableOpacity style={styles.forgotButton} onPress={() => Alert.alert('Reset Password', 'To reset your password, please contact support at support@omji.app or call +63 912 345 6789.')}>
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
@@ -373,7 +372,16 @@ export default function LoginScreen({ navigation }: any) {
             {/* Driver Signup */}
             <TouchableOpacity
               style={styles.driverSignupButton}
-              onPress={() => navigation.navigate('RiderRegistration')}
+              onPress={() => {
+                Alert.alert(
+                  'Become a Driver',
+                  'To become a driver, please create an account first, then register as a driver from your Profile screen.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Create Account', onPress: () => navigation.navigate('Register') },
+                  ]
+                );
+              }}
             >
               <Ionicons name="car-sport" size={18} color="#10B981" />
               <Text style={styles.driverSignupText}>
@@ -396,23 +404,23 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
 
   // Header Section
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: verticalScale(28),
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
     backgroundColor: '#FEE2E2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 3,
+    marginBottom: verticalScale(12),
+    borderWidth: moderateScale(3),
     borderColor: '#DC2626',
     overflow: 'hidden',
     shadowColor: '#DC2626',
@@ -426,14 +434,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   appName: {
-    fontSize: 32,
+    fontSize: RESPONSIVE.fontSize.heading,
     fontWeight: 'bold',
     color: '#DC2626',
     letterSpacing: 1,
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   tagline: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
     fontWeight: '400',
   },
@@ -441,8 +449,8 @@ const styles = StyleSheet.create({
   // Form Container
   formContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -451,10 +459,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   welcomeText: {
-    fontSize: 22,
+    fontSize: fontScale(22),
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 20,
+    marginBottom: verticalScale(16),
     textAlign: 'center',
   },
 
@@ -462,11 +470,11 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: moderateScale(10),
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(10),
+    marginBottom: verticalScale(12),
   },
   bannerError: {
     backgroundColor: '#FEF2F2',
@@ -477,11 +485,11 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   bannerIcon: {
-    marginRight: 8,
+    marginRight: moderateScale(8),
   },
   bannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '500',
   },
   bannerTextError: {
@@ -496,12 +504,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 14,
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: moderateScale(14),
+    marginBottom: verticalScale(12),
   },
   inputWrapperFocused: {
     borderColor: '#DC2626',
@@ -512,31 +520,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
   icon: {
-    marginRight: 10,
+    marginRight: moderateScale(10),
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#111827',
   },
 
   // Inline field error
   fieldError: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#EF4444',
-    marginTop: -10,
-    marginBottom: 10,
-    marginLeft: 14,
+    marginTop: verticalScale(-8),
+    marginBottom: verticalScale(8),
+    marginLeft: moderateScale(14),
     fontWeight: '500',
   },
 
   // Forgot Password
   forgotButton: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
+    marginBottom: verticalScale(16),
   },
   forgotText: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#DC2626',
     fontWeight: '600',
   },
@@ -544,11 +552,11 @@ const styles = StyleSheet.create({
   // Login Button
   loginButton: {
     backgroundColor: '#DC2626',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: verticalScale(14),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: verticalScale(12),
     shadowColor: '#DC2626',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -559,7 +567,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.3,
@@ -569,7 +577,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: verticalScale(12),
   },
   line: {
     flex: 1,
@@ -577,8 +585,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
+    marginHorizontal: moderateScale(12),
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#9CA3AF',
     fontWeight: '500',
   },
@@ -588,7 +596,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signupText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
   },
   signupLink: {
@@ -601,18 +609,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    marginTop: verticalScale(12),
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
     backgroundColor: '#ECFDF5',
-    borderRadius: 10,
+    borderRadius: moderateScale(10),
     borderWidth: 1,
     borderColor: '#10B981',
   },
   driverSignupText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#6B7280',
-    marginLeft: 8,
+    marginLeft: moderateScale(8),
   },
   driverSignupLink: {
     color: '#10B981',
