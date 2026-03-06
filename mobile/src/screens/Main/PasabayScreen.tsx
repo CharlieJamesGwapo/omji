@@ -14,12 +14,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { rideService, rideShareService, walletService, promoService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
 export default function PasabayScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const isDriver = user?.role === 'driver';
   const [showPickupMap, setShowPickupMap] = useState(false);
   const [showDropoffMap, setShowDropoffMap] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(true);
@@ -157,7 +160,7 @@ export default function PasabayScreen({ navigation }: any) {
           onPress: async () => {
             try {
               setJoiningRideId(ride.id);
-              const response = await rideShareService.joinRideShare(ride.id);
+              const response = await rideShareService.joinRideShare(ride.id, paymentMethod);
               const data = response.data?.data;
               fetchAvailableRides();
               // Navigate to tracking with the created ride
@@ -263,6 +266,46 @@ export default function PasabayScreen({ navigation }: any) {
       return;
     }
 
+    // Driver flow: create a rideshare offering
+    if (isDriver) {
+      Alert.alert(
+        'Offer Ride Share',
+        `You are offering a shared ride.\n\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nSeats: ${passengers}\nFare per passenger: ₱${totalFare.toFixed(0)}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Create Ride Share',
+            onPress: async () => {
+              setLoading(true);
+              try {
+                const departureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min from now
+                await rideShareService.createRideShare({
+                  pickup_location: pickupLocation.address,
+                  pickup_latitude: pickupLocation.latitude,
+                  pickup_longitude: pickupLocation.longitude,
+                  dropoff_location: dropoffLocation.address,
+                  dropoff_latitude: dropoffLocation.latitude,
+                  dropoff_longitude: dropoffLocation.longitude,
+                  total_seats: passengers,
+                  base_fare: totalFare,
+                  departure_time: departureTime,
+                });
+                Alert.alert('Ride Share Created!', 'Passengers can now see and join your ride. You can check your active rideshares from the Driver Dashboard.');
+                fetchAvailableRides();
+              } catch (error: any) {
+                const msg = error.response?.data?.error || 'Failed to create ride share';
+                showToast(msg, 'error');
+              } finally {
+                setLoading(false);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Passenger flow: book a regular pasabay ride
     // Check wallet balance if paying with wallet
     if (paymentMethod === 'wallet') {
       try {
@@ -364,7 +407,7 @@ export default function PasabayScreen({ navigation }: any) {
             onPress={() => setMode('book')}
           >
             <Ionicons name="add-circle-outline" size={20} color={mode === 'book' ? '#ffffff' : '#6B7280'} />
-            <Text style={[styles.modeText, mode === 'book' && styles.modeTextActive]}>Book a Ride</Text>
+            <Text style={[styles.modeText, mode === 'book' && styles.modeTextActive]}>{isDriver ? 'Offer a Ride' : 'Book a Ride'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeButton, mode === 'join' && styles.modeButtonActive]}
@@ -451,7 +494,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <Text style={styles.emptyText}>No ride shares available</Text>
                 <Text style={styles.emptySubtext}>Pull to refresh or book your own ride</Text>
                 <TouchableOpacity style={styles.switchModeButton} onPress={() => setMode('book')}>
-                  <Text style={styles.switchModeText}>Book a Ride</Text>
+                  <Text style={styles.switchModeText}>{isDriver ? 'Offer a Ride' : 'Book a Ride'}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -618,7 +661,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <>
-                  <Text style={styles.bookButtonText}>Book Ride</Text>
+                  <Text style={styles.bookButtonText}>{isDriver ? 'Offer Ride Share' : 'Book Ride'}</Text>
                   <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                 </>
               )}

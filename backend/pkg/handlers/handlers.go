@@ -309,7 +309,9 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		if input.PromoCode != "" {
 			var promo models.Promo
 			if err := db.Where("code = ? AND is_active = ? AND applicable_to IN ?", input.PromoCode, true, []string{"rides", "all"}).First(&promo).Error; err == nil {
-				if fare >= promo.MinimumAmount && promo.UsageCount < promo.UsageLimit {
+				promoNow := time.Now()
+				promoValid := fare >= promo.MinimumAmount && (promo.UsageLimit == 0 || promo.UsageCount < promo.UsageLimit) && (promo.StartDate.IsZero() || !promoNow.Before(promo.StartDate)) && (promo.EndDate.IsZero() || !promoNow.After(promo.EndDate))
+				if promoValid {
 					discount := 0.0
 					if promo.DiscountType == "percentage" {
 						discount = fare * promo.DiscountValue / 100
@@ -484,10 +486,32 @@ func GetAvailableRideShares(db *gorm.DB) gin.HandlerFunc {
 func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		var input struct {
+			PaymentMethod string `json:"payment_method"`
+		}
+		c.ShouldBindJSON(&input)
+		if input.PaymentMethod == "" {
+			input.PaymentMethod = "cash"
+		}
 		var rs models.RideShare
-		if err := db.Preload("Driver").Where("id = ? AND status = ? AND available_seats > 0", c.Param("id"), "active").First(&rs).Error; err != nil {
+		if err := db.Preload("Driver").Preload("Passengers").Where("id = ? AND status = ? AND available_seats > 0", c.Param("id"), "active").First(&rs).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ride share not available"})
 			return
+		}
+		// Prevent driver from joining their own rideshare
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err == nil {
+			if driver.ID == rs.DriverID {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot join your own ride share"})
+				return
+			}
+		}
+		// Check if user already joined this rideshare
+		for _, p := range rs.Passengers {
+			if p.ID == uint(userID) {
+				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "You already joined this ride share"})
+				return
+			}
 		}
 		var user models.User
 		db.First(&user, userID)
@@ -507,9 +531,11 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 			EstimatedFare:    rs.BaseFare,
 			VehicleType:      rs.Driver.VehicleType,
 			Status:           "accepted",
-			PaymentMethod:    "cash",
+			PaymentMethod:    input.PaymentMethod,
 		}
 		db.Create(&ride)
+		// Notify the driver that someone joined
+		db.Create(&models.Notification{UserID: rs.Driver.UserID, Title: "Passenger Joined", Body: user.Name + " joined your ride share", Type: "rideshare_join"})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Joined ride share", "fare": rs.BaseFare, "ride_id": ride.ID, "pickup": rs.PickupLocation, "dropoff": rs.DropoffLocation}, "timestamp": time.Now()})
 	}
 }
@@ -520,7 +546,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 
-		var pickupLocation, dropoffLocation, itemDescription, itemPhoto, notes, paymentMethod string
+		var pickupLocation, dropoffLocation, itemDescription, itemPhoto, notes, paymentMethod, promoCode string
 		var pickupLat, pickupLng, dropoffLat, dropoffLng, weight float64
 
 		contentType := c.ContentType()
@@ -531,6 +557,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			itemDescription = c.PostForm("item_description")
 			notes = c.PostForm("notes")
 			paymentMethod = c.PostForm("payment_method")
+			promoCode = c.PostForm("promo_code")
 			itemPhoto = c.PostForm("item_photo")
 			pickupLat, _ = strconv.ParseFloat(c.PostForm("pickup_latitude"), 64)
 			pickupLng, _ = strconv.ParseFloat(c.PostForm("pickup_longitude"), 64)
@@ -570,6 +597,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 				Notes            string  `json:"notes"`
 				Weight           float64 `json:"weight"`
 				PaymentMethod    string  `json:"payment_method"`
+				PromoCode        string  `json:"promo_code"`
 			}
 			if err := c.ShouldBindJSON(&input); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -586,6 +614,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			notes = input.Notes
 			weight = input.Weight
 			paymentMethod = input.PaymentMethod
+			promoCode = input.PromoCode
 		}
 
 		if paymentMethod == "" {
@@ -596,11 +625,33 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			distance = 1.0
 		}
 		fee := 50.0 + (distance * 15.0)
+		var promoID *uint
+		if promoCode != "" {
+			var promo models.Promo
+			if err := db.Where("code = ? AND is_active = ? AND applicable_to IN ?", promoCode, true, []string{"deliveries", "all"}).First(&promo).Error; err == nil {
+				promoNow := time.Now()
+				promoValid := fee >= promo.MinimumAmount && (promo.UsageLimit == 0 || promo.UsageCount < promo.UsageLimit) && (promo.StartDate.IsZero() || !promoNow.Before(promo.StartDate)) && (promo.EndDate.IsZero() || !promoNow.After(promo.EndDate))
+				if promoValid {
+					discount := 0.0
+					if promo.DiscountType == "percentage" {
+						discount = fee * promo.DiscountValue / 100
+						if discount > promo.MaxDiscount && promo.MaxDiscount > 0 {
+							discount = promo.MaxDiscount
+						}
+					} else {
+						discount = promo.DiscountValue
+					}
+					fee -= discount
+					promoID = &promo.ID
+					db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1"))
+				}
+			}
+		}
 		delivery := models.Delivery{
 			UserID: userID, PickupLocation: pickupLocation, PickupLatitude: pickupLat, PickupLongitude: pickupLng,
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
-			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(),
+			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(), PromoID: promoID,
 		}
 		db.Create(&delivery)
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": delivery.ID, "status": delivery.Status, "pickup_location": delivery.PickupLocation, "dropoff_location": delivery.DropoffLocation, "distance": delivery.Distance, "delivery_fee": delivery.DeliveryFee, "item_description": delivery.ItemDescription, "item_photo": delivery.ItemPhoto, "payment_method": delivery.PaymentMethod, "created_at": delivery.CreatedAt}, "timestamp": time.Now()})
@@ -992,6 +1043,19 @@ func ApplyPromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo code not found or not applicable"})
 			return
 		}
+		now := time.Now()
+		if !promo.StartDate.IsZero() && now.Before(promo.StartDate) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code is not yet active"})
+			return
+		}
+		if !promo.EndDate.IsZero() && now.After(promo.EndDate) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code has expired"})
+			return
+		}
+		if promo.UsageLimit > 0 && promo.UsageCount >= promo.UsageLimit {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code usage limit reached"})
+			return
+		}
 		if input.Amount < promo.MinimumAmount {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum amount not met"})
 			return
@@ -1156,6 +1220,16 @@ func GetDriverRequests(db *gorm.DB) gin.HandlerFunc {
 		for _, d := range deliveries {
 			results = append(results, gin.H{"id": d.ID, "type": "delivery", "status": "pending", "pickup": d.PickupLocation, "pickup_lat": d.PickupLatitude, "pickup_lng": d.PickupLongitude, "dropoff": d.DropoffLocation, "dropoff_lat": d.DropoffLatitude, "dropoff_lng": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "item_description": d.ItemDescription, "passenger_name": d.User.Name, "passenger_phone": d.User.Phone, "payment_method": d.PaymentMethod, "created_at": d.CreatedAt})
 		}
+		// Get driver's active rideshares
+		var activeShares []models.RideShare
+		db.Where("driver_id = ? AND status = ?", driver.ID, "active").Preload("Passengers").Find(&activeShares)
+		for _, s := range activeShares {
+			passengerNames := make([]string, len(s.Passengers))
+			for i, p := range s.Passengers {
+				passengerNames[i] = p.Name
+			}
+			active = append(active, gin.H{"id": s.ID, "type": "rideshare", "status": s.Status, "pickup": s.PickupLocation, "pickup_lat": s.PickupLatitude, "pickup_lng": s.PickupLongitude, "dropoff": s.DropoffLocation, "dropoff_lat": s.DropoffLatitude, "dropoff_lng": s.DropoffLongitude, "total_seats": s.TotalSeats, "available_seats": s.AvailableSeats, "base_fare": s.BaseFare, "departure_time": s.DepartureTime, "passengers": passengerNames, "created_at": s.CreatedAt})
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": results, "active": active, "timestamp": time.Now()})
 	}
 }
@@ -1212,7 +1286,36 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 
 func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Request rejected", "id": c.Param("id")}, "timestamp": time.Now()})
+		userID := c.MustGet("userID").(uint)
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
+		requestID := c.Param("id")
+		// Try to reject ride
+		var ride models.Ride
+		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&ride).Error; err == nil {
+			ride.DriverID = nil
+			ride.Status = "pending"
+			db.Save(&ride)
+			db.Model(&driver).Update("is_available", true)
+			db.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"})
+			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride rejected and returned to pending", "id": ride.ID, "type": "ride"}, "timestamp": time.Now()})
+			return
+		}
+		// Try to reject delivery
+		var delivery models.Delivery
+		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&delivery).Error; err == nil {
+			delivery.DriverID = nil
+			delivery.Status = "pending"
+			db.Save(&delivery)
+			db.Model(&driver).Update("is_available", true)
+			db.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"})
+			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery rejected and returned to pending", "id": delivery.ID, "type": "delivery"}, "timestamp": time.Now()})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No accepted request found with this ID"})
 	}
 }
 

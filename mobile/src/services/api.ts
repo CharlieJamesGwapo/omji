@@ -85,7 +85,7 @@ export const rideService = {
 export const rideShareService = {
   createRideShare: (data: any) => api.post('/rideshare/create', data),
   getAvailableRideShares: () => api.get('/rideshare/available'),
-  joinRideShare: (id: number) => api.post(`/rideshare/${id}/join`),
+  joinRideShare: (id: number, paymentMethod?: string) => api.post(`/rideshare/${id}/join`, { payment_method: paymentMethod || 'cash' }),
 };
 
 // Delivery Services

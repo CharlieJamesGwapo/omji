@@ -216,6 +216,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
   const getJobIcon = (request: DriverRequest) => {
     if (request.type === 'delivery') return 'cube';
+    if (request.type === 'rideshare') return 'people';
     switch (request.vehicle_type) {
       case 'motorcycle': return 'navigate-circle';
       case 'car': return 'car';
@@ -224,7 +225,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
   };
 
   const getJobColor = (request: DriverRequest) => {
-    return request.type === 'delivery' ? '#3B82F6' : '#10B981';
+    if (request.type === 'delivery') return '#3B82F6';
+    if (request.type === 'rideshare') return '#8B5CF6';
+    return '#10B981';
   };
 
   const getStatusLabel = (status: string) => {
@@ -302,20 +305,26 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <TouchableOpacity
                 key={`active-${job.type}-${job.id}`}
                 style={styles.activeJobCard}
-                onPress={() => navigation.navigate('Tracking', {
-                  type: job.type === 'delivery' ? 'delivery' : 'ride',
-                  rideId: job.id,
-                  pickup: job.pickup_location || job.pickup || 'Pickup',
-                  dropoff: job.dropoff_location || job.dropoff || 'Dropoff',
-                  fare: job.estimated_fare || job.delivery_fee || 0,
-                })}
+                onPress={() => {
+                  if (job.type === 'rideshare') {
+                    Alert.alert('Ride Share', `Route: ${job.pickup || 'Pickup'} → ${job.dropoff || 'Dropoff'}\nSeats: ${(job as any).available_seats || 0}/${(job as any).total_seats || 0}\nFare: ₱${((job as any).base_fare || 0).toFixed(0)}\nPassengers: ${(job as any).passengers?.join(', ') || 'None yet'}`);
+                  } else {
+                    navigation.navigate('Tracking', {
+                      type: job.type === 'delivery' ? 'delivery' : 'ride',
+                      rideId: job.id,
+                      pickup: job.pickup_location || job.pickup || 'Pickup',
+                      dropoff: job.dropoff_location || job.dropoff || 'Dropoff',
+                      fare: job.estimated_fare || job.delivery_fee || 0,
+                    });
+                  }
+                }}
               >
                 <View style={[styles.activeJobIcon, { backgroundColor: `${getJobColor(job)}20` }]}>
                   <Ionicons name={getJobIcon(job) as any} size={24} color={getJobColor(job)} />
                 </View>
                 <View style={styles.activeJobInfo}>
                   <Text style={styles.activeJobTitle}>
-                    {job.type === 'delivery' ? 'Delivery' : 'Ride'} #{job.id}
+                    {job.type === 'delivery' ? 'Delivery' : job.type === 'rideshare' ? 'Ride Share' : 'Ride'} #{job.id}
                   </Text>
                   <Text style={styles.activeJobStatus}>{getStatusLabel(job.status)}</Text>
                   <Text style={styles.activeJobRoute} numberOfLines={1}>
@@ -324,7 +333,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 </View>
                 <View style={styles.activeJobRight}>
                   <Text style={[styles.activeJobFare, { color: getJobColor(job) }]}>
-                    ₱{(job.estimated_fare || job.delivery_fee || 0).toFixed(0)}
+                    ₱{(job.estimated_fare || job.delivery_fee || (job as any).base_fare || 0).toFixed(0)}
                   </Text>
                   <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </View>

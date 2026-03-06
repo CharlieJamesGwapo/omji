@@ -235,7 +235,7 @@ export default function PasugoScreen({ navigation }: any) {
                 if (recipientPhone.trim()) dropoffLabel += `, ${recipientPhone.trim()}`;
                 dropoffLabel += ']';
               }
-              const deliveryData = {
+              const deliveryData: any = {
                 pickup_location: pickupLabel,
                 pickup_latitude: pickupLocation.latitude,
                 pickup_longitude: pickupLocation.longitude,
@@ -247,6 +247,9 @@ export default function PasugoScreen({ navigation }: any) {
                 weight: weight,
                 payment_method: paymentMethod,
               };
+              if (promoApplied && promoCode.trim()) {
+                deliveryData.promo_code = promoCode.trim();
+              }
               const response = itemPhoto
                 ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
                 : await deliveryService.createDelivery(deliveryData);
