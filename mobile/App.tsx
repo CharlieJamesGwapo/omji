@@ -34,6 +34,7 @@ import EditProfileScreen from './src/screens/Main/EditProfileScreen';
 import SavedAddressesScreen from './src/screens/Main/SavedAddressesScreen';
 import PaymentMethodsScreen from './src/screens/Main/PaymentMethodsScreen';
 import FavoritesScreen from './src/screens/Main/FavoritesScreen';
+import NotificationsScreen from './src/screens/Main/NotificationsScreen';
 
 // Screens - Rider
 import RiderDashboardScreen from './src/screens/Rider/RiderDashboardScreen';
@@ -216,6 +217,11 @@ const MainStack = () => (
     <Stack.Screen
       name="Favorites"
       component={FavoritesScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Notifications"
+      component={NotificationsScreen}
       options={{ headerShown: false }}
     />
   </Stack.Navigator>

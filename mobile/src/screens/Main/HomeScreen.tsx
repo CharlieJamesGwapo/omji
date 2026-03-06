@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
-import { rideService, deliveryService, notificationService } from '../../services/api';
+import { rideService, deliveryService } from '../../services/api';
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -95,20 +95,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton} onPress={async () => {
-          try {
-            const res = await notificationService.getNotifications();
-            const notifs = res.data?.data || [];
-            if (notifs.length === 0) {
-              Alert.alert('Notifications', 'No new notifications');
-            } else {
-              const msg = notifs.slice(0, 5).map((n: any) => `${n.title}: ${n.body}`).join('\n\n');
-              Alert.alert('Notifications', msg);
-            }
-          } catch {
-            Alert.alert('Notifications', 'No new notifications');
-          }
-        }}>
+        <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={24} color="#1F2937" />
         </TouchableOpacity>
       </View>
