@@ -151,6 +151,7 @@ export default function WalletScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Balance Card */}

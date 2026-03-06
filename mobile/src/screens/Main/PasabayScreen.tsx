@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -367,7 +369,7 @@ export default function PasabayScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -382,6 +384,7 @@ export default function PasabayScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: verticalScale(36) }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}
       >
@@ -699,7 +702,7 @@ export default function PasabayScreen({ navigation }: any) {
       </Modal>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

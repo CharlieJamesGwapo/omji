@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -270,7 +272,7 @@ export default function PasundoScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header with back button */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -283,7 +285,7 @@ export default function PasundoScreen({ navigation }: any) {
         <View style={{ width: moderateScale(40) }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: verticalScale(32) }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: verticalScale(32) }}>
         {/* Active Ride Banner */}
         {!!activeRide && (
           <TouchableOpacity
@@ -514,7 +516,7 @@ export default function PasundoScreen({ navigation }: any) {
       </Modal>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

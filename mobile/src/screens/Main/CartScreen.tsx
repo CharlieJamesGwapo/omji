@@ -86,6 +86,11 @@ export default function CartScreen({ route, navigation }: any) {
       return;
     }
 
+    if (!userLocation?.latitude) {
+      Alert.alert('Location Required', 'Could not determine your delivery location. Please enable location services and try again.');
+      return;
+    }
+
     // Check wallet balance if paying with wallet
     if (paymentMethod === 'wallet') {
       try {

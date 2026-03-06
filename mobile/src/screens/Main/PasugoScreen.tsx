@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Modal,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -274,7 +276,7 @@ export default function PasugoScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -287,7 +289,7 @@ export default function PasugoScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Active Delivery Banner */}
         {!!activeDelivery && (
           <TouchableOpacity
@@ -512,7 +514,7 @@ export default function PasugoScreen({ navigation }: any) {
       </Modal>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

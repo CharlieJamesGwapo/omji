@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -158,7 +160,11 @@ export default function RiderRegistrationScreen({ navigation }: any) {
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       {/* Header */}
       <View style={styles.header}>
         <Ionicons name="bicycle" size={48} color="#DC2626" />
@@ -325,6 +331,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -336,6 +343,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#ffffff',
     padding: moderateScale(24),
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',

@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../../services/api';
@@ -81,7 +83,10 @@ export default function OTPScreen({ navigation, route }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -140,7 +145,7 @@ export default function OTPScreen({ navigation, route }: any) {
           <Text style={styles.resendLink}>Resend</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
