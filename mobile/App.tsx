@@ -49,17 +49,7 @@ LogBox.ignoreLogs([
   'Warning: ...',
   'Sending `onAnimatedValueUpdate`',
   'Non-serializable values were found in the navigation state',
-  'Text strings must be rendered within a <Text> component',
 ]);
-
-// Suppress known React Navigation text rendering warnings on React 19
-const originalConsoleError = console.error;
-console.error = (...args: any[]) => {
-  if (typeof args[0] === 'string' && args[0].includes('Text strings must be rendered within a <Text> component')) {
-    return;
-  }
-  originalConsoleError(...args);
-};
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -112,7 +102,7 @@ const MainTabs = () => (
       },
       tabBarLabelStyle: {
         fontSize: 12,
-        fontWeight: '600',
+        fontWeight: 'bold',
       },
       headerShown: false,
     })}

@@ -34,7 +34,9 @@ export default function WalletScreen({ navigation }: any) {
       setBalance(data?.balance || 0);
       setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
     } catch (error: any) {
-      console.log('Wallet fetch error:', error);
+      if (error.response?.status !== 401) {
+        console.warn('Wallet: Could not load balance');
+      }
       setFetchError(true);
     } finally {
       setLoading(false);
