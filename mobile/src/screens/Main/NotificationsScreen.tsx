@@ -15,9 +15,9 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 interface Notification {
   id: number;
   title: string;
-  message: string;
+  body: string;
   type: string;
-  is_read: boolean;
+  read: boolean;
   created_at: string;
 }
 
@@ -52,7 +52,7 @@ export default function NotificationsScreen({ navigation }: any) {
     try {
       await notificationService.markAsRead(id);
       setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
     } catch {
       // Silent fail
@@ -87,7 +87,7 @@ export default function NotificationsScreen({ navigation }: any) {
     const iconData = getNotificationIcon(item.type);
     return (
       <TouchableOpacity
-        style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
+        style={[styles.notificationCard, !item.read && styles.unreadCard]}
         onPress={() => handleMarkRead(item.id)}
         activeOpacity={0.7}
       >
@@ -96,12 +96,12 @@ export default function NotificationsScreen({ navigation }: any) {
         </View>
         <View style={styles.contentContainer}>
           <View style={styles.titleRow}>
-            <Text style={[styles.title, !item.is_read && styles.unreadTitle]} numberOfLines={1}>
+            <Text style={[styles.title, !item.read && styles.unreadTitle]} numberOfLines={1}>
               {item.title}
             </Text>
-            {!item.is_read && <View style={styles.unreadDot} />}
+            {!item.read && <View style={styles.unreadDot} />}
           </View>
-          <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+          <Text style={styles.message} numberOfLines={2}>{item.body}</Text>
           <Text style={styles.time}>{formatDate(item.created_at)}</Text>
         </View>
       </TouchableOpacity>

@@ -1022,7 +1022,7 @@ func CheckFavorite(db *gorm.DB) gin.HandlerFunc {
 func GetAvailablePromos(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var promos []models.Promo
-		db.Where("is_active = ? AND usage_count < usage_limit", true).Find(&promos)
+		db.Where("is_active = ? AND (usage_limit = 0 OR usage_count < usage_limit)", true).Find(&promos)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promos, "timestamp": time.Now()})
 	}
 }
