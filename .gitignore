@@ -9,6 +9,7 @@ backend/.env
 backend/bin/
 backend/tmp/
 backend/*.db
+backend/main
 
 # Admin
 admin/.env
