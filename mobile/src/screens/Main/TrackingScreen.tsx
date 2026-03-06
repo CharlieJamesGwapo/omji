@@ -354,7 +354,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                   <Text style={styles.driverName}>{driverInfo.name || 'Driver'}</Text>
                   <View style={styles.driverMeta}>
                     <Ionicons name="star" size={14} color="#FBBF24" />
-                    <Text style={styles.driverRating}>{driverInfo.rating?.toFixed(1) || driverVehicle?.rating?.toFixed(1) || '5.0'}</Text>
+                    <Text style={styles.driverRating}>{Number(driverInfo.rating || driverVehicle?.rating || 5.0).toFixed(1)}</Text>
                     {!!(driverVehicle?.vehicle_plate) && (
                       <Text style={styles.driverPlate}>{driverVehicle.vehicle_plate}</Text>
                     )}
@@ -422,7 +422,7 @@ export default function TrackingScreen({ route, navigation }: any) {
               <View style={styles.summaryItem}>
                 <Ionicons name="speedometer-outline" size={18} color="#6B7280" />
                 <Text style={styles.summaryLabel}>Distance</Text>
-                <Text style={styles.summaryValue}>{rideDistance > 0 ? `${rideDistance.toFixed(1)} km` : '--'}</Text>
+                <Text style={styles.summaryValue}>{rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
@@ -435,7 +435,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                 <Ionicons name="cash-outline" size={18} color="#10B981" />
                 <Text style={styles.summaryLabel}>Total Fare</Text>
                 <Text style={[styles.summaryValue, { color: '#10B981' }]}>
-                  ₱{typeof rideFare === 'number' ? rideFare.toFixed(0) : rideFare}
+                  ₱{Number(rideFare || 0).toFixed(0)}
                 </Text>
               </View>
             </View>

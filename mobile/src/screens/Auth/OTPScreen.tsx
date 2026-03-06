@@ -41,9 +41,14 @@ export default function OTPScreen({ navigation, route }: any) {
       return;
     }
 
+    const phone = route.params?.phone || '';
+    if (!phone) {
+      Alert.alert('Error', 'Phone number not available. Please go back and try again.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const phone = route.params?.phone || '';
       await authService.verifyOTP({ phone, otp: otpCode });
       setLoading(false);
       Alert.alert('Success', 'Phone verified successfully!', [

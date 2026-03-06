@@ -250,8 +250,12 @@ export default function RideHistoryScreen({ navigation }: any) {
                   <View style={styles.riderInfo}>
                     <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
                     <Text style={styles.riderName}>{(ride.driver || ride.Driver)?.name}</Text>
-                    <Ionicons name="star" size={12} color="#FBBF24" />
-                    <Text style={styles.riderRating}>{(ride.driver || ride.Driver)?.rating?.toFixed(1)}</Text>
+                    {!!((ride.driver || ride.Driver)?.rating) && (
+                      <>
+                        <Ionicons name="star" size={12} color="#FBBF24" />
+                        <Text style={styles.riderRating}>{Number((ride.driver || ride.Driver)?.rating).toFixed(1)}</Text>
+                      </>
+                    )}
                   </View>
                 )}
                 <View style={styles.rideMetrics}>

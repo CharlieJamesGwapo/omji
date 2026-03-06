@@ -60,6 +60,9 @@ export default function MapPicker({
 
   useEffect(() => {
     initLocation();
+    return () => {
+      if (resolveTimeout.current) clearTimeout(resolveTimeout.current);
+    };
   }, []);
 
   const initLocation = async () => {

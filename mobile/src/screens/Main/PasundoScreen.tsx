@@ -98,7 +98,9 @@ export default function PasundoScreen({ navigation }: any) {
           } else {
             setActiveRide(null);
           }
-        } catch {}
+        } catch (e) {
+          console.log('Failed to fetch active rides:', e);
+        }
       })();
     });
     return unsubscribe;

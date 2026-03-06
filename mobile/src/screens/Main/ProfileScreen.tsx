@@ -49,7 +49,7 @@ export default function ProfileScreen({ navigation }: any) {
       const deliveriesSpent = deliveries.reduce((sum: number, delivery: any) => sum + (delivery.delivery_fee || 0), 0);
       const totalSpent = ridesSpent + ordersSpent + deliveriesSpent;
 
-      const rating = user?.rating || 5.0;
+      const rating = Number(user?.rating) || 5.0;
 
       setStats({
         rides: totalRides,

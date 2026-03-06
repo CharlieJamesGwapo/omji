@@ -268,7 +268,7 @@ export default function OrdersScreen({ navigation }: any) {
             {!!order.driverRating && (
               <>
                 <Ionicons name="star" size={14} color="#FBBF24" />
-                <Text style={styles.riderRating}>{order.driverRating.toFixed(1)}</Text>
+                <Text style={styles.riderRating}>{Number(order.driverRating).toFixed(1)}</Text>
               </>
             )}
           </View>
@@ -278,7 +278,7 @@ export default function OrdersScreen({ navigation }: any) {
       <View style={styles.orderFooter}>
         <View style={styles.fareContainer}>
           <Text style={styles.fareLabel}>Total Fare</Text>
-          <Text style={styles.fareValue}>₱{order.fare?.toFixed(0) || '0'}</Text>
+          <Text style={styles.fareValue}>₱{(order.fare || 0).toFixed(0)}</Text>
         </View>
         {activeTab === 'ongoing' && (order.type === 'ride' || order.type === 'delivery') && (
           <TouchableOpacity

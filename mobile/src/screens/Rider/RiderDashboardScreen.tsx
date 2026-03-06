@@ -362,7 +362,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="star" size={24} color="#FBBF24" />
               </View>
-              <Text style={styles.statValue}>{earnings.rating?.toFixed(1) || '5.0'}</Text>
+              <Text style={styles.statValue}>{Number(earnings.rating || 5.0).toFixed(1)}</Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
           </View>

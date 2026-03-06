@@ -64,8 +64,8 @@ export default function WalletScreen({ navigation }: any) {
   ];
 
   const handleTopUp = () => {
-    const amount = parseInt(topUpAmount);
-    if (!amount || amount < 10) {
+    const amount = parseInt(topUpAmount, 10);
+    if (isNaN(amount) || amount < 10) {
       Alert.alert('Invalid Amount', 'Minimum top-up amount is ₱10');
       return;
     }
@@ -299,7 +299,7 @@ export default function WalletScreen({ navigation }: any) {
                     <Text style={styles.transactionDate}>{formatDate(tx.created_at)}</Text>
                   </View>
                   <Text style={[styles.amountText, isCredit ? styles.amountCredit : styles.amountDebit]}>
-                    {isCredit ? '+' : '-'}₱{Math.abs(tx.amount).toFixed(2)}
+                    {isCredit ? '+' : '-'}₱{Math.abs(tx.amount || 0).toFixed(2)}
                   </Text>
                 </View>
               );

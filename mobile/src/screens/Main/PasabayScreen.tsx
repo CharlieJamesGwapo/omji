@@ -96,7 +96,9 @@ export default function PasabayScreen({ navigation }: any) {
           } else {
             setActiveRide(null);
           }
-        } catch {}
+        } catch (e) {
+          console.log('Failed to fetch active rides:', e);
+        }
       })();
     });
     return unsubscribe;
@@ -415,7 +417,7 @@ export default function PasabayScreen({ navigation }: any) {
                         {!!ride.driver?.rating && (
                           <>
                             <Ionicons name="star" size={10} color="#FBBF24" style={{ marginLeft: moderateScale(4) }} />
-                            <Text style={{ fontSize: fontScale(11), color: '#92400E', marginLeft: 2 }}>{ride.driver.rating.toFixed(1)}</Text>
+                            <Text style={{ fontSize: fontScale(11), color: '#92400E', marginLeft: 2 }}>{Number(ride.driver.rating).toFixed(1)}</Text>
                           </>
                         )}
                       </View>

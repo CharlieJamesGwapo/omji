@@ -96,7 +96,9 @@ export default function PasugoScreen({ navigation }: any) {
           } else {
             setActiveDelivery(null);
           }
-        } catch {}
+        } catch (e) {
+          console.log('Failed to fetch active deliveries:', e);
+        }
       })();
     });
     return unsubscribe;

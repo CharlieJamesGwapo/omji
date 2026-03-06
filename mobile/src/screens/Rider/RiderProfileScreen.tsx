@@ -49,7 +49,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: Number(user?.rating || earningsData.rating || 5.0),
+    rating: Number(user?.rating || earningsData.rating || 5.0) || 5.0,
     totalRides: earningsData.completed_rides || 0,
     vehicleType: driverData.vehicle_type || 'Motorcycle',
     plateNumber: driverData.vehicle_plate || '-',

@@ -166,7 +166,7 @@ export default function StoresScreen({ navigation }: any) {
                     </View>
                     <View style={styles.featuredBadge}>
                       <Ionicons name="star" size={12} color="#FBBF24" />
-                      <Text style={styles.featuredBadgeText}>{store.rating?.toFixed(1) || '0'}</Text>
+                      <Text style={styles.featuredBadgeText}>{Number(store.rating || 0).toFixed(1)}</Text>
                     </View>
                   </View>
                   <Text style={styles.featuredName}>{store.name}</Text>
@@ -204,7 +204,7 @@ export default function StoresScreen({ navigation }: any) {
                   <Text style={styles.storeName}>{store.name}</Text>
                   <View style={styles.ratingBadge}>
                     <Ionicons name="star" size={14} color="#FBBF24" />
-                    <Text style={styles.ratingText}>{store.rating?.toFixed(1) || '0'}</Text>
+                    <Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)}</Text>
                   </View>
                 </View>
                 <View style={styles.storeTags}>

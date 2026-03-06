@@ -75,7 +75,7 @@ export default function CartScreen({ route, navigation }: any) {
     );
   };
 
-  const subtotal = cartItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
   const deliveryFee = 30;
   const tax = Math.round(subtotal * 0.05 * 100) / 100;
   const total = subtotal + deliveryFee + tax;
@@ -188,7 +188,7 @@ export default function CartScreen({ route, navigation }: any) {
               )}
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>₱{item.price * item.quantity}</Text>
+                <Text style={styles.itemPrice}>₱{((Number(item.price) || 0) * (Number(item.quantity) || 0)).toFixed(0)}</Text>
               </View>
               <View style={styles.quantityControl}>
                 <TouchableOpacity
