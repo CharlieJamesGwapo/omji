@@ -260,6 +260,36 @@ type Notification struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// Favorite model
+type Favorite struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `json:"user_id"`
+	Type      string    `json:"type"` // store, driver
+	ItemID    uint      `json:"item_id"` // store_id or driver_id
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Wallet model
+type Wallet struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"uniqueIndex" json:"user_id"`
+	Balance   float64   `gorm:"default:0" json:"balance"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// WalletTransaction model
+type WalletTransaction struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	WalletID    uint      `json:"wallet_id"`
+	UserID      uint      `json:"user_id"`
+	Type        string    `json:"type"` // top_up, withdrawal, payment, refund, earning
+	Amount      float64   `json:"amount"`
+	Description string    `json:"description"`
+	Reference   string    `json:"reference"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) {
 	db.AutoMigrate(
@@ -276,6 +306,9 @@ func AutoMigrate(db *gorm.DB) {
 		&Promo{},
 		&ChatMessage{},
 		&Notification{},
+		&Wallet{},
+		&WalletTransaction{},
+		&Favorite{},
 	)
 }
 

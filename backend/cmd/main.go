@@ -25,6 +25,9 @@ func main() {
 	// Add CORS middleware
 	router.Use(middleware.CORSMiddleware())
 
+	// Serve uploaded files
+	router.Static("/uploads", "./uploads")
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "OMJI Backend is running!"})
@@ -37,6 +40,7 @@ func main() {
 		public.POST("/auth/register", handlers.Register(database))
 		public.POST("/auth/login", handlers.Login(database))
 		public.POST("/auth/verify-otp", handlers.VerifyOTP(database))
+		public.POST("/auth/resend-otp", handlers.ResendOTP(database))
 	}
 
 	// Protected routes (auth required)
@@ -98,13 +102,29 @@ func main() {
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
 
+		// Wallet routes
+		protected.GET("/wallet/balance", handlers.GetWalletBalance(database))
+		protected.POST("/wallet/top-up", handlers.TopUpWallet(database))
+		protected.POST("/wallet/withdraw", handlers.WithdrawWallet(database))
+
+		// Favorites routes
+		protected.GET("/favorites", handlers.GetFavorites(database))
+		protected.POST("/favorites", handlers.AddFavorite(database))
+		protected.DELETE("/favorites/:id", handlers.DeleteFavorite(database))
+		protected.GET("/favorites/check", handlers.CheckFavorite(database))
+
 		// Ride history
 		protected.GET("/rides/history", handlers.GetRideHistory(database))
 		protected.GET("/deliveries/history", handlers.GetDeliveryHistory(database))
+		protected.GET("/orders/history", handlers.GetOrderHistory(database))
 
 		// Chat routes
 		protected.GET("/chats/:id/messages", handlers.GetChatMessages(database))
 		protected.POST("/chats/:id/message", handlers.SendChatMessage(database))
+
+		// Notification routes
+		protected.GET("/notifications", handlers.GetUserNotifications(database))
+		protected.PUT("/notifications/:id/read", handlers.MarkNotificationRead(database))
 	}
 
 	// Admin routes
@@ -140,6 +160,21 @@ func main() {
 		admin.POST("/promos", handlers.CreatePromo(database))
 		admin.PUT("/promos/:id", handlers.UpdatePromo(database))
 		admin.DELETE("/promos/:id", handlers.DeletePromo(database))
+
+		// Rides, Deliveries, Orders listing
+		admin.GET("/rides", handlers.AdminGetAllRides(database))
+		admin.PUT("/rides/:id/status", handlers.AdminUpdateRideStatus(database))
+		admin.GET("/deliveries", handlers.AdminGetAllDeliveries(database))
+		admin.PUT("/deliveries/:id/status", handlers.AdminUpdateDeliveryStatus(database))
+		admin.GET("/orders", handlers.AdminGetAllOrders(database))
+		admin.PUT("/orders/:id/status", handlers.AdminUpdateOrderStatus(database))
+
+		// Activity logs
+		admin.GET("/activity-logs", handlers.AdminGetActivityLogs(database))
+
+		// Notifications
+		admin.GET("/notifications", handlers.AdminGetNotifications(database))
+		admin.POST("/notifications", handlers.AdminSendNotification(database))
 	}
 
 	// WebSocket routes

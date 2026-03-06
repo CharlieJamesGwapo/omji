@@ -6,6 +6,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.c
 const API = axios.create({
   baseURL: API_URL,
   timeout: 120000,
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  },
 });
 
 API.interceptors.request.use((config) => {
@@ -62,6 +67,26 @@ export const adminService = {
   createPromo: (data: any) => API.post('/admin/promos', data),
   updatePromo: (id: number, data: any) => API.put(`/admin/promos/${id}`, data),
   deletePromo: (id: number) => API.delete(`/admin/promos/${id}`),
+
+  // Rides
+  getRides: () => API.get('/admin/rides'),
+  updateRideStatus: (id: number, status: string) => API.put(`/admin/rides/${id}/status`, { status }),
+
+  // Deliveries
+  getDeliveries: () => API.get('/admin/deliveries'),
+  updateDeliveryStatus: (id: number, status: string) => API.put(`/admin/deliveries/${id}/status`, { status }),
+
+  // Orders
+  getOrders: () => API.get('/admin/orders'),
+  updateOrderStatus: (id: number, status: string) => API.put(`/admin/orders/${id}/status`, { status }),
+
+  // Activity Logs
+  getActivityLogs: () => API.get('/admin/activity-logs'),
+
+  // Notifications
+  getNotifications: () => API.get('/admin/notifications'),
+  sendNotification: (data: { title: string; message: string; type?: string; target_type: string }) =>
+    API.post('/admin/notifications', data),
 };
 
 export default API;
