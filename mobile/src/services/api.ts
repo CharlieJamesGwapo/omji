@@ -176,6 +176,31 @@ export const promoService = {
 // Driver Services
 export const driverService = {
   registerDriver: (data: any) => api.post('/driver/register', data),
+  registerDriverWithDocuments: (data: any, photos: { profile?: string | null; license?: string | null; orcr?: string | null; id?: string | null }) => {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      formData.append(key, String(data[key]));
+    });
+    const photoFields: Array<{ key: keyof typeof photos; field: string }> = [
+      { key: 'profile', field: 'profile_photo' },
+      { key: 'license', field: 'license_photo' },
+      { key: 'orcr', field: 'orcr_photo' },
+      { key: 'id', field: 'id_photo' },
+    ];
+    photoFields.forEach(({ key, field }) => {
+      const uri = photos[key];
+      if (uri) {
+        const filename = uri.split('/').pop() || 'photo.jpg';
+        const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        formData.append(field, { uri, name: filename, type: mimeType } as any);
+      }
+    });
+    return api.post('/driver/register', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180000,
+    });
+  },
   getProfile: () => api.get('/driver/profile'),
   updateProfile: (data: any) => api.put('/driver/profile', data),
   getRequests: () => api.get('/driver/requests'),

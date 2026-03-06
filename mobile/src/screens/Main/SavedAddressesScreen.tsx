@@ -136,11 +136,36 @@ export default function SavedAddressesScreen({ navigation }: any) {
 
     try {
       setSaving(true);
+
+      // If no coordinates set, try to geocode the typed address
+      let lat = latitude;
+      let lng = longitude;
+      if (lat === null || lng === null) {
+        try {
+          const results = await Location.geocodeAsync(addressText.trim());
+          if (results.length > 0) {
+            lat = results[0].latitude;
+            lng = results[0].longitude;
+          }
+        } catch {
+          // Geocoding failed, continue with validation below
+        }
+      }
+
+      if (lat === null || lng === null || (lat === 0 && lng === 0)) {
+        Alert.alert(
+          'Location Required',
+          'Could not determine coordinates for this address. Please use "Use current location" or enter a more specific address.'
+        );
+        setSaving(false);
+        return;
+      }
+
       await userService.addSavedAddress({
         label: selectedLabel,
         address: addressText.trim(),
-        latitude: latitude || 0,
-        longitude: longitude || 0,
+        latitude: lat,
+        longitude: lng,
       });
 
       setModalVisible(false);

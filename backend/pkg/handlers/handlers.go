@@ -1014,22 +1014,71 @@ func ApplyPromo(db *gorm.DB) gin.HandlerFunc {
 func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		var input struct {
-			VehicleType   string `json:"vehicle_type" binding:"required"`
-			VehicleModel  string `json:"vehicle_model" binding:"required"`
-			VehiclePlate  string `json:"vehicle_plate" binding:"required"`
-			LicenseNumber string `json:"license_number" binding:"required"`
+
+		var vehicleType, vehicleModel, vehiclePlate, licenseNumber string
+
+		contentType := c.ContentType()
+		isMultipart := len(contentType) >= 9 && contentType[:9] == "multipart"
+
+		if isMultipart {
+			vehicleType = c.PostForm("vehicle_type")
+			vehicleModel = c.PostForm("vehicle_model")
+			vehiclePlate = c.PostForm("vehicle_plate")
+			licenseNumber = c.PostForm("license_number")
+		} else {
+			var input struct {
+				VehicleType   string `json:"vehicle_type" binding:"required"`
+				VehicleModel  string `json:"vehicle_model" binding:"required"`
+				VehiclePlate  string `json:"vehicle_plate" binding:"required"`
+				LicenseNumber string `json:"license_number" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&input); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+			vehicleType = input.VehicleType
+			vehicleModel = input.VehicleModel
+			vehiclePlate = input.VehiclePlate
+			licenseNumber = input.LicenseNumber
 		}
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+
+		if vehicleType == "" || vehicleModel == "" || vehiclePlate == "" || licenseNumber == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_type, vehicle_model, vehicle_plate, and license_number are required"})
 			return
 		}
+
 		var existing models.Driver
 		if err := db.Where("user_id = ?", userID).First(&existing).Error; err == nil {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Already registered as driver"})
 			return
 		}
-		driver := models.Driver{UserID: userID, VehicleType: input.VehicleType, VehicleModel: input.VehicleModel, VehiclePlate: input.VehiclePlate, LicenseNumber: input.LicenseNumber, IsVerified: false}
+
+		// Handle document uploads
+		documents := map[string]string{}
+		baseURL := os.Getenv("BASE_URL")
+		if baseURL == "" {
+			baseURL = "https://omji-backend.onrender.com"
+		}
+		docFields := []string{"profile_photo", "license_photo", "orcr_photo", "id_photo"}
+		for _, field := range docFields {
+			file, err := c.FormFile(field)
+			if err == nil && file != nil {
+				os.MkdirAll("uploads", os.ModePerm)
+				filename := strconv.FormatUint(uint64(userID), 10) + "_" + field + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
+				savePath := "uploads/" + filename
+				if err := c.SaveUploadedFile(file, savePath); err == nil {
+					documents[field] = baseURL + "/uploads/" + filename
+				}
+			}
+		}
+
+		var documentsJSON datatypes.JSON
+		if len(documents) > 0 {
+			jsonBytes, _ := json.Marshal(documents)
+			documentsJSON = datatypes.JSON(jsonBytes)
+		}
+
+		driver := models.Driver{UserID: userID, VehicleType: vehicleType, VehicleModel: vehicleModel, VehiclePlate: vehiclePlate, LicenseNumber: licenseNumber, IsVerified: false, Documents: documentsJSON}
 		if err := db.Create(&driver).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to register: " + err.Error()})
 			return

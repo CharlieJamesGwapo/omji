@@ -94,14 +94,20 @@ export default function RiderRegistrationScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      // In a real app, you would upload images to a server
-      // For now, we'll just send the data
-      const response = await driverService.registerDriver({
-        vehicle_type: vehicleType.toLowerCase(),
-        vehicle_model: `${vehicleModel} (${vehicleColor})`,
-        vehicle_plate: plateNumber,
-        license_number: licenseNumber,
-      });
+      const response = await driverService.registerDriverWithDocuments(
+        {
+          vehicle_type: vehicleType.toLowerCase(),
+          vehicle_model: `${vehicleModel} (${vehicleColor})`,
+          vehicle_plate: plateNumber,
+          license_number: licenseNumber,
+        },
+        {
+          profile: profilePhoto,
+          license: licensePhoto,
+          orcr: orCrPhoto,
+          id: validIdPhoto,
+        }
+      );
 
       // Update token and user role to driver
       const data = response.data?.data;
