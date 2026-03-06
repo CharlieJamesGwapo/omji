@@ -260,7 +260,10 @@ func AddSavedAddress(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		addr := models.SavedAddress{UserID: userID, Label: input.Label, Address: input.Address, Latitude: input.Latitude, Longitude: input.Longitude}
-		db.Create(&addr)
+		if err := db.Create(&addr).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save address"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": addr, "timestamp": time.Now()})
 	}
 }
@@ -464,7 +467,10 @@ func CreateRideShare(db *gorm.DB) gin.HandlerFunc {
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			TotalSeats: input.TotalSeats, AvailableSeats: input.TotalSeats, BaseFare: input.BaseFare, Status: "active", DepartureTime: depTime,
 		}
-		db.Create(&rs)
+		if err := db.Create(&rs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride share"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": rs, "timestamp": time.Now()})
 	}
 }
@@ -476,7 +482,9 @@ func GetAvailableRideShares(db *gorm.DB) gin.HandlerFunc {
 		results := make([]gin.H, len(shares))
 		for i, s := range shares {
 			result := gin.H{"id": s.ID, "pickup_location": s.PickupLocation, "dropoff_location": s.DropoffLocation, "total_seats": s.TotalSeats, "available_seats": s.AvailableSeats, "base_fare": s.BaseFare, "departure_time": s.DepartureTime, "status": s.Status, "created_at": s.CreatedAt}
-			result["driver"] = gin.H{"id": s.Driver.ID, "name": s.Driver.User.Name, "phone": s.Driver.User.Phone, "vehicle_type": s.Driver.VehicleType, "vehicle_plate": s.Driver.VehiclePlate, "rating": s.Driver.Rating}
+			if s.Driver.ID != 0 && s.Driver.User.ID != 0 {
+				result["driver"] = gin.H{"id": s.Driver.ID, "name": s.Driver.User.Name, "phone": s.Driver.User.Phone, "vehicle_type": s.Driver.VehicleType, "vehicle_plate": s.Driver.VehiclePlate, "rating": s.Driver.Rating}
+			}
 			results[i] = result
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": results, "timestamp": time.Now()})
@@ -533,7 +541,10 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 			Status:           "accepted",
 			PaymentMethod:    input.PaymentMethod,
 		}
-		db.Create(&ride)
+		if err := db.Create(&ride).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to join ride share"})
+			return
+		}
 		// Notify the driver that someone joined
 		db.Create(&models.Notification{UserID: rs.Driver.UserID, Title: "Passenger Joined", Body: user.Name + " joined your ride share", Type: "rideshare_join"})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Joined ride share", "fare": rs.BaseFare, "ride_id": ride.ID, "pickup": rs.PickupLocation, "dropoff": rs.DropoffLocation}, "timestamp": time.Now()})
@@ -653,7 +664,10 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
 			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(), PromoID: promoID,
 		}
-		db.Create(&delivery)
+		if err := db.Create(&delivery).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": delivery.ID, "status": delivery.Status, "pickup_location": delivery.PickupLocation, "dropoff_location": delivery.DropoffLocation, "distance": delivery.Distance, "delivery_fee": delivery.DeliveryFee, "item_description": delivery.ItemDescription, "item_photo": delivery.ItemPhoto, "payment_method": delivery.PaymentMethod, "created_at": delivery.CreatedAt}, "timestamp": time.Now()})
 	}
 }
@@ -814,7 +828,10 @@ func CreateOrder(db *gorm.DB) gin.HandlerFunc {
 			DeliveryLocation: input.DeliveryLocation, DeliveryLatitude: input.DeliveryLatitude, DeliveryLongitude: input.DeliveryLongitude,
 			PaymentMethod: input.PaymentMethod,
 		}
-		db.Create(&order)
+		if err := db.Create(&order).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create order"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": order.ID, "status": order.Status, "total_amount": order.TotalAmount}, "timestamp": time.Now()})
 	}
 }
@@ -905,7 +922,10 @@ func AddPaymentMethod(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		pm := models.PaymentMethod{UserID: userID, Type: input.Type, IsDefault: input.IsDefault}
-		db.Create(&pm)
+		if err := db.Create(&pm).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to add payment method"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": pm, "timestamp": time.Now()})
 	}
 }
@@ -1173,7 +1193,10 @@ func UpdateDriverProfile(db *gorm.DB) gin.HandlerFunc {
 			VehicleModel string `json:"vehicle_model"`
 			VehiclePlate string `json:"vehicle_plate"`
 		}
-		c.ShouldBindJSON(&input)
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 		updates := map[string]interface{}{}
 		if input.VehicleModel != "" {
 			updates["vehicle_model"] = input.VehicleModel
@@ -1377,7 +1400,10 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 			Latitude  float64 `json:"latitude"`
 			Longitude float64 `json:"longitude"`
 		}
-		c.ShouldBindJSON(&input)
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 		updates := map[string]interface{}{"is_available": input.Available}
 		if input.Latitude != 0 {
 			updates["current_latitude"] = input.Latitude
@@ -1608,7 +1634,10 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 		rideIDParsed, _ := strconv.ParseUint(rideIDStr, 10, 64)
 		rideIDUint := uint(rideIDParsed)
 		msg := models.ChatMessage{SenderID: userID, ReceiverID: input.ReceiverID, RideID: &rideIDUint, Message: input.Message}
-		db.Create(&msg)
+		if err := db.Create(&msg).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send message"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": msg, "timestamp": time.Now()})
 	}
 }
@@ -1716,7 +1745,10 @@ func CreateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		db.Create(&store)
+		if err := db.Create(&store).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create store"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -1728,7 +1760,10 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
 			return
 		}
-		c.ShouldBindJSON(&store)
+		if err := c.ShouldBindJSON(&store); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 		db.Save(&store)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
@@ -1915,7 +1950,10 @@ func CreatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		db.Create(&promo)
+		if err := db.Create(&promo).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create promo"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -1927,7 +1965,10 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo not found"})
 			return
 		}
-		c.ShouldBindJSON(&promo)
+		if err := c.ShouldBindJSON(&promo); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 		db.Save(&promo)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
@@ -2260,7 +2301,10 @@ func GetWalletBalance(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Where("user_id = ?", userID).First(&wallet).Error; err != nil {
 			// Create wallet if not exists
 			wallet = models.Wallet{UserID: userID, Balance: 0}
-			db.Create(&wallet)
+			if err := db.Create(&wallet).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create wallet"})
+				return
+			}
 		}
 		var transactions []models.WalletTransaction
 		db.Where("user_id = ?", userID).Order("created_at DESC").Limit(20).Find(&transactions)
