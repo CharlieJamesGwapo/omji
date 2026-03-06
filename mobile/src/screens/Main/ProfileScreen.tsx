@@ -130,7 +130,7 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.avatarContainer}>
             <Image
               source={{
-                uri: user?.profile_image || 'https://via.placeholder.com/100?text=User',
+                uri: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=200`,
               }}
               style={styles.avatar}
             />
