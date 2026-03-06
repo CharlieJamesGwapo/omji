@@ -35,10 +35,13 @@ export default function OrdersScreen({ navigation }: any) {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const [ridesRes, deliveriesRes, ordersRes] = await Promise.allSettled([
+      const [ridesRes, deliveriesRes, ordersRes, ridesHistRes, deliveriesHistRes, ordersHistRes] = await Promise.allSettled([
         rideService.getActiveRides(),
         deliveryService.getActiveDeliveries(),
         orderService.getActiveOrders(),
+        rideService.getRideHistory(),
+        deliveryService.getDeliveryHistory(),
+        orderService.getOrderHistory(),
       ]);
 
       const allOrders: OrderItem[] = [];
@@ -103,6 +106,62 @@ export default function OrdersScreen({ navigation }: any) {
               icon: 'storefront',
               color: '#EF4444',
             });
+          });
+        }
+      }
+
+      // Add history data (completed/cancelled)
+      const existingIds = new Set(allOrders.map(o => `${o.type}-${o.id}`));
+
+      if (ridesHistRes.status === 'fulfilled') {
+        const data = ridesHistRes.value?.data?.data;
+        if (Array.isArray(data)) {
+          data.forEach((ride: any) => {
+            if (!existingIds.has(`ride-${ride.id}`)) {
+              allOrders.push({
+                id: ride.id, type: 'ride', service: 'Pasundo', status: ride.status,
+                from: ride.pickup_location || ride.pickup || '', to: ride.dropoff_location || ride.dropoff || '',
+                fare: ride.estimated_fare || ride.final_fare || 0, createdAt: ride.created_at || '',
+                driverName: ride.driver?.name || ride.Driver?.name,
+                driverRating: ride.driver?.rating || ride.Driver?.rating,
+                icon: 'navigate-circle', color: '#10B981',
+              });
+            }
+          });
+        }
+      }
+
+      if (deliveriesHistRes.status === 'fulfilled') {
+        const data = deliveriesHistRes.value?.data?.data;
+        if (Array.isArray(data)) {
+          data.forEach((d: any) => {
+            if (!existingIds.has(`delivery-${d.id}`)) {
+              allOrders.push({
+                id: d.id, type: 'delivery', service: 'Pasugo', status: d.status,
+                from: d.pickup_location || '', to: d.dropoff_location || '',
+                fare: d.delivery_fee || d.estimated_fare || 0, createdAt: d.created_at || '',
+                driverName: d.driver?.name || d.Driver?.name,
+                driverRating: d.driver?.rating || d.Driver?.rating,
+                icon: 'cube', color: '#3B82F6',
+              });
+            }
+          });
+        }
+      }
+
+      if (ordersHistRes.status === 'fulfilled') {
+        const data = ordersHistRes.value?.data?.data;
+        if (Array.isArray(data)) {
+          data.forEach((o: any) => {
+            if (!existingIds.has(`order-${o.id}`)) {
+              allOrders.push({
+                id: o.id, type: 'order', service: 'Store Order', status: o.status,
+                from: o.Store?.name || o.store_name || 'Store',
+                to: o.delivery_location || o.delivery_address || '',
+                fare: o.total_amount || 0, createdAt: o.created_at || '',
+                icon: 'storefront', color: '#EF4444',
+              });
+            }
           });
         }
       }

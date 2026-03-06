@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { rideService, rideShareService, walletService } from '../../services/api';
+import { rideService, rideShareService, walletService, promoService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
@@ -72,6 +72,11 @@ export default function PasabayScreen({ navigation }: any) {
   const [mode, setMode] = useState<'book' | 'join'>('book');
   const [activeRide, setActiveRide] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [joiningRideId, setJoiningRideId] = useState<number | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [applyingPromo, setApplyingPromo] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -145,7 +150,7 @@ export default function PasabayScreen({ navigation }: any) {
           text: 'Join Ride',
           onPress: async () => {
             try {
-              setLoading(true);
+              setJoiningRideId(ride.id);
               const response = await rideShareService.joinRideShare(ride.id);
               const data = response.data?.data;
               fetchAvailableRides();
@@ -165,7 +170,7 @@ export default function PasabayScreen({ navigation }: any) {
               const msg = error.response?.data?.error || 'Failed to join ride share';
               showToast(msg, 'error');
             } finally {
-              setLoading(false);
+              setJoiningRideId(null);
             }
           },
         },
@@ -207,7 +212,39 @@ export default function PasabayScreen({ navigation }: any) {
   const selectedType = rideTypes.find(r => r.id === rideType) || rideTypes[0];
   const passengerCharge = passengers > 1 ? (passengers - 1) * 20 : 0;
   const distanceCharge = distance * 10;
-  const totalFare = selectedType.basePrice + passengerCharge + distanceCharge;
+  const baseFareCalc = selectedType.basePrice + passengerCharge + distanceCharge;
+  const totalFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    if (baseFareCalc <= 0) {
+      showToast('Select locations first to apply promo.', 'warning');
+      return;
+    }
+    setApplyingPromo(true);
+    try {
+      const res = await promoService.applyPromo(promoCode.trim(), baseFareCalc, 'rides');
+      const discount = res.data?.data?.discount || 0;
+      if (discount > 0) {
+        setPromoDiscount(discount);
+        setPromoApplied(true);
+        showToast(`Promo applied! ₱${discount.toFixed(0)} off`, 'success');
+      } else {
+        showToast('Promo code is not valid for this ride.', 'warning');
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Invalid promo code';
+      showToast(msg, 'error');
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoCode('');
+    setPromoDiscount(0);
+    setPromoApplied(false);
+  };
 
   const handleBookRide = async () => {
     if (activeRide) {
@@ -258,6 +295,7 @@ export default function PasabayScreen({ navigation }: any) {
                 dropoff_longitude: dropoffLocation.longitude,
                 vehicle_type: selectedType.vehicleType,
                 payment_method: paymentMethod,
+                ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
               });
               const ride = response.data?.data || {};
               navigation.navigate('Tracking', {
@@ -307,7 +345,7 @@ export default function PasabayScreen({ navigation }: any) {
             <View style={styles.activeBannerDot} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={styles.activeBannerTitle}>Active ride in progress</Text>
-              <Text style={styles.activeBannerSub}>Tap to track • {activeRide.status?.replace('_', ' ')}</Text>
+              <Text style={styles.activeBannerSub}>Tap to track • {activeRide.status?.replace(/_/g, ' ')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
@@ -388,9 +426,9 @@ export default function PasabayScreen({ navigation }: any) {
                   <TouchableOpacity
                     style={styles.joinButton}
                     onPress={() => handleJoinRideShare(ride)}
-                    disabled={loading}
+                    disabled={joiningRideId !== null}
                   >
-                    {loading ? (
+                    {joiningRideId === ride.id ? (
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
                       <>
@@ -507,6 +545,32 @@ export default function PasabayScreen({ navigation }: any) {
               <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} accentColor="#10B981" />
             </View>
 
+            {/* Promo Code */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Promo Code</Text>
+              {promoApplied ? (
+                <View style={[styles.inputContainer, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
+                  <Ionicons name="pricetag" size={20} color="#10B981" />
+                  <Text style={[styles.input, { color: '#065F46', fontWeight: '600' }]}>{promoCode} (-₱{promoDiscount.toFixed(0)})</Text>
+                  <TouchableOpacity onPress={handleRemovePromo}>
+                    <Ionicons name="close-circle" size={22} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="pricetag-outline" size={20} color="#10B981" />
+                  <TextInput style={styles.input} placeholder="Enter promo code" value={promoCode} onChangeText={setPromoCode} autoCapitalize="characters" />
+                  <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()}>
+                    {applyingPromo ? (
+                      <ActivityIndicator size="small" color="#10B981" />
+                    ) : (
+                      <Text style={{ color: promoCode.trim() ? '#10B981' : '#D1D5DB', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Apply</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
             {/* Price */}
             <View style={styles.priceCard}>
               <View style={styles.priceRow}>
@@ -523,6 +587,12 @@ export default function PasabayScreen({ navigation }: any) {
                 <View style={styles.priceRow}>
                   <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱10)</Text>
                   <Text style={styles.priceValue}>₱{distanceCharge.toFixed(0)}</Text>
+                </View>
+              )}
+              {promoDiscount > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, { color: '#10B981' }]}>Promo Discount</Text>
+                  <Text style={[styles.priceValue, { color: '#10B981' }]}>-₱{promoDiscount.toFixed(0)}</Text>
                 </View>
               )}
               <View style={styles.priceDivider} />

@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { deliveryService, walletService } from '../../services/api';
+import { deliveryService, walletService, promoService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
@@ -73,6 +73,10 @@ export default function PasugoScreen({ navigation }: any) {
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [applyingPromo, setApplyingPromo] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -139,7 +143,39 @@ export default function PasugoScreen({ navigation }: any) {
   const distance = calculateDistance(pickupLocation, dropoffLocation);
   const baseFare = 50;
   const perKmRate = 15;
-  const estimatedFare = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
+  const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
+  const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    if (baseFareCalc <= 0) {
+      showToast('Select locations first to apply promo.', 'warning');
+      return;
+    }
+    setApplyingPromo(true);
+    try {
+      const res = await promoService.applyPromo(promoCode.trim(), baseFareCalc, 'deliveries');
+      const discount = res.data?.data?.discount || 0;
+      if (discount > 0) {
+        setPromoDiscount(discount);
+        setPromoApplied(true);
+        showToast(`Promo applied! ₱${discount.toFixed(0)} off`, 'success');
+      } else {
+        showToast('Promo code is not valid for this delivery.', 'warning');
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Invalid promo code';
+      showToast(msg, 'error');
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoCode('');
+    setPromoDiscount(0);
+    setPromoApplied(false);
+  };
 
   const handleBookDelivery = async () => {
     if (activeDelivery) {
@@ -252,7 +288,7 @@ export default function PasugoScreen({ navigation }: any) {
             <View style={[styles.activeBannerDot, { backgroundColor: '#DC2626' }]} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.activeBannerTitle, { color: '#991B1B' }]}>Active delivery in progress</Text>
-              <Text style={[styles.activeBannerSub, { color: '#B91C1C' }]}>Tap to track • {activeDelivery.status?.replace('_', ' ')}</Text>
+              <Text style={[styles.activeBannerSub, { color: '#B91C1C' }]}>Tap to track • {activeDelivery.status?.replace(/_/g, ' ')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#DC2626" />
           </TouchableOpacity>
@@ -370,24 +406,56 @@ export default function PasugoScreen({ navigation }: any) {
           <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} accentColor="#DC2626" />
         </View>
 
-        {/* Price Breakdown */}
-        {distance > 0 && (
-          <View style={styles.priceCard}>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Base Fare</Text>
-              <Text style={styles.priceValue}>₱{baseFare}</Text>
+        {/* Promo Code */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Promo Code</Text>
+          {promoApplied ? (
+            <View style={[styles.inputContainer, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="pricetag" size={20} color="#10B981" />
+              <Text style={[styles.input, { color: '#065F46', fontWeight: '600' }]}>{promoCode} (-₱{promoDiscount.toFixed(0)})</Text>
+              <TouchableOpacity onPress={handleRemovePromo}>
+                <Ionicons name="close-circle" size={22} color="#EF4444" />
+              </TouchableOpacity>
             </View>
+          ) : (
+            <View style={styles.inputContainer}>
+              <Ionicons name="pricetag-outline" size={20} color="#DC2626" />
+              <TextInput style={styles.input} placeholder="Enter promo code" value={promoCode} onChangeText={setPromoCode} autoCapitalize="characters" />
+              <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()}>
+                {applyingPromo ? (
+                  <ActivityIndicator size="small" color="#DC2626" />
+                ) : (
+                  <Text style={{ color: promoCode.trim() ? '#DC2626' : '#D1D5DB', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Price Breakdown */}
+        <View style={styles.priceCard}>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Base Fare</Text>
+            <Text style={styles.priceValue}>₱{baseFare}</Text>
+          </View>
+          {distance > 0 && (
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱{perKmRate})</Text>
               <Text style={styles.priceValue}>₱{(distance * perKmRate).toFixed(0)}</Text>
             </View>
-            <View style={styles.priceDivider} />
+          )}
+          {promoDiscount > 0 && (
             <View style={styles.priceRow}>
-              <Text style={styles.priceTotalLabel}>Total</Text>
-              <Text style={styles.priceTotalValue}>₱{estimatedFare.toFixed(0)}</Text>
+              <Text style={[styles.priceLabel, { color: '#10B981' }]}>Promo Discount</Text>
+              <Text style={[styles.priceValue, { color: '#10B981' }]}>-₱{promoDiscount.toFixed(0)}</Text>
             </View>
+          )}
+          <View style={styles.priceDivider} />
+          <View style={styles.priceRow}>
+            <Text style={styles.priceTotalLabel}>Total</Text>
+            <Text style={styles.priceTotalValue}>{estimatedFare > 0 ? `₱${estimatedFare.toFixed(0)}` : 'Select locations'}</Text>
           </View>
-        )}
+        </View>
 
         {/* Book Button */}
         <TouchableOpacity

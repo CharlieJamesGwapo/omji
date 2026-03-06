@@ -18,6 +18,7 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,7 +57,9 @@ export default function TrackingScreen({ route, navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
-  const statusSteps = ['pending', 'accepted', 'in_progress', 'completed'];
+  const statusSteps = type === 'delivery'
+    ? ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'completed']
+    : ['pending', 'accepted', 'driver_arrived', 'in_progress', 'completed'];
 
   const fetchRideDetails = useCallback(async () => {
     if (!rideId) { setLoading(false); return; }
@@ -172,6 +175,9 @@ export default function TrackingScreen({ route, navigation }: any) {
   const driverVehicle = rideData?.driver || rideData?.Driver;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const paymentInfo = PAYMENT_LABELS[paymentMethod] || PAYMENT_LABELS.cash;
+
+  // ETA estimation: average speed ~25 km/h for city rides
+  const estimatedEtaMinutes = rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0;
 
   // Auto-show rating when ride completes (for users only)
   useEffect(() => {
@@ -292,29 +298,46 @@ export default function TrackingScreen({ route, navigation }: any) {
             )}
           </View>
 
+          {/* ETA Display */}
+          {estimatedEtaMinutes > 0 && status !== 'completed' && status !== 'cancelled' && (
+            <View style={styles.etaContainer}>
+              <Ionicons name="time-outline" size={16} color="#6B7280" />
+              <Text style={styles.etaText}>
+                ETA: ~{estimatedEtaMinutes < 60 ? `${estimatedEtaMinutes} min` : `${Math.floor(estimatedEtaMinutes / 60)}h ${estimatedEtaMinutes % 60}m`}
+              </Text>
+            </View>
+          )}
+
           {/* Progress Steps */}
-          <View style={styles.progressContainer}>
-            {statusSteps.map((step, index) => {
-              const isActive = index <= currentStepIndex;
-              const isCurrent = index === currentStepIndex;
-              return (
-                <View key={step} style={styles.progressStep}>
-                  <View style={[
-                    styles.progressDot,
-                    isActive && { backgroundColor: '#3B82F6' },
-                    isCurrent && styles.progressDotCurrent,
-                  ]}>
-                    {isActive && !isCurrent && (
-                      <Ionicons name="checkmark" size={10} color="#ffffff" />
+          {status === 'cancelled' ? (
+            <View style={styles.cancelledContainer}>
+              <Ionicons name="close-circle" size={48} color="#EF4444" />
+              <Text style={styles.cancelledText}>This {type === 'delivery' ? 'delivery' : 'ride'} has been cancelled</Text>
+            </View>
+          ) : (
+            <View style={styles.progressContainer}>
+              {statusSteps.map((step, index) => {
+                const isActive = index <= currentStepIndex;
+                const isCurrent = index === currentStepIndex;
+                return (
+                  <View key={step} style={styles.progressStep}>
+                    <View style={[
+                      styles.progressDot,
+                      isActive && { backgroundColor: '#3B82F6' },
+                      isCurrent && styles.progressDotCurrent,
+                    ]}>
+                      {isActive && !isCurrent && (
+                        <Ionicons name="checkmark" size={10} color="#ffffff" />
+                      )}
+                    </View>
+                    {index < statusSteps.length - 1 && (
+                      <View style={[styles.progressLine, isActive && { backgroundColor: '#3B82F6' }]} />
                     )}
                   </View>
-                  {index < statusSteps.length - 1 && (
-                    <View style={[styles.progressLine, isActive && { backgroundColor: '#3B82F6' }]} />
-                  )}
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* Driver Card */}
           {driverInfo && status !== 'pending' && (
@@ -360,6 +383,8 @@ export default function TrackingScreen({ route, navigation }: any) {
                   onPress={() => {
                     if (driverInfo.phone) {
                       Linking.openURL(`tel:${driverInfo.phone}`);
+                    } else {
+                      Alert.alert('No Phone', 'Driver phone number is not available. Try chat instead.');
                     }
                   }}
                 >
@@ -562,9 +587,9 @@ const styles = StyleSheet.create({
     height: height * 0.4,
   },
   markerPickup: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
     backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
@@ -577,9 +602,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   markerDropoff: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
     backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
@@ -592,9 +617,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   markerRider: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -608,11 +633,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 60,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: isIOS ? verticalScale(50) : verticalScale(35),
+    left: RESPONSIVE.paddingHorizontal,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -625,11 +650,11 @@ const styles = StyleSheet.create({
   bottomSheet: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    borderTopLeftRadius: RESPONSIVE.borderRadius.xlarge,
+    borderTopRightRadius: RESPONSIVE.borderRadius.xlarge,
+    marginTop: moderateScale(-24),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: verticalScale(10),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
@@ -639,36 +664,59 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 8,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginTop: verticalScale(6),
+    marginBottom: verticalScale(12),
   },
   statusIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusTextContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   statusTitle: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
   statusDescription: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
+  },
+  etaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(8),
+    gap: moderateScale(6),
+  },
+  etaText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  cancelledContainer: {
+    alignItems: 'center',
+    paddingVertical: verticalScale(16),
+    marginBottom: verticalScale(12),
+  },
+  cancelledText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    color: '#EF4444',
+    fontWeight: '600',
+    marginTop: verticalScale(8),
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
+    marginBottom: verticalScale(12),
+    paddingHorizontal: moderateScale(8),
   },
   progressStep: {
     flex: 1,
@@ -676,17 +724,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
     backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressDotCurrent: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(11),
     borderWidth: 3,
     borderColor: '#BFDBFE',
   },
@@ -694,65 +742,65 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 3,
     backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    borderRadius: moderateScale(2),
   },
   driverCard: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(10),
   },
   driverInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(10),
   },
   driverPhoto: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: moderateScale(52),
+    height: moderateScale(52),
+    borderRadius: moderateScale(26),
     borderWidth: 2,
     borderColor: '#3B82F6',
   },
   driverDetails: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   driverName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   driverMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: verticalScale(3),
   },
   driverRating: {
-    fontSize: 13,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#92400E',
-    marginLeft: 4,
+    marginLeft: moderateScale(4),
   },
   driverPlate: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
     color: '#3B82F6',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(4),
+    marginLeft: moderateScale(8),
     overflow: 'hidden',
   },
   driverVehicle: {
-    fontSize: 12,
+    fontSize: RESPONSIVE.fontSize.small,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   driverActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: moderateScale(10),
   },
   actionBtn: {
     flex: 1,
@@ -760,63 +808,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 10,
-    paddingVertical: 10,
-    gap: 6,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    paddingVertical: moderateScale(10),
+    gap: moderateScale(6),
   },
   actionBtnText: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
     color: '#3B82F6',
   },
   routeCard: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(10),
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 5,
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
+    marginTop: verticalScale(5),
   },
   routeInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   routeLabel: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   routeAddress: {
-    fontSize: 14,
+    fontSize: RESPONSIVE.fontSize.medium,
     color: '#1F2937',
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   routeConnector: {
-    paddingLeft: 4,
-    paddingVertical: 2,
+    paddingLeft: moderateScale(4),
+    paddingVertical: moderateScale(2),
   },
   routeLine: {
     width: 2,
-    height: 20,
+    height: verticalScale(18),
     backgroundColor: '#D1D5DB',
-    marginVertical: 2,
+    marginVertical: verticalScale(2),
   },
   summaryCard: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(12),
   },
   summaryRow: {
     flexDirection: 'row',
@@ -827,19 +875,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#6B7280',
-    marginTop: 6,
+    marginTop: verticalScale(5),
   },
   summaryValue: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   summaryDivider: {
     width: 1,
-    height: 40,
+    height: moderateScale(40),
     backgroundColor: '#E5E7EB',
   },
   cancelButton: {
@@ -847,14 +895,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
     borderWidth: 1,
     borderColor: '#FEE2E2',
-    gap: 8,
+    gap: moderateScale(8),
   },
   cancelButtonText: {
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#EF4444',
   },
@@ -863,13 +911,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#10B981',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-    gap: 8,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(8),
+    gap: moderateScale(8),
   },
   driverActionButtonText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -878,12 +926,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#10B981',
-    borderRadius: 12,
-    padding: 16,
-    gap: 8,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    gap: moderateScale(8),
   },
   doneButtonText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -892,15 +940,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(8),
     borderWidth: 1,
     borderColor: '#FDE68A',
-    gap: 8,
+    gap: moderateScale(8),
   },
   rateButtonText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#92400E',
   },
@@ -911,67 +959,67 @@ const styles = StyleSheet.create({
   },
   ratingModal: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
+    borderTopLeftRadius: RESPONSIVE.borderRadius.xlarge,
+    borderTopRightRadius: RESPONSIVE.borderRadius.xlarge,
+    padding: moderateScale(24),
+    paddingBottom: verticalScale(36),
     alignItems: 'center',
   },
   ratingTitle: {
-    fontSize: 22,
+    fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(3),
   },
   ratingDriverName: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
-    marginBottom: 20,
+    marginBottom: verticalScale(16),
   },
   starsRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: verticalScale(6),
   },
   starButton: {
-    paddingHorizontal: 6,
+    paddingHorizontal: moderateScale(6),
   },
   ratingLabel: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 16,
+    marginBottom: verticalScale(12),
   },
   reviewInput: {
     width: '100%',
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#1F2937',
     textAlignVertical: 'top',
-    marginBottom: 16,
-    minHeight: 80,
+    marginBottom: verticalScale(12),
+    minHeight: verticalScale(70),
   },
   submitRatingButton: {
     width: '100%',
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: RESPONSIVE.paddingHorizontal,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: verticalScale(8),
   },
   submitRatingText: {
-    fontSize: 16,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   skipRatingButton: {
-    padding: 10,
+    padding: moderateScale(10),
   },
   skipRatingText: {
-    fontSize: 15,
+    fontSize: RESPONSIVE.fontSize.regular,
     color: '#6B7280',
   },
 });
