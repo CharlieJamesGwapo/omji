@@ -152,7 +152,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
         }
       }
 
-      if (lat === null || lng === null || (lat === 0 && lng === 0)) {
+      if (lat === null || lng === null) {
         Alert.alert(
           'Location Required',
           'Could not determine coordinates for this address. Please use "Use current location" or enter a more specific address.'

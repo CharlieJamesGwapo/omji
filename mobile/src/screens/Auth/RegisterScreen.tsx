@@ -23,6 +23,7 @@ export default function RegisterScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState('');
@@ -73,7 +74,7 @@ export default function RegisterScreen({ navigation }: any) {
       showToast('Account created successfully!', 'success');
     } catch (error: any) {
       shake();
-      const msg = error.message || 'Registration failed. Please try again.';
+      const msg = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
       showToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -90,6 +91,9 @@ export default function RegisterScreen({ navigation }: any) {
   ) => {
     const hasError = !!fieldErrors[fieldKey];
     const isFocused = focusedField === fieldKey;
+    const isConfirmField = fieldKey === 'confirmPassword';
+    const isPasswordVisible = isConfirmField ? showConfirmPassword : showPassword;
+    const toggleVisibility = () => isConfirmField ? setShowConfirmPassword(!showConfirmPassword) : setShowPassword(!showPassword);
     return (
       <View style={{ marginBottom: moderateScale(14) }}>
         <View
@@ -111,13 +115,13 @@ export default function RegisterScreen({ navigation }: any) {
             }}
             onFocus={() => setFocusedField(fieldKey)}
             onBlur={() => setFocusedField('')}
-            secureTextEntry={options?.secure && !showPassword}
+            secureTextEntry={options?.secure && !isPasswordVisible}
             keyboardType={options?.keyboard || 'default'}
             autoCapitalize={options?.autoCapitalize || 'none'}
           />
           {options?.secure && (
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color="#9CA3AF" />
+            <TouchableOpacity onPress={toggleVisibility}>
+              <Ionicons name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#9CA3AF" />
             </TouchableOpacity>
           )}
         </View>

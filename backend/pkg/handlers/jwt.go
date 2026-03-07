@@ -1,12 +1,19 @@
 package handlers
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const jwtSecret = "your-super-secret-key-change-in-production"
+func getJWTSecret() string {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "your-super-secret-key-change-in-production"
+	}
+	return secret
+}
 
 func GenerateToken(userID uint, email, role string) (string, error) {
 	claims := jwt.MapClaims{
@@ -16,5 +23,5 @@ func GenerateToken(userID uint, email, role string) (string, error) {
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(jwtSecret))
+	return token.SignedString([]byte(getJWTSecret()))
 }

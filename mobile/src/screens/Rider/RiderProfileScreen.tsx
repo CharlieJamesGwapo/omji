@@ -20,8 +20,11 @@ export default function RiderProfileScreen({ navigation }: any) {
   const [earningsData, setEarningsData] = useState<any>({});
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchData();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const [driverData, setDriverData] = useState<any>({});
 
@@ -49,11 +52,11 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: Number(user?.rating || earningsData.rating || 5.0) || 5.0,
+    rating: Number(user?.rating || earningsData.rating) || 0,
     totalRides: earningsData.completed_rides || 0,
     vehicleType: driverData.vehicle_type || 'Motorcycle',
     plateNumber: driverData.vehicle_plate || '-',
-    licenseNumber: driverData.vehicle_model || '-',
+    licenseNumber: driverData.license_number || '-',
     joinedDate: (user as any)?.created_at ? new Date((user as any).created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Member',
   };
 
@@ -62,8 +65,8 @@ export default function RiderProfileScreen({ navigation }: any) {
   const stats = [
     { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: '#3B82F6' },
     { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: '#FBBF24' },
-    { label: 'Acceptance', value: totalRides > 0 ? '95%' : '-', icon: 'checkmark-circle', color: '#10B981' },
-    { label: 'Completion', value: totalRides > 0 ? '98%' : '-', icon: 'checkmark-done', color: '#10B981' },
+    { label: 'Acceptance', value: earningsData.acceptance_rate ? `${earningsData.acceptance_rate}%` : totalRides > 0 ? '-' : '-', icon: 'checkmark-circle', color: '#10B981' },
+    { label: 'Completion', value: earningsData.completion_rate ? `${earningsData.completion_rate}%` : totalRides > 0 ? '-' : '-', icon: 'checkmark-done', color: '#10B981' },
   ];
 
   const achievements = [
@@ -194,14 +197,14 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={[styles.vehicleCard, { marginBottom: 0 }]}>
           <View style={styles.vehicleHeader}>
             <Ionicons
-              name={driverData.verified ? 'shield-checkmark' : 'shield-outline'}
+              name={driverData.is_verified ? 'shield-checkmark' : 'shield-outline'}
               size={28}
-              color={driverData.verified ? '#10B981' : '#F59E0B'}
+              color={driverData.is_verified ? '#10B981' : '#F59E0B'}
             />
             <Text style={styles.vehicleTitle}>Verification Status</Text>
             <View style={{
               marginLeft: 'auto',
-              backgroundColor: driverData.verified ? '#ECFDF5' : '#FEF3C7',
+              backgroundColor: driverData.is_verified ? '#ECFDF5' : '#FEF3C7',
               paddingHorizontal: moderateScale(12),
               paddingVertical: moderateScale(4),
               borderRadius: RESPONSIVE.borderRadius.small,
@@ -209,9 +212,9 @@ export default function RiderProfileScreen({ navigation }: any) {
               <Text style={{
                 fontSize: RESPONSIVE.fontSize.small,
                 fontWeight: '600',
-                color: driverData.verified ? '#10B981' : '#F59E0B',
+                color: driverData.is_verified ? '#10B981' : '#F59E0B',
               }}>
-                {driverData.verified ? 'Verified' : 'Pending'}
+                {driverData.is_verified ? 'Verified' : 'Pending'}
               </Text>
             </View>
           </View>

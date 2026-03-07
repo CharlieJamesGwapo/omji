@@ -23,8 +23,8 @@ export default function StoreDetailScreen({ route, navigation }: any) {
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
-    fetchMenu();
-  }, []);
+    if (store?.id) fetchMenu();
+  }, [store?.id]);
 
   useEffect(() => {
     if (store?.id) {
@@ -34,19 +34,32 @@ export default function StoreDetailScreen({ route, navigation }: any) {
     }
   }, [store?.id]);
 
+  if (!store?.id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+        <Ionicons name="alert-circle-outline" size={moderateScale(48)} color="#EF4444" />
+        <Text style={{ fontSize: fontScale(16), color: '#6B7280', marginTop: verticalScale(12) }}>Store not found</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: verticalScale(16), paddingHorizontal: moderateScale(24), paddingVertical: verticalScale(12), backgroundColor: '#3B82F6', borderRadius: moderateScale(8) }}>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const toggleFavorite = async () => {
+    const prev = isFavorite;
+    setIsFavorite(!prev);
     try {
-      if (isFavorite) {
-        // Need to get favorite ID first
+      if (prev) {
         const res = await favoritesService.getFavorites('store');
         const fav = (res.data?.data || []).find((f: any) => f.item_id === store?.id);
         if (fav) await favoritesService.deleteFavorite(fav.id);
       } else {
         await favoritesService.addFavorite({ type: 'store', item_id: store?.id });
       }
-      setIsFavorite(!isFavorite);
-    } catch (error) {
-      console.log('Favorite toggle error:', error);
+    } catch {
+      setIsFavorite(prev);
+      Alert.alert('Error', 'Could not update favorite. Please try again.');
     }
   };
 

@@ -33,6 +33,8 @@ export default function ChatScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const prevMessageCount = useRef(0);
+  const shouldAutoScroll = useRef(true);
 
   const quickReplies = [
     "I'm waiting outside",
@@ -41,15 +43,22 @@ export default function ChatScreen({ route, navigation }: any) {
     'Thanks!',
   ];
 
+  // Fetch messages on mount, poll every 5s, stop polling when screen loses focus
   useEffect(() => {
-    if (chatId) {
+    if (!chatId) { setLoading(false); return; }
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
       fetchMessages();
-      const interval = setInterval(fetchMessages, 5000);
-      return () => clearInterval(interval);
-    } else {
-      setLoading(false);
-    }
-  }, [chatId]);
+      interval = setInterval(fetchMessages, 5000);
+    };
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+    };
+    startPolling();
+    const unsubBlur = navigation.addListener('blur', stopPolling);
+    const unsubFocus = navigation.addListener('focus', startPolling);
+    return () => { stopPolling(); unsubBlur(); unsubFocus(); };
+  }, [chatId, navigation]);
 
   const fetchMessages = async () => {
     try {
@@ -87,6 +96,7 @@ export default function ChatScreen({ route, navigation }: any) {
 
     setMessages(prev => [...prev, tempMessage]);
     setMessage('');
+    shouldAutoScroll.current = true;
 
     if (chatId && receiverId) {
       setSending(true);
@@ -99,6 +109,10 @@ export default function ChatScreen({ route, navigation }: any) {
       } finally {
         setSending(false);
       }
+    } else {
+      // Remove optimistic message — chat session is not properly initialized
+      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+      Alert.alert('Chat Unavailable', 'Cannot send messages. Please go back and try again.');
     }
   };
 
@@ -153,7 +167,7 @@ export default function ChatScreen({ route, navigation }: any) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? verticalScale(90) : 0}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -208,7 +222,15 @@ export default function ChatScreen({ route, navigation }: any) {
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => {
+            // Only auto-scroll when new messages arrive, not on every poll
+            if (messages.length > prevMessageCount.current || shouldAutoScroll.current) {
+              flatListRef.current?.scrollToEnd({ animated: true });
+              shouldAutoScroll.current = false;
+            }
+            prevMessageCount.current = messages.length;
+          }}
+          onScrollBeginDrag={() => { shouldAutoScroll.current = false; }}
         />
       )}
 
@@ -420,7 +442,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: moderateScale(16),
     paddingVertical: verticalScale(10),
     fontSize: fontScale(15),
-    maxHeight: 100,
+    maxHeight: verticalScale(100),
     color: '#1F2937',
   },
   sendButton: {

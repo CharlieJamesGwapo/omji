@@ -268,7 +268,7 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons
                 name="person"
                 size={20}
-                color={phoneFocused ? '#DC2626' : phoneError ? '#EF4444' : '#DC2626'}
+                color={phoneError ? '#EF4444' : phoneFocused ? '#DC2626' : '#9CA3AF'}
                 style={styles.icon}
               />
               <TextInput
@@ -300,7 +300,7 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons
                 name="lock-closed"
                 size={20}
-                color={passwordFocused ? '#DC2626' : passwordError ? '#EF4444' : '#DC2626'}
+                color={passwordError ? '#EF4444' : passwordFocused ? '#DC2626' : '#9CA3AF'}
                 style={styles.icon}
               />
               <TextInput

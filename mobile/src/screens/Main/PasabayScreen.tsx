@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -89,9 +89,13 @@ export default function PasabayScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
+  const lastFetchRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      const now = Date.now();
+      if (now - lastFetchRef.current < 3000) return;
+      lastFetchRef.current = now;
       (async () => {
         try {
           const res = await rideService.getActiveRides();
@@ -152,6 +156,21 @@ export default function PasabayScreen({ navigation }: any) {
       return;
     }
 
+    // Check wallet balance if paying with wallet
+    if (paymentMethod === 'wallet') {
+      try {
+        const balRes = await walletService.getBalance();
+        const balance = balRes.data?.data?.balance ?? balRes.data?.balance ?? 0;
+        if (balance < (ride.base_fare || 0)) {
+          Alert.alert('Insufficient wallet balance', 'Please top up your wallet.');
+          return;
+        }
+      } catch {
+        Alert.alert('Error', 'Could not verify wallet balance. Please try again.');
+        return;
+      }
+    }
+
     Alert.alert(
       'Join Ride Share',
       `Route: ${ride.pickup_location} → ${ride.dropoff_location}\nFare: ₱${ride.base_fare || 0}\nSeats left: ${ride.available_seats}\n${ride.driver?.name ? `Driver: ${ride.driver.name}` : ''}`,
@@ -190,9 +209,9 @@ export default function PasabayScreen({ navigation }: any) {
   };
 
   const rideTypes = [
-    { id: 'single', name: 'Single Ride', icon: 'bicycle', basePrice: 40, vehicleType: 'motorcycle' },
-    { id: 'habal', name: 'Habal-Habal', icon: 'bicycle', basePrice: 60, vehicleType: 'motorcycle' },
-    { id: 'tricycle', name: 'Tricycle', icon: 'car', basePrice: 80, vehicleType: 'car' },
+    { id: 'single', name: 'Single Ride', icon: 'bicycle', basePrice: 40, vehicleType: 'motorcycle', ratePerKm: 10 },
+    { id: 'habal', name: 'Habal-Habal', icon: 'bicycle', basePrice: 60, vehicleType: 'motorcycle', ratePerKm: 10 },
+    { id: 'tricycle', name: 'Tricycle', icon: 'car', basePrice: 80, vehicleType: 'car', ratePerKm: 15 },
   ];
 
   const handlePickupSelect = (location: any) => {
@@ -222,9 +241,18 @@ export default function PasabayScreen({ navigation }: any) {
   const distance = calculateDistance(pickupLocation, dropoffLocation);
   const selectedType = rideTypes.find(r => r.id === rideType) || rideTypes[0];
   const passengerCharge = passengers > 1 ? (passengers - 1) * 20 : 0;
-  const distanceCharge = distance * 10;
+  const distanceCharge = distance * selectedType.ratePerKm;
   const baseFareCalc = selectedType.basePrice + passengerCharge + distanceCharge;
   const totalFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  // Reset promo when fare basis changes
+  useEffect(() => {
+    if (promoApplied) {
+      setPromoCode('');
+      setPromoDiscount(0);
+      setPromoApplied(false);
+    }
+  }, [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude, rideType, passengers]);
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -265,6 +293,11 @@ export default function PasabayScreen({ navigation }: any) {
 
     if (!pickupLocation.latitude || !dropoffLocation.latitude) {
       showToast('Please select pickup and dropoff locations.', 'warning');
+      return;
+    }
+
+    if (pickupLocation.latitude === dropoffLocation.latitude && pickupLocation.longitude === dropoffLocation.longitude) {
+      showToast('Pickup and dropoff locations cannot be the same.', 'warning');
       return;
     }
 
@@ -346,6 +379,7 @@ export default function PasabayScreen({ navigation }: any) {
                 dropoff_longitude: dropoffLocation.longitude,
                 vehicle_type: selectedType.vehicleType,
                 payment_method: paymentMethod,
+                estimated_fare: totalFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
               });
               const ride = response.data?.data || {};
@@ -637,7 +671,7 @@ export default function PasabayScreen({ navigation }: any) {
               )}
               {distance > 0 && (
                 <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱10)</Text>
+                  <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱{selectedType.ratePerKm})</Text>
                   <Text style={styles.priceValue}>₱{distanceCharge.toFixed(0)}</Text>
                 </View>
               )}

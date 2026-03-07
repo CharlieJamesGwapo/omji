@@ -17,17 +17,30 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(true);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [earningsApiData, setEarningsApiData] = useState<any>({});
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    fetchEarnings();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchEarnings();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchEarnings = async () => {
     try {
       setLoading(true);
-      const response = await driverService.getEarnings();
-      setEarningsApiData(response.data?.data || {});
+      const [earningsRes, walletRes] = await Promise.allSettled([
+        driverService.getEarnings(),
+        walletService.getBalance(),
+      ]);
+      if (earningsRes.status === 'fulfilled') {
+        setEarningsApiData(earningsRes.value?.data?.data || {});
+      }
+      if (walletRes.status === 'fulfilled') {
+        setWalletBalance(walletRes.value?.data?.data?.balance ?? 0);
+      }
     } catch (error) {
       console.error('Error fetching earnings:', error);
     } finally {
@@ -35,7 +48,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
     }
   };
 
-  const balance = earningsApiData.total_earnings || 0;
+  const balance = walletBalance;
   const minimumWithdraw = 100;
 
   const periods = [
@@ -60,9 +73,16 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const todayDeliveryCount = earningsApiData.today_delivery_count || 0;
   const todayTotalTrips = todayRideCount + todayDeliveryCount;
 
+  const weekRideCount = earningsApiData.week_ride_count || 0;
+  const weekRideEarnings = earningsApiData.week_ride_earnings || 0;
+  const weekDeliveryCount = earningsApiData.week_delivery_count || 0;
+  const weekDeliveryEarnings = earningsApiData.week_delivery_earnings || 0;
+  const weekTotal = weekRideEarnings + weekDeliveryEarnings;
+  const weekTrips = weekRideCount + weekDeliveryCount;
+
   const earningsData = {
     today: { total: dailyEarnings, rides: todayTotalTrips, avg: todayTotalTrips > 0 ? Math.round(dailyEarnings / todayTotalTrips) : 0 },
-    week: { total: totalEarnings, rides: totalRides, avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
+    week: { total: weekTotal, rides: weekTrips, avg: weekTrips > 0 ? Math.round(weekTotal / weekTrips) : 0 },
     month: { total: totalEarnings, rides: totalRides, avg: totalRides > 0 ? Math.round(totalEarnings / totalRides) : 0 },
   };
 
@@ -78,8 +98,8 @@ export default function RiderEarningsScreen({ navigation }: any) {
     }
     if (selectedPeriod === 'week') {
       return [
-        { service: 'Pasundo (Rides)', rides: Math.round(rideCount / 4), earnings: Math.round(rideEarnings / 4), color: '#F59E0B' },
-        { service: 'Pasugo (Deliveries)', rides: Math.round(deliveryCount / 4), earnings: Math.round(deliveryEarnings / 4), color: '#3B82F6' },
+        { service: 'Pasundo (Rides)', rides: weekRideCount, earnings: Math.round(weekRideEarnings), color: '#F59E0B' },
+        { service: 'Pasugo (Deliveries)', rides: weekDeliveryCount, earnings: Math.round(weekDeliveryEarnings), color: '#3B82F6' },
       ];
     }
     return [
@@ -93,7 +113,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
 
-    if (isNaN(amount) || amount < minimumWithdraw) {
+    if (isNaN(amount) || amount <= 0 || amount < minimumWithdraw) {
       Alert.alert(
         'Invalid Amount',
         `Minimum withdrawal amount is ₱${minimumWithdraw}`
@@ -106,26 +126,40 @@ export default function RiderEarningsScreen({ navigation }: any) {
       return;
     }
 
+    // Let user select withdrawal method
     Alert.alert(
-      'Confirm Withdrawal',
-      `Withdraw ₱${amount} to your registered account?\n\nProcessing time: 1-3 business days`,
+      'Withdraw To',
+      `Amount: ₱${amount}\nSelect your payout method:`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Confirm',
-          onPress: async () => {
-            try {
-              await walletService.withdraw({ amount, payment_method: 'gcash' });
-              setWithdrawAmount('');
-              Alert.alert('Success', 'Withdrawal request submitted! Processing within 1-3 business days.');
-              fetchEarnings(); // Refresh data
-            } catch (error: any) {
-              Alert.alert('Withdrawal Failed', error.response?.data?.error || 'Failed to process withdrawal. Please try again.');
-            }
-          },
+          text: 'GCash',
+          onPress: () => processWithdraw(amount, 'gcash'),
+        },
+        {
+          text: 'Maya',
+          onPress: () => processWithdraw(amount, 'maya'),
+        },
+        {
+          text: 'Bank Transfer',
+          onPress: () => processWithdraw(amount, 'bank'),
         },
       ]
     );
+  };
+
+  const processWithdraw = async (amount: number, method: string) => {
+    setWithdrawLoading(true);
+    try {
+      await walletService.withdraw({ amount, payment_method: method });
+      setWithdrawAmount('');
+      Alert.alert('Success', `Withdrawal of ₱${amount} via ${method.toUpperCase()} submitted! Processing within 1-3 business days.`);
+      fetchEarnings();
+    } catch (error: any) {
+      Alert.alert('Withdrawal Failed', error.response?.data?.error || 'Failed to process withdrawal. Please try again.');
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   return (
@@ -164,10 +198,15 @@ export default function RiderEarningsScreen({ navigation }: any) {
               />
             </View>
             <TouchableOpacity
-              style={styles.withdrawButton}
+              style={[styles.withdrawButton, withdrawLoading && { opacity: 0.6 }]}
               onPress={handleWithdraw}
+              disabled={withdrawLoading}
             >
-              <Text style={styles.withdrawButtonText}>Withdraw</Text>
+              {withdrawLoading ? (
+                <ActivityIndicator color="#10B981" size="small" />
+              ) : (
+                <Text style={styles.withdrawButtonText}>Withdraw</Text>
+              )}
             </TouchableOpacity>
           </View>
           <Text style={styles.withdrawHint}>

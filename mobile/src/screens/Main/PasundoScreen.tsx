@@ -84,6 +84,7 @@ export default function PasundoScreen({ navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const lastFetchRef = useRef<number>(0);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
@@ -91,6 +92,9 @@ export default function PasundoScreen({ navigation }: any) {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      const now = Date.now();
+      if (now - lastFetchRef.current < 3000) return;
+      lastFetchRef.current = now;
       (async () => {
         try {
           const res = await rideService.getActiveRides();
@@ -151,6 +155,15 @@ export default function PasundoScreen({ navigation }: any) {
     : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
 
+  // Reset promo when fare basis changes (locations or vehicle changed)
+  useEffect(() => {
+    if (promoApplied) {
+      setPromoCode('');
+      setPromoDiscount(0);
+      setPromoApplied(false);
+    }
+  }, [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude, vehicleType]);
+
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
     if (baseFareCalc <= 0) {
@@ -208,6 +221,11 @@ export default function PasundoScreen({ navigation }: any) {
       return;
     }
 
+    if (pickupLocation.latitude === dropoffLocation.latitude && pickupLocation.longitude === dropoffLocation.longitude) {
+      showToast('Pickup and dropoff locations cannot be the same.', 'warning');
+      return;
+    }
+
     if (pickupType === 'person' && !personName.trim()) {
       showToast("Please enter the person's name to pick up.", 'warning');
       return;
@@ -249,6 +267,7 @@ export default function PasundoScreen({ navigation }: any) {
                 dropoff_longitude: dropoffLocation.longitude,
                 vehicle_type: vehicleType,
                 payment_method: paymentMethod,
+                estimated_fare: estimatedFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
               });
               const ride = response.data?.data || {};

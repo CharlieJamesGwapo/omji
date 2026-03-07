@@ -36,13 +36,15 @@ interface Delivery {
   Driver: DeliveryDriver | null;
 }
 
-type FilterStatus = 'all' | 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+type FilterStatus = 'all' | 'pending' | 'active' | 'completed' | 'cancelled';
 
 const ITEMS_PER_PAGE = 20;
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
   accepted: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Accepted' },
+  driver_arrived: { bg: 'bg-cyan-100', text: 'text-cyan-700', label: 'Driver Arrived' },
+  picked_up: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'Picked Up' },
   in_progress: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'In Progress' },
   completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
   cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
@@ -102,7 +104,7 @@ const DeliveriesPage: React.FC = () => {
   };
 
   const filtered = deliveries.filter((d) => {
-    const matchesStatus = filterStatus === 'all' || d.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' ? ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(d.status) : d.status === filterStatus);
     const q = search.toLowerCase();
     const matchesSearch =
       !q ||
@@ -124,7 +126,7 @@ const DeliveriesPage: React.FC = () => {
 
   const stats = {
     total: deliveries.length,
-    active: deliveries.filter(d => d.status === 'accepted' || d.status === 'in_progress').length,
+    active: deliveries.filter(d => ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(d.status)).length,
     completed: deliveries.filter(d => d.status === 'completed').length,
     cancelled: deliveries.filter(d => d.status === 'cancelled').length,
     revenue: deliveries
@@ -135,7 +137,7 @@ const DeliveriesPage: React.FC = () => {
   const filterButtons: { key: FilterStatus; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: deliveries.length },
     { key: 'pending', label: 'Pending', count: deliveries.filter(d => d.status === 'pending').length },
-    { key: 'accepted', label: 'Active', count: stats.active },
+    { key: 'active', label: 'Active', count: stats.active },
     { key: 'completed', label: 'Completed', count: stats.completed },
     { key: 'cancelled', label: 'Cancelled', count: stats.cancelled },
   ];
@@ -317,6 +319,8 @@ const DeliveriesPage: React.FC = () => {
               >
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
+                <option value="driver_arrived">Driver Arrived</option>
+                <option value="picked_up">Picked Up</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
@@ -658,7 +662,7 @@ const DeliveriesPage: React.FC = () => {
               <div className="pt-4 border-t border-gray-200">
                 <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Update Status</div>
                 <div className="flex gap-2 flex-wrap">
-                  {['pending', 'accepted', 'in_progress', 'completed', 'cancelled'].map((s) => {
+                  {['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'completed', 'cancelled'].map((s) => {
                     const config = statusConfig[s];
                     const isActive = selectedDelivery.status === s;
                     return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,13 @@ export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const lastFetchRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      const now = Date.now();
+      if (now - lastFetchRef.current < 3000) return;
+      lastFetchRef.current = now;
       (async () => {
         try {
           const [ridesRes, deliveriesRes] = await Promise.allSettled([
@@ -34,7 +38,9 @@ export default function HomeScreen({ navigation }: any) {
             const data = deliveriesRes.value?.data?.data;
             setActiveDeliveries(Array.isArray(data) ? data : []);
           }
-        } catch {}
+        } catch (error) {
+          console.error('Error fetching active orders:', error);
+        }
       })();
     });
     return unsubscribe;
@@ -108,12 +114,12 @@ export default function HomeScreen({ navigation }: any) {
           <TouchableOpacity
             key={`ride-${ride.id}`}
             style={styles.activeCard}
-            onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.estimated_fare })}
+            onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.final_fare || ride.estimated_fare })}
           >
             <View style={[styles.activeDot, { backgroundColor: '#F59E0B' }]} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={styles.activeTitle}>Active Ride</Text>
-              <Text style={styles.activeSub} numberOfLines={1}>{ride.dropoff_location || 'In progress'} - {ride.status?.replace('_', ' ')}</Text>
+              <Text style={styles.activeSub} numberOfLines={1}>{ride.dropoff_location || 'In progress'} - {ride.status?.replace(/_/g, ' ')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
           </TouchableOpacity>
@@ -127,7 +133,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={[styles.activeDot, { backgroundColor: '#DC2626' }]} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={[styles.activeTitle, { color: '#991B1B' }]}>Active Delivery</Text>
-              <Text style={[styles.activeSub, { color: '#B91C1C' }]} numberOfLines={1}>{del.dropoff_location || 'In progress'} - {del.status?.replace('_', ' ')}</Text>
+              <Text style={[styles.activeSub, { color: '#B91C1C' }]} numberOfLines={1}>{del.dropoff_location || 'In progress'} - {del.status?.replace(/_/g, ' ')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#DC2626" />
           </TouchableOpacity>

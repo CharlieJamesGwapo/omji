@@ -4,24 +4,39 @@ import (
 	"log"
 	"omji/config"
 	"omji/pkg/models"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
 
 func InitDB(cfg *config.Config) *gorm.DB {
 	dsn := cfg.GetDSN()
-	
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger:                 logger.Default.LogMode(logger.Warn),
+		SkipDefaultTransaction: true,
+		PrepareStmt:            true,
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Failed to get underlying sql.DB: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(2 * time.Minute)
+
 	DB = db
-	log.Println("✅ Database connected successfully")
+	log.Println("Database connected successfully")
 	return db
 }
 

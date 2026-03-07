@@ -66,6 +66,7 @@ const NotificationsPage: React.FC = () => {
       await adminService.sendNotification({
         title: formData.title,
         message: formData.message,
+        type: formData.target_type,
         target_type: formData.target_type,
       });
       setFeedback({ type: 'success', message: 'Notification sent successfully!' });

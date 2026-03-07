@@ -42,28 +42,33 @@ export default function NotificationsScreen({ navigation }: any) {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchNotifications();
-    setRefreshing(false);
-  };
+    try {
+      await fetchNotifications();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchNotifications]);
 
   const handleMarkRead = async (id: number) => {
+    const prev = [...notifications];
+    setNotifications(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
     try {
       await notificationService.markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
-      );
     } catch {
-      // Silent fail
+      setNotifications(prev);
     }
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'ride': return { icon: 'navigate-circle', color: '#10B981' };
-      case 'delivery': return { icon: 'cube', color: '#3B82F6' };
-      case 'order': return { icon: 'storefront', color: '#EF4444' };
+      case 'ride':
+      case 'ride_request': return { icon: 'navigate-circle', color: '#10B981' };
+      case 'delivery':
+      case 'delivery_request': return { icon: 'cube', color: '#3B82F6' };
+      case 'order':
+      case 'order_update': return { icon: 'storefront', color: '#EF4444' };
       case 'promo': return { icon: 'pricetag', color: '#F59E0B' };
       case 'wallet': return { icon: 'wallet', color: '#8B5CF6' };
       default: return { icon: 'notifications', color: '#6B7280' };

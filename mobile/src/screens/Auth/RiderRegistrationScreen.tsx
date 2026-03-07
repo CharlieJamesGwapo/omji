@@ -47,28 +47,32 @@ export default function RiderRegistrationScreen({ navigation }: any) {
   const vehicleTypes = ['Motorcycle', 'Tricycle', 'Car', 'Van'];
 
   const pickImage = async (type: 'profile' | 'license' | 'orcr' | 'id') => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      switch (type) {
-        case 'profile':
-          setProfilePhoto(result.assets[0].uri);
-          break;
-        case 'license':
-          setLicensePhoto(result.assets[0].uri);
-          break;
-        case 'orcr':
-          setOrCrPhoto(result.assets[0].uri);
-          break;
-        case 'id':
-          setValidIdPhoto(result.assets[0].uri);
-          break;
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        switch (type) {
+          case 'profile':
+            setProfilePhoto(result.assets[0].uri);
+            break;
+          case 'license':
+            setLicensePhoto(result.assets[0].uri);
+            break;
+          case 'orcr':
+            setOrCrPhoto(result.assets[0].uri);
+            break;
+          case 'id':
+            setValidIdPhoto(result.assets[0].uri);
+            break;
+        }
       }
+    } catch {
+      Alert.alert('Error', 'Could not open photo library. Please check your permissions in Settings.');
     }
   };
 
@@ -167,6 +171,9 @@ export default function RiderRegistrationScreen({ navigation }: any) {
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ position: 'absolute', left: moderateScale(16), top: isIOS ? verticalScale(50) : verticalScale(35), zIndex: 1 }}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
         <Ionicons name="bicycle" size={48} color="#DC2626" />
         <Text style={styles.headerTitle}>Become a Rider</Text>
         <Text style={styles.headerSubtitle}>
@@ -329,7 +336,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: verticalScale(40) }} />
     </ScrollView>
     </KeyboardAvoidingView>
   );

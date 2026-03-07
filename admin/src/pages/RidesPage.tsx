@@ -47,12 +47,13 @@ const ITEMS_PER_PAGE = 20;
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
   accepted: 'bg-blue-100 text-blue-700',
+  driver_arrived: 'bg-cyan-100 text-cyan-700',
   in_progress: 'bg-purple-100 text-purple-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
 };
 
-const statusLabel = (status: string) => status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const statusLabel = (status: string) => status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const RidesPage: React.FC = () => {
   const [rides, setRides] = useState<Ride[]>([]);
@@ -112,7 +113,7 @@ const RidesPage: React.FC = () => {
 
     let matchesFilter = true;
     if (filter === 'pending') matchesFilter = r.status === 'pending';
-    else if (filter === 'active') matchesFilter = r.status === 'accepted' || r.status === 'in_progress';
+    else if (filter === 'active') matchesFilter = r.status === 'accepted' || r.status === 'driver_arrived' || r.status === 'in_progress';
     else if (filter === 'completed') matchesFilter = r.status === 'completed';
     else if (filter === 'cancelled') matchesFilter = r.status === 'cancelled';
 
@@ -128,7 +129,7 @@ const RidesPage: React.FC = () => {
 
   const stats = {
     total: rides.length,
-    active: rides.filter((r) => r.status === 'accepted' || r.status === 'in_progress').length,
+    active: rides.filter((r) => r.status === 'accepted' || r.status === 'driver_arrived' || r.status === 'in_progress').length,
     completed: rides.filter((r) => r.status === 'completed').length,
     cancelled: rides.filter((r) => r.status === 'cancelled').length,
     revenue: rides
@@ -316,6 +317,7 @@ const RidesPage: React.FC = () => {
               >
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
+                <option value="driver_arrived">Driver Arrived</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>

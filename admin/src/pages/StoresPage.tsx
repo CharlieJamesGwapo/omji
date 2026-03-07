@@ -5,6 +5,8 @@ const StoresPage: React.FC = () => {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingStore, setEditingStore] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({ name: '', category: 'restaurant', address: '', phone: '', description: '' });
 
   useEffect(() => {
@@ -21,16 +23,45 @@ const StoresPage: React.FC = () => {
     setLoading(false);
   };
 
+  const resetForm = () => {
+    setForm({ name: '', category: 'restaurant', address: '', phone: '', description: '' });
+    setEditingStore(null);
+    setShowForm(false);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await adminService.createStore({ ...form, is_verified: true, rating: 5.0 });
       setStores([res.data.data, ...stores]);
-      setShowForm(false);
-      setForm({ name: '', category: 'restaurant', address: '', phone: '', description: '' });
-    } catch (err) {
+      resetForm();
+    } catch {
       alert('Failed to create store');
     }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStore) return;
+    try {
+      const res = await adminService.updateStore(editingStore.id, { ...editingStore, ...form });
+      setStores(stores.map(s => s.id === editingStore.id ? res.data.data : s));
+      resetForm();
+    } catch {
+      alert('Failed to update store');
+    }
+  };
+
+  const handleEdit = (store: any) => {
+    setEditingStore(store);
+    setForm({
+      name: store.name || '',
+      category: store.category || 'restaurant',
+      address: store.address || '',
+      phone: store.phone || '',
+      description: store.description || '',
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -38,10 +69,29 @@ const StoresPage: React.FC = () => {
     try {
       await adminService.deleteStore(id);
       setStores(stores.filter(s => s.id !== id));
-    } catch (err) {
+    } catch {
       alert('Failed to delete store');
     }
   };
+
+  const handleToggleVerified = async (store: any) => {
+    try {
+      const res = await adminService.updateStore(store.id, { ...store, is_verified: !store.is_verified });
+      setStores(stores.map(s => s.id === store.id ? res.data.data : s));
+    } catch {
+      alert('Failed to update store verification');
+    }
+  };
+
+  const filtered = stores.filter((s) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.category || '').toLowerCase().includes(q) ||
+      (s.address || '').toLowerCase().includes(q)
+    );
+  });
 
   if (loading) {
     return (
@@ -62,19 +112,28 @@ const StoresPage: React.FC = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Stores</h1>
           <p className="text-gray-500 text-sm mt-1">{stores.length} registered store{stores.length !== 1 ? 's' : ''}</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base font-medium"
-        >
-          {showForm ? 'Cancel' : '+ Add Store'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <input
+            type="text"
+            placeholder="Search stores..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-64 px-4 py-2.5 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
+          />
+          <button
+            onClick={() => { if (showForm && !editingStore) { resetForm(); } else { setEditingStore(null); setForm({ name: '', category: 'restaurant', address: '', phone: '', description: '' }); setShowForm(true); } }}
+            className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base font-medium"
+          >
+            {showForm && !editingStore ? 'Cancel' : '+ Add Store'}
+          </button>
+        </div>
       </div>
 
-      {/* Create Store Form */}
+      {/* Create/Edit Store Form */}
       {showForm && (
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Add New Store</h2>
-          <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">{editingStore ? 'Edit Store' : 'Add New Store'}</h2>
+          <form onSubmit={editingStore ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <input
               placeholder="Store Name"
               value={form.name}
@@ -111,19 +170,30 @@ const StoresPage: React.FC = () => {
               className="px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base md:col-span-2"
               rows={2}
             />
-            <button
-              type="submit"
-              className="w-full px-6 py-2.5 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-colors font-medium text-sm sm:text-base md:col-span-2"
-            >
-              Create Store
-            </button>
+            <div className="flex gap-3 md:col-span-2">
+              <button
+                type="submit"
+                className="flex-1 px-6 py-2.5 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-colors font-medium text-sm sm:text-base"
+              >
+                {editingStore ? 'Update Store' : 'Create Store'}
+              </button>
+              {editingStore && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-6 py-2.5 sm:py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
 
       {/* Store Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {stores.map((store) => (
+        {filtered.map((store) => (
           <div key={store.id} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1 min-w-0">
@@ -132,9 +202,12 @@ const StoresPage: React.FC = () => {
                   {store.category}
                 </span>
               </div>
-              <span className={`ml-2 flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium ${store.is_verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+              <button
+                onClick={() => handleToggleVerified(store)}
+                className={`ml-2 flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-medium cursor-pointer transition-colors ${store.is_verified ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+              >
                 {store.is_verified ? 'Verified' : 'Pending'}
-              </span>
+              </button>
             </div>
 
             {store.address && (
@@ -158,26 +231,34 @@ const StoresPage: React.FC = () => {
                 </svg>
                 <span className="text-sm font-medium text-amber-600">{(store.rating || 5).toFixed(1)}</span>
               </div>
-              <button
-                onClick={() => handleDelete(store.id)}
-                className="px-3 py-1.5 sm:px-4 sm:py-2 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors active:bg-red-100"
-              >
-                Delete
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEdit(store)}
+                  className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(store.id)}
+                  className="px-3 py-1.5 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Empty State */}
-      {stores.length === 0 && (
+      {filtered.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
           <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
           </svg>
-          <p className="text-gray-400 text-lg font-medium">No stores yet</p>
-          <p className="text-gray-300 text-sm mt-1">Add one above to get started.</p>
+          <p className="text-gray-400 text-lg font-medium">{search ? 'No stores match your search' : 'No stores yet'}</p>
+          <p className="text-gray-300 text-sm mt-1">{search ? 'Try a different search term' : 'Add one above to get started.'}</p>
         </div>
       )}
     </div>

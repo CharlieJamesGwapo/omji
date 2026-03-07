@@ -36,6 +36,7 @@ const PAYMENT_LABELS: Record<string, { name: string; icon: string; color: string
   cash: { name: 'Cash', icon: 'cash-outline', color: '#F59E0B' },
   gcash: { name: 'GCash', icon: 'phone-portrait-outline', color: '#0070E0' },
   maya: { name: 'Maya', icon: 'card-outline', color: '#00B251' },
+  wallet: { name: 'OMJI Wallet', icon: 'wallet-outline', color: '#8B5CF6' },
 };
 
 export default function TrackingScreen({ route, navigation }: any) {
@@ -79,9 +80,11 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   useEffect(() => {
     fetchRideDetails();
+    // Stop polling once ride is completed or cancelled
+    if (status === 'completed' || status === 'cancelled') return;
     const interval = setInterval(fetchRideDetails, 5000);
     return () => clearInterval(interval);
-  }, [fetchRideDetails]);
+  }, [fetchRideDetails, status]);
 
   const getCurrentStepIndex = () => statusSteps.indexOf(status);
   const currentStepIndex = getCurrentStepIndex();
@@ -164,7 +167,7 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   const pickupLabel = rideData?.pickup_location || rideData?.pickup || pickup || 'Pickup';
   const dropoffLabel = rideData?.dropoff_location || rideData?.dropoff || dropoff || 'Dropoff';
-  const rideFare = rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
+  const rideFare = rideData?.final_fare || rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
   const rideDistance = rideData?.distance_km || rideData?.distance || 0;
   const paymentMethod = rideData?.payment_method || 'cash';
   const pickupLat = rideData?.pickup_latitude || rideData?.pickup_lat || 8.4343;
@@ -237,7 +240,7 @@ export default function TrackingScreen({ route, navigation }: any) {
             { latitude: dropoffLat, longitude: dropoffLng },
           ];
           mapRef.current?.fitToCoordinates(coords, {
-            edgePadding: { top: 80, right: 60, bottom: height * 0.55, left: 60 },
+            edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) },
             animated: false,
           });
         }}
@@ -433,7 +436,7 @@ export default function TrackingScreen({ route, navigation }: any) {
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
                 <Ionicons name="cash-outline" size={18} color="#10B981" />
-                <Text style={styles.summaryLabel}>Total Fare</Text>
+                <Text style={styles.summaryLabel}>{status === 'completed' ? 'Total Fare' : 'Est. Fare'}</Text>
                 <Text style={[styles.summaryValue, { color: '#10B981' }]}>
                   ₱{Number(rideFare || 0).toFixed(0)}
                 </Text>
@@ -464,12 +467,12 @@ export default function TrackingScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={handleCancel}
-              disabled={cancelling || status === 'in_progress'}
+              disabled={cancelling || status === 'in_progress' || status === 'picked_up'}
             >
               {cancelling ? (
                 <ActivityIndicator color="#EF4444" />
-              ) : status === 'in_progress' ? (
-                <Text style={[styles.cancelButtonText, { color: '#9CA3AF' }]}>Cannot cancel - ride in progress</Text>
+              ) : status === 'in_progress' || status === 'picked_up' ? (
+                <Text style={[styles.cancelButtonText, { color: '#9CA3AF' }]}>Cannot cancel - {type === 'delivery' ? 'delivery' : 'ride'} in progress</Text>
               ) : (
                 <>
                   <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
@@ -740,7 +743,7 @@ const styles = StyleSheet.create({
   },
   progressLine: {
     flex: 1,
-    height: 3,
+    height: moderateScale(3),
     backgroundColor: '#E5E7EB',
     borderRadius: moderateScale(2),
   },

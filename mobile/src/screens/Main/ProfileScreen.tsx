@@ -21,28 +21,33 @@ export default function ProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserStats();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchUserStats();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchUserStats = async () => {
     try {
       setLoading(true);
 
-      const [ridesRes, ordersRes, deliveriesRes, walletRes] = await Promise.allSettled([
-        rideService.getActiveRides(),
-        orderService.getActiveOrders(),
-        deliveryService.getActiveDeliveries(),
+      const [ridesHistRes, ordersHistRes, deliveriesHistRes, walletRes] = await Promise.allSettled([
+        rideService.getRideHistory(),
+        orderService.getOrderHistory(),
+        deliveryService.getDeliveryHistory(),
         walletService.getBalance(),
       ]);
 
-      const rides = ridesRes.status === 'fulfilled' && Array.isArray(ridesRes.value?.data?.data)
-        ? ridesRes.value.data.data : [];
-      const orders = ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value?.data?.data)
-        ? ordersRes.value.data.data : [];
-      const deliveries = deliveriesRes.status === 'fulfilled' && Array.isArray(deliveriesRes.value?.data?.data)
-        ? deliveriesRes.value.data.data : [];
+      const rides = ridesHistRes.status === 'fulfilled' && Array.isArray(ridesHistRes.value?.data?.data)
+        ? ridesHistRes.value.data.data : [];
+      const orders = ordersHistRes.status === 'fulfilled' && Array.isArray(ordersHistRes.value?.data?.data)
+        ? ordersHistRes.value.data.data : [];
+      const deliveries = deliveriesHistRes.status === 'fulfilled' && Array.isArray(deliveriesHistRes.value?.data?.data)
+        ? deliveriesHistRes.value.data.data : [];
 
-      const totalRides = rides.length + deliveries.length;
+      const completedRides = rides.filter((r: any) => r.status === 'completed').length;
+      const completedDeliveries = deliveries.filter((d: any) => d.status === 'completed').length;
+      const totalCompleted = completedRides + completedDeliveries;
 
       const ridesSpent = rides.reduce((sum: number, ride: any) => sum + (ride.final_fare || ride.estimated_fare || 0), 0);
       const ordersSpent = orders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0);
@@ -52,7 +57,7 @@ export default function ProfileScreen({ navigation }: any) {
       const rating = Number(user?.rating) || 5.0;
 
       setStats({
-        rides: totalRides,
+        rides: totalCompleted,
         rating: Number(rating.toFixed(1)),
         spent: totalSpent,
       });
@@ -88,7 +93,7 @@ export default function ProfileScreen({ navigation }: any) {
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
         { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
-        { icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' },
+        ...(!user?.role || user.role === 'user' ? [{ icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' }] : []),
       ],
     },
     {
@@ -150,7 +155,7 @@ export default function ProfileScreen({ navigation }: any) {
               <>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{stats.rides}</Text>
-                  <Text style={styles.statLabel}>Active</Text>
+                  <Text style={styles.statLabel}>Rides</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>

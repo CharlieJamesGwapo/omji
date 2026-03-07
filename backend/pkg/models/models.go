@@ -76,9 +76,9 @@ type Driver struct {
 // Ride model (Pasundo)
 type Ride struct {
 	ID                  uint      `gorm:"primaryKey" json:"id"`
-	UserID              uint      `json:"user_id"`
+	UserID              uint      `gorm:"index:idx_ride_user_status" json:"user_id"`
 	User                User
-	DriverID            *uint     `json:"driver_id,omitempty"`
+	DriverID            *uint     `gorm:"index:idx_ride_driver_status" json:"driver_id,omitempty"`
 	Driver              *Driver
 	PickupLocation      string    `json:"pickup_location"`
 	PickupLatitude      float64   `json:"pickup_latitude"`
@@ -89,7 +89,7 @@ type Ride struct {
 	Distance            float64   `json:"distance"` // in km
 	EstimatedFare       float64   `json:"estimated_fare"`
 	FinalFare           float64   `json:"final_fare"`
-	Status              string    `gorm:"default:'pending'" json:"status"` // pending, accepted, in_progress, completed, cancelled
+	Status              string    `gorm:"default:'pending';index:idx_ride_user_status;index:idx_ride_driver_status;index:idx_ride_status_driver" json:"status"` // pending, accepted, in_progress, completed, cancelled
 	VehicleType         string    `json:"vehicle_type"` // motorcycle, car
 	PromoID             *uint     `json:"promo_id,omitempty"`
 	Promo               *Promo
@@ -130,9 +130,9 @@ type RideShare struct {
 // Delivery model (Pasugo)
 type Delivery struct {
 	ID                  uint      `gorm:"primaryKey" json:"id"`
-	UserID              uint      `json:"user_id"`
+	UserID              uint      `gorm:"index:idx_delivery_user_status" json:"user_id"`
 	User                User
-	DriverID            *uint     `json:"driver_id,omitempty"`
+	DriverID            *uint     `gorm:"index:idx_delivery_driver_status" json:"driver_id,omitempty"`
 	Driver              *Driver
 	PickupLocation      string    `json:"pickup_location"`
 	PickupLatitude      float64   `json:"pickup_latitude"`
@@ -147,7 +147,7 @@ type Delivery struct {
 	Distance            float64   `json:"distance"` // in km
 	DeliveryFee         float64   `json:"delivery_fee"`
 	Tip                 float64   `gorm:"default:0" json:"tip"`
-	Status              string    `gorm:"default:'pending'" json:"status"` // pending, accepted, in_progress, completed, cancelled
+	Status              string    `gorm:"default:'pending';index:idx_delivery_user_status;index:idx_delivery_driver_status;index:idx_delivery_status_driver" json:"status"` // pending, accepted, in_progress, completed, cancelled
 	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
 	BarcodeNumber       string    `json:"barcode_number"`
 	PromoID             *uint     `json:"promo_id,omitempty"`
@@ -198,9 +198,9 @@ type MenuItem struct {
 // Order model (Food/Store orders)
 type Order struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
-	UserID           uint      `json:"user_id"`
+	UserID           uint      `gorm:"index:idx_order_user_status" json:"user_id"`
 	User             User
-	StoreID          uint      `json:"store_id"`
+	StoreID          uint      `gorm:"index" json:"store_id"`
 	Store            Store
 	Items            datatypes.JSON `json:"items"` // Array of {item_id, quantity, price}
 	Subtotal         float64   `json:"subtotal"`
@@ -209,7 +209,7 @@ type Order struct {
 	TotalAmount      float64   `json:"total_amount"`
 	PromoID          *uint     `json:"promo_id,omitempty"`
 	Promo            *Promo
-	Status           string    `gorm:"default:'pending'" json:"status"` // pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
+	Status           string    `gorm:"default:'pending';index:idx_order_user_status" json:"status"` // pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
 	DeliveryLocation string    `json:"delivery_location"`
 	DeliveryLatitude float64   `json:"delivery_latitude"`
 	DeliveryLongitude float64  `json:"delivery_longitude"`
@@ -242,9 +242,9 @@ type Promo struct {
 // ChatMessage model
 type ChatMessage struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	SenderID  uint      `json:"sender_id"`
-	ReceiverID uint     `json:"receiver_id"`
-	RideID    *uint     `json:"ride_id,omitempty"`
+	SenderID  uint      `gorm:"index" json:"sender_id"`
+	ReceiverID uint     `gorm:"index" json:"receiver_id"`
+	RideID    *uint     `gorm:"index" json:"ride_id,omitempty"`
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -252,7 +252,7 @@ type ChatMessage struct {
 // Notification model
 type Notification struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `json:"user_id"`
+	UserID    uint      `gorm:"index" json:"user_id"`
 	Title     string    `json:"title"`
 	Body      string    `json:"body"`
 	Type      string    `json:"type"` // ride_request, delivery_request, order_update, promo
@@ -263,7 +263,7 @@ type Notification struct {
 // Favorite model
 type Favorite struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `json:"user_id"`
+	UserID    uint      `gorm:"index" json:"user_id"`
 	Type      string    `json:"type"` // store, driver
 	ItemID    uint      `json:"item_id"` // store_id or driver_id
 	CreatedAt time.Time `json:"created_at"`
@@ -281,8 +281,8 @@ type Wallet struct {
 // WalletTransaction model
 type WalletTransaction struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	WalletID    uint      `json:"wallet_id"`
-	UserID      uint      `json:"user_id"`
+	WalletID    uint      `gorm:"index" json:"wallet_id"`
+	UserID      uint      `gorm:"index" json:"user_id"`
 	Type        string    `json:"type"` // top_up, withdrawal, payment, refund, earning
 	Amount      float64   `json:"amount"`
 	Description string    `json:"description"`

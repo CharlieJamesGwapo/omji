@@ -1,48 +1,21 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { View, ActivityIndicator, LogBox, Text, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Context
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { NetworkProvider, useNetwork } from './src/context/NetworkContext';
 
-// Screens - Auth
-import LoginScreen from './src/screens/Auth/LoginScreen';
-import RegisterScreen from './src/screens/Auth/RegisterScreen';
-import OTPScreen from './src/screens/Auth/OTPScreen';
+// No Internet Screen
+import NoInternetScreen from './src/screens/NoInternetScreen';
 
-// Screens - Main
-import HomeScreen from './src/screens/Main/HomeScreen';
-import PasugoScreen from './src/screens/Main/PasugoScreen';
-import PasabayScreen from './src/screens/Main/PasabayScreen';
-import PasundoScreen from './src/screens/Main/PasundoScreen';
-import StoresScreen from './src/screens/Main/StoresScreen';
-import StoreDetailScreen from './src/screens/Main/StoreDetailScreen';
-import CartScreen from './src/screens/Main/CartScreen';
-import OrdersScreen from './src/screens/Main/OrdersScreen';
-import ProfileScreen from './src/screens/Main/ProfileScreen';
-import TrackingScreen from './src/screens/Main/TrackingScreen';
-import ChatScreen from './src/screens/Main/ChatScreen';
-import WalletScreen from './src/screens/Main/WalletScreen';
-import RideHistoryScreen from './src/screens/Main/RideHistoryScreen';
-import EditProfileScreen from './src/screens/Main/EditProfileScreen';
-import SavedAddressesScreen from './src/screens/Main/SavedAddressesScreen';
-import PaymentMethodsScreen from './src/screens/Main/PaymentMethodsScreen';
-import FavoritesScreen from './src/screens/Main/FavoritesScreen';
-import NotificationsScreen from './src/screens/Main/NotificationsScreen';
-
-// Screens - Rider
-import RiderDashboardScreen from './src/screens/Rider/RiderDashboardScreen';
-import RiderEarningsScreen from './src/screens/Rider/RiderEarningsScreen';
-import RiderProfileScreen from './src/screens/Rider/RiderProfileScreen';
-import RiderRegistrationScreen from './src/screens/Auth/RiderRegistrationScreen';
-
-// Admin screens removed - Admin functionality is web-only
+// Navigators
+import AuthNavigator from './src/navigation/AuthNavigator';
+import MainNavigator from './src/navigation/MainNavigator';
+import RiderNavigator from './src/navigation/RiderNavigator';
 
 // Ignore specific non-critical warnings
 LogBox.ignoreLogs([
@@ -51,9 +24,6 @@ LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
 ]);
 
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
-
 // Loading Screen
 const LoadingScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#3B82F6' }}>
@@ -61,217 +31,15 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Auth Stack
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Login" component={LoginScreen} />
-    <Stack.Screen name="Register" component={RegisterScreen} />
-    <Stack.Screen name="OTP" component={OTPScreen} />
-    <Stack.Screen name="RiderRegistration" component={RiderRegistrationScreen} options={{ headerShown: true, title: 'Become a Rider', headerStyle: { backgroundColor: '#10B981' }, headerTintColor: '#ffffff' }} />
-  </Stack.Navigator>
-);
-
-// Main Tabs
-const MainTabs = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName: any;
-
-        if (route.name === 'Home') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'Services') {
-          iconName = focused ? 'grid' : 'grid-outline';
-        } else if (route.name === 'Orders') {
-          iconName = focused ? 'receipt' : 'receipt-outline';
-        } else if (route.name === 'Profile') {
-          iconName = focused ? 'person' : 'person-outline';
-        }
-
-        return <Ionicons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: '#3B82F6',
-      tabBarInactiveTintColor: '#9CA3AF',
-      tabBarStyle: {
-        backgroundColor: '#ffffff',
-        borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
-        paddingBottom: 5,
-        paddingTop: 5,
-        height: 60,
-      },
-      tabBarLabelStyle: {
-        fontSize: 12,
-        fontWeight: 'bold',
-      },
-      headerShown: false,
-    })}
-  >
-    <Tab.Screen
-      name="Home"
-      component={HomeScreen}
-      options={{ title: 'Home' }}
-    />
-    <Tab.Screen
-      name="Services"
-      component={StoresScreen}
-      options={{ title: 'Stores' }}
-    />
-    <Tab.Screen
-      name="Orders"
-      component={OrdersScreen}
-      options={{ title: 'Orders' }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
-    />
-  </Tab.Navigator>
-);
-
-// Main Stack
-const MainStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: '#3B82F6',
-      },
-      headerTintColor: '#ffffff',
-      headerTitleStyle: {
-        fontWeight: 'bold',
-      },
-    }}
-  >
-    <Stack.Screen
-      name="MainTabs"
-      component={MainTabs}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Pasugo"
-      component={PasugoScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Pasabay"
-      component={PasabayScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Pasundo"
-      component={PasundoScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="StoreDetail"
-      component={StoreDetailScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Cart"
-      component={CartScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Tracking"
-      component={TrackingScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Chat"
-      component={ChatScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Wallet"
-      component={WalletScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="RideHistory"
-      component={RideHistoryScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="RiderRegistration"
-      component={RiderRegistrationScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="EditProfile"
-      component={EditProfileScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="SavedAddresses"
-      component={SavedAddressesScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="PaymentMethods"
-      component={PaymentMethodsScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Favorites"
-      component={FavoritesScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Notifications"
-      component={NotificationsScreen}
-      options={{ headerShown: false }}
-    />
-  </Stack.Navigator>
-);
-
-// Admin Stack removed - Admin uses web interface only
-
-// Rider Stack
-const RiderStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: '#10B981',
-      },
-      headerTintColor: '#ffffff',
-      headerTitleStyle: {
-        fontWeight: 'bold',
-      },
-    }}
-  >
-    <Stack.Screen
-      name="RiderDashboard"
-      component={RiderDashboardScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="RiderEarnings"
-      component={RiderEarningsScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="RiderProfile"
-      component={RiderProfileScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Tracking"
-      component={TrackingScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Chat"
-      component={ChatScreen}
-      options={{ headerShown: false }}
-    />
-  </Stack.Navigator>
-);
-
 // Root Navigator
 const RootNavigator = () => {
   const { user, loading, logout } = useAuth();
+  const { isConnected } = useNetwork();
+
+  // Block app when no internet connection
+  if (!isConnected) {
+    return <NoInternetScreen />;
+  }
 
   if (loading) {
     return <LoadingScreen />;
@@ -303,11 +71,11 @@ const RootNavigator = () => {
     <NavigationContainer>
       <StatusBar style="auto" />
       {!user ? (
-        <AuthStack />
+        <AuthNavigator />
       ) : user.role === 'rider' || user.role === 'driver' ? (
-        <RiderStack />
+        <RiderNavigator />
       ) : (
-        <MainStack />
+        <MainNavigator />
       )}
     </NavigationContainer>
   );
@@ -316,8 +84,10 @@ const RootNavigator = () => {
 // Main App
 export default function App() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <NetworkProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </NetworkProvider>
   );
 }

@@ -7,6 +7,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale, fontScale, RESPONSIVE } from '../utils/responsive';
 
 interface PaymentMethod {
   id: string;
@@ -42,6 +43,14 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     bgColor: '#ECFDF5',
     description: 'Pay via Maya e-wallet',
   },
+  {
+    id: 'wallet',
+    name: 'OMJI Wallet',
+    icon: 'wallet-outline',
+    color: '#8B5CF6',
+    bgColor: '#F5F3FF',
+    description: 'Pay from your OMJI wallet balance',
+  },
 ];
 
 interface Props {
@@ -62,7 +71,7 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
         onPress={() => setShowModal(true)}
       >
         <View style={[styles.selectedIcon, { backgroundColor: selectedMethod.bgColor }]}>
-          <Ionicons name={selectedMethod.icon as any} size={24} color={selectedMethod.color} />
+          <Ionicons name={selectedMethod.icon as any} size={moderateScale(24)} color={selectedMethod.color} />
         </View>
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedLabel}>Payment Method</Text>
@@ -70,7 +79,7 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
         </View>
         <View style={styles.changeButton}>
           <Text style={[styles.changeText, { color: accentColor }]}>Change</Text>
-          <Ionicons name="chevron-forward" size={16} color={accentColor} />
+          <Ionicons name="chevron-forward" size={moderateScale(16)} color={accentColor} />
         </View>
       </TouchableOpacity>
 
@@ -97,7 +106,7 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
                   }}
                 >
                   <View style={[styles.methodIcon, { backgroundColor: method.bgColor }]}>
-                    <Ionicons name={method.icon as any} size={28} color={method.color} />
+                    <Ionicons name={method.icon as any} size={moderateScale(28)} color={method.color} />
                   </View>
                   <View style={styles.methodInfo}>
                     <Text style={styles.methodName}>{method.name}</Text>
@@ -133,40 +142,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: moderateScale(12),
+    padding: moderateScale(14),
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   selectedIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
   },
   selectedLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#6B7280',
   },
   selectedName: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 2,
+    marginTop: moderateScale(2),
   },
   changeButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   changeText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
-    marginRight: 4,
+    marginRight: moderateScale(4),
   },
   modalOverlay: {
     flex: 1,
@@ -175,32 +184,32 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 40,
+    borderTopLeftRadius: moderateScale(24),
+    borderTopRightRadius: moderateScale(24),
+    padding: moderateScale(20),
+    paddingBottom: moderateScale(40),
   },
   modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
+    width: moderateScale(40),
+    height: moderateScale(4),
+    borderRadius: moderateScale(2),
     backgroundColor: '#D1D5DB',
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: fontScale(20),
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: moderateScale(12),
+    padding: moderateScale(16),
+    marginBottom: moderateScale(12),
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -208,49 +217,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   methodIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: moderateScale(52),
+    height: moderateScale(52),
+    borderRadius: moderateScale(26),
     alignItems: 'center',
     justifyContent: 'center',
   },
   methodInfo: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: moderateScale(14),
   },
   methodName: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#1F2937',
   },
   methodDescription: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: moderateScale(2),
   },
   radio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
     borderWidth: 2,
     borderColor: '#D1D5DB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
   },
   doneButton: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: moderateScale(12),
+    padding: moderateScale(16),
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: moderateScale(8),
   },
   doneButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: 'bold',
   },
 });

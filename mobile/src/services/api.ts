@@ -5,12 +5,27 @@ const API_BASE_URL = 'https://omji-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 120000,
+  timeout: 30000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
     'Expires': '0',
   },
+});
+
+// Retry GET requests once on network/timeout errors
+api.interceptors.response.use(undefined, async (error) => {
+  const config = error.config;
+  if (
+    config &&
+    !config.__retried &&
+    config.method === 'get' &&
+    (!error.response || error.code === 'ECONNABORTED')
+  ) {
+    config.__retried = true;
+    return api(config);
+  }
+  return Promise.reject(error);
 });
 
 // Add token to requests
@@ -108,7 +123,7 @@ export const deliveryService = {
     }
     return api.post('/deliveries/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180000,
+      timeout: 60000,
     });
   },
   getActiveDeliveries: () => api.get('/deliveries/active'),
@@ -198,7 +213,7 @@ export const driverService = {
     });
     return api.post('/driver/register', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180000,
+      timeout: 60000,
     });
   },
   getProfile: () => api.get('/driver/profile'),

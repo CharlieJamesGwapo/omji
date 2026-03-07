@@ -2,13 +2,20 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const jwtSecret = "your-super-secret-key-change-in-production"
+func getJWTSecret() string {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "your-super-secret-key-change-in-production"
+	}
+	return secret
+}
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -46,7 +53,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(jwtSecret), nil
+			return []byte(getJWTSecret()), nil
 		})
 
 		if err != nil || !token.Valid {

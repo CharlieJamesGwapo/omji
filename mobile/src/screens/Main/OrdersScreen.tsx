@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
@@ -33,6 +34,8 @@ export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState('ongoing');
   const [orders, setOrders] = useState<OrderItem[]>([]);
 
+  const lastFetchRef = useRef<number>(0);
+
   const fetchOrders = useCallback(async () => {
     try {
       const [ridesRes, deliveriesRes, ordersRes, ridesHistRes, deliveriesHistRes, ordersHistRes] = await Promise.allSettled([
@@ -57,7 +60,7 @@ export default function OrdersScreen({ navigation }: any) {
               status: ride.status,
               from: ride.pickup_location || ride.pickup || '',
               to: ride.dropoff_location || ride.dropoff || '',
-              fare: ride.estimated_fare || 0,
+              fare: ride.final_fare || ride.estimated_fare || 0,
               createdAt: ride.created_at || '',
               driverName: ride.driver?.name || ride.Driver?.name,
               driverRating: ride.driver?.rating || ride.Driver?.rating,
@@ -121,7 +124,7 @@ export default function OrdersScreen({ navigation }: any) {
               allOrders.push({
                 id: ride.id, type: 'ride', service: 'Pasundo', status: ride.status,
                 from: ride.pickup_location || ride.pickup || '', to: ride.dropoff_location || ride.dropoff || '',
-                fare: ride.estimated_fare || ride.final_fare || 0, createdAt: ride.created_at || '',
+                fare: ride.final_fare || ride.estimated_fare || 0, createdAt: ride.created_at || '',
                 driverName: ride.driver?.name || ride.Driver?.name,
                 driverRating: ride.driver?.rating || ride.Driver?.rating,
                 icon: 'navigate-circle', color: '#10B981',
@@ -176,17 +179,28 @@ export default function OrdersScreen({ navigation }: any) {
     }
   }, []);
 
+  // Refetch whenever this screen is focused, but debounce to avoid rapid re-fetches
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    const unsubscribe = navigation.addListener('focus', () => {
+      const now = Date.now();
+      if (now - lastFetchRef.current > 3000) {
+        lastFetchRef.current = now;
+        fetchOrders();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, fetchOrders]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchOrders();
-    setRefreshing(false);
+    try {
+      await fetchOrders();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'in_progress', 'preparing', 'picked_up'];
+  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'in_progress', 'preparing', 'picked_up', 'confirmed', 'ready', 'out_for_delivery'];
   const completedStatuses = ['completed', 'delivered'];
   const cancelledStatuses = ['cancelled'];
 
@@ -214,6 +228,24 @@ export default function OrdersScreen({ navigation }: any) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const handleCancelOrder = (orderId: number) => {
+    Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await orderService.cancelOrder(orderId);
+            fetchOrders();
+          } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel order');
+          }
+        },
+      },
+    ]);
+  };
+
   const renderOrderCard = (order: OrderItem) => (
     <TouchableOpacity
       key={`${order.type}-${order.id}`}
@@ -227,6 +259,21 @@ export default function OrdersScreen({ navigation }: any) {
             dropoff: order.to,
             fare: order.fare,
           });
+        } else if (order.type === 'order') {
+          const isOngoing = ongoingStatuses.includes(order.status);
+          const actions: any[] = [{ text: 'Close', style: 'cancel' }];
+          if (isOngoing && order.status !== 'in_progress') {
+            actions.push({
+              text: 'Cancel Order',
+              style: 'destructive',
+              onPress: () => handleCancelOrder(order.id),
+            });
+          }
+          Alert.alert(
+            'Store Order',
+            `Store: ${order.from}\nDelivery: ${order.to || 'N/A'}\nTotal: ₱${(order.fare || 0).toFixed(0)}\nStatus: ${order.status.replace(/_/g, ' ')}`,
+            actions
+          );
         }
       }}
     >
@@ -320,8 +367,28 @@ export default function OrdersScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Orders</Text>
+        </View>
+        <View style={{ padding: RESPONSIVE.paddingHorizontal }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={[styles.orderCard, { opacity: 0.5 }]}>
+              <View style={styles.orderHeader}>
+                <View style={[styles.iconContainer, { backgroundColor: '#E5E7EB' }]} />
+                <View style={styles.orderHeaderInfo}>
+                  <View style={{ backgroundColor: '#E5E7EB', height: 14, width: 100, borderRadius: 4 }} />
+                  <View style={{ backgroundColor: '#E5E7EB', height: 12, width: 60, borderRadius: 4, marginTop: 6 }} />
+                </View>
+                <View style={{ backgroundColor: '#E5E7EB', height: 24, width: 60, borderRadius: 6 }} />
+              </View>
+              <View style={styles.orderBody}>
+                <View style={{ backgroundColor: '#F3F4F6', height: 12, width: '80%', borderRadius: 4, marginBottom: 8 }} />
+                <View style={{ backgroundColor: '#F3F4F6', height: 12, width: '60%', borderRadius: 4 }} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }

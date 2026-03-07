@@ -28,21 +28,27 @@ export default function CartScreen({ route, navigation }: any) {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
-          const loc = await Promise.race([locationPromise, timeoutPromise]);
-          if (!loc || !('coords' in loc)) return;
-          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          const result = await Location.reverseGeocodeAsync({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
-          if (result?.[0]) {
-            const addr = result[0];
-            const parts = [addr.streetNumber, addr.street, addr.subregion, addr.city].filter(Boolean);
-            setDeliveryAddress(parts.length > 0 ? parts.join(', ') : 'Current Location');
-          }
+        if (status !== 'granted') {
+          Alert.alert(
+            'Location Permission Required',
+            'We need your location to deliver your order. Please enable location access in Settings.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
+        if (!loc || !('coords' in loc)) return;
+        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        const result = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+        if (result?.[0]) {
+          const addr = result[0];
+          const parts = [addr.streetNumber, addr.street, addr.subregion, addr.city].filter(Boolean);
+          setDeliveryAddress(parts.length > 0 ? parts.join(', ') : 'Current Location');
         }
       } catch (e) {
         console.log('Location error:', e);
@@ -95,7 +101,7 @@ export default function CartScreen({ route, navigation }: any) {
     if (paymentMethod === 'wallet') {
       try {
         const walletRes = await walletService.getBalance();
-        const balance = walletRes.data?.data?.balance || 0;
+        const balance = walletRes.data?.data?.balance ?? walletRes.data?.balance ?? 0;
         if (balance < total) {
           Alert.alert('Insufficient Balance', `Your wallet balance (₱${balance.toFixed(0)}) is less than the total (₱${total.toFixed(0)}). Please top up or choose another payment method.`);
           return;
@@ -160,7 +166,13 @@ export default function CartScreen({ route, navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cart</Text>
-        <TouchableOpacity onPress={() => setCartItems([])}>
+        <TouchableOpacity onPress={() => {
+          if (cartItems.length === 0) return;
+          Alert.alert('Clear Cart', 'Remove all items from your cart?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Clear', style: 'destructive', onPress: () => setCartItems([]) },
+          ]);
+        }}>
           <Text style={styles.clearText}>Clear</Text>
         </TouchableOpacity>
       </View>
@@ -271,7 +283,7 @@ export default function CartScreen({ route, navigation }: any) {
           </>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
 
       {/* Checkout Button */}

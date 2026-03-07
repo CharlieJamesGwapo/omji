@@ -39,7 +39,7 @@ export default function Toast({ visible, message, type = 'info', duration = 3500
       translateY.setValue(-100);
       opacity.setValue(0);
     }
-  }, [visible]);
+  }, [visible, duration]);
 
   const dismiss = () => {
     Animated.parallel([

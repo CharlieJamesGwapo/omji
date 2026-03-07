@@ -106,14 +106,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
                   Alert.alert('Location Required', 'Please enable location access in settings to go online.');
                   return;
                 }
-                let lat = 8.4343, lng = 124.5000;
                 const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
                 const loc = await Promise.race([locationPromise, timeoutPromise]);
-                if (loc && 'coords' in loc) {
-                  lat = loc.coords.latitude;
-                  lng = loc.coords.longitude;
+                if (!loc || !('coords' in loc)) {
+                  Alert.alert('Location Error', 'Could not get your current location. Please try again.');
+                  return;
                 }
+                const lat = loc.coords.latitude;
+                const lng = loc.coords.longitude;
                 await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
                 setIsOnline(true);
                 showToast('You are now online! Waiting for requests...', 'success');
@@ -195,9 +196,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await driverService.rejectRequest(request.id);
+              if (request.status === 'pending') {
+                // Pending requests: just dismiss from local list (not accepted yet)
+                setRequests(prev => prev.filter(r => r.id !== request.id));
+              } else {
+                // Accepted requests: call API to reject and return to pending
+                await driverService.rejectRequest(request.id);
+                fetchData();
+              }
               showToast(`${jobLabel} declined.`, 'info');
-              fetchData();
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to decline request';
               showToast(msg, 'error');
@@ -779,7 +786,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   locationConnector: {
-    width: 2,
+    width: moderateScale(2),
     height: verticalScale(14),
     backgroundColor: '#D1D5DB',
     marginLeft: moderateScale(4),

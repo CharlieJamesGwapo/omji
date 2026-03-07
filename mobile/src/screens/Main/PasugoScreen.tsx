@@ -86,9 +86,13 @@ export default function PasugoScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
+  const lastFetchRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      const now = Date.now();
+      if (now - lastFetchRef.current < 3000) return;
+      lastFetchRef.current = now;
       (async () => {
         try {
           const res = await deliveryService.getActiveDeliveries();
@@ -113,14 +117,18 @@ export default function PasugoScreen({ navigation }: any) {
   ];
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      setItemPhoto(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setItemPhoto(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open photo library. Please check permissions.');
     }
   };
 
@@ -153,6 +161,15 @@ export default function PasugoScreen({ navigation }: any) {
   const perKmRate = 15;
   const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  // Reset promo when fare basis changes (locations changed)
+  useEffect(() => {
+    if (promoApplied) {
+      setPromoCode('');
+      setPromoDiscount(0);
+      setPromoApplied(false);
+    }
+  }, [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude]);
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -195,6 +212,12 @@ export default function PasugoScreen({ navigation }: any) {
       showToast('Please select both pickup and dropoff locations.', 'warning');
       return;
     }
+
+    if (pickupLocation.latitude === dropoffLocation.latitude && pickupLocation.longitude === dropoffLocation.longitude) {
+      showToast('Pickup and dropoff locations cannot be the same.', 'warning');
+      return;
+    }
+
     if (!itemDescription.trim()) {
       showToast('Please describe what you are sending.', 'warning');
       return;
@@ -311,9 +334,9 @@ export default function PasugoScreen({ navigation }: any) {
           <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)}>
             <Ionicons name="location-outline" size={20} color="#DC2626" />
             {detectingLocation ? (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: moderateScale(12) }}>
                 <ActivityIndicator size="small" color="#DC2626" />
-                <Text style={{ marginLeft: 8, color: '#6B7280', fontSize: 14 }}>Detecting location...</Text>
+                <Text style={{ marginLeft: moderateScale(8), color: '#6B7280', fontSize: fontScale(14) }}>Detecting location...</Text>
               </View>
             ) : (
               <Text style={[styles.input, !pickupLocation.address && styles.placeholder]} numberOfLines={1}>

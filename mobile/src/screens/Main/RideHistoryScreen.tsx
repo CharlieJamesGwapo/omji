@@ -7,6 +7,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
@@ -21,6 +22,7 @@ interface RideItem {
   status: string;
   vehicle_type: string;
   estimated_fare: number;
+  final_fare?: number;
   distance?: number;
   distance_km?: number;
   created_at: string;
@@ -61,8 +63,8 @@ export default function RideHistoryScreen({ navigation }: any) {
           ...o,
           estimated_fare: o.total_amount || 0,
           vehicle_type: 'order',
-          pickup_location: o.store_name || 'Store',
-          dropoff_location: o.delivery_address || 'Delivery',
+          pickup_location: o.Store?.name || 'Store',
+          dropoff_location: o.delivery_location || 'Delivery',
           _type: 'order',
           _key: `order-${o.id}`,
         })) : []),
@@ -88,18 +90,24 @@ export default function RideHistoryScreen({ navigation }: any) {
     { id: 'cancelled', label: 'Cancelled' },
   ];
 
+  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'preparing'];
   const filteredRides =
     filterType === 'all'
       ? rides
-      : rides.filter((ride) => ride.status === filterType);
+      : filterType === 'pending'
+        ? rides.filter((ride) => ongoingStatuses.includes(ride.status))
+        : rides.filter((ride) => ride.status === filterType);
 
   const totalRides = rides.length;
-  const totalSpent = rides.reduce((sum, ride) => sum + (ride.estimated_fare || 0), 0);
+  const totalSpent = rides.reduce((sum, ride) => sum + (ride.final_fare || ride.estimated_fare || 0), 0);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchRides();
-    setRefreshing(false);
+    try {
+      await fetchRides();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -124,7 +132,8 @@ export default function RideHistoryScreen({ navigation }: any) {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
   if (loading) {
@@ -202,15 +211,22 @@ export default function RideHistoryScreen({ navigation }: any) {
             <TouchableOpacity
               key={ride._key || ride.id}
               style={styles.rideCard}
-              onPress={() =>
-                navigation.navigate('Tracking', {
-                  type: ride._type === 'delivery' ? 'delivery' : 'ride',
-                  rideId: ride.id,
-                  pickup: ride.pickup || ride.pickup_location || '',
-                  dropoff: ride.dropoff || ride.dropoff_location || '',
-                  fare: ride.estimated_fare,
-                })
-              }
+              onPress={() => {
+                if (ride._type === 'order') {
+                  Alert.alert(
+                    'Store Order',
+                    `Store: ${ride.pickup || ride.pickup_location || 'Store'}\nDelivery: ${ride.dropoff || ride.dropoff_location || 'N/A'}\nTotal: ₱${(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}\nStatus: ${ride.status.replace(/_/g, ' ')}`,
+                  );
+                } else {
+                  navigation.navigate('Tracking', {
+                    type: ride._type === 'delivery' ? 'delivery' : 'ride',
+                    rideId: ride.id,
+                    pickup: ride.pickup || ride.pickup_location || '',
+                    dropoff: ride.dropoff || ride.dropoff_location || '',
+                    fare: ride.final_fare || ride.estimated_fare,
+                  });
+                }
+              }}
             >
               <View style={styles.rideHeader}>
                 <View
@@ -226,7 +242,7 @@ export default function RideHistoryScreen({ navigation }: any) {
                   <Text style={styles.rideService}>{ride._type === 'order' ? 'Store Order' : ride._type === 'delivery' ? 'Pasugo Delivery' : 'Pasundo Ride'}</Text>
                   <Text style={styles.rideDate}>{formatDate(ride.created_at)}</Text>
                 </View>
-                <Text style={styles.rideFare}>₱{(ride.estimated_fare || 0).toFixed(0)}</Text>
+                <Text style={styles.rideFare}>₱{(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}</Text>
               </View>
 
               <View style={styles.rideBody}>
@@ -260,7 +276,7 @@ export default function RideHistoryScreen({ navigation }: any) {
                 )}
                 <View style={styles.rideMetrics}>
                   <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ride.status) }]}>
-                    <Text style={styles.statusText}>{ride.status}</Text>
+                    <Text style={styles.statusText}>{ride.status.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</Text>
                   </View>
                   {(ride.distance_km || ride.distance || 0) > 0 && (
                     <Text style={styles.rideMetric}>{(ride.distance_km || ride.distance || 0).toFixed(1)} km</Text>

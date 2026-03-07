@@ -23,6 +23,10 @@ export default function WalletScreen({ navigation }: any) {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('gcash');
   const [topUpLoading, setTopUpLoading] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawMethod, setWithdrawMethod] = useState('gcash');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const [fetchError, setFetchError] = useState(false);
 
@@ -31,7 +35,7 @@ export default function WalletScreen({ navigation }: any) {
       setFetchError(false);
       const response = await walletService.getBalance();
       const data = response.data?.data;
-      setBalance(data?.balance || 0);
+      setBalance(Number(data?.balance) || 0);
       setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
     } catch (error: any) {
       if (error.response?.status !== 401) {
@@ -47,11 +51,14 @@ export default function WalletScreen({ navigation }: any) {
     fetchWallet();
   }, [fetchWallet]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchWallet();
-    setRefreshing(false);
-  };
+    try {
+      await fetchWallet();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchWallet]);
 
   const topUpOptions = [
     { amount: 100, label: '₱100' },
@@ -71,6 +78,10 @@ export default function WalletScreen({ navigation }: any) {
       Alert.alert('Invalid Amount', 'Minimum top-up amount is ₱10');
       return;
     }
+    if (amount > 50000) {
+      Alert.alert('Invalid Amount', 'Maximum top-up amount is ₱50,000');
+      return;
+    }
 
     Alert.alert(
       'Confirm Top Up',
@@ -87,7 +98,7 @@ export default function WalletScreen({ navigation }: any) {
                 payment_method: selectedMethod,
               });
               const data = response.data?.data;
-              setBalance(data?.balance || balance + amount);
+              setBalance(data?.balance != null ? Number(data.balance) : balance + amount);
               setShowTopUp(false);
               setTopUpAmount('');
               Alert.alert('Success', `₱${amount} has been added to your wallet!`);
@@ -163,13 +174,22 @@ export default function WalletScreen({ navigation }: any) {
             <Text style={styles.balanceLabel}>Available Balance</Text>
           </View>
           <Text style={styles.balanceAmount}>₱{balance.toFixed(2)}</Text>
-          <TouchableOpacity
-            style={styles.topUpButton}
-            onPress={() => setShowTopUp(!showTopUp)}
-          >
-            <Ionicons name="add-circle" size={20} color="#ffffff" />
-            <Text style={styles.topUpButtonText}>Top Up</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: moderateScale(10) }}>
+            <TouchableOpacity
+              style={[styles.topUpButton, { flex: 1 }]}
+              onPress={() => { setShowTopUp(!showTopUp); setShowWithdraw(false); }}
+            >
+              <Ionicons name="add-circle" size={20} color="#ffffff" />
+              <Text style={styles.topUpButtonText}>Top Up</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.topUpButton, { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }]}
+              onPress={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
+            >
+              <Ionicons name="arrow-down-circle" size={20} color="#ffffff" />
+              <Text style={styles.topUpButtonText}>Withdraw</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Top Up Section */}
@@ -260,6 +280,110 @@ export default function WalletScreen({ navigation }: any) {
           </View>
         )}
 
+        {/* Withdraw Section */}
+        {showWithdraw && (
+          <View style={styles.topUpSection}>
+            <Text style={styles.sectionTitle}>Withdraw Amount</Text>
+
+            <Text style={styles.inputLabel}>Enter amount to withdraw</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.currencySymbol}>₱</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                value={withdrawAmount}
+                onChangeText={setWithdrawAmount}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>Withdraw To</Text>
+            <View style={styles.paymentMethods}>
+              {paymentMethods.map((method) => (
+                <TouchableOpacity
+                  key={method.id}
+                  style={[
+                    styles.paymentMethod,
+                    withdrawMethod === method.id && styles.paymentMethodActive,
+                  ]}
+                  onPress={() => setWithdrawMethod(method.id)}
+                >
+                  <Ionicons
+                    name={method.icon as any}
+                    size={24}
+                    color={withdrawMethod === method.id ? '#3B82F6' : '#6B7280'}
+                  />
+                  <Text
+                    style={[
+                      styles.paymentMethodText,
+                      withdrawMethod === method.id && styles.paymentMethodTextActive,
+                    ]}
+                  >
+                    {method.name}
+                  </Text>
+                  {withdrawMethod === method.id && (
+                    <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.confirmButton, withdrawLoading && { opacity: 0.6 }]}
+              onPress={() => {
+                const amount = parseInt(withdrawAmount, 10);
+                if (isNaN(amount) || amount < 10) {
+                  Alert.alert('Invalid Amount', 'Minimum withdrawal is ₱10');
+                  return;
+                }
+                if (amount > balance) {
+                  Alert.alert('Insufficient Balance', `Your balance is ₱${balance.toFixed(2)}`);
+                  return;
+                }
+                Alert.alert(
+                  'Confirm Withdrawal',
+                  `Withdraw ₱${amount} to ${withdrawMethod.toUpperCase()}?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Confirm',
+                      onPress: async () => {
+                        setWithdrawLoading(true);
+                        try {
+                          const response = await walletService.withdraw({
+                            amount,
+                            payment_method: withdrawMethod,
+                          });
+                          const data = response.data?.data;
+                          setBalance(data?.balance != null ? Number(data.balance) : balance - amount);
+                          setShowWithdraw(false);
+                          setWithdrawAmount('');
+                          Alert.alert('Success', `₱${amount} withdrawal request submitted!`);
+                          fetchWallet();
+                        } catch (error: any) {
+                          Alert.alert(
+                            'Withdrawal Failed',
+                            error.response?.data?.error || 'Failed to withdraw. Please try again.'
+                          );
+                        } finally {
+                          setWithdrawLoading(false);
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              disabled={withdrawLoading}
+            >
+              {withdrawLoading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.confirmButtonText}>Withdraw Now</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Transaction History */}
         <View style={styles.historySection}>
           <Text style={styles.sectionTitle}>Transaction History</Text>
@@ -297,7 +421,7 @@ export default function WalletScreen({ navigation }: any) {
                   </View>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionTitle}>
-                      {tx.description || tx.type?.replace('_', ' ')}
+                      {tx.description || tx.type?.replace(/_/g, ' ')}
                     </Text>
                     <Text style={styles.transactionDate}>{formatDate(tx.created_at)}</Text>
                   </View>

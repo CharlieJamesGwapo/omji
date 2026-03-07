@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -69,7 +70,11 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		SendOTPSMS(input.Phone, otp)
-		token, _ := GenerateToken(user.ID, user.Email, user.Role)
+		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -113,7 +118,11 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
 			return
 		}
-		token, _ := GenerateToken(user.ID, user.Email, user.Role)
+		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -152,8 +161,15 @@ func VerifyOTP(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "OTP expired"})
 			return
 		}
-		db.Model(&user).Updates(map[string]interface{}{"is_verified": true, "otp_code": ""})
-		token, _ := GenerateToken(user.ID, user.Email, user.Role)
+		if err := db.Model(&user).Updates(map[string]interface{}{"is_verified": true, "otp_code": ""}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify account"})
+			return
+		}
+		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success":   true,
 			"data":      gin.H{"token": token, "user": gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "role": user.Role, "is_verified": true}},
@@ -177,10 +193,13 @@ func ResendOTP(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		otp := GenerateOTP()
-		db.Model(&user).Updates(map[string]interface{}{
+		if err := db.Model(&user).Updates(map[string]interface{}{
 			"otp_code":   otp,
 			"otp_expiry": time.Now().Add(5 * time.Minute),
-		})
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update OTP"})
+			return
+		}
 		SendOTPSMS(input.Phone, otp)
 		c.JSON(http.StatusOK, gin.H{
 			"success":   true,
@@ -230,9 +249,15 @@ func UpdateUserProfile(db *gorm.DB) gin.HandlerFunc {
 		if input.ProfileImage != "" {
 			updates["profile_image"] = input.ProfileImage
 		}
-		db.Model(&models.User{}).Where("id = ?", userID).Updates(updates)
+		if err := db.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update profile"})
+			return
+		}
 		var user models.User
-		db.First(&user, userID)
+		if err := db.First(&user, userID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch updated profile"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "profile_image": user.ProfileImage, "role": user.Role}, "timestamp": time.Now()})
 	}
 }
@@ -241,7 +266,10 @@ func GetSavedAddresses(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var addresses []models.SavedAddress
-		db.Where("user_id = ?", userID).Find(&addresses)
+		if err := db.Where("user_id = ?", userID).Find(&addresses).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch addresses"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": addresses, "timestamp": time.Now()})
 	}
 }
@@ -295,6 +323,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			VehicleType      string  `json:"vehicle_type" binding:"required"`
 			PromoCode        string  `json:"promo_code"`
 			PaymentMethod    string  `json:"payment_method"`
+			EstimatedFare    float64 `json:"estimated_fare"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -308,10 +337,14 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			distance = 1.0
 		}
 		fare := CalculateFare(distance, input.VehicleType)
+		// Use client-provided fare if it's higher (e.g. Pasabay with extra passengers)
+		if input.EstimatedFare > fare {
+			fare = input.EstimatedFare
+		}
 		var promoID *uint
 		if input.PromoCode != "" {
 			var promo models.Promo
-			if err := db.Where("code = ? AND is_active = ? AND applicable_to IN ?", input.PromoCode, true, []string{"rides", "all"}).First(&promo).Error; err == nil {
+			if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("code = ? AND is_active = ? AND applicable_to IN ?", input.PromoCode, true, []string{"rides", "all"}).First(&promo).Error; err == nil {
 				promoNow := time.Now()
 				promoValid := fare >= promo.MinimumAmount && (promo.UsageLimit == 0 || promo.UsageCount < promo.UsageLimit) && (promo.StartDate.IsZero() || !promoNow.Before(promo.StartDate)) && (promo.EndDate.IsZero() || !promoNow.After(promo.EndDate))
 				if promoValid {
@@ -326,7 +359,9 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 					}
 					fare -= discount
 					promoID = &promo.ID
-					db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1"))
+					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
+						log.Printf("Failed to update promo usage count: %v", err)
+					}
 				}
 			}
 		}
@@ -341,7 +376,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		}
 		c.JSON(http.StatusCreated, gin.H{
 			"success":   true,
-			"data":      gin.H{"id": ride.ID, "status": ride.Status, "pickup": ride.PickupLocation, "dropoff": ride.DropoffLocation, "distance_km": ride.Distance, "estimated_fare": ride.EstimatedFare, "vehicle_type": ride.VehicleType, "created_at": ride.CreatedAt},
+			"data":      gin.H{"id": ride.ID, "status": ride.Status, "pickup_location": ride.PickupLocation, "dropoff_location": ride.DropoffLocation, "distance": ride.Distance, "estimated_fare": ride.EstimatedFare, "vehicle_type": ride.VehicleType, "payment_method": ride.PaymentMethod, "created_at": ride.CreatedAt},
 			"timestamp": time.Now(),
 		})
 	}
@@ -351,10 +386,13 @@ func GetActiveRides(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var rides []models.Ride
-		db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "accepted", "driver_arrived", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&rides)
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "accepted", "driver_arrived", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&rides).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch active rides"})
+			return
+		}
 		results := make([]gin.H, len(rides))
 		for i, r := range rides {
-			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance": r.Distance, "estimated_fare": r.EstimatedFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt}
+			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt}
 			if r.Driver != nil {
 				result["driver"] = gin.H{"id": r.Driver.ID, "user_id": r.Driver.UserID, "name": r.Driver.User.Name, "phone": r.Driver.User.Phone, "profile_image": r.Driver.User.ProfileImage, "vehicle_type": r.Driver.VehicleType, "vehicle_plate": r.Driver.VehiclePlate, "rating": r.Driver.Rating, "current_latitude": r.Driver.CurrentLatitude, "current_longitude": r.Driver.CurrentLongitude}
 			}
@@ -400,9 +438,14 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 		}
 		// Free the driver if one was assigned
 		if ride.DriverID != nil {
-			db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Update("is_available", true)
+			if err := db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Update("is_available", true).Error; err != nil {
+				log.Printf("Failed to free driver %d on ride cancel: %v", *ride.DriverID, err)
+			}
 		}
-		db.Model(&ride).Update("status", "cancelled")
+		if err := db.Model(&ride).Update("status", "cancelled").Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel ride"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
 	}
 }
@@ -423,14 +466,27 @@ func RateRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Completed ride not found"})
 			return
 		}
-		db.Model(&ride).Updates(map[string]interface{}{"driver_rating": input.Rating, "driver_review": input.Review})
-		if ride.DriverID != nil {
-			var driver models.Driver
-			if db.First(&driver, *ride.DriverID).Error == nil {
-				newTotal := driver.TotalRatings + 1
-				newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-				db.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+		if ride.DriverRating != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You have already rated this ride"})
+			return
+		}
+		txErr := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&ride).Updates(map[string]interface{}{"driver_rating": input.Rating, "driver_review": input.Review}).Error; err != nil {
+				return err
 			}
+			if ride.DriverID != nil {
+				var driver models.Driver
+				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *ride.DriverID).Error == nil {
+					newTotal := driver.TotalRatings + 1
+					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
+					tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+				}
+			}
+			return nil
+		})
+		if txErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save rating"})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Rating submitted"}, "timestamp": time.Now()})
 	}
@@ -461,7 +517,10 @@ func CreateRideShare(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Must be registered as driver"})
 			return
 		}
-		depTime, _ := time.Parse(time.RFC3339, input.DepartureTime)
+		depTime, err := time.Parse(time.RFC3339, input.DepartureTime)
+		if err != nil {
+			depTime = time.Now().Add(30 * time.Minute)
+		}
 		rs := models.RideShare{
 			DriverID: driver.ID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
@@ -478,7 +537,10 @@ func CreateRideShare(db *gorm.DB) gin.HandlerFunc {
 func GetAvailableRideShares(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var shares []models.RideShare
-		db.Where("status = ? AND available_seats > 0", "active").Preload("Driver").Preload("Driver.User").Order("departure_time ASC").Find(&shares)
+		if err := db.Where("status = ? AND available_seats > 0 AND departure_time > ?", "active", time.Now()).Preload("Driver").Preload("Driver.User").Order("departure_time ASC").Find(&shares).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch ride shares"})
+			return
+		}
 		results := make([]gin.H, len(shares))
 		for i, s := range shares {
 			result := gin.H{"id": s.ID, "pickup_location": s.PickupLocation, "dropoff_location": s.DropoffLocation, "total_seats": s.TotalSeats, "available_seats": s.AvailableSeats, "base_fare": s.BaseFare, "departure_time": s.DepartureTime, "status": s.Status, "created_at": s.CreatedAt}
@@ -501,15 +563,18 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 		if input.PaymentMethod == "" {
 			input.PaymentMethod = "cash"
 		}
+		tx := db.Begin()
 		var rs models.RideShare
-		if err := db.Preload("Driver").Preload("Passengers").Where("id = ? AND status = ? AND available_seats > 0", c.Param("id"), "active").First(&rs).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Driver").Preload("Passengers").Where("id = ? AND status = ? AND available_seats > 0", c.Param("id"), "active").First(&rs).Error; err != nil {
+			tx.Rollback()
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ride share not available"})
 			return
 		}
 		// Prevent driver from joining their own rideshare
 		var driver models.Driver
-		if err := db.Where("user_id = ?", userID).First(&driver).Error; err == nil {
+		if err := tx.Where("user_id = ?", userID).First(&driver).Error; err == nil {
 			if driver.ID == rs.DriverID {
+				tx.Rollback()
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot join your own ride share"})
 				return
 			}
@@ -517,14 +582,23 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 		// Check if user already joined this rideshare
 		for _, p := range rs.Passengers {
 			if p.ID == uint(userID) {
+				tx.Rollback()
 				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "You already joined this ride share"})
 				return
 			}
 		}
 		var user models.User
-		db.First(&user, userID)
-		db.Model(&rs).Association("Passengers").Append(&user)
-		db.Model(&rs).Update("available_seats", gorm.Expr("available_seats - 1"))
+		if err := tx.First(&user, userID).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+		if err := tx.Model(&rs).Association("Passengers").Append(&user); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to join ride share"})
+			return
+		}
+		tx.Model(&rs).Update("available_seats", gorm.Expr("available_seats - 1"))
 		// Create a trackable ride for this passenger
 		ride := models.Ride{
 			UserID:           userID,
@@ -541,12 +615,19 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 			Status:           "accepted",
 			PaymentMethod:    input.PaymentMethod,
 		}
-		if err := db.Create(&ride).Error; err != nil {
+		if err := tx.Create(&ride).Error; err != nil {
+			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to join ride share"})
 			return
 		}
 		// Notify the driver that someone joined
-		db.Create(&models.Notification{UserID: rs.Driver.UserID, Title: "Passenger Joined", Body: user.Name + " joined your ride share", Type: "rideshare_join"})
+		if err := tx.Create(&models.Notification{UserID: rs.Driver.UserID, Title: "Passenger Joined", Body: user.Name + " joined your ride share", Type: "rideshare_join"}).Error; err != nil {
+			log.Printf("Failed to create rideshare join notification: %v", err)
+		}
+		if err := tx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to join ride share"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Joined ride share", "fare": rs.BaseFare, "ride_id": ride.ID, "pickup": rs.PickupLocation, "dropoff": rs.DropoffLocation}, "timestamp": time.Now()})
 	}
 }
@@ -639,7 +720,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 		var promoID *uint
 		if promoCode != "" {
 			var promo models.Promo
-			if err := db.Where("code = ? AND is_active = ? AND applicable_to IN ?", promoCode, true, []string{"deliveries", "all"}).First(&promo).Error; err == nil {
+			if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("code = ? AND is_active = ? AND applicable_to IN ?", promoCode, true, []string{"deliveries", "all"}).First(&promo).Error; err == nil {
 				promoNow := time.Now()
 				promoValid := fee >= promo.MinimumAmount && (promo.UsageLimit == 0 || promo.UsageCount < promo.UsageLimit) && (promo.StartDate.IsZero() || !promoNow.Before(promo.StartDate)) && (promo.EndDate.IsZero() || !promoNow.After(promo.EndDate))
 				if promoValid {
@@ -654,7 +735,9 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 					}
 					fee -= discount
 					promoID = &promo.ID
-					db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1"))
+					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
+						log.Printf("Failed to update promo usage count: %v", err)
+					}
 				}
 			}
 		}
@@ -676,7 +759,10 @@ func GetActiveDeliveries(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var deliveries []models.Delivery
-		db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "accepted", "driver_arrived", "picked_up", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&deliveries)
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "accepted", "driver_arrived", "picked_up", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&deliveries).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch active deliveries"})
+			return
+		}
 		results := make([]gin.H, len(deliveries))
 		for i, d := range deliveries {
 			result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "pickup_latitude": d.PickupLatitude, "pickup_longitude": d.PickupLongitude, "dropoff_location": d.DropoffLocation, "dropoff_latitude": d.DropoffLatitude, "dropoff_longitude": d.DropoffLongitude, "distance": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt}
@@ -705,7 +791,7 @@ func GetDeliveryDetails(db *gorm.DB) gin.HandlerFunc {
 		}
 		result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "pickup_latitude": d.PickupLatitude, "pickup_longitude": d.PickupLongitude, "dropoff_location": d.DropoffLocation, "dropoff_latitude": d.DropoffLatitude, "dropoff_longitude": d.DropoffLongitude, "distance": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt}
 		if d.Driver != nil {
-			result["driver"] = gin.H{"id": d.Driver.ID, "user_id": d.Driver.UserID, "name": d.Driver.User.Name, "phone": d.Driver.User.Phone, "profile_image": d.Driver.User.ProfileImage, "vehicle_type": d.Driver.VehicleType, "vehicle_model": d.Driver.VehicleModel, "vehicle_plate": d.Driver.VehiclePlate, "rating": d.Driver.Rating, "latitude": d.Driver.CurrentLatitude, "longitude": d.Driver.CurrentLongitude}
+			result["driver"] = gin.H{"id": d.Driver.ID, "user_id": d.Driver.UserID, "name": d.Driver.User.Name, "phone": d.Driver.User.Phone, "profile_image": d.Driver.User.ProfileImage, "vehicle_type": d.Driver.VehicleType, "vehicle_model": d.Driver.VehicleModel, "vehicle_plate": d.Driver.VehiclePlate, "rating": d.Driver.Rating, "current_latitude": d.Driver.CurrentLatitude, "current_longitude": d.Driver.CurrentLongitude}
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": result, "timestamp": time.Now()})
 	}
@@ -720,9 +806,14 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		if d.DriverID != nil {
-			db.Model(&models.Driver{}).Where("id = ?", *d.DriverID).Update("is_available", true)
+			if err := db.Model(&models.Driver{}).Where("id = ?", *d.DriverID).Update("is_available", true).Error; err != nil {
+				log.Printf("Failed to free driver %d on delivery cancel: %v", *d.DriverID, err)
+			}
 		}
-		db.Model(&d).Update("status", "cancelled")
+		if err := db.Model(&d).Update("status", "cancelled").Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel delivery"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
 	}
 }
@@ -742,14 +833,27 @@ func RateDelivery(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Completed delivery not found"})
 			return
 		}
-		db.Model(&d).Update("driver_rating", input.Rating)
-		if d.DriverID != nil {
-			var driver models.Driver
-			if db.First(&driver, *d.DriverID).Error == nil {
-				newTotal := driver.TotalRatings + 1
-				newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-				db.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+		if d.DriverRating != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You have already rated this delivery"})
+			return
+		}
+		txErr := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&d).Update("driver_rating", input.Rating).Error; err != nil {
+				return err
 			}
+			if d.DriverID != nil {
+				var driver models.Driver
+				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *d.DriverID).Error == nil {
+					newTotal := driver.TotalRatings + 1
+					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
+					tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+				}
+			}
+			return nil
+		})
+		if txErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save rating"})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Rating submitted"}, "timestamp": time.Now()})
 	}
@@ -765,7 +869,10 @@ func GetStores(db *gorm.DB) gin.HandlerFunc {
 		if category != "" {
 			q = q.Where("category = ?", category)
 		}
-		q.Find(&stores)
+		if err := q.Find(&stores).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch stores"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "timestamp": time.Now()})
 	}
 }
@@ -773,7 +880,10 @@ func GetStores(db *gorm.DB) gin.HandlerFunc {
 func GetStoreMenu(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var items []models.MenuItem
-		db.Where("store_id = ? AND available = ?", c.Param("id"), true).Find(&items)
+		if err := db.Where("store_id = ? AND available = ?", c.Param("id"), true).Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch menu"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "timestamp": time.Now()})
 	}
 }
@@ -800,18 +910,32 @@ func CreateOrder(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
 			return
 		}
-		// Calculate subtotal from items using DB prices
+		// Calculate subtotal from items using DB prices (batch fetch)
 		subtotal := 0.0
 		var orderItems []struct {
 			ItemID   uint `json:"item_id"`
 			Quantity int  `json:"quantity"`
 		}
 		if err := json.Unmarshal(input.Items, &orderItems); err == nil {
+			itemIDs := make([]uint, 0, len(orderItems))
 			for _, item := range orderItems {
 				if item.Quantity > 0 && item.ItemID > 0 {
-					var menuItem models.MenuItem
-					if err := db.Where("id = ? AND store_id = ?", item.ItemID, input.StoreID).First(&menuItem).Error; err == nil {
-						subtotal += menuItem.Price * float64(item.Quantity)
+					itemIDs = append(itemIDs, item.ItemID)
+				}
+			}
+			if len(itemIDs) > 0 {
+				var menuItems []models.MenuItem
+				if err := db.Where("id IN ? AND store_id = ?", itemIDs, input.StoreID).Find(&menuItems).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify order items"})
+					return
+				}
+				priceMap := make(map[uint]float64, len(menuItems))
+				for _, mi := range menuItems {
+					priceMap[mi.ID] = mi.Price
+				}
+				for _, item := range orderItems {
+					if price, ok := priceMap[item.ItemID]; ok && item.Quantity > 0 {
+						subtotal += price * float64(item.Quantity)
 					}
 				}
 			}
@@ -840,7 +964,10 @@ func GetActiveOrders(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var orders []models.Order
-		db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "confirmed", "preparing", "ready", "out_for_delivery"}).Preload("Store").Order("created_at DESC").Find(&orders)
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "confirmed", "preparing", "ready", "out_for_delivery"}).Preload("Store").Order("created_at DESC").Find(&orders).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch active orders"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": orders, "timestamp": time.Now()})
 	}
 }
@@ -865,7 +992,10 @@ func CancelOrder(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Order not found or cannot cancel"})
 			return
 		}
-		db.Model(&order).Update("status", "cancelled")
+		if err := db.Model(&order).Update("status", "cancelled").Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel order"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Order cancelled"}, "timestamp": time.Now()})
 	}
 }
@@ -885,7 +1015,22 @@ func RateOrder(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivered order not found"})
 			return
 		}
-		db.Model(&order).Update("store_rating", input.Rating)
+		txErr := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&order).Update("store_rating", input.Rating).Error; err != nil {
+				return err
+			}
+			var store models.Store
+			if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&store, order.StoreID).Error == nil {
+				newTotal := store.TotalRatings + 1
+				newRating := ((store.Rating * float64(store.TotalRatings)) + input.Rating) / float64(newTotal)
+				tx.Model(&store).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+			}
+			return nil
+		})
+		if txErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save rating"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Rating submitted"}, "timestamp": time.Now()})
 	}
 }
@@ -894,7 +1039,10 @@ func GetOrderHistory(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var orders []models.Order
-		db.Where("user_id = ?", userID).Preload("Store").Order("created_at DESC").Limit(50).Find(&orders)
+		if err := db.Where("user_id = ?", userID).Preload("Store").Order("created_at DESC").Limit(50).Find(&orders).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch order history"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": orders, "timestamp": time.Now()})
 	}
 }
@@ -905,7 +1053,10 @@ func GetPaymentMethods(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var methods []models.PaymentMethod
-		db.Where("user_id = ?", userID).Find(&methods)
+		if err := db.Where("user_id = ?", userID).Find(&methods).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment methods"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": methods, "timestamp": time.Now()})
 	}
 }
@@ -954,10 +1105,29 @@ func GetFavorites(db *gorm.DB) gin.HandlerFunc {
 		if favType != "" {
 			query = query.Where("type = ?", favType)
 		}
-		query.Order("created_at DESC").Find(&favorites)
+		if err := query.Order("created_at DESC").Find(&favorites).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch favorites"})
+			return
+		}
 
-		// Enrich with item details
-		var result []gin.H
+		// Batch fetch store details for store favorites
+		storeIDs := make([]uint, 0)
+		for _, fav := range favorites {
+			if fav.Type == "store" {
+				storeIDs = append(storeIDs, fav.ItemID)
+			}
+		}
+		storeMap := make(map[uint]models.Store)
+		if len(storeIDs) > 0 {
+			var stores []models.Store
+			if err := db.Select("id, name, category, rating, logo, address").Where("id IN ?", storeIDs).Find(&stores).Error; err != nil {
+				log.Printf("Failed to batch fetch stores for favorites: %v", err)
+			}
+			for _, s := range stores {
+				storeMap[s.ID] = s
+			}
+		}
+		result := make([]gin.H, 0, len(favorites))
 		for _, fav := range favorites {
 			item := gin.H{
 				"id":         fav.ID,
@@ -966,8 +1136,7 @@ func GetFavorites(db *gorm.DB) gin.HandlerFunc {
 				"created_at": fav.CreatedAt,
 			}
 			if fav.Type == "store" {
-				var store models.Store
-				if err := db.First(&store, fav.ItemID).Error; err == nil {
+				if store, ok := storeMap[fav.ItemID]; ok {
 					item["name"] = store.Name
 					item["category"] = store.Category
 					item["rating"] = store.Rating
@@ -976,9 +1145,6 @@ func GetFavorites(db *gorm.DB) gin.HandlerFunc {
 				}
 			}
 			result = append(result, item)
-		}
-		if result == nil {
-			result = []gin.H{}
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": result, "timestamp": time.Now()})
 	}
@@ -1042,7 +1208,10 @@ func CheckFavorite(db *gorm.DB) gin.HandlerFunc {
 func GetAvailablePromos(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var promos []models.Promo
-		db.Where("is_active = ? AND (usage_limit = 0 OR usage_count < usage_limit)", true).Find(&promos)
+		if err := db.Where("is_active = ? AND (usage_limit = 0 OR usage_count < usage_limit)", true).Find(&promos).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch promos"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promos, "timestamp": time.Now()})
 	}
 }
@@ -1088,6 +1257,12 @@ func ApplyPromo(db *gorm.DB) gin.HandlerFunc {
 			}
 		} else {
 			discount = promo.DiscountValue
+		}
+		// Atomically increment usage_count to prevent race conditions
+		result := db.Model(&models.Promo{}).Where("id = ? AND (usage_limit = 0 OR usage_count < usage_limit)", promo.ID).Update("usage_count", gorm.Expr("usage_count + 1"))
+		if result.RowsAffected == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code usage limit reached"})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"discount": discount, "final_amount": input.Amount - discount, "promo": promo.Description}, "timestamp": time.Now()})
 	}
@@ -1167,9 +1342,15 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to register: " + err.Error()})
 			return
 		}
-		db.Model(&models.User{}).Where("id = ?", userID).Update("role", "driver")
+		if err := db.Model(&models.User{}).Where("id = ?", userID).Update("role", "driver").Error; err != nil {
+			log.Printf("Failed to update user role to driver for user %d: %v", userID, err)
+		}
 		email := c.MustGet("email").(string)
-		token, _ := GenerateToken(userID, email, "driver")
+		token, err := GenerateToken(userID, email, "driver")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
+			return
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"driver": driver, "token": token}, "timestamp": time.Now()})
 	}
 }
@@ -1182,7 +1363,7 @@ func GetDriverProfile(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": driver.ID, "name": driver.User.Name, "phone": driver.User.Phone, "email": driver.User.Email, "vehicle_type": driver.VehicleType, "vehicle_model": driver.VehicleModel, "vehicle_plate": driver.VehiclePlate, "is_verified": driver.IsVerified, "is_available": driver.IsAvailable, "total_earnings": driver.TotalEarnings, "completed_rides": driver.CompletedRides, "rating": driver.Rating, "total_ratings": driver.TotalRatings}, "timestamp": time.Now()})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": driver.ID, "name": driver.User.Name, "phone": driver.User.Phone, "email": driver.User.Email, "vehicle_type": driver.VehicleType, "vehicle_model": driver.VehicleModel, "vehicle_plate": driver.VehiclePlate, "license_number": driver.LicenseNumber, "is_verified": driver.IsVerified, "is_available": driver.IsAvailable, "total_earnings": driver.TotalEarnings, "completed_rides": driver.CompletedRides, "rating": driver.Rating, "total_ratings": driver.TotalRatings}, "timestamp": time.Now()})
 	}
 }
 
@@ -1204,7 +1385,12 @@ func UpdateDriverProfile(db *gorm.DB) gin.HandlerFunc {
 		if input.VehiclePlate != "" {
 			updates["vehicle_plate"] = input.VehiclePlate
 		}
-		db.Model(&models.Driver{}).Where("user_id = ?", userID).Updates(updates)
+		if len(updates) > 0 {
+			if err := db.Model(&models.Driver{}).Where("user_id = ?", userID).Updates(updates).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update profile"})
+				return
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Profile updated"}, "timestamp": time.Now()})
 	}
 }
@@ -1219,33 +1405,48 @@ func GetDriverRequests(db *gorm.DB) gin.HandlerFunc {
 		}
 		// Get driver's active rides (accepted/in_progress)
 		var activeRides []models.Ride
-		db.Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "in_progress"}).Preload("User").Order("created_at DESC").Find(&activeRides)
+		if err := db.Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "in_progress"}).Preload("User").Order("created_at DESC").Find(&activeRides).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch driver data"})
+			return
+		}
 		active := make([]gin.H, 0, len(activeRides)+5)
 		for _, r := range activeRides {
 			active = append(active, gin.H{"id": r.ID, "type": "ride", "status": r.Status, "pickup": r.PickupLocation, "pickup_lat": r.PickupLatitude, "pickup_lng": r.PickupLongitude, "dropoff": r.DropoffLocation, "dropoff_lat": r.DropoffLatitude, "dropoff_lng": r.DropoffLongitude, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "vehicle_type": r.VehicleType, "passenger_name": r.User.Name, "passenger_phone": r.User.Phone, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt})
 		}
 		// Get driver's active deliveries
 		var activeDeliveries []models.Delivery
-		db.Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "picked_up", "in_progress"}).Preload("User").Order("created_at DESC").Find(&activeDeliveries)
+		if err := db.Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "picked_up", "in_progress"}).Preload("User").Order("created_at DESC").Find(&activeDeliveries).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch driver data"})
+			return
+		}
 		for _, d := range activeDeliveries {
 			active = append(active, gin.H{"id": d.ID, "type": "delivery", "status": d.Status, "pickup": d.PickupLocation, "pickup_lat": d.PickupLatitude, "pickup_lng": d.PickupLongitude, "dropoff": d.DropoffLocation, "dropoff_lat": d.DropoffLatitude, "dropoff_lng": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "item_description": d.ItemDescription, "passenger_name": d.User.Name, "passenger_phone": d.User.Phone, "payment_method": d.PaymentMethod, "created_at": d.CreatedAt})
 		}
 		// Get pending rides
 		var rides []models.Ride
-		db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&rides)
+		if err := db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&rides).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch pending rides"})
+			return
+		}
 		results := make([]gin.H, 0, len(rides)+10)
 		for _, r := range rides {
 			results = append(results, gin.H{"id": r.ID, "type": "ride", "status": "pending", "pickup": r.PickupLocation, "pickup_lat": r.PickupLatitude, "pickup_lng": r.PickupLongitude, "dropoff": r.DropoffLocation, "dropoff_lat": r.DropoffLatitude, "dropoff_lng": r.DropoffLongitude, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "vehicle_type": r.VehicleType, "passenger_name": r.User.Name, "passenger_phone": r.User.Phone, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt})
 		}
 		// Get pending deliveries
 		var deliveries []models.Delivery
-		db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&deliveries)
+		if err := db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&deliveries).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch pending deliveries"})
+			return
+		}
 		for _, d := range deliveries {
 			results = append(results, gin.H{"id": d.ID, "type": "delivery", "status": "pending", "pickup": d.PickupLocation, "pickup_lat": d.PickupLatitude, "pickup_lng": d.PickupLongitude, "dropoff": d.DropoffLocation, "dropoff_lat": d.DropoffLatitude, "dropoff_lng": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "item_description": d.ItemDescription, "passenger_name": d.User.Name, "passenger_phone": d.User.Phone, "payment_method": d.PaymentMethod, "created_at": d.CreatedAt})
 		}
 		// Get driver's active rideshares
 		var activeShares []models.RideShare
-		db.Where("driver_id = ? AND status = ?", driver.ID, "active").Preload("Passengers").Find(&activeShares)
+		if err := db.Where("driver_id = ? AND status = ?", driver.ID, "active").Preload("Passengers").Find(&activeShares).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch active rideshares"})
+			return
+		}
 		for _, s := range activeShares {
 			passengerNames := make([]string, len(s.Passengers))
 			for i, p := range s.Passengers {
@@ -1265,6 +1466,10 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
+		if !driver.IsAvailable {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You are not available. Go online first."})
+			return
+		}
 		requestID := c.Param("id")
 		// Try ride first
 		var ride models.Ride
@@ -1274,13 +1479,17 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			}
 			ride.DriverID = &driver.ID
 			ride.Status = "accepted"
-			return tx.Save(&ride).Error
+			if err := tx.Save(&ride).Error; err != nil {
+				return err
+			}
+			return tx.Model(&driver).Update("is_available", false).Error
 		})
 		if rideErr == nil {
-			db.Model(&driver).Update("is_available", false)
 			// Notify customer
 			if ride.ID != 0 {
-				db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Accepted", Body: "A driver has accepted your ride request", Type: "ride_request"})
+				if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Accepted", Body: "A driver has accepted your ride request", Type: "ride_request"}).Error; err != nil {
+					log.Printf("Failed to create ride accepted notification: %v", err)
+				}
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride accepted", "ride_id": ride.ID, "type": "ride", "status": "accepted", "pickup": ride.PickupLocation, "dropoff": ride.DropoffLocation, "fare": ride.EstimatedFare}, "timestamp": time.Now()})
 			return
@@ -1293,12 +1502,16 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			}
 			delivery.DriverID = &driver.ID
 			delivery.Status = "accepted"
-			return tx.Save(&delivery).Error
+			if err := tx.Save(&delivery).Error; err != nil {
+				return err
+			}
+			return tx.Model(&driver).Update("is_available", false).Error
 		})
 		if delErr == nil {
-			db.Model(&driver).Update("is_available", false)
 			if delivery.ID != 0 {
-				db.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Accepted", Body: "A driver has accepted your delivery request", Type: "delivery_request"})
+				if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Accepted", Body: "A driver has accepted your delivery request", Type: "delivery_request"}).Error; err != nil {
+					log.Printf("Failed to create delivery accepted notification: %v", err)
+				}
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery accepted", "ride_id": delivery.ID, "type": "delivery", "status": "accepted", "pickup": delivery.PickupLocation, "dropoff": delivery.DropoffLocation, "fare": delivery.DeliveryFee}, "timestamp": time.Now()})
 			return
@@ -1321,9 +1534,14 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&ride).Error; err == nil {
 			ride.DriverID = nil
 			ride.Status = "pending"
-			db.Save(&ride)
+			if err := db.Save(&ride).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject ride"})
+				return
+			}
 			db.Model(&driver).Update("is_available", true)
-			db.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"})
+			if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"}).Error; err != nil {
+				log.Printf("Failed to create ride reassign notification: %v", err)
+			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride rejected and returned to pending", "id": ride.ID, "type": "ride"}, "timestamp": time.Now()})
 			return
 		}
@@ -1332,9 +1550,14 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&delivery).Error; err == nil {
 			delivery.DriverID = nil
 			delivery.Status = "pending"
-			db.Save(&delivery)
+			if err := db.Save(&delivery).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject delivery"})
+				return
+			}
 			db.Model(&driver).Update("is_available", true)
-			db.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"})
+			if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"}).Error; err != nil {
+				log.Printf("Failed to create delivery reassign notification: %v", err)
+			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery rejected and returned to pending", "id": delivery.ID, "type": "delivery"}, "timestamp": time.Now()})
 			return
 		}
@@ -1350,44 +1573,67 @@ func GetDriverEarnings(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
-		today := time.Now().Truncate(24 * time.Hour)
-		var todayRideEarnings float64
-		var todayRideCount int64
-		var todayDeliveryEarnings float64
-		var todayDeliveryCount int64
-		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ? AND completed_at >= ?", driver.ID, "completed", today).Count(&todayRideCount)
-		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ? AND completed_at >= ?", driver.ID, "completed", today).Select("COALESCE(SUM(final_fare), 0)").Row().Scan(&todayRideEarnings)
-		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ? AND completed_at >= ?", driver.ID, "completed", today).Count(&todayDeliveryCount)
-		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ? AND completed_at >= ?", driver.ID, "completed", today).Select("COALESCE(SUM(delivery_fee), 0)").Row().Scan(&todayDeliveryEarnings)
+		now := time.Now()
+		today := now.Truncate(24 * time.Hour)
+		weekStart := now.AddDate(0, 0, -int(now.Weekday()))
+		weekStart = weekStart.Truncate(24 * time.Hour)
 
-		// Total breakdown
-		var totalRideEarnings float64
-		var totalRideCount int64
-		var totalDeliveryEarnings float64
-		var totalDeliveryCount int64
-		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").Count(&totalRideCount)
-		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").Select("COALESCE(SUM(final_fare), 0)").Row().Scan(&totalRideEarnings)
-		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").Count(&totalDeliveryCount)
-		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").Select("COALESCE(SUM(delivery_fee), 0)").Row().Scan(&totalDeliveryEarnings)
+		// Single query for all ride stats (total + today + week)
+		var rideStats struct {
+			TotalCount    int64
+			TotalEarnings float64
+			TodayCount    int64
+			TodayEarnings float64
+			WeekCount     int64
+			WeekEarnings  float64
+		}
+		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
+			Select("COUNT(*) as total_count, COALESCE(SUM(final_fare), 0) as total_earnings, "+
+				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as today_count, "+
+				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN final_fare ELSE 0 END), 0) as today_earnings, "+
+				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as week_count, "+
+				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN final_fare ELSE 0 END), 0) as week_earnings", today, today, weekStart, weekStart).
+			Row().Scan(&rideStats.TotalCount, &rideStats.TotalEarnings, &rideStats.TodayCount, &rideStats.TodayEarnings, &rideStats.WeekCount, &rideStats.WeekEarnings)
+
+		// Single query for all delivery stats (total + today + week)
+		var deliveryStats struct {
+			TotalCount    int64
+			TotalEarnings float64
+			TodayCount    int64
+			TodayEarnings float64
+			WeekCount     int64
+			WeekEarnings  float64
+		}
+		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
+			Select("COUNT(*) as total_count, COALESCE(SUM(delivery_fee), 0) as total_earnings, "+
+				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as today_count, "+
+				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN delivery_fee ELSE 0 END), 0) as today_earnings, "+
+				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as week_count, "+
+				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN delivery_fee ELSE 0 END), 0) as week_earnings", today, today, weekStart, weekStart).
+			Row().Scan(&deliveryStats.TotalCount, &deliveryStats.TotalEarnings, &deliveryStats.TodayCount, &deliveryStats.TodayEarnings, &deliveryStats.WeekCount, &deliveryStats.WeekEarnings)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
-				"total_earnings":   driver.TotalEarnings,
-				"completed_rides":  driver.CompletedRides,
-				"today_earnings":   todayRideEarnings + todayDeliveryEarnings,
-				"today_rides":      todayRideCount + todayDeliveryCount,
-				"rating":           driver.Rating,
-				"ride_earnings":    totalRideEarnings,
-				"ride_count":       totalRideCount,
-				"delivery_earnings": totalDeliveryEarnings,
-				"delivery_count":   totalDeliveryCount,
-				"today_ride_earnings":    todayRideEarnings,
-				"today_delivery_earnings": todayDeliveryEarnings,
-				"today_ride_count":       todayRideCount,
-				"today_delivery_count":   todayDeliveryCount,
+				"total_earnings":          driver.TotalEarnings,
+				"completed_rides":         driver.CompletedRides,
+				"today_earnings":          rideStats.TodayEarnings + deliveryStats.TodayEarnings,
+				"today_rides":             rideStats.TodayCount + deliveryStats.TodayCount,
+				"rating":                  driver.Rating,
+				"ride_earnings":           rideStats.TotalEarnings,
+				"ride_count":              rideStats.TotalCount,
+				"delivery_earnings":       deliveryStats.TotalEarnings,
+				"delivery_count":          deliveryStats.TotalCount,
+				"today_ride_earnings":     rideStats.TodayEarnings,
+				"today_delivery_earnings": deliveryStats.TodayEarnings,
+				"today_ride_count":        rideStats.TodayCount,
+				"today_delivery_count":    deliveryStats.TodayCount,
+				"week_ride_count":         rideStats.WeekCount,
+				"week_ride_earnings":      rideStats.WeekEarnings,
+				"week_delivery_count":     deliveryStats.WeekCount,
+				"week_delivery_earnings":  deliveryStats.WeekEarnings,
 			},
-			"timestamp": time.Now(),
+			"timestamp": now,
 		})
 	}
 }
@@ -1478,38 +1724,63 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 				if ride.FinalFare == 0 {
 					updates["final_fare"] = ride.EstimatedFare
 				}
-				db.Model(&driver).Updates(map[string]interface{}{
+				if err := db.Model(&driver).Updates(map[string]interface{}{
 					"completed_rides": gorm.Expr("completed_rides + 1"),
 					"total_earnings":  gorm.Expr("total_earnings + ?", ride.EstimatedFare),
 					"is_available":    true,
-				})
+				}).Error; err != nil {
+					log.Printf("Failed to update driver stats for ride %d: %v", ride.ID, err)
+				}
 				// Process wallet payment
 				if ride.PaymentMethod == "wallet" {
 					walletTx := db.Begin()
 					var wallet models.Wallet
-					if err := walletTx.Where("user_id = ?", ride.UserID).First(&wallet).Error; err == nil {
+					if err := walletTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", ride.UserID).First(&wallet).Error; err == nil {
 						fare := ride.FinalFare
 						if fare == 0 {
 							fare = ride.EstimatedFare
 						}
 						if wallet.Balance >= fare {
 							wallet.Balance -= fare
-							walletTx.Save(&wallet)
-							walletTx.Create(&models.WalletTransaction{
+							if err := walletTx.Save(&wallet).Error; err != nil {
+								walletTx.Rollback()
+								log.Printf("Failed to save wallet for ride %d: %v", ride.ID, err)
+								updates["payment_method"] = "cash"
+							} else if err := walletTx.Create(&models.WalletTransaction{
 								WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
 								Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
 								Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
-							})
-							walletTx.Commit()
+							}).Error; err != nil {
+								walletTx.Rollback()
+								log.Printf("Failed to create wallet tx for ride %d: %v", ride.ID, err)
+								updates["payment_method"] = "cash"
+							} else {
+								walletTx.Commit()
+							}
 						} else {
 							walletTx.Rollback()
+							// Fall back to cash payment
+							updates["payment_method"] = "cash"
 						}
 					} else {
 						walletTx.Rollback()
+						updates["payment_method"] = "cash"
 					}
 				}
 			}
-			db.Model(&ride).Updates(updates)
+			if err := db.Model(&ride).Updates(updates).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update ride status"})
+				return
+			}
+			if input.Status == "completed" {
+				finalFare := ride.FinalFare
+				if finalFare == 0 {
+					finalFare = ride.EstimatedFare
+				}
+				if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Completed", Body: "Your ride has been completed. Fare: ₱" + strconv.FormatFloat(finalFare, 'f', 0, 64), Type: "ride"}).Error; err != nil {
+					log.Printf("Failed to create ride completed notification: %v", err)
+				}
+			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Status updated", "status": input.Status, "id": ride.ID, "type": "ride"}, "timestamp": time.Now()})
 			return
 		}
@@ -1537,35 +1808,55 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			if input.Status == "completed" {
 				now := time.Now()
 				updates["completed_at"] = &now
-				db.Model(&driver).Updates(map[string]interface{}{
+				if err := db.Model(&driver).Updates(map[string]interface{}{
 					"completed_rides": gorm.Expr("completed_rides + 1"),
 					"total_earnings":  gorm.Expr("total_earnings + ?", delivery.DeliveryFee),
 					"is_available":    true,
-				})
+				}).Error; err != nil {
+					log.Printf("Failed to update driver stats for delivery %d: %v", delivery.ID, err)
+				}
 				// Process wallet payment for delivery
 				if delivery.PaymentMethod == "wallet" {
 					walletTx := db.Begin()
 					var wallet models.Wallet
-					if err := walletTx.Where("user_id = ?", delivery.UserID).First(&wallet).Error; err == nil {
+					if err := walletTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", delivery.UserID).First(&wallet).Error; err == nil {
 						fee := delivery.DeliveryFee
 						if wallet.Balance >= fee {
 							wallet.Balance -= fee
-							walletTx.Save(&wallet)
-							walletTx.Create(&models.WalletTransaction{
+							if err := walletTx.Save(&wallet).Error; err != nil {
+								walletTx.Rollback()
+								log.Printf("Failed to save wallet for delivery %d: %v", delivery.ID, err)
+								updates["payment_method"] = "cash"
+							} else if err := walletTx.Create(&models.WalletTransaction{
 								WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
 								Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
 								Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
-							})
-							walletTx.Commit()
+							}).Error; err != nil {
+								walletTx.Rollback()
+								log.Printf("Failed to create wallet tx for delivery %d: %v", delivery.ID, err)
+								updates["payment_method"] = "cash"
+							} else {
+								walletTx.Commit()
+							}
 						} else {
 							walletTx.Rollback()
+							updates["payment_method"] = "cash"
 						}
 					} else {
 						walletTx.Rollback()
+						updates["payment_method"] = "cash"
 					}
 				}
 			}
-			db.Model(&delivery).Updates(updates)
+			if err := db.Model(&delivery).Updates(updates).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update delivery status"})
+				return
+			}
+			if input.Status == "completed" {
+				if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Completed", Body: "Your delivery has been completed. Fee: ₱" + strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), Type: "delivery"}).Error; err != nil {
+					log.Printf("Failed to create delivery completed notification: %v", err)
+				}
+			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Status updated", "status": input.Status, "id": delivery.ID, "type": "delivery"}, "timestamp": time.Now()})
 			return
 		}
@@ -1577,12 +1868,15 @@ func GetRideHistory(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var rides []models.Ride
-		db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&rides)
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&rides).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch ride history"})
+			return
+		}
 		results := make([]gin.H, len(rides))
 		for i, r := range rides {
-			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt, "completed_at": r.CompletedAt}
+			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt, "completed_at": r.CompletedAt}
 			if r.Driver != nil {
-				result["driver"] = gin.H{"id": r.Driver.ID, "name": r.Driver.User.Name, "phone": r.Driver.User.Phone, "rating": r.Driver.Rating, "vehicle_type": r.Driver.VehicleType, "plate_number": r.Driver.VehiclePlate}
+				result["driver"] = gin.H{"id": r.Driver.ID, "name": r.Driver.User.Name, "phone": r.Driver.User.Phone, "rating": r.Driver.Rating, "vehicle_type": r.Driver.VehicleType, "vehicle_plate": r.Driver.VehiclePlate}
 			}
 			results[i] = result
 		}
@@ -1594,12 +1888,15 @@ func GetDeliveryHistory(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var deliveries []models.Delivery
-		db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&deliveries)
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"completed", "cancelled"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(50).Find(&deliveries).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch delivery history"})
+			return
+		}
 		results := make([]gin.H, len(deliveries))
 		for i, d := range deliveries {
-			result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "pickup_latitude": d.PickupLatitude, "pickup_longitude": d.PickupLongitude, "dropoff_location": d.DropoffLocation, "dropoff_latitude": d.DropoffLatitude, "dropoff_longitude": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt, "completed_at": d.CompletedAt}
+			result := gin.H{"id": d.ID, "status": d.Status, "pickup_location": d.PickupLocation, "pickup_latitude": d.PickupLatitude, "pickup_longitude": d.PickupLongitude, "dropoff_location": d.DropoffLocation, "dropoff_latitude": d.DropoffLatitude, "dropoff_longitude": d.DropoffLongitude, "distance": d.Distance, "delivery_fee": d.DeliveryFee, "payment_method": d.PaymentMethod, "item_description": d.ItemDescription, "created_at": d.CreatedAt, "completed_at": d.CompletedAt}
 			if d.Driver != nil {
-				result["driver"] = gin.H{"id": d.Driver.ID, "name": d.Driver.User.Name, "phone": d.Driver.User.Phone, "rating": d.Driver.Rating, "vehicle_type": d.Driver.VehicleType, "plate_number": d.Driver.VehiclePlate}
+				result["driver"] = gin.H{"id": d.Driver.ID, "name": d.Driver.User.Name, "phone": d.Driver.User.Phone, "rating": d.Driver.Rating, "vehicle_type": d.Driver.VehicleType, "vehicle_plate": d.Driver.VehiclePlate}
 			}
 			results[i] = result
 		}
@@ -1614,7 +1911,10 @@ func GetChatMessages(db *gorm.DB) gin.HandlerFunc {
 		userID := c.MustGet("userID").(uint)
 		rideID := c.Param("id")
 		var messages []models.ChatMessage
-		db.Where("ride_id = ? AND (sender_id = ? OR receiver_id = ?)", rideID, userID, userID).Order("created_at ASC").Find(&messages)
+		if err := db.Where("ride_id = ? AND (sender_id = ? OR receiver_id = ?)", rideID, userID, userID).Order("created_at ASC").Find(&messages).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch messages"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": messages, "timestamp": time.Now()})
 	}
 }
@@ -1631,7 +1931,11 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		rideIDStr := c.Param("id")
-		rideIDParsed, _ := strconv.ParseUint(rideIDStr, 10, 64)
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
 		rideIDUint := uint(rideIDParsed)
 		msg := models.ChatMessage{SenderID: userID, ReceiverID: input.ReceiverID, RideID: &rideIDUint, Message: input.Message}
 		if err := db.Create(&msg).Error; err != nil {
@@ -1648,7 +1952,10 @@ func GetUserNotifications(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var notifications []models.Notification
-		db.Where("user_id = ?", userID).Order("created_at DESC").Limit(50).Find(&notifications)
+		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Limit(50).Find(&notifications).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch notifications"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": notifications, "timestamp": time.Now()})
 	}
 }
@@ -1670,9 +1977,22 @@ func MarkNotificationRead(db *gorm.DB) gin.HandlerFunc {
 
 func GetAllUsers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var users []models.User
-		db.Order("created_at DESC").Find(&users)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": users, "count": len(users), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.User{}).Count(&total)
+		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&users).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch users"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": users, "count": len(users), "total": total, "timestamp": time.Now()})
 	}
 }
 
@@ -1690,6 +2010,10 @@ func GetUserByID(db *gorm.DB) gin.HandlerFunc {
 func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result := db.Delete(&models.User{}, c.Param("id"))
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
 			return
@@ -1700,9 +2024,22 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 
 func GetAllDrivers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var drivers []models.Driver
-		db.Preload("User").Order("created_at DESC").Find(&drivers)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": drivers, "count": len(drivers), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Driver{}).Count(&total)
+		if err := db.Preload("User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&drivers).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch drivers"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": drivers, "count": len(drivers), "total": total, "timestamp": time.Now()})
 	}
 }
 
@@ -1720,6 +2057,10 @@ func VerifyDriver(db *gorm.DB) gin.HandlerFunc {
 func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result := db.Delete(&models.Driver{}, c.Param("id"))
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete driver"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
@@ -1732,9 +2073,22 @@ func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 
 func AdminGetAllStores(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var stores []models.Store
-		db.Order("created_at DESC").Find(&stores)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "count": len(stores), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Store{}).Count(&total)
+		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&stores).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch stores"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "count": len(stores), "total": total, "timestamp": time.Now()})
 	}
 }
 
@@ -1764,7 +2118,10 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		db.Save(&store)
+		if err := db.Save(&store).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update store"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -1772,6 +2129,10 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result := db.Delete(&models.Store{}, c.Param("id"))
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete store"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
 			return
@@ -1784,38 +2145,57 @@ func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 
 func GetRidesAnalytics(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var total, completed, cancelled, active int64
-		db.Model(&models.Ride{}).Count(&total)
-		db.Model(&models.Ride{}).Where("status = ?", "completed").Count(&completed)
-		db.Model(&models.Ride{}).Where("status = ?", "cancelled").Count(&cancelled)
-		db.Model(&models.Ride{}).Where("status IN ?", []string{"pending", "accepted", "in_progress"}).Count(&active)
-		var totalRevenue float64
-		db.Model(&models.Ride{}).Where("status = ?", "completed").Select("COALESCE(SUM(final_fare), 0)").Row().Scan(&totalRevenue)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": total, "completed": completed, "cancelled": cancelled, "active": active, "total_revenue": totalRevenue}, "timestamp": time.Now()})
+		var stats struct {
+			Total        int64
+			Completed    int64
+			Cancelled    int64
+			Active       int64
+			TotalRevenue float64
+		}
+		db.Model(&models.Ride{}).Select(
+			"COUNT(*) as total, "+
+				"COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed, "+
+				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
+				"COUNT(CASE WHEN status IN ('pending','accepted','in_progress') THEN 1 END) as active, "+
+				"COALESCE(SUM(CASE WHEN status = 'completed' THEN final_fare ELSE 0 END), 0) as total_revenue").
+			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.Active, &stats.TotalRevenue)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "completed": stats.Completed, "cancelled": stats.Cancelled, "active": stats.Active, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
 
 func GetDeliveriesAnalytics(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var total, completed, cancelled int64
-		db.Model(&models.Delivery{}).Count(&total)
-		db.Model(&models.Delivery{}).Where("status = ?", "completed").Count(&completed)
-		db.Model(&models.Delivery{}).Where("status = ?", "cancelled").Count(&cancelled)
-		var totalRevenue float64
-		db.Model(&models.Delivery{}).Where("status = ?", "completed").Select("COALESCE(SUM(delivery_fee), 0)").Row().Scan(&totalRevenue)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": total, "completed": completed, "cancelled": cancelled, "total_revenue": totalRevenue}, "timestamp": time.Now()})
+		var stats struct {
+			Total        int64
+			Completed    int64
+			Cancelled    int64
+			TotalRevenue float64
+		}
+		db.Model(&models.Delivery{}).Select(
+			"COUNT(*) as total, "+
+				"COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed, "+
+				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
+				"COALESCE(SUM(CASE WHEN status = 'completed' THEN delivery_fee ELSE 0 END), 0) as total_revenue").
+			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.TotalRevenue)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "completed": stats.Completed, "cancelled": stats.Cancelled, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
 
 func GetOrdersAnalytics(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var total, delivered, cancelled int64
-		db.Model(&models.Order{}).Count(&total)
-		db.Model(&models.Order{}).Where("status = ?", "delivered").Count(&delivered)
-		db.Model(&models.Order{}).Where("status = ?", "cancelled").Count(&cancelled)
-		var totalRevenue float64
-		db.Model(&models.Order{}).Where("status = ?", "delivered").Select("COALESCE(SUM(total_amount), 0)").Row().Scan(&totalRevenue)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": total, "delivered": delivered, "cancelled": cancelled, "total_revenue": totalRevenue}, "timestamp": time.Now()})
+		var stats struct {
+			Total        int64
+			Delivered    int64
+			Cancelled    int64
+			TotalRevenue float64
+		}
+		db.Model(&models.Order{}).Select(
+			"COUNT(*) as total, "+
+				"COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered, "+
+				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
+				"COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END), 0) as total_revenue").
+			Row().Scan(&stats.Total, &stats.Delivered, &stats.Cancelled, &stats.TotalRevenue)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "delivered": stats.Delivered, "cancelled": stats.Cancelled, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
 
@@ -1837,39 +2217,48 @@ func GetMonthlyRevenue(db *gorm.DB) gin.HandlerFunc {
 			Revenue float64 `json:"revenue"`
 		}
 
-		var monthlyRevenue []MonthlyData
 		now := time.Now()
+		startDate := time.Date(now.Year(), now.Month()-11, 1, 0, 0, 0, 0, time.UTC)
 
-		// Generate last 12 months of data
+		// One query per table, grouped by month
+		type monthRow struct {
+			M       string
+			Revenue float64
+		}
+		revenueMap := make(map[string]float64)
+
+		var rideRows []monthRow
+		db.Model(&models.Ride{}).Where("status = ? AND created_at >= ?", "completed", startDate).
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(final_fare), 0) as revenue").
+			Group("m").Scan(&rideRows)
+		for _, r := range rideRows {
+			revenueMap[r.M] += r.Revenue
+		}
+
+		var delRows []monthRow
+		db.Model(&models.Delivery{}).Where("status = ? AND created_at >= ?", "completed", startDate).
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(delivery_fee), 0) as revenue").
+			Group("m").Scan(&delRows)
+		for _, r := range delRows {
+			revenueMap[r.M] += r.Revenue
+		}
+
+		var ordRows []monthRow
+		db.Model(&models.Order{}).Where("status = ? AND created_at >= ?", "delivered", startDate).
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(total_amount), 0) as revenue").
+			Group("m").Scan(&ordRows)
+		for _, r := range ordRows {
+			revenueMap[r.M] += r.Revenue
+		}
+
+		// Build result for last 12 months in order
+		monthlyRevenue := make([]MonthlyData, 0, 12)
 		for i := 11; i >= 0; i-- {
 			monthStart := time.Date(now.Year(), now.Month()-time.Month(i), 1, 0, 0, 0, 0, time.UTC)
-			monthEnd := monthStart.AddDate(0, 1, 0)
-			monthName := monthStart.Format("Jan")
-
-			var rideRevenue, deliveryRevenue, orderRevenue float64
-
-			// Get ride revenue for this month
-			db.Model(&models.Ride{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "completed", monthStart, monthEnd).
-				Select("COALESCE(SUM(final_fare), 0)").
-				Row().Scan(&rideRevenue)
-
-			// Get delivery revenue for this month
-			db.Model(&models.Delivery{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "completed", monthStart, monthEnd).
-				Select("COALESCE(SUM(delivery_fee), 0)").
-				Row().Scan(&deliveryRevenue)
-
-			// Get order revenue for this month
-			db.Model(&models.Order{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "delivered", monthStart, monthEnd).
-				Select("COALESCE(SUM(total_amount), 0)").
-				Row().Scan(&orderRevenue)
-
-			totalRevenue := rideRevenue + deliveryRevenue + orderRevenue
+			key := monthStart.Format("2006-01")
 			monthlyRevenue = append(monthlyRevenue, MonthlyData{
-				Month:   monthName,
-				Revenue: totalRevenue,
+				Month:   monthStart.Format("Jan"),
+				Revenue: revenueMap[key],
 			})
 		}
 
@@ -1891,37 +2280,51 @@ func GetGrowthAnalytics(db *gorm.DB) gin.HandlerFunc {
 			Orders  int64  `json:"orders"`
 		}
 
-		var growthData []GrowthData
 		now := time.Now()
+		startDate := time.Date(now.Year(), now.Month()-11, 1, 0, 0, 0, 0, time.UTC)
 
-		// Generate last 12 months of data
+		type monthCount struct {
+			M     string
+			Count int64
+		}
+
+		// One query per table, grouped by month
+		userMap := make(map[string]int64)
+		var userRows []monthCount
+		db.Model(&models.User{}).Where("created_at >= ? AND role = ?", startDate, "user").
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
+			Group("m").Scan(&userRows)
+		for _, r := range userRows {
+			userMap[r.M] = r.Count
+		}
+
+		driverMap := make(map[string]int64)
+		var driverRows []monthCount
+		db.Model(&models.Driver{}).Where("created_at >= ?", startDate).
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
+			Group("m").Scan(&driverRows)
+		for _, r := range driverRows {
+			driverMap[r.M] = r.Count
+		}
+
+		orderMap := make(map[string]int64)
+		var orderRows []monthCount
+		db.Model(&models.Order{}).Where("created_at >= ?", startDate).
+			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
+			Group("m").Scan(&orderRows)
+		for _, r := range orderRows {
+			orderMap[r.M] = r.Count
+		}
+
+		growthData := make([]GrowthData, 0, 12)
 		for i := 11; i >= 0; i-- {
 			monthStart := time.Date(now.Year(), now.Month()-time.Month(i), 1, 0, 0, 0, 0, time.UTC)
-			monthEnd := monthStart.AddDate(0, 1, 0)
-			monthName := monthStart.Format("Jan")
-
-			var userCount, driverCount, orderCount int64
-
-			// Count users created in this month
-			db.Model(&models.User{}).
-				Where("created_at >= ? AND created_at < ? AND role = ?", monthStart, monthEnd, "user").
-				Count(&userCount)
-
-			// Count drivers created in this month
-			db.Model(&models.Driver{}).
-				Where("created_at >= ? AND created_at < ?", monthStart, monthEnd).
-				Count(&driverCount)
-
-			// Count orders created in this month
-			db.Model(&models.Order{}).
-				Where("created_at >= ? AND created_at < ?", monthStart, monthEnd).
-				Count(&orderCount)
-
+			key := monthStart.Format("2006-01")
 			growthData = append(growthData, GrowthData{
-				Month:   monthName,
-				Users:   userCount,
-				Drivers: driverCount,
-				Orders:  orderCount,
+				Month:   monthStart.Format("Jan"),
+				Users:   userMap[key],
+				Drivers: driverMap[key],
+				Orders:  orderMap[key],
 			})
 		}
 
@@ -1937,9 +2340,22 @@ func GetGrowthAnalytics(db *gorm.DB) gin.HandlerFunc {
 
 func GetAllPromos(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var promos []models.Promo
-		db.Order("created_at DESC").Find(&promos)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": promos, "count": len(promos), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Promo{}).Count(&total)
+		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&promos).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch promos"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": promos, "count": len(promos), "total": total, "timestamp": time.Now()})
 	}
 }
 
@@ -1969,7 +2385,10 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		db.Save(&promo)
+		if err := db.Save(&promo).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update promo"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -1977,6 +2396,10 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result := db.Delete(&models.Promo{}, c.Param("id"))
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete promo"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo not found"})
 			return
@@ -1990,27 +2413,66 @@ func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 // AdminGetAllRides returns all rides with user and driver details
 func AdminGetAllRides(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var rides []models.Ride
-		db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&rides)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": rides, "count": len(rides), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Ride{}).Count(&total)
+		if err := db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&rides).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rides"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": rides, "count": len(rides), "total": total, "timestamp": time.Now()})
 	}
 }
 
 // AdminGetAllDeliveries returns all deliveries with user and driver details
 func AdminGetAllDeliveries(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var deliveries []models.Delivery
-		db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&deliveries)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": deliveries, "count": len(deliveries), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Delivery{}).Count(&total)
+		if err := db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&deliveries).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch deliveries"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": deliveries, "count": len(deliveries), "total": total, "timestamp": time.Now()})
 	}
 }
 
 // AdminGetAllOrders returns all orders with user and store details
 func AdminGetAllOrders(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+		offset := 0
+		if o, err := strconv.Atoi(c.Query("offset")); err == nil && o > 0 {
+			offset = o
+		}
 		var orders []models.Order
-		db.Preload("User").Preload("Store").Order("created_at DESC").Find(&orders)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": orders, "count": len(orders), "timestamp": time.Now()})
+		var total int64
+		db.Model(&models.Order{}).Count(&total)
+		if err := db.Preload("User").Preload("Store").Order("created_at DESC").Limit(limit).Offset(offset).Find(&orders).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch orders"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": orders, "count": len(orders), "total": total, "timestamp": time.Now()})
 	}
 }
 
@@ -2033,7 +2495,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 
 		// Get recent rides
 		var rides []models.Ride
-		db.Preload("User").Order("created_at DESC").Limit(50).Find(&rides)
+		if err := db.Preload("User").Order("created_at DESC").Limit(50).Find(&rides).Error; err != nil {
+			log.Printf("Failed to fetch rides for activity logs: %v", err)
+		}
 		for _, r := range rides {
 			action := "booked a ride"
 			if r.Status == "completed" {
@@ -2054,7 +2518,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 
 		// Get recent deliveries
 		var deliveries []models.Delivery
-		db.Preload("User").Order("created_at DESC").Limit(50).Find(&deliveries)
+		if err := db.Preload("User").Order("created_at DESC").Limit(50).Find(&deliveries).Error; err != nil {
+			log.Printf("Failed to fetch deliveries for activity logs: %v", err)
+		}
 		for _, d := range deliveries {
 			action := "requested a delivery"
 			if d.Status == "completed" {
@@ -2073,7 +2539,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 
 		// Get recent orders
 		var orders []models.Order
-		db.Preload("User").Preload("Store").Order("created_at DESC").Limit(50).Find(&orders)
+		if err := db.Preload("User").Preload("Store").Order("created_at DESC").Limit(50).Find(&orders).Error; err != nil {
+			log.Printf("Failed to fetch orders for activity logs: %v", err)
+		}
 		for _, o := range orders {
 			action := "placed an order"
 			if o.Status == "delivered" {
@@ -2096,7 +2564,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 
 		// Get recent user registrations
 		var users []models.User
-		db.Where("role = ?", "user").Order("created_at DESC").Limit(30).Find(&users)
+		if err := db.Where("role = ?", "user").Order("created_at DESC").Limit(30).Find(&users).Error; err != nil {
+			log.Printf("Failed to fetch users for activity logs: %v", err)
+		}
 		for _, u := range users {
 			logs = append(logs, ActivityLog{
 				ID: u.ID, Type: "user", Action: "registered",
@@ -2108,7 +2578,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 
 		// Get recent driver registrations
 		var drivers []models.Driver
-		db.Preload("User").Order("created_at DESC").Limit(30).Find(&drivers)
+		if err := db.Preload("User").Order("created_at DESC").Limit(30).Find(&drivers).Error; err != nil {
+			log.Printf("Failed to fetch drivers for activity logs: %v", err)
+		}
 		for _, d := range drivers {
 			action := "registered as driver"
 			status := "pending"
@@ -2126,13 +2598,9 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Sort by created_at DESC
-		for i := 0; i < len(logs); i++ {
-			for j := i + 1; j < len(logs); j++ {
-				if logs[j].CreatedAt.After(logs[i].CreatedAt) {
-					logs[i], logs[j] = logs[j], logs[i]
-				}
-			}
-		}
+		sort.Slice(logs, func(i, j int) bool {
+			return logs[i].CreatedAt.After(logs[j].CreatedAt)
+		})
 
 		// Limit to 100 most recent
 		if len(logs) > 100 {
@@ -2146,8 +2614,15 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 // AdminGetNotifications returns all admin notifications
 func AdminGetNotifications(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		limit := 100
+		if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
 		var notifications []models.Notification
-		db.Order("created_at DESC").Find(&notifications)
+		if err := db.Order("created_at DESC").Limit(limit).Find(&notifications).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch notifications"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": notifications, "count": len(notifications), "timestamp": time.Now()})
 	}
 }
@@ -2171,39 +2646,30 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 			notifType = "announcement"
 		}
 
-		// Get target users based on target_type
+		// Get target user IDs efficiently using Pluck
 		var userIDs []uint
 		switch input.TargetType {
 		case "drivers":
-			var drivers []models.Driver
-			db.Select("user_id").Find(&drivers)
-			for _, d := range drivers {
-				userIDs = append(userIDs, d.UserID)
-			}
+			db.Model(&models.Driver{}).Pluck("user_id", &userIDs)
 		case "users":
-			var users []models.User
-			db.Where("role = ?", "user").Select("id").Find(&users)
-			for _, u := range users {
-				userIDs = append(userIDs, u.ID)
-			}
+			db.Model(&models.User{}).Where("role = ?", "user").Pluck("id", &userIDs)
 		default: // all
-			var users []models.User
-			db.Select("id").Find(&users)
-			for _, u := range users {
-				userIDs = append(userIDs, u.ID)
-			}
+			db.Model(&models.User{}).Pluck("id", &userIDs)
 		}
 
-		sentCount := 0
-		for _, uid := range userIDs {
-			notif := models.Notification{
+		notifications := make([]models.Notification, len(userIDs))
+		for i, uid := range userIDs {
+			notifications[i] = models.Notification{
 				UserID: uid,
 				Title:  input.Title,
 				Body:   input.Message,
 				Type:   notifType,
 			}
-			if err := db.Create(&notif).Error; err == nil {
-				sentCount++
+		}
+		sentCount := 0
+		if len(notifications) > 0 {
+			if err := db.CreateInBatches(&notifications, 100).Error; err == nil {
+				sentCount = len(notifications)
 			}
 		}
 
@@ -2235,13 +2701,21 @@ func AdminUpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		validRideStatuses := map[string]bool{"pending": true, "accepted": true, "driver_arrived": true, "in_progress": true, "completed": true, "cancelled": true}
+		if !validRideStatuses[input.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, accepted, driver_arrived, in_progress, completed, cancelled"})
+			return
+		}
 		ride.Status = input.Status
 		if input.Status == "completed" {
 			now := time.Now()
 			ride.CompletedAt = &now
 			ride.FinalFare = ride.EstimatedFare
 		}
-		db.Save(&ride)
+		if err := db.Save(&ride).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update ride status"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": ride, "timestamp": time.Now()})
 	}
 }
@@ -2261,12 +2735,20 @@ func AdminUpdateDeliveryStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		validDeliveryStatuses := map[string]bool{"pending": true, "accepted": true, "driver_arrived": true, "picked_up": true, "in_progress": true, "completed": true, "cancelled": true}
+		if !validDeliveryStatuses[input.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, accepted, driver_arrived, picked_up, in_progress, completed, cancelled"})
+			return
+		}
 		delivery.Status = input.Status
 		if input.Status == "completed" {
 			now := time.Now()
 			delivery.CompletedAt = &now
 		}
-		db.Save(&delivery)
+		if err := db.Save(&delivery).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update delivery status"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": delivery, "timestamp": time.Now()})
 	}
 }
@@ -2286,8 +2768,16 @@ func AdminUpdateOrderStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		validOrderStatuses := map[string]bool{"pending": true, "confirmed": true, "preparing": true, "ready": true, "out_for_delivery": true, "delivered": true, "cancelled": true}
+		if !validOrderStatuses[input.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled"})
+			return
+		}
 		order.Status = input.Status
-		db.Save(&order)
+		if err := db.Save(&order).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update order status"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": order, "timestamp": time.Now()})
 	}
 }
@@ -2307,7 +2797,10 @@ func GetWalletBalance(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 		var transactions []models.WalletTransaction
-		db.Where("user_id = ?", userID).Order("created_at DESC").Limit(20).Find(&transactions)
+		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Limit(20).Find(&transactions).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch transactions"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -2340,7 +2833,7 @@ func TopUpWallet(db *gorm.DB) gin.HandlerFunc {
 		}
 		dbTx := db.Begin()
 		var wallet models.Wallet
-		if err := dbTx.Where("user_id = ?", userID).First(&wallet).Error; err != nil {
+		if err := dbTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&wallet).Error; err != nil {
 			wallet = models.Wallet{UserID: userID, Balance: 0}
 			if err := dbTx.Create(&wallet).Error; err != nil {
 				dbTx.Rollback()
@@ -2396,7 +2889,7 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 		}
 		tx := db.Begin()
 		var wallet models.Wallet
-		if err := tx.Where("user_id = ?", userID).First(&wallet).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&wallet).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Wallet not found"})
 			return
@@ -2497,23 +2990,63 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 			case "location_update":
 				tracker.Broadcast(rideID, gin.H{"type": "location_update", "latitude": msg.Latitude, "longitude": msg.Longitude, "timestamp": time.Now()})
 			case "status_update":
-				updates := map[string]interface{}{"status": msg.Status}
-				now := time.Now()
-				if msg.Status == "in_progress" {
-					updates["started_at"] = now
+				// Validate status transitions (same rules as REST endpoint)
+				rideTransitions := map[string][]string{
+					"accepted": {"driver_arrived"}, "driver_arrived": {"in_progress"}, "in_progress": {"completed"},
 				}
-				if msg.Status == "completed" {
-					updates["completed_at"] = now
-					var ride models.Ride
-					if db.First(&ride, "id = ?", rideID).Error == nil {
+				deliveryTransitions := map[string][]string{
+					"accepted": {"driver_arrived"}, "driver_arrived": {"picked_up"}, "picked_up": {"in_progress"}, "in_progress": {"completed"},
+				}
+				isValid := func(current, next string, t map[string][]string) bool {
+					for _, s := range t[current] {
+						if s == next {
+							return true
+						}
+					}
+					return false
+				}
+				// Try ride first
+				var ride models.Ride
+				if db.First(&ride, "id = ?", rideID).Error == nil {
+					if !isValid(ride.Status, msg.Status, rideTransitions) {
+						continue
+					}
+					updates := map[string]interface{}{"status": msg.Status}
+					now := time.Now()
+					if msg.Status == "in_progress" {
+						updates["started_at"] = now
+					}
+					if msg.Status == "completed" {
+						updates["completed_at"] = now
 						updates["final_fare"] = ride.EstimatedFare
 						if ride.DriverID != nil {
 							db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true})
 						}
 					}
+					db.Model(&ride).Updates(updates)
+					tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
+				} else {
+					// Try delivery
+					var delivery models.Delivery
+					if db.First(&delivery, "id = ?", rideID).Error == nil {
+						if !isValid(delivery.Status, msg.Status, deliveryTransitions) {
+							continue
+						}
+						updates := map[string]interface{}{"status": msg.Status}
+						now := time.Now()
+						if msg.Status == "in_progress" {
+							updates["started_at"] = now
+						}
+						if msg.Status == "completed" {
+							updates["completed_at"] = now
+							if delivery.DriverID != nil {
+								db.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true})
+							}
+						}
+						db.Model(&delivery).Updates(updates)
+						tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
+					}
 				}
-				db.Model(&models.Ride{}).Where("id = ?", rideID).Updates(updates)
-				tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
 			}
 		}
 	}

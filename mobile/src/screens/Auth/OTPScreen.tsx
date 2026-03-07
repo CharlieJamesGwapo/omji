@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,18 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 export default function OTPScreen({ navigation, route }: any) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleOTPChange = (value: string, index: number) => {
     const newOtp = [...otp];
@@ -66,19 +77,22 @@ export default function OTPScreen({ navigation, route }: any) {
   };
 
   const handleResend = async () => {
+    if (resendCooldown > 0 || resending) return;
     const phone = route.params?.phone || '';
     if (!phone) {
       Alert.alert('Error', 'Phone number not available');
       return;
     }
     try {
-      setLoading(true);
+      setResending(true);
       await authService.resendOTP({ phone });
-      setLoading(false);
+      setResendCooldown(60);
+      setOtp(['', '', '', '', '', '']);
       Alert.alert('OTP Sent', 'A new OTP has been sent to your phone.');
     } catch (error: any) {
-      setLoading(false);
       Alert.alert('Error', error.response?.data?.error || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -140,9 +154,19 @@ export default function OTPScreen({ navigation, route }: any) {
         </TouchableOpacity>
 
         {/* Resend */}
-        <TouchableOpacity onPress={handleResend} style={styles.resendContainer}>
+        <TouchableOpacity
+          onPress={handleResend}
+          style={styles.resendContainer}
+          disabled={resendCooldown > 0 || resending}
+        >
           <Text style={styles.resendText}>Didn't receive code? </Text>
-          <Text style={styles.resendLink}>Resend</Text>
+          {resending ? (
+            <ActivityIndicator size="small" color="#3B82F6" />
+          ) : resendCooldown > 0 ? (
+            <Text style={[styles.resendLink, { color: '#9CA3AF' }]}>Resend in {resendCooldown}s</Text>
+          ) : (
+            <Text style={styles.resendLink}>Resend</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

@@ -466,11 +466,11 @@ const DashboardPage: React.FC = () => {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
-                          {driver.name?.charAt(0).toUpperCase() || 'D'}
+                          {(driver.User?.name || driver.name || 'D').charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{driver.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{driver.phone}</p>
+                          <p className="font-medium text-gray-900 text-sm truncate">{driver.User?.name || driver.name || 'Unknown'}</p>
+                          <p className="text-xs text-gray-500 truncate">{driver.User?.phone || driver.phone || ''}</p>
                         </div>
                       </div>
                       <span
