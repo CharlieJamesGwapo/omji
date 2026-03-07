@@ -35,7 +35,9 @@
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -60,11 +62,11 @@
       "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": "1.0.0",
+    "owner": "bboydevzxc",
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "7f04b0e6-c8b9-4969-b4a1-630725f245a7"
       }
-    },
-    "owner": "your-expo-username"
+    }
   }
 }

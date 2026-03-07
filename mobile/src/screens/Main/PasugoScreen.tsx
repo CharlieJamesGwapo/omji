@@ -10,7 +10,6 @@ import {
   Image,
   ActivityIndicator,
   Modal,
-  Animated,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';

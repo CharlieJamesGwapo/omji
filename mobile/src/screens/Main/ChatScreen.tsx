@@ -47,12 +47,13 @@ export default function ChatScreen({ route, navigation }: any) {
   useEffect(() => {
     if (!chatId) { setLoading(false); return; }
     let interval: ReturnType<typeof setInterval> | null = null;
-    const startPolling = () => {
-      fetchMessages();
-      interval = setInterval(fetchMessages, 5000);
-    };
     const stopPolling = () => {
       if (interval) { clearInterval(interval); interval = null; }
+    };
+    const startPolling = () => {
+      stopPolling();
+      fetchMessages();
+      interval = setInterval(fetchMessages, 5000);
     };
     startPolling();
     const unsubBlur = navigation.addListener('blur', stopPolling);

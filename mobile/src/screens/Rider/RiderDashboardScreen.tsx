@@ -48,7 +48,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
-  const previousRequestCount = useRef(-1);
+  const previousRequestCount = useRef(0);
 
   const fetchData = useCallback(async () => {
     try {

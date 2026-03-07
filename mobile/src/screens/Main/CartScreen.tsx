@@ -114,7 +114,7 @@ export default function CartScreen({ route, navigation }: any) {
 
     Alert.alert(
       'Confirm Order',
-      `Total: ₱${total}\nPayment: ${paymentMethod.toUpperCase()}\n\nProceed with order?`,
+      `Total: ₱${total.toFixed(2)}\nPayment: ${paymentMethod.toUpperCase()}\n\nProceed with order?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -184,9 +184,6 @@ export default function CartScreen({ route, navigation }: any) {
             <Ionicons name="storefront" size={24} color="#EF4444" />
             <View style={styles.storeInfo}>
               <Text style={styles.storeName}>{store.name}</Text>
-              {!!(store.deliveryTime) && (
-                <Text style={styles.storeTime}>{store.deliveryTime}</Text>
-              )}
             </View>
           </View>
         )}

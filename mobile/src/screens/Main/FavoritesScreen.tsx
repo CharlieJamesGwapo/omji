@@ -63,7 +63,7 @@ export default function FavoritesScreen({ navigation }: any) {
   const handleUnfavorite = (item: FavoriteItem) => {
     Alert.alert(
       'Remove Favorite',
-      `Are you sure you want to remove "${item.name}" from your favorites?`,
+      `Are you sure you want to remove "${item.name || 'this item'}" from your favorites?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -123,10 +123,10 @@ export default function FavoritesScreen({ navigation }: any) {
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.cardName} numberOfLines={1}>
-          {item.name}
+          {item.name || 'Unknown Store'}
         </Text>
         <Text style={styles.cardCategory} numberOfLines={1}>
-          {item.category}
+          {item.category || 'Store'}
         </Text>
         <View style={styles.cardRating}>
           {renderStars(item.rating)}

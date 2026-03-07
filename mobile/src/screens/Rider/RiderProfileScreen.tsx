@@ -52,7 +52,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: Number(user?.rating || earningsData.rating) || 0,
+    rating: Number(user?.rating ?? earningsData.rating ?? 0),
     totalRides: earningsData.completed_rides || 0,
     vehicleType: driverData.vehicle_type || 'Motorcycle',
     plateNumber: driverData.vehicle_plate || '-',
@@ -82,7 +82,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Vehicle',
       items: [
-        { icon: 'bicycle-outline', label: 'Vehicle Details', action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${riderProfile.licenseNumber}`) },
+        { icon: 'bicycle-outline', label: 'Vehicle Details', action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${driverData.vehicle_model || '-'}\nLicense: ${riderProfile.licenseNumber}`) },
         { icon: 'document-text-outline', label: 'Documents', action: () => Alert.alert('Documents', 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.') },
       ],
     },
@@ -197,14 +197,14 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={[styles.vehicleCard, { marginBottom: 0 }]}>
           <View style={styles.vehicleHeader}>
             <Ionicons
-              name={driverData.is_verified ? 'shield-checkmark' : 'shield-outline'}
+              name={driverData.status === 'approved' ? 'shield-checkmark' : 'shield-outline'}
               size={28}
-              color={driverData.is_verified ? '#10B981' : '#F59E0B'}
+              color={driverData.status === 'approved' ? '#10B981' : '#F59E0B'}
             />
             <Text style={styles.vehicleTitle}>Verification Status</Text>
             <View style={{
               marginLeft: 'auto',
-              backgroundColor: driverData.is_verified ? '#ECFDF5' : '#FEF3C7',
+              backgroundColor: driverData.status === 'approved' ? '#ECFDF5' : '#FEF3C7',
               paddingHorizontal: moderateScale(12),
               paddingVertical: moderateScale(4),
               borderRadius: RESPONSIVE.borderRadius.small,
@@ -212,9 +212,9 @@ export default function RiderProfileScreen({ navigation }: any) {
               <Text style={{
                 fontSize: RESPONSIVE.fontSize.small,
                 fontWeight: '600',
-                color: driverData.is_verified ? '#10B981' : '#F59E0B',
+                color: driverData.status === 'approved' ? '#10B981' : '#F59E0B',
               }}>
-                {driverData.is_verified ? 'Verified' : 'Pending'}
+                {driverData.status === 'approved' ? 'Verified' : 'Pending'}
               </Text>
             </View>
           </View>
@@ -237,7 +237,7 @@ export default function RiderProfileScreen({ navigation }: any) {
             </View>
             <View style={styles.vehicleRow}>
               <Text style={styles.vehicleLabel}>Model</Text>
-              <Text style={styles.vehicleValue}>{driverData.vehicle_model || riderProfile.licenseNumber}</Text>
+              <Text style={styles.vehicleValue}>{driverData.vehicle_model || '-'}</Text>
             </View>
             {!!driverData.license_number && (
               <View style={styles.vehicleRow}>

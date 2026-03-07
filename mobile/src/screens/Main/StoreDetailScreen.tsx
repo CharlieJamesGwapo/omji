@@ -142,12 +142,12 @@ export default function StoreDetailScreen({ route, navigation }: any) {
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.metricText}>{store?.deliveryTime || '20-30 min'}</Text>
+              <Text style={styles.metricText}>20-30 min</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Ionicons name="bicycle-outline" size={16} color="#6B7280" />
-              <Text style={styles.metricText}>₱{store?.deliveryFee || 0}</Text>
+              <Text style={styles.metricText}>Delivery</Text>
             </View>
           </View>
           {!!(store?.category) && (

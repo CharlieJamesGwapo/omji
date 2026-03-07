@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  Animated,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -83,12 +82,7 @@ export default function PasundoScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const lastFetchRef = useRef<number>(0);
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
