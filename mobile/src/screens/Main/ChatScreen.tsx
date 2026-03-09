@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatService } from '../../services/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function ChatScreen({ route, navigation }: any) {
@@ -130,8 +131,8 @@ export default function ChatScreen({ route, navigation }: any) {
           rider.photo ? (
             <Image source={{ uri: rider.photo }} style={styles.messageAvatar} />
           ) : (
-            <View style={[styles.messageAvatar, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
-              <Ionicons name="person" size={16} color="#9CA3AF" />
+            <View style={[styles.messageAvatar, { backgroundColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="person" size={moderateScale(16)} color={COLORS.gray400} />
             </View>
           )
         )}
@@ -173,21 +174,21 @@ export default function ChatScreen({ route, navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={moderateScale(24)} color={COLORS.gray800} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           {rider.photo ? (
             <Image source={{ uri: rider.photo }} style={styles.headerAvatar} />
           ) : (
-            <View style={[styles.headerAvatar, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
-              <Ionicons name="person" size={20} color="#9CA3AF" />
+            <View style={[styles.headerAvatar, { backgroundColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="person" size={moderateScale(20)} color={COLORS.gray400} />
             </View>
           )}
           <View style={styles.headerText}>
             <Text style={styles.headerName}>{rider.name || 'Driver'}</Text>
             {!!(rider.rating) && (
               <View style={styles.headerRating}>
-                <Ionicons name="star" size={12} color="#FBBF24" />
+                <Ionicons name="star" size={moderateScale(12)} color={COLORS.warningDark} />
                 <Text style={styles.headerRatingText}>{rider.rating}</Text>
               </View>
             )}
@@ -201,18 +202,18 @@ export default function ChatScreen({ route, navigation }: any) {
             Alert.alert('No Phone', 'Phone number not available');
           }
         }}>
-          <Ionicons name="call" size={24} color="#10B981" />
+          <Ionicons name="call" size={moderateScale(24)} color={COLORS.success} />
         </TouchableOpacity>
       </View>
 
       {/* Messages */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
       ) : messages.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={48} color="#D1D5DB" />
+          <Ionicons name="chatbubbles-outline" size={moderateScale(48)} color={COLORS.gray300} />
           <Text style={styles.emptyText}>No messages yet</Text>
           <Text style={styles.emptySubtext}>Send a message to start chatting</Text>
         </View>
@@ -273,8 +274,8 @@ export default function ChatScreen({ route, navigation }: any) {
           ) : (
             <Ionicons
               name="send"
-              size={20}
-              color={message.trim() ? '#ffffff' : '#D1D5DB'}
+              size={moderateScale(20)}
+              color={message.trim() ? COLORS.white : COLORS.gray300}
             />
           )}
         </TouchableOpacity>
@@ -286,7 +287,7 @@ export default function ChatScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -294,9 +295,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: verticalScale(16),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.gray200,
   },
   headerInfo: {
     flex: 1,
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     height: moderateScale(40),
     borderRadius: moderateScale(20),
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: COLORS.accent,
   },
   headerText: {
     marginLeft: moderateScale(12),
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(2),
   },
   headerRating: {
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
   headerRatingText: {
     fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
-    color: '#92400E',
+    color: COLORS.warningDark,
     marginLeft: moderateScale(4),
   },
   loadingContainer: {
@@ -343,12 +344,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginTop: verticalScale(12),
   },
   emptySubtext: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#9CA3AF',
+    color: COLORS.gray400,
     marginTop: verticalScale(4),
   },
   messagesList: {
@@ -379,14 +380,14 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(10),
   },
   userBubble: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     borderBottomRightRadius: moderateScale(4),
   },
   riderBubble: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderBottomLeftRadius: moderateScale(4),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.gray200,
   },
   messageText: {
     fontSize: fontScale(15),
@@ -394,10 +395,10 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(4),
   },
   userMessageText: {
-    color: '#ffffff',
+    color: COLORS.white,
   },
   riderMessageText: {
-    color: '#1F2937',
+    color: COLORS.gray800,
   },
   messageTime: {
     fontSize: fontScale(11),
@@ -407,17 +408,17 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   riderMessageTime: {
-    color: '#9CA3AF',
+    color: COLORS.gray400,
   },
   quickRepliesContainer: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingVertical: verticalScale(12),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: COLORS.gray100,
   },
   quickReply: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray100,
     paddingHorizontal: moderateScale(16),
     paddingVertical: verticalScale(8),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
@@ -425,37 +426,37 @@ const styles = StyleSheet.create({
   },
   quickReplyText: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#374151',
+    color: COLORS.gray700,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingVertical: verticalScale(12),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: COLORS.gray200,
   },
   input: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray100,
     borderRadius: RESPONSIVE.borderRadius.xlarge,
     paddingHorizontal: moderateScale(16),
     paddingVertical: verticalScale(10),
     fontSize: fontScale(15),
     maxHeight: verticalScale(100),
-    color: '#1F2937',
+    color: COLORS.gray800,
   },
   sendButton: {
     width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: moderateScale(20),
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: moderateScale(8),
   },
   sendButtonDisabled: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray100,
   },
 });

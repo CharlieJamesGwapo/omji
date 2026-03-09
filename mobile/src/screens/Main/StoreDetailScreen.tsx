@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { storeService, favoritesService } from '../../services/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 
 export default function StoreDetailScreen({ route, navigation }: any) {
   const { store } = route.params || {};
@@ -36,11 +37,11 @@ export default function StoreDetailScreen({ route, navigation }: any) {
 
   if (!store?.id) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
-        <Ionicons name="alert-circle-outline" size={moderateScale(48)} color="#EF4444" />
-        <Text style={{ fontSize: fontScale(16), color: '#6B7280', marginTop: verticalScale(12) }}>Store not found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: verticalScale(16), paddingHorizontal: moderateScale(24), paddingVertical: verticalScale(12), backgroundColor: '#3B82F6', borderRadius: moderateScale(8) }}>
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Go Back</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+        <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={COLORS.error} />
+        <Text style={{ fontSize: fontScale(16), color: COLORS.gray500, marginTop: verticalScale(12) }}>Store not found</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: verticalScale(16), paddingHorizontal: moderateScale(24), paddingVertical: verticalScale(12), backgroundColor: COLORS.store, borderRadius: moderateScale(8) }}>
+          <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -118,17 +119,17 @@ export default function StoreDetailScreen({ route, navigation }: any) {
     <View style={styles.container}>
       <ScrollView>
         <View style={styles.storeHeader}>
-          <View style={[styles.headerImage, { backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name="storefront" size={64} color="#3B82F6" />
+          <View style={[styles.headerImage, { backgroundColor: COLORS.storeBg, alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="storefront" size={moderateScale(64)} color={COLORS.store} />
           </View>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={moderateScale(24)} color={COLORS.gray800} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.favoriteButton} onPress={toggleFavorite}>
-            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={24} color={isFavorite ? "#EF4444" : "#1F2937"} />
+            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={moderateScale(24)} color={isFavorite ? COLORS.error : COLORS.gray800} />
           </TouchableOpacity>
         </View>
 
@@ -136,17 +137,17 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           <Text style={styles.storeName}>{store?.name || 'Store'}</Text>
           <View style={styles.storeMetrics}>
             <View style={styles.metricItem}>
-              <Ionicons name="star" size={16} color="#FBBF24" />
+              <Ionicons name="star" size={moderateScale(16)} color={COLORS.warningDark} />
               <Text style={styles.metricText}>{store?.rating ? Number(store.rating).toFixed(1) : 'N/A'}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
+              <Ionicons name="time-outline" size={moderateScale(16)} color={COLORS.gray500} />
               <Text style={styles.metricText}>20-30 min</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
-              <Ionicons name="bicycle-outline" size={16} color="#6B7280" />
+              <Ionicons name="bicycle-outline" size={moderateScale(16)} color={COLORS.gray500} />
               <Text style={styles.metricText}>Delivery</Text>
             </View>
           </View>
@@ -193,14 +194,14 @@ export default function StoreDetailScreen({ route, navigation }: any) {
         <View style={styles.productsSection}>
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#EF4444" />
+              <ActivityIndicator size="large" color={COLORS.store} />
               <Text style={styles.loadingText}>Loading menu...</Text>
             </View>
           )}
 
           {!loading && !!error && (
             <View style={styles.emptyContainer}>
-              <Ionicons name="alert-circle-outline" size={48} color="#D1D5DB" />
+              <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={COLORS.gray300} />
               <Text style={styles.emptyText}>{error}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={fetchMenu}>
                 <Text style={styles.retryButtonText}>Retry</Text>
@@ -210,7 +211,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
 
           {!loading && !error && filteredProducts.length === 0 && (
             <View style={styles.emptyContainer}>
-              <Ionicons name="restaurant-outline" size={48} color="#D1D5DB" />
+              <Ionicons name="restaurant-outline" size={moderateScale(48)} color={COLORS.gray300} />
               <Text style={styles.emptyText}>No menu items available</Text>
             </View>
           )}
@@ -222,8 +223,8 @@ export default function StoreDetailScreen({ route, navigation }: any) {
                 {product.image ? (
                   <Image source={{ uri: product.image }} style={styles.productImage} />
                 ) : (
-                  <View style={[styles.productImage, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="fast-food-outline" size={32} color="#D1D5DB" />
+                  <View style={[styles.productImage, { backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="fast-food-outline" size={moderateScale(32)} color={COLORS.gray300} />
                   </View>
                 )}
                 <View style={styles.productInfo}>
@@ -244,7 +245,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
                         onPress={() => handleAddToCart(product)}
                         disabled={product.available === false}
                       >
-                        <Ionicons name="add" size={20} color="#ffffff" />
+                        <Ionicons name="add" size={moderateScale(20)} color={COLORS.white} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -263,7 +264,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeText}>{cartCount}</Text>
           </View>
-          <Ionicons name="cart" size={24} color="#ffffff" />
+          <Ionicons name="cart" size={moderateScale(24)} color={COLORS.white} />
           <Text style={styles.cartButtonText}>View Cart</Text>
         </TouchableOpacity>
       )}
@@ -274,7 +275,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   storeHeader: {
     position: 'relative',
@@ -291,14 +292,10 @@ const styles = StyleSheet.create({
     width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(3),
+    ...SHADOWS.md,
   },
   favoriteButton: {
     position: 'absolute',
@@ -307,25 +304,21 @@ const styles = StyleSheet.create({
     width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(3),
+    ...SHADOWS.md,
   },
   storeInfo: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     padding: RESPONSIVE.paddingHorizontal,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.gray200,
   },
   storeName: {
     fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(12),
   },
   storeMetrics: {
@@ -339,13 +332,13 @@ const styles = StyleSheet.create({
   },
   metricText: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginLeft: moderateScale(4),
   },
   metricDivider: {
     width: 1,
     height: moderateScale(16),
-    backgroundColor: '#D1D5DB',
+    backgroundColor: COLORS.gray300,
     marginHorizontal: moderateScale(12),
   },
   storeTags: {
@@ -353,7 +346,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   tagChip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray100,
     borderRadius: moderateScale(6),
     paddingHorizontal: moderateScale(10),
     paddingVertical: verticalScale(4),
@@ -362,10 +355,10 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   categoryScroll: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
   },
   categoryContent: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
@@ -375,19 +368,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: moderateScale(16),
     paddingVertical: verticalScale(8),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray100,
     marginRight: moderateScale(8),
   },
   categoryChipActive: {
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.store,
   },
   categoryText: {
     fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   categoryTextActive: {
-    color: '#ffffff',
+    color: COLORS.white,
   },
   productsSection: {
     padding: RESPONSIVE.paddingHorizontal,
@@ -398,7 +391,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginTop: verticalScale(12),
   },
   emptyContainer: {
@@ -407,32 +400,28 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginTop: verticalScale(12),
   },
   retryButton: {
     marginTop: verticalScale(16),
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.store,
     paddingHorizontal: moderateScale(24),
     paddingVertical: verticalScale(10),
     borderRadius: RESPONSIVE.borderRadius.small,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: COLORS.white,
     fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
   },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     marginBottom: verticalScale(16),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.sm,
   },
   productImage: {
     width: moderateScale(100),
@@ -446,12 +435,12 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(4),
   },
   productDescription: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginBottom: verticalScale(8),
   },
   productFooter: {
@@ -462,7 +451,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#EF4444',
+    color: COLORS.store,
   },
   addToCartRow: {
     flexDirection: 'row',
@@ -470,7 +459,7 @@ const styles = StyleSheet.create({
   },
   inCartText: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#10B981',
+    color: COLORS.success,
     fontWeight: '600',
     marginRight: moderateScale(8),
   },
@@ -478,12 +467,12 @@ const styles = StyleSheet.create({
     width: moderateScale(36),
     height: moderateScale(36),
     borderRadius: moderateScale(18),
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.store,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: COLORS.gray300,
   },
   cartButton: {
     position: 'absolute',
@@ -491,22 +480,18 @@ const styles = StyleSheet.create({
     left: RESPONSIVE.paddingHorizontal,
     right: RESPONSIVE.paddingHorizontal,
     flexDirection: 'row',
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.store,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(16),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.2,
-    shadowRadius: moderateScale(8),
-    elevation: moderateScale(5),
+    ...SHADOWS.colored(COLORS.store),
   },
   cartBadge: {
     position: 'absolute',
     top: -verticalScale(8),
     left: RESPONSIVE.paddingHorizontal,
-    backgroundColor: '#FBBF24',
+    backgroundColor: COLORS.warningDark,
     borderRadius: RESPONSIVE.borderRadius.medium,
     minWidth: moderateScale(24),
     height: moderateScale(24),
@@ -517,10 +502,10 @@ const styles = StyleSheet.create({
   cartBadgeText: {
     fontSize: RESPONSIVE.fontSize.small,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
   },
   cartButtonText: {
-    color: '#ffffff',
+    color: COLORS.white,
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     marginLeft: moderateScale(8),
