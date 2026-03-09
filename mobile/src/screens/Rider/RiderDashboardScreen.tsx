@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
@@ -42,9 +43,11 @@ interface DriverRequest {
 }
 
 export default function RiderDashboardScreen({ navigation }: any) {
+  const { logout } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [earnings, setEarnings] = useState<any>({ today_earnings: 0, total_earnings: 0, completed_rides: 0 });
   const [requests, setRequests] = useState<DriverRequest[]>([]);
   const [activeJobs, setActiveJobs] = useState<DriverRequest[]>([]);
@@ -123,6 +126,20 @@ export default function RiderDashboardScreen({ navigation }: any) {
     Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  const fetchDriverProfile = useCallback(async () => {
+    try {
+      const profileRes = await driverService.getProfile();
+      const profileData = profileRes.data?.data;
+      if (profileData) {
+        setIsVerified(profileData.is_verified === true);
+      }
+    } catch (error: any) {
+      console.error('Error fetching driver profile:', error);
+      // If profile not found, driver might not be registered yet
+      setIsVerified(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       const [earningsRes, requestsRes] = await Promise.allSettled([
@@ -153,8 +170,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
+    fetchDriverProfile();
     fetchData();
-  }, [fetchData]);
+  }, [fetchDriverProfile, fetchData]);
 
   // Poll for new requests when online
   useEffect(() => {
@@ -163,7 +181,18 @@ export default function RiderDashboardScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, [isOnline, fetchData]);
 
+  // Poll for verification status when pending
+  useEffect(() => {
+    if (isVerified !== false) return;
+    const interval = setInterval(fetchDriverProfile, 30000);
+    return () => clearInterval(interval);
+  }, [isVerified, fetchDriverProfile]);
+
   const handleToggleOnline = async () => {
+    if (!isVerified) {
+      showToast('Your account is pending admin approval. You cannot go online yet.', 'warning');
+      return;
+    }
     if (!isOnline) {
       Alert.alert(
         'Go Online',
@@ -363,6 +392,165 @@ export default function RiderDashboardScreen({ navigation }: any) {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={COLORS.success} />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
+
+  // Show Pending Approval screen if driver is not verified
+  if (isVerified === false) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { backgroundColor: '#D97706' }]}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.headerStatusText}>PENDING APPROVAL</Text>
+              <Text style={styles.headerTitle}>Rider Dashboard</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => navigation.navigate('RiderProfile')}
+            >
+              <Ionicons name="person-circle" size={moderateScale(36)} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(24) }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={async () => {
+              setRefreshing(true);
+              await fetchDriverProfile();
+              setRefreshing(false);
+            }} />
+          }
+        >
+          <View style={{
+            backgroundColor: COLORS.white,
+            borderRadius: RESPONSIVE.borderRadius.large,
+            padding: moderateScale(24),
+            alignItems: 'center',
+            ...SHADOWS.lg,
+          }}>
+            <View style={{
+              width: moderateScale(100),
+              height: moderateScale(100),
+              borderRadius: moderateScale(50),
+              backgroundColor: '#FEF3C7',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: verticalScale(20),
+            }}>
+              <Ionicons name="hourglass" size={moderateScale(48)} color="#F59E0B" />
+            </View>
+            <Text style={{
+              fontSize: RESPONSIVE.fontSize.xxlarge,
+              fontWeight: 'bold',
+              color: COLORS.gray800,
+              marginBottom: verticalScale(12),
+              textAlign: 'center',
+            }}>
+              Awaiting Admin Approval
+            </Text>
+            <Text style={{
+              fontSize: RESPONSIVE.fontSize.medium,
+              color: COLORS.gray500,
+              textAlign: 'center',
+              lineHeight: fontScale(22),
+              marginBottom: verticalScale(24),
+              paddingHorizontal: moderateScale(8),
+            }}>
+              Your rider application has been submitted and is under review. An admin will verify your documents and approve your account.
+            </Text>
+
+            <View style={{
+              backgroundColor: COLORS.warningBg,
+              borderRadius: RESPONSIVE.borderRadius.medium,
+              padding: moderateScale(16),
+              width: '100%',
+              marginBottom: verticalScale(20),
+            }}>
+              <Text style={{ fontSize: RESPONSIVE.fontSize.small, fontWeight: '700', color: '#92400E', marginBottom: verticalScale(10) }}>
+                What happens next?
+              </Text>
+              {[
+                { icon: 'document-text-outline', text: 'Admin reviews your documents' },
+                { icon: 'shield-checkmark-outline', text: 'Your account gets verified' },
+                { icon: 'flash-outline', text: 'You can go online and start earning' },
+              ].map((step, index) => (
+                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
+                  <View style={{
+                    width: moderateScale(28),
+                    height: moderateScale(28),
+                    borderRadius: moderateScale(14),
+                    backgroundColor: 'rgba(245,158,11,0.15)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: moderateScale(12),
+                  }}>
+                    <Ionicons name={step.icon as any} size={moderateScale(14)} color="#D97706" />
+                  </View>
+                  <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: COLORS.gray700, flex: 1 }}>
+                    {step.text}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: COLORS.gray100,
+                borderRadius: RESPONSIVE.borderRadius.medium,
+                paddingVertical: moderateScale(14),
+                paddingHorizontal: moderateScale(24),
+                width: '100%',
+              }}
+              onPress={async () => {
+                setRefreshing(true);
+                await fetchDriverProfile();
+                setRefreshing(false);
+                if (isVerified) {
+                  showToast('Your account has been approved!', 'success');
+                } else {
+                  showToast('Still pending approval. Please check back later.', 'info');
+                }
+              }}
+            >
+              <Ionicons name="refresh" size={moderateScale(18)} color={COLORS.gray600} style={{ marginRight: moderateScale(8) }} />
+              <Text style={{ fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: COLORS.gray700 }}>
+                Check Status
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={{
+              marginTop: verticalScale(20),
+              alignItems: 'center',
+              paddingVertical: moderateScale(14),
+            }}
+            onPress={() => {
+              Alert.alert(
+                'Switch to User Mode',
+                'You can continue using OMJI as a user while waiting for approval.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Switch',
+                    onPress: () => logout(),
+                  },
+                ]
+              );
+            }}
+          >
+            <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: COLORS.accent, fontWeight: '600' }}>
+              Switch to User Mode
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
       </View>
     );
   }

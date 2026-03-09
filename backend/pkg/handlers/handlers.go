@@ -1342,16 +1342,8 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to register: " + err.Error()})
 			return
 		}
-		if err := db.Model(&models.User{}).Where("id = ?", userID).Update("role", "driver").Error; err != nil {
-			log.Printf("Failed to update user role to driver for user %d: %v", userID, err)
-		}
-		email := c.MustGet("email").(string)
-		token, err := GenerateToken(userID, email, "driver")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
-			return
-		}
-		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"driver": driver, "token": token}, "timestamp": time.Now()})
+		// Note: User role stays as 'user' until admin approves via VerifyDriver
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"driver": driver, "message": "Application submitted. Please wait for admin approval."}, "timestamp": time.Now()})
 	}
 }
 
@@ -1650,14 +1642,24 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		// Check if driver is verified before allowing online
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
+		if !driver.IsVerified && input.Available {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Your account is pending admin approval. You cannot go online yet."})
+			return
+		}
 		updates := map[string]interface{}{"is_available": input.Available}
 		if input.Latitude != 0 {
 			updates["current_latitude"] = input.Latitude
 			updates["current_longitude"] = input.Longitude
 		}
-		result := db.Model(&models.Driver{}).Where("user_id = ?", userID).Updates(updates)
+		result := db.Model(&driver).Updates(updates)
 		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Failed to update availability"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"available": input.Available, "message": "Availability updated"}, "timestamp": time.Now()})
@@ -2045,12 +2047,21 @@ func GetAllDrivers(db *gorm.DB) gin.HandlerFunc {
 
 func VerifyDriver(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result := db.Model(&models.Driver{}).Where("id = ?", c.Param("id")).Update("is_verified", true)
-		if result.RowsAffected == 0 {
+		var driver models.Driver
+		if err := db.Where("id = ?", c.Param("id")).First(&driver).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Driver verified"}, "timestamp": time.Now()})
+		// Verify the driver
+		if err := db.Model(&driver).Update("is_verified", true).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify driver"})
+			return
+		}
+		// Update user role to driver so they can access the rider dashboard
+		if err := db.Model(&models.User{}).Where("id = ?", driver.UserID).Update("role", "driver").Error; err != nil {
+			log.Printf("Failed to update user role for driver %d (user %d): %v", driver.ID, driver.UserID, err)
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Driver verified and approved"}, "timestamp": time.Now()})
 	}
 }
 

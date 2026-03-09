@@ -14,14 +14,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 export default function RiderRegistrationScreen({ navigation }: any) {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Personal Information (pre-filled from user profile)
   const [fullName, setFullName] = useState(user?.name || '');
@@ -115,23 +115,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
         }
       );
 
-      // Update token and user role to driver
-      const data = response.data?.data;
-      if (data?.token) {
-        await AsyncStorage.setItem('token', data.token);
-      }
-      updateUser({ role: 'driver' });
-
-      Alert.alert(
-        'Success!',
-        'You are now registered as a driver! The app will switch to Driver mode.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      setSubmitted(true);
     } catch (error: any) {
       const msg = error.response?.data?.error || 'Failed to submit application';
       Alert.alert('Error', msg);
@@ -177,10 +161,42 @@ export default function RiderRegistrationScreen({ navigation }: any) {
         <Ionicons name="bicycle" size={48} color="#DC2626" />
         <Text style={styles.headerTitle}>Become a Rider</Text>
         <Text style={styles.headerSubtitle}>
-          Join OMJI and start earning today!
+          {submitted ? 'Your application is being reviewed' : 'Join OMJI and start earning today!'}
         </Text>
       </View>
 
+      {submitted ? (
+        <View style={styles.card}>
+          <View style={{ alignItems: 'center', paddingVertical: verticalScale(32) }}>
+            <View style={{ width: moderateScale(80), height: moderateScale(80), borderRadius: moderateScale(40), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(20) }}>
+              <Ionicons name="time" size={moderateScale(40)} color="#F59E0B" />
+            </View>
+            <Text style={{ fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937', marginBottom: verticalScale(12), textAlign: 'center' }}>Application Submitted!</Text>
+            <Text style={{ fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280', textAlign: 'center', lineHeight: fontScale(22), paddingHorizontal: moderateScale(16), marginBottom: verticalScale(24) }}>
+              Your rider application is now under review. An admin will verify your documents and approve your account. You'll be notified once approved.
+            </Text>
+            <View style={{ backgroundColor: '#EFF6FF', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(16), width: '100%', marginBottom: verticalScale(20) }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
+                <Ionicons name="checkmark-circle" size={moderateScale(18)} color="#3B82F6" />
+                <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: '#3B82F6', fontWeight: '600', marginLeft: moderateScale(8) }}>What happens next?</Text>
+              </View>
+              <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', lineHeight: fontScale(18) }}>
+                1. Admin reviews your documents{'\n'}
+                2. Your account gets verified{'\n'}
+                3. You'll receive access to the Rider Dashboard{'\n'}
+                4. Start accepting rides and earning!
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={{ backgroundColor: '#3B82F6', borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(14), paddingHorizontal: moderateScale(32), alignItems: 'center' }}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={{ color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold' }}>Back to Home</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+      <>
       {/* Personal Information */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Personal Information</Text>
@@ -337,6 +353,8 @@ export default function RiderRegistrationScreen({ navigation }: any) {
       </TouchableOpacity>
 
       <View style={{ height: verticalScale(40) }} />
+      </>
+      )}
     </ScrollView>
     </KeyboardAvoidingView>
   );

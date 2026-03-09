@@ -185,10 +185,12 @@ export default function RegisterScreen({ navigation }: any) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Account</Text>
+          {!registrationSuccess && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>{registrationSuccess ? 'Success!' : 'Create Account'}</Text>
         </View>
 
         {/* Success Overlay */}
