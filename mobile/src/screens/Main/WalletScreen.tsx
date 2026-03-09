@@ -434,7 +434,7 @@ export default function WalletScreen({ navigation }: any) {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
     </View>
   );
@@ -465,10 +465,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.large,
     padding: moderateScale(24),
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: moderateScale(12),
+    elevation: moderateScale(8),
   },
   balanceHeader: {
     flexDirection: 'row',
@@ -509,10 +509,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.large,
     padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   sectionTitle: {
     fontSize: RESPONSIVE.fontSize.regular,
@@ -624,10 +624,10 @@ const styles = StyleSheet.create({
     padding: moderateScale(16),
     marginBottom: verticalScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   transactionIcon: {
     width: moderateScale(48),

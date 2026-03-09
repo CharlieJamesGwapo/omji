@@ -240,7 +240,7 @@ export default function ChatScreen({ route, navigation }: any) {
         <FlatList
           horizontal
           data={quickReplies}
-          keyExtractor={(item, index) => index.toString()}
+          keyExtractor={(item, index) => `reply-${index}`}
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity

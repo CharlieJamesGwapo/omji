@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937' },
   formContainer: {
     backgroundColor: '#ffffff', borderRadius: moderateScale(20), padding: RESPONSIVE.paddingHorizontal,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: verticalScale(2) }, shadowOpacity: 0.1, shadowRadius: moderateScale(8), elevation: moderateScale(4),
   },
   welcomeText: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937', marginBottom: verticalScale(8), textAlign: 'center' },
   subtitleText: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280', marginBottom: verticalScale(20), textAlign: 'center' },

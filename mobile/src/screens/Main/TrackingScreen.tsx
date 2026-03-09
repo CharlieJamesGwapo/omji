@@ -214,7 +214,7 @@ export default function TrackingScreen({ route, navigation }: any) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading details...</Text>
+        <Text style={{ marginTop: verticalScale(16), color: '#6B7280' }}>Loading details...</Text>
       </View>
     );
   }
@@ -513,7 +513,7 @@ export default function TrackingScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
 
-          <View style={{ height: 20 }} />
+          <View style={{ height: verticalScale(20) }} />
         </ScrollView>
       </View>
 
@@ -530,7 +530,7 @@ export default function TrackingScreen({ route, navigation }: any) {
 
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={star} onPress={() => setRating(star)} style={styles.starButton}>
+                <TouchableOpacity key={`star-${star}`} onPress={() => setRating(star)} style={styles.starButton}>
                   <Ionicons
                     name={star <= rating ? 'star' : 'star-outline'}
                     size={40}
@@ -599,10 +599,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(4),
   },
   markerDropoff: {
     width: moderateScale(28),
@@ -614,10 +614,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(4),
   },
   markerRider: {
     width: moderateScale(32),
@@ -629,10 +629,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(5),
   },
   backButton: {
     position: 'absolute',
@@ -645,10 +645,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(3),
   },
   bottomSheet: {
     flex: 1,
@@ -659,10 +659,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(10),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: verticalScale(-4) },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(10),
   },
   statusBanner: {
     flexDirection: 'row',

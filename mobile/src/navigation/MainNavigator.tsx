@@ -1,7 +1,8 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { verticalScale, fontScale } from '../utils/responsive';
 
 // Main Tab Screens
 import HomeScreen from '../screens/Main/HomeScreen';
@@ -52,12 +53,12 @@ function MainTabs() {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
           borderTopColor: '#E5E7EB',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
+          paddingBottom: verticalScale(5),
+          paddingTop: verticalScale(5),
+          height: verticalScale(60),
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: fontScale(12),
           fontWeight: 'bold' as const,
         },
         headerShown: false,
@@ -78,6 +79,9 @@ export default function MainNavigator() {
         headerStyle: { backgroundColor: '#3B82F6' },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: 'bold' },
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />

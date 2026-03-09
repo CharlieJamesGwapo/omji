@@ -188,7 +188,7 @@ export default function StoresScreen({ navigation }: any) {
             {' '}({filteredStores.length})
           </Text>
           {loading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
+            <View style={{ padding: moderateScale(40), alignItems: 'center' }}>
               <ActivityIndicator size="large" color="#3B82F6" />
             </View>
           ) : filteredStores.map((store) => (
@@ -390,10 +390,10 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(16),
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   storeImage: {
     width: '100%',

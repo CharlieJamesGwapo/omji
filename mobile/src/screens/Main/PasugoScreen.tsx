@@ -308,10 +308,10 @@ export default function PasugoScreen({ navigation }: any) {
           <Ionicons name="cube" size={28} color="#DC2626" />
           <Text style={styles.headerTitle}>Pasugo Delivery</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <View style={{ width: moderateScale(40) }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: verticalScale(40) }}>
         {/* Active Delivery Banner */}
         {!!activeDelivery && (
           <TouchableOpacity
@@ -319,7 +319,7 @@ export default function PasugoScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: activeDelivery.id, pickup: activeDelivery.pickup_location, dropoff: activeDelivery.dropoff_location, fare: activeDelivery.delivery_fee })}
           >
             <View style={[styles.activeBannerDot, { backgroundColor: '#DC2626' }]} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={[styles.activeBannerTitle, { color: '#991B1B' }]}>Active delivery in progress</Text>
               <Text style={[styles.activeBannerSub, { color: '#B91C1C' }]}>Tap to track • {activeDelivery.status?.replace(/_/g, ' ')}</Text>
             </View>
@@ -374,7 +374,7 @@ export default function PasugoScreen({ navigation }: any) {
         {/* Item Size */}
         <View style={styles.section}>
           <Text style={styles.label}>Package Size</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: moderateScale(8) }}>
             {sizeOptions.map((opt) => (
               <TouchableOpacity
                 key={opt.id}
@@ -424,7 +424,7 @@ export default function PasugoScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.label}>Notes for Rider</Text>
           <TextInput
-            style={[styles.textArea, { minHeight: 60 }]}
+            style={[styles.textArea, { minHeight: verticalScale(60) }]}
             placeholder="Special instructions..."
             value={notes}
             onChangeText={setNotes}
@@ -515,7 +515,7 @@ export default function PasugoScreen({ navigation }: any) {
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Pickup Location</Text>
-            <View style={{ width: 28 }} />
+            <View style={{ width: moderateScale(28) }} />
           </View>
           <MapPicker title="Select Pickup Location" onLocationSelect={handlePickupSelect} initialLocation={pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
@@ -529,7 +529,7 @@ export default function PasugoScreen({ navigation }: any) {
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Dropoff Location</Text>
-            <View style={{ width: 28 }} />
+            <View style={{ width: moderateScale(28) }} />
           </View>
           <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FECACA' },
   activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#DC2626' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600' },
-  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, marginTop: 2 },
+  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
   section: { paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(14) },
   label: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#374151', marginBottom: verticalScale(6) },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: moderateScale(12), borderWidth: 1, borderColor: '#E5E7EB' },
@@ -558,11 +558,11 @@ const styles = StyleSheet.create({
   textArea: { backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB', fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937', textAlignVertical: 'top', minHeight: verticalScale(70) },
   sizeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(14), paddingHorizontal: moderateScale(8), borderWidth: 2, borderColor: '#E5E7EB' },
   sizeCardActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
-  sizeName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#374151', marginTop: 6 },
-  sizeDesc: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: 2, textAlign: 'center' },
+  sizeName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#374151', marginTop: verticalScale(6) },
+  sizeDesc: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(2), textAlign: 'center' },
   photoButton: { borderRadius: RESPONSIVE.borderRadius.medium, overflow: 'hidden', borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: moderateScale(32), backgroundColor: '#F9FAFB' },
-  photoText: { marginTop: 8, fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
+  photoText: { marginTop: verticalScale(8), fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
   photoPreview: { width: '100%', height: verticalScale(160), resizeMode: 'cover' },
   priceCard: { backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(14), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB' },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: verticalScale(6) },
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
   priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#DC2626' },
   bookButton: { flexDirection: 'row', backgroundColor: '#DC2626', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(16), alignItems: 'center', justifyContent: 'center' },
-  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: 8 },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: moderateScale(8) },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

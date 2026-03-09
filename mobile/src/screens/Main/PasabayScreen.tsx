@@ -497,7 +497,7 @@ export default function PasabayScreen({ navigation }: any) {
                         {!!ride.driver?.rating && (
                           <>
                             <Ionicons name="star" size={10} color="#FBBF24" style={{ marginLeft: moderateScale(4) }} />
-                            <Text style={{ fontSize: fontScale(11), color: '#92400E', marginLeft: 2 }}>{Number(ride.driver.rating).toFixed(1)}</Text>
+                            <Text style={{ fontSize: fontScale(11), color: '#92400E', marginLeft: moderateScale(2) }}>{Number(ride.driver.rating).toFixed(1)}</Text>
                           </>
                         )}
                       </View>
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#A7F3D0' },
   activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#10B981' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#065F46' },
-  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, color: '#047857', marginTop: 2 },
+  activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, color: '#047857', marginTop: verticalScale(2) },
   modeToggle: { flexDirection: 'row', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), backgroundColor: '#F3F4F6', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(4) },
   modeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: moderateScale(12), borderRadius: RESPONSIVE.borderRadius.small, gap: moderateScale(8) },
   modeButtonActive: { backgroundColor: '#10B981' },
@@ -763,23 +763,23 @@ const styles = StyleSheet.create({
   rideShareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) },
   rideShareIcon: { width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center' },
   rideShareRoute: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: '#1F2937' },
-  rideShareDest: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', marginTop: 2 },
+  rideShareDest: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', marginTop: verticalScale(2) },
   rideShareFare: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#10B981' },
   rideShareMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: moderateScale(8), marginBottom: verticalScale(10) },
-  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: moderateScale(8), paddingVertical: moderateScale(4), borderRadius: 6 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: moderateScale(8), paddingVertical: moderateScale(4), borderRadius: RESPONSIVE.borderRadius.small },
   metaText: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', marginLeft: moderateScale(4) },
   joinButton: { backgroundColor: '#10B981', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(12), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
   joinButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600' },
   emptyRides: { alignItems: 'center', paddingVertical: verticalScale(36) },
   emptyText: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: '#6B7280', marginTop: verticalScale(12) },
-  emptySubtext: { fontSize: RESPONSIVE.fontSize.small, color: '#9CA3AF', marginTop: 8 },
-  switchModeButton: { backgroundColor: '#10B981', borderRadius: 8, paddingVertical: moderateScale(10), paddingHorizontal: moderateScale(24), marginTop: verticalScale(12) },
+  emptySubtext: { fontSize: RESPONSIVE.fontSize.small, color: '#9CA3AF', marginTop: verticalScale(8) },
+  switchModeButton: { backgroundColor: '#10B981', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(10), paddingHorizontal: moderateScale(24), marginTop: verticalScale(12) },
   switchModeText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600' },
   rideTypeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), borderWidth: 2, borderColor: '#E5E7EB' },
   rideTypeCardActive: { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-  rideTypeName: { fontSize: fontScale(11), fontWeight: '600', color: '#6B7280', marginTop: 6, textAlign: 'center' },
+  rideTypeName: { fontSize: fontScale(11), fontWeight: '600', color: '#6B7280', marginTop: verticalScale(6), textAlign: 'center' },
   rideTypeNameActive: { color: '#10B981' },
-  rideTypePrice: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: 4 },
+  rideTypePrice: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(4) },
   rideTypePriceActive: { color: '#059669' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: moderateScale(12), borderWidth: 1, borderColor: '#E5E7EB' },
   input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },

@@ -190,13 +190,13 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
 
         {/* Menu Sections */}
-        {menuSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.menuSection}>
+        {menuSections.map((section) => (
+          <View key={section.title} style={styles.menuSection}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <View style={styles.menuCard}>
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
-                  key={itemIndex}
+                  key={item.label}
                   style={[
                     styles.menuItem,
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
@@ -221,7 +221,7 @@ export default function ProfileScreen({ navigation }: any) {
         {/* Version */}
         <Text style={styles.versionText}>Version 1.0.0</Text>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
     </View>
   );
@@ -254,10 +254,10 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingHorizontal,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   avatarContainer: {
     position: 'relative',
@@ -338,10 +338,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   walletIcon: {
     width: moderateScale(48),
@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   menuItem: {
     flexDirection: 'row',

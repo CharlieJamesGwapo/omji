@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +19,21 @@ export default function HomeScreen({ navigation }: any) {
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
   const lastFetchRef = useRef<number>(0);
+  const dotPulse = useRef(new Animated.Value(1)).current;
+
+  // Pulsing dot for active rides/deliveries
+  useEffect(() => {
+    if (activeRides.length > 0 || activeDeliveries.length > 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(dotPulse, { toValue: 1.5, duration: 700, useNativeDriver: true }),
+          Animated.timing(dotPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [activeRides.length, activeDeliveries.length, dotPulse]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -116,7 +132,7 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.activeCard}
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.final_fare || ride.estimated_fare })}
           >
-            <View style={[styles.activeDot, { backgroundColor: '#F59E0B' }]} />
+            <Animated.View style={[styles.activeDot, { backgroundColor: '#F59E0B', transform: [{ scale: dotPulse }] }]} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={styles.activeTitle}>Active Ride</Text>
               <Text style={styles.activeSub} numberOfLines={1}>{ride.dropoff_location || 'In progress'} - {ride.status?.replace(/_/g, ' ')}</Text>
@@ -130,7 +146,7 @@ export default function HomeScreen({ navigation }: any) {
             style={[styles.activeCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: del.id, pickup: del.pickup_location, dropoff: del.dropoff_location, fare: del.delivery_fee })}
           >
-            <View style={[styles.activeDot, { backgroundColor: '#DC2626' }]} />
+            <Animated.View style={[styles.activeDot, { backgroundColor: '#DC2626', transform: [{ scale: dotPulse }] }]} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
               <Text style={[styles.activeTitle, { color: '#991B1B' }]}>Active Delivery</Text>
               <Text style={[styles.activeSub, { color: '#B91C1C' }]} numberOfLines={1}>{del.dropoff_location || 'In progress'} - {del.status?.replace(/_/g, ' ')}</Text>
@@ -180,7 +196,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.quickActionsGrid}>
             {quickActions.map((action, index) => (
               <TouchableOpacity
-                key={index}
+                key={action.label}
                 style={styles.quickActionButton}
                 onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
               >
@@ -243,7 +259,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
-    paddingBottom: 100,
+    paddingBottom: verticalScale(100),
   },
   banner: {
     flexDirection: 'row',
@@ -257,7 +273,7 @@ const styles = StyleSheet.create({
     width: isTablet() ? 80 : 60,
     height: isTablet() ? 80 : 60,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    marginRight: 16,
+    marginRight: moderateScale(16),
   },
   bannerText: {
     flex: 1,
@@ -266,7 +282,7 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   bannerSubtitle: {
     fontSize: RESPONSIVE.fontSize.medium,
@@ -292,10 +308,10 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingHorizontal,
     marginBottom: RESPONSIVE.marginVertical,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(4),
   },
   serviceIconContainer: {
     width: isTablet() ? 64 : 56,
@@ -304,13 +320,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: verticalScale(12),
   },
   serviceName: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   serviceDescription: {
     fontSize: RESPONSIVE.fontSize.small,
@@ -333,7 +349,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: verticalScale(8),
   },
   quickActionLabel: {
     fontSize: RESPONSIVE.fontSize.small,
@@ -348,20 +364,20 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingVertical,
     marginBottom: RESPONSIVE.marginVertical,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   promoText: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: moderateScale(16),
   },
   promoTitle: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: verticalScale(4),
   },
   promoSubtitle: {
     fontSize: RESPONSIVE.fontSize.small,
@@ -376,7 +392,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: moderateScale(12),
     fontSize: RESPONSIVE.fontSize.medium,
     color: '#1F2937',
   },

@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   storeTime: {
     fontSize: fontScale(13),
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: verticalScale(2),
   },
   section: {
     marginTop: verticalScale(24),

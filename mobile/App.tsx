@@ -22,6 +22,7 @@ LogBox.ignoreLogs([
   'Warning: ...',
   'Sending `onAnimatedValueUpdate`',
   'Non-serializable values were found in the navigation state',
+  'Encountered two children with the same key',
 ]);
 
 // Loading Screen

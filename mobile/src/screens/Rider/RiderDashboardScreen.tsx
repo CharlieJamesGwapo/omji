@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Vibration,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -49,6 +50,23 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const previousRequestCount = useRef(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulsing animation for online status
+  useEffect(() => {
+    if (isOnline) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isOnline, pulseAnim]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -279,10 +297,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
         {/* Online/Offline Toggle */}
         <View style={styles.toggleCard}>
           <View style={styles.toggleInfo}>
-            <View
+            <Animated.View
               style={[
                 styles.statusIndicator,
                 isOnline ? styles.statusOnline : styles.statusOffline,
+                isOnline && { transform: [{ scale: pulseAnim }] },
               ]}
             />
             <View style={styles.toggleText}>
@@ -489,7 +508,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                   )}
 
                   {!!request.passenger_phone && (
-                    <View style={[styles.passengersInfo, { marginTop: 4 }]}>
+                    <View style={[styles.passengersInfo, { marginTop: verticalScale(4) }]}>
                       <Ionicons name="call-outline" size={16} color="#10B981" />
                       <Text style={[styles.passengersText, { color: '#10B981' }]}>
                         {request.passenger_phone}
@@ -498,7 +517,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                   )}
 
                   {!!request.payment_method && (
-                    <View style={[styles.passengersInfo, { marginTop: 4 }]}>
+                    <View style={[styles.passengersInfo, { marginTop: verticalScale(4) }]}>
                       <Ionicons name="cash-outline" size={16} color="#F59E0B" />
                       <Text style={[styles.passengersText, { color: '#F59E0B' }]}>
                         Payment: {request.payment_method.toUpperCase()}
@@ -553,7 +572,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
@@ -595,10 +614,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: RESPONSIVE.paddingHorizontal,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   toggleInfo: {
     flexDirection: 'row',
@@ -672,10 +691,10 @@ const styles = StyleSheet.create({
     margin: moderateScale(4),
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   statIcon: {
     width: moderateScale(48),
@@ -708,10 +727,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: moderateScale(4),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   quickActionText: {
     fontSize: RESPONSIVE.fontSize.small,
@@ -725,10 +744,10 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingHorizontal,
     marginBottom: verticalScale(10),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
     position: 'relative',
   },
   jobHeader: {
@@ -863,10 +882,10 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.large,
     padding: moderateScale(36),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   offlineTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
@@ -902,10 +921,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#10B981',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(3),
   },
   activeJobIcon: {
     width: moderateScale(48),

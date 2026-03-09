@@ -183,10 +183,10 @@ const styles = StyleSheet.create({
     padding: moderateScale(16),
     marginBottom: verticalScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   unreadCard: {
     borderLeftWidth: 3,

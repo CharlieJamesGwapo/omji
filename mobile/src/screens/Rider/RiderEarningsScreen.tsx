@@ -266,8 +266,8 @@ export default function RiderEarningsScreen({ navigation }: any) {
         {/* Earnings Breakdown */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Earnings Breakdown</Text>
-          {earningsBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownCard}>
+          {earningsBreakdown.map((item) => (
+            <View key={`breakdown-${item.service}`} style={styles.breakdownCard}>
               <View
                 style={[
                   styles.breakdownIcon,
@@ -312,8 +312,8 @@ export default function RiderEarningsScreen({ navigation }: any) {
               </View>
             </View>
           ) : (
-            earningsBreakdown.map((item, index) => (
-              <View key={index} style={styles.earningCard}>
+            earningsBreakdown.map((item) => (
+              <View key={`earning-${item.service}`} style={styles.earningCard}>
                 <View style={[styles.earningIcon, { backgroundColor: `${item.color}20` }]}>
                   <Ionicons
                     name={item.service.includes('Deliveries') ? 'cube' : 'navigate-circle'}
@@ -340,7 +340,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
           </Text>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
     </View>
   );
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
     shadowRadius: moderateScale(12),
-    elevation: 8,
+    elevation: moderateScale(8),
   },
   balanceHeader: {
     flexDirection: 'row',
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   summaryItem: {
     flexDirection: 'row',
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   summarySmallValue: {
     fontSize: RESPONSIVE.fontSize.xlarge,
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   breakdownIcon: {
     width: moderateScale(48),
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   earningIcon: {
     width: moderateScale(40),

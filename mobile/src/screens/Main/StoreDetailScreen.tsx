@@ -254,7 +254,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           })}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
 
       {/* Cart Button */}
@@ -295,10 +295,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(3),
   },
   favoriteButton: {
     position: 'absolute',
@@ -311,10 +311,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(3),
   },
   storeInfo: {
     backgroundColor: '#ffffff',
@@ -429,10 +429,10 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(16),
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   productImage: {
     width: moderateScale(100),
@@ -497,14 +497,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(5),
   },
   cartBadge: {
     position: 'absolute',
-    top: -8,
+    top: -verticalScale(8),
     left: RESPONSIVE.paddingHorizontal,
     backgroundColor: '#FBBF24',
     borderRadius: RESPONSIVE.borderRadius.medium,

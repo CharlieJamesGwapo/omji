@@ -373,18 +373,18 @@ export default function OrdersScreen({ navigation }: any) {
         </View>
         <View style={{ padding: RESPONSIVE.paddingHorizontal }}>
           {[1, 2, 3].map((i) => (
-            <View key={i} style={[styles.orderCard, { opacity: 0.5 }]}>
+            <View key={`skeleton-${i}`} style={[styles.orderCard, { opacity: 0.5 }]}>
               <View style={styles.orderHeader}>
                 <View style={[styles.iconContainer, { backgroundColor: '#E5E7EB' }]} />
                 <View style={styles.orderHeaderInfo}>
-                  <View style={{ backgroundColor: '#E5E7EB', height: 14, width: 100, borderRadius: 4 }} />
-                  <View style={{ backgroundColor: '#E5E7EB', height: 12, width: 60, borderRadius: 4, marginTop: 6 }} />
+                  <View style={{ backgroundColor: '#E5E7EB', height: verticalScale(14), width: moderateScale(100), borderRadius: moderateScale(4) }} />
+                  <View style={{ backgroundColor: '#E5E7EB', height: verticalScale(12), width: moderateScale(60), borderRadius: moderateScale(4), marginTop: verticalScale(6) }} />
                 </View>
-                <View style={{ backgroundColor: '#E5E7EB', height: 24, width: 60, borderRadius: 6 }} />
+                <View style={{ backgroundColor: '#E5E7EB', height: verticalScale(24), width: moderateScale(60), borderRadius: moderateScale(6) }} />
               </View>
               <View style={styles.orderBody}>
-                <View style={{ backgroundColor: '#F3F4F6', height: 12, width: '80%', borderRadius: 4, marginBottom: 8 }} />
-                <View style={{ backgroundColor: '#F3F4F6', height: 12, width: '60%', borderRadius: 4 }} />
+                <View style={{ backgroundColor: '#F3F4F6', height: verticalScale(12), width: '80%', borderRadius: moderateScale(4), marginBottom: verticalScale(8) }} />
+                <View style={{ backgroundColor: '#F3F4F6', height: verticalScale(12), width: '60%', borderRadius: moderateScale(4) }} />
               </View>
             </View>
           ))}
@@ -447,7 +447,7 @@ export default function OrdersScreen({ navigation }: any) {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
     </View>
   );
@@ -531,10 +531,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   orderHeader: {
     flexDirection: 'row',

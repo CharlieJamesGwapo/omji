@@ -244,7 +244,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Addresses</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: moderateScale(24) }} />
       </View>
 
       {loading ? (
@@ -406,10 +406,10 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingHorizontal,
     marginBottom: verticalScale(10),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: moderateScale(4),
+    elevation: moderateScale(2),
   },
   addressIconContainer: {
     width: moderateScale(44),
@@ -466,10 +466,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(6),
   },
   modalOverlay: {
     flex: 1,

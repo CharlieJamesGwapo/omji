@@ -173,8 +173,8 @@ export default function RiderProfileScreen({ navigation }: any) {
 
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          {stats.map((stat, index) => (
-            <View key={index} style={styles.statCard}>
+          {stats.map((stat) => (
+            <View key={stat.label} style={styles.statCard}>
               <View
                 style={[
                   styles.statIcon,
@@ -252,9 +252,9 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
           <View style={styles.achievementsGrid}>
-            {achievements.map((achievement, index) => (
+            {achievements.map((achievement) => (
               <View
-                key={index}
+                key={achievement.title}
                 style={[
                   styles.achievementCard,
                   !achievement.earned && styles.achievementCardLocked,
@@ -286,13 +286,13 @@ export default function RiderProfileScreen({ navigation }: any) {
         </View>
 
         {/* Menu Sections */}
-        {menuSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.menuSection}>
+        {menuSections.map((section) => (
+          <View key={section.title} style={styles.menuSection}>
             <Text style={styles.menuSectionTitle}>{section.title}</Text>
             <View style={styles.menuCard}>
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
-                  key={itemIndex}
+                  key={item.label}
                   style={[
                     styles.menuItem,
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
@@ -317,7 +317,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         {/* Version */}
         <Text style={styles.versionText}>Rider App Version 1.0.0</Text>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: verticalScale(100) }} />
       </ScrollView>
     </View>
   );
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   avatarContainer: {
     position: 'relative',
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   statIcon: {
     width: moderateScale(40),
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   vehicleHeader: {
     flexDirection: 'row',
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   achievementCardLocked: {
     opacity: 0.5,
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.05,
     shadowRadius: moderateScale(4),
-    elevation: 2,
+    elevation: moderateScale(2),
   },
   menuItem: {
     flexDirection: 'row',

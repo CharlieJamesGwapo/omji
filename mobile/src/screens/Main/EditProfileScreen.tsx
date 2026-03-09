@@ -66,7 +66,7 @@ export default function EditProfileScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: moderateScale(24) }} />
       </View>
 
       <KeyboardAvoidingView
@@ -217,10 +217,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: verticalScale(12),
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(4),
   },
   saveButtonDisabled: {
     opacity: 0.7,
