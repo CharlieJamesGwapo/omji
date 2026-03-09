@@ -54,6 +54,7 @@ export default function TrackingScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [searchElapsed, setSearchElapsed] = useState(0);
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
@@ -80,6 +81,17 @@ export default function TrackingScreen({ route, navigation }: any) {
       return () => pulse.stop();
     }
   }, [status, pulseAnim]);
+
+  // Search elapsed timer for pending status
+  useEffect(() => {
+    if (status === 'pending') {
+      setSearchElapsed(0);
+      const timer = setInterval(() => {
+        setSearchElapsed(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [status]);
 
   const statusSteps = type === 'delivery'
     ? ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'completed']
@@ -222,10 +234,10 @@ export default function TrackingScreen({ route, navigation }: any) {
   const rideFare = rideData?.final_fare || rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
   const rideDistance = rideData?.distance_km || rideData?.distance || 0;
   const paymentMethod = rideData?.payment_method || 'cash';
-  const pickupLat = rideData?.pickup_latitude || rideData?.pickup_lat || 8.4343;
-  const pickupLng = rideData?.pickup_longitude || rideData?.pickup_lng || 124.5000;
-  const dropoffLat = rideData?.dropoff_latitude || rideData?.dropoff_lat || 8.4400;
-  const dropoffLng = rideData?.dropoff_longitude || rideData?.dropoff_lng || 124.5050;
+  const pickupLat = rideData?.pickup_latitude || rideData?.pickup_lat || 0;
+  const pickupLng = rideData?.pickup_longitude || rideData?.pickup_lng || 0;
+  const dropoffLat = rideData?.dropoff_latitude || rideData?.dropoff_lat || 0;
+  const dropoffLng = rideData?.dropoff_longitude || rideData?.dropoff_lng || 0;
   const driverInfo = rideData?.driver || rideData?.Driver;
   const driverVehicle = rideData?.driver || rideData?.Driver;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -359,22 +371,30 @@ export default function TrackingScreen({ route, navigation }: any) {
           <View style={[styles.statusBanner, { backgroundColor: `${statusInfo.color}12` }]}>
             <Animated.View style={[
               styles.statusIconCircle,
-              { backgroundColor: statusInfo.color },
+              { backgroundColor: searchElapsed >= 90 && status === 'pending' ? COLORS.error : statusInfo.color },
               status === 'pending' && { transform: [{ scale: pulseAnim }] },
             ]}>
-              <Ionicons name={statusInfo.icon as any} size={moderateScale(22)} color={COLORS.white} />
+              <Ionicons name={searchElapsed >= 90 && status === 'pending' ? 'alert-circle' : statusInfo.icon as any} size={moderateScale(22)} color={COLORS.white} />
             </Animated.View>
             <View style={styles.statusTextContainer}>
-              <Text style={[styles.statusTitle, { color: statusInfo.color }]}>{statusInfo.label}</Text>
-              <Text style={styles.statusDescription}>{statusInfo.description}</Text>
+              <Text style={[styles.statusTitle, { color: searchElapsed >= 90 && status === 'pending' ? COLORS.error : statusInfo.color }]}>
+                {searchElapsed >= 90 && status === 'pending' ? 'No Riders Available' : statusInfo.label}
+              </Text>
+              <Text style={styles.statusDescription}>
+                {status === 'pending'
+                  ? searchElapsed >= 90
+                    ? 'No riders are available nearby right now. Please try again later or cancel and retry.'
+                    : `Searching for the nearest available rider... (${Math.floor(searchElapsed / 60)}:${(searchElapsed % 60).toString().padStart(2, '0')})`
+                  : statusInfo.description}
+              </Text>
             </View>
-            {status === 'pending' && (
+            {status === 'pending' && searchElapsed < 90 && (
               <ActivityIndicator size="small" color={statusInfo.color} />
             )}
           </View>
 
           {/* ETA Display */}
-          {estimatedEtaMinutes > 0 && status !== 'completed' && status !== 'cancelled' && (
+          {estimatedEtaMinutes > 0 && status !== 'pending' && status !== 'completed' && status !== 'cancelled' && (
             <View style={styles.etaContainer}>
               <View style={styles.etaIconBox}>
                 <Ionicons name="time" size={moderateScale(16)} color={COLORS.accent} />
