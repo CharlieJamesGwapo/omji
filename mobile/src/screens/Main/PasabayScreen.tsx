@@ -407,11 +407,12 @@ export default function PasabayScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="bicycle" size={28} color="#10B981" />
-          <Text style={styles.headerTitle}>Pasabay Ride</Text>
+          <Ionicons name="people" size={24} color="#ffffff" />
+          <Text style={styles.headerTitle}>Pasabay</Text>
+          <Text style={styles.headerSubtitle}>Ride Sharing</Text>
         </View>
         <View style={{ width: moderateScale(40) }} />
       </View>
@@ -693,14 +694,20 @@ export default function PasabayScreen({ navigation }: any) {
               style={[styles.bookButton, (loading || !!activeRide) && { opacity: 0.7 }]}
               onPress={handleBookRide}
               disabled={loading || !!activeRide}
+              activeOpacity={0.85}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <>
-                  <Text style={styles.bookButtonText}>{isDriver ? 'Offer Ride Share' : 'Book Ride'}</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-                </>
+                <View style={styles.bookButtonContent}>
+                  <View>
+                    <Text style={styles.bookButtonText}>{isDriver ? 'Offer Ride Share' : 'Book Ride'}</Text>
+                    {totalFare > 0 && <Text style={styles.bookButtonFare}>₱{totalFare.toFixed(0)} • {passengers} passenger{passengers > 1 ? 's' : ''}</Text>}
+                  </View>
+                  <View style={styles.bookButtonArrow}>
+                    <Ionicons name="arrow-forward" size={20} color="#10B981" />
+                  </View>
+                </View>
               )}
             </TouchableOpacity>
           </>
@@ -742,10 +749,11 @@ export default function PasabayScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
-  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#1F2937' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(16), backgroundColor: '#10B981' },
+  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#ffffff' },
+  headerSubtitle: { fontSize: RESPONSIVE.fontSize.small, color: 'rgba(255,255,255,0.85)', marginTop: verticalScale(2) },
   activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#A7F3D0' },
   activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#10B981' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#065F46' },
@@ -797,8 +805,11 @@ const styles = StyleSheet.create({
   priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: moderateScale(8) },
   priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
   priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#10B981' },
-  bookButton: { flexDirection: 'row', backgroundColor: '#10B981', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, alignItems: 'center', justifyContent: 'center' },
-  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: moderateScale(8) },
+  bookButton: { backgroundColor: '#10B981', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: verticalScale(8), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#10B981', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
+  bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
+  bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
+  bookButtonArrow: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

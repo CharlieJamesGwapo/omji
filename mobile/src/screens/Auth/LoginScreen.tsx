@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, isTablet } from '../../utils/responsive';
+import { COLORS } from '../../constants/theme';
 
 type BannerType = 'error' | 'success';
 
@@ -184,7 +185,7 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#DC2626" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -233,7 +234,7 @@ export default function LoginScreen({ navigation }: any) {
                       : 'checkmark-circle'
                   }
                   size={20}
-                  color={banner.type === 'error' ? '#DC2626' : '#059669'}
+                  color={banner.type === 'error' ? COLORS.primaryDark : COLORS.successDark}
                   style={styles.bannerIcon}
                 />
                 <Text
@@ -251,7 +252,7 @@ export default function LoginScreen({ navigation }: any) {
                   <Ionicons
                     name="close"
                     size={18}
-                    color={banner.type === 'error' ? '#DC2626' : '#059669'}
+                    color={banner.type === 'error' ? COLORS.primaryDark : COLORS.successDark}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -268,13 +269,13 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons
                 name="person"
                 size={20}
-                color={phoneError ? '#EF4444' : phoneFocused ? '#DC2626' : '#9CA3AF'}
+                color={phoneError ? COLORS.error : phoneFocused ? COLORS.primaryDark : COLORS.gray400}
                 style={styles.icon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Phone Number or Email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.gray400}
                 value={phone}
                 onChangeText={(text) => {
                   setPhone(text);
@@ -300,13 +301,13 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons
                 name="lock-closed"
                 size={20}
-                color={passwordError ? '#EF4444' : passwordFocused ? '#DC2626' : '#9CA3AF'}
+                color={passwordError ? COLORS.error : passwordFocused ? COLORS.primaryDark : COLORS.gray400}
                 style={styles.icon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.gray400}
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -324,7 +325,7 @@ export default function LoginScreen({ navigation }: any) {
                 <Ionicons
                   name={showPassword ? 'eye' : 'eye-off'}
                   size={20}
-                  color="#9CA3AF"
+                  color={COLORS.gray400}
                 />
               </TouchableOpacity>
             </View>
@@ -345,7 +346,7 @@ export default function LoginScreen({ navigation }: any) {
               activeOpacity={0.9}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.loginText}>Login</Text>
               )}
@@ -383,7 +384,7 @@ export default function LoginScreen({ navigation }: any) {
                 );
               }}
             >
-              <Ionicons name="car-sport" size={18} color="#10B981" />
+              <Ionicons name="car-sport" size={18} color={COLORS.success} />
               <Text style={styles.driverSignupText}>
                 Want to earn?{' '}
                 <Text style={styles.driverSignupLink}>Become a Driver</Text>
@@ -399,7 +400,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
   },
   content: {
     flex: 1,
@@ -416,14 +417,14 @@ const styles = StyleSheet.create({
     width: moderateScale(100),
     height: moderateScale(100),
     borderRadius: moderateScale(50),
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.primaryBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: verticalScale(12),
     borderWidth: moderateScale(3),
-    borderColor: '#DC2626',
+    borderColor: COLORS.primaryDark,
     overflow: 'hidden',
-    shadowColor: '#DC2626',
+    shadowColor: COLORS.primaryDark,
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.25,
     shadowRadius: moderateScale(8),
@@ -436,22 +437,22 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: RESPONSIVE.fontSize.heading,
     fontWeight: 'bold',
-    color: '#DC2626',
+    color: COLORS.primaryDark,
     letterSpacing: 1,
     marginBottom: verticalScale(4),
   },
   tagline: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
     fontWeight: '400',
   },
 
   // Form Container
   formContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.xlarge,
     padding: RESPONSIVE.paddingHorizontal,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: verticalScale(2) },
     shadowOpacity: 0.08,
     shadowRadius: moderateScale(12),
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#111827',
+    color: COLORS.gray900,
     marginBottom: verticalScale(16),
     textAlign: 'center',
   },
@@ -477,12 +478,12 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(12),
   },
   bannerError: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#DC2626',
+    backgroundColor: COLORS.errorBg,
+    borderColor: COLORS.primaryDark,
   },
   bannerSuccess: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#059669',
+    backgroundColor: COLORS.successBg,
+    borderColor: COLORS.successDark,
   },
   bannerIcon: {
     marginRight: moderateScale(8),
@@ -493,31 +494,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bannerTextError: {
-    color: '#DC2626',
+    color: COLORS.primaryDark,
   },
   bannerTextSuccess: {
-    color: '#059669',
+    color: COLORS.successDark,
   },
 
   // Input Fields
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.gray200,
     paddingHorizontal: moderateScale(14),
     paddingVertical: moderateScale(14),
     marginBottom: verticalScale(12),
   },
   inputWrapperFocused: {
-    borderColor: '#DC2626',
+    borderColor: COLORS.primaryDark,
     backgroundColor: '#FFFBFB',
   },
   inputWrapperError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.errorBg,
   },
   icon: {
     marginRight: moderateScale(10),
@@ -525,13 +526,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#111827',
+    color: COLORS.gray900,
   },
 
   // Inline field error
   fieldError: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#EF4444',
+    color: COLORS.error,
     marginTop: verticalScale(-8),
     marginBottom: verticalScale(8),
     marginLeft: moderateScale(14),
@@ -545,19 +546,19 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#DC2626',
+    color: COLORS.primaryDark,
     fontWeight: '600',
   },
 
   // Login Button
   loginButton: {
-    backgroundColor: '#DC2626',
+    backgroundColor: COLORS.primaryDark,
     borderRadius: RESPONSIVE.borderRadius.medium,
     paddingVertical: verticalScale(14),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(12),
-    shadowColor: '#DC2626',
+    shadowColor: COLORS.primaryDark,
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
     shadowRadius: moderateScale(6),
@@ -569,7 +570,7 @@ const styles = StyleSheet.create({
   loginText: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: COLORS.white,
     letterSpacing: 0.3,
   },
 
@@ -582,12 +583,12 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.gray200,
   },
   dividerText: {
     marginHorizontal: moderateScale(12),
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#9CA3AF',
+    color: COLORS.gray400,
     fontWeight: '500',
   },
 
@@ -597,10 +598,10 @@ const styles = StyleSheet.create({
   },
   signupText: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   signupLink: {
-    color: '#DC2626',
+    color: COLORS.primaryDark,
     fontWeight: 'bold',
   },
 
@@ -612,18 +613,18 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(12),
     paddingVertical: moderateScale(12),
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: COLORS.successBg,
     borderRadius: moderateScale(10),
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: COLORS.success,
   },
   driverSignupText: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginLeft: moderateScale(8),
   },
   driverSignupLink: {
-    color: '#10B981',
+    color: COLORS.success,
     fontWeight: 'bold',
   },
 });

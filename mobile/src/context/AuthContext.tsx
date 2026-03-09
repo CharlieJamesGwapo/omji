@@ -12,6 +12,7 @@ interface User {
   is_verified?: boolean;
   rating?: number;
   total_ratings?: number;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -20,7 +21,7 @@ interface AuthContextType {
   login: (phone: string, password: string) => Promise<void>;
   register: (name: string, email: string, phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (userData: Partial<User>) => void;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -127,11 +128,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateUser = (userData: Partial<User>) => {
+  const updateUser = async (userData: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
-      AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      try {
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      } catch (error) {
+        console.error('Failed to persist updated user to AsyncStorage:', error);
+      }
     }
   };
 

@@ -12,32 +12,37 @@ import {
   Linking,
   Modal,
   TextInput,
+  Animated,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
+import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 
 const STATUS_CONFIG: Record<string, { label: string; description: string; icon: string; color: string }> = {
-  pending: { label: 'Finding Rider', description: 'Looking for the nearest available rider...', icon: 'search', color: '#F59E0B' },
-  accepted: { label: 'Rider Accepted', description: 'Your rider is heading to the pickup point', icon: 'checkmark-circle', color: '#3B82F6' },
-  driver_arrived: { label: 'Rider Arrived', description: 'Your rider is waiting at the pickup point', icon: 'location', color: '#8B5CF6' },
-  picked_up: { label: 'Picked Up', description: 'Item has been picked up', icon: 'cube', color: '#8B5CF6' },
-  in_progress: { label: 'On the Way', description: 'Your rider is heading to the destination', icon: 'navigate', color: '#10B981' },
-  completed: { label: 'Delivered', description: 'Your order has been completed!', icon: 'checkmark-done-circle', color: '#10B981' },
-  cancelled: { label: 'Cancelled', description: 'This order has been cancelled', icon: 'close-circle', color: '#EF4444' },
+  pending: { label: 'Finding Your Rider', description: 'Searching for the nearest available rider near you...', icon: 'search', color: COLORS.warning },
+  accepted: { label: 'Rider On the Way', description: 'Your rider has accepted and is heading to your pickup point.', icon: 'checkmark-circle', color: COLORS.accent },
+  driver_arrived: { label: 'Rider Has Arrived', description: 'Your rider is waiting at the pickup location. Please proceed.', icon: 'location', color: COLORS.pasabay },
+  picked_up: { label: 'Item Picked Up', description: 'Your item has been collected and is being transported.', icon: 'cube', color: COLORS.pasabay },
+  in_progress: { label: 'On the Way', description: 'Sit back and relax! You are heading to your destination.', icon: 'navigate', color: COLORS.success },
+  completed: { label: 'Trip Completed', description: 'You have arrived! Thank you for riding with OMJI.', icon: 'checkmark-done-circle', color: COLORS.success },
+  cancelled: { label: 'Trip Cancelled', description: 'This trip has been cancelled.', icon: 'close-circle', color: COLORS.error },
 };
 
 const PAYMENT_LABELS: Record<string, { name: string; icon: string; color: string }> = {
-  cash: { name: 'Cash', icon: 'cash-outline', color: '#F59E0B' },
+  cash: { name: 'Cash', icon: 'cash-outline', color: COLORS.warning },
   gcash: { name: 'GCash', icon: 'phone-portrait-outline', color: '#0070E0' },
   maya: { name: 'Maya', icon: 'card-outline', color: '#00B251' },
-  wallet: { name: 'OMJI Wallet', icon: 'wallet-outline', color: '#8B5CF6' },
+  wallet: { name: 'OMJI Wallet', icon: 'wallet-outline', color: COLORS.pasabay },
 };
+
+const RATING_LABELS = ['Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
 
 export default function TrackingScreen({ route, navigation }: any) {
   const { rideId, pickup, dropoff, fare, type = 'ride' } = route.params || {};
@@ -58,9 +63,36 @@ export default function TrackingScreen({ route, navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
+  // Animation refs
+  const starAnims = useRef([1, 2, 3, 4, 5].map(() => new Animated.Value(1))).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation for pending status
+  useEffect(() => {
+    if (status === 'pending') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [status, pulseAnim]);
+
   const statusSteps = type === 'delivery'
     ? ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'completed']
     : ['pending', 'accepted', 'driver_arrived', 'in_progress', 'completed'];
+
+  const statusStepLabels: Record<string, string> = {
+    pending: 'Requested',
+    accepted: 'Accepted',
+    driver_arrived: 'Arrived',
+    picked_up: 'Picked Up',
+    in_progress: 'En Route',
+    completed: 'Done',
+  };
 
   const fetchRideDetails = useCallback(async () => {
     if (!rideId) { setLoading(false); return; }
@@ -165,6 +197,26 @@ export default function TrackingScreen({ route, navigation }: any) {
     ]);
   };
 
+  const handleShareTrip = async () => {
+    try {
+      const tripType = type === 'delivery' ? 'delivery' : 'ride';
+      await Share.share({
+        message: `I'm on an OMJI ${tripType}! From: ${pickupLabel} To: ${dropoffLabel}. Track my trip on OMJI app.`,
+      });
+    } catch {
+      Alert.alert('Share Trip', 'Share your live trip details with friends and family for safety. This feature will be fully available soon!');
+    }
+  };
+
+  const handleStarPress = (star: number) => {
+    setRating(star);
+    // Bounce animation on the selected star
+    Animated.sequence([
+      Animated.timing(starAnims[star - 1], { toValue: 1.3, duration: 100, useNativeDriver: true }),
+      Animated.spring(starAnims[star - 1], { toValue: 1, friction: 3, useNativeDriver: true }),
+    ]).start();
+  };
+
   const pickupLabel = rideData?.pickup_location || rideData?.pickup || pickup || 'Pickup';
   const dropoffLabel = rideData?.dropoff_location || rideData?.dropoff || dropoff || 'Dropoff';
   const rideFare = rideData?.final_fare || rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
@@ -213,8 +265,10 @@ export default function TrackingScreen({ route, navigation }: any) {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ marginTop: verticalScale(16), color: '#6B7280' }}>Loading details...</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>Loading trip details...</Text>
+        </View>
       </View>
     );
   }
@@ -250,18 +304,18 @@ export default function TrackingScreen({ route, navigation }: any) {
             { latitude: pickupLat, longitude: pickupLng },
             { latitude: dropoffLat, longitude: dropoffLng },
           ]}
-          strokeColor="#3B82F6"
+          strokeColor={COLORS.accent}
           strokeWidth={4}
           lineDashPattern={[0]}
         />
         <Marker coordinate={{ latitude: pickupLat, longitude: pickupLng }} title={pickupLabel}>
           <View style={styles.markerPickup}>
-            <Ionicons name="radio-button-on" size={14} color="#ffffff" />
+            <Ionicons name="radio-button-on" size={14} color={COLORS.white} />
           </View>
         </Marker>
         <Marker coordinate={{ latitude: dropoffLat, longitude: dropoffLng }} title={dropoffLabel}>
           <View style={styles.markerDropoff}>
-            <Ionicons name="flag" size={14} color="#ffffff" />
+            <Ionicons name="flag" size={14} color={COLORS.white} />
           </View>
         </Marker>
         {!!driverInfo && status !== 'pending' && (
@@ -273,25 +327,43 @@ export default function TrackingScreen({ route, navigation }: any) {
             title={driverInfo.name || 'Rider'}
           >
             <View style={styles.markerRider}>
-              <Ionicons name="bicycle" size={16} color="#ffffff" />
+              <Ionicons name="bicycle" size={16} color={COLORS.white} />
             </View>
           </Marker>
         )}
       </MapView>
 
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={24} color="#1F2937" />
-      </TouchableOpacity>
+      {/* Top Bar Buttons */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBarButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
+        </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          {status !== 'completed' && status !== 'cancelled' && (
+            <TouchableOpacity style={styles.topBarButton} onPress={handleShareTrip}>
+              <Ionicons name="share-outline" size={moderateScale(20)} color={COLORS.gray800} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
       {/* Bottom Sheet */}
       <View style={styles.bottomSheet}>
+        {/* Handle Indicator */}
+        <View style={styles.handleContainer}>
+          <View style={styles.handle} />
+        </View>
+
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
           {/* Status Banner */}
-          <View style={[styles.statusBanner, { backgroundColor: `${statusInfo.color}15` }]}>
-            <View style={[styles.statusIconCircle, { backgroundColor: statusInfo.color }]}>
-              <Ionicons name={statusInfo.icon as any} size={20} color="#ffffff" />
-            </View>
+          <View style={[styles.statusBanner, { backgroundColor: `${statusInfo.color}12` }]}>
+            <Animated.View style={[
+              styles.statusIconCircle,
+              { backgroundColor: statusInfo.color },
+              status === 'pending' && { transform: [{ scale: pulseAnim }] },
+            ]}>
+              <Ionicons name={statusInfo.icon as any} size={moderateScale(22)} color={COLORS.white} />
+            </Animated.View>
             <View style={styles.statusTextContainer}>
               <Text style={[styles.statusTitle, { color: statusInfo.color }]}>{statusInfo.label}</Text>
               <Text style={styles.statusDescription}>{statusInfo.description}</Text>
@@ -304,38 +376,77 @@ export default function TrackingScreen({ route, navigation }: any) {
           {/* ETA Display */}
           {estimatedEtaMinutes > 0 && status !== 'completed' && status !== 'cancelled' && (
             <View style={styles.etaContainer}>
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.etaText}>
-                ETA: ~{estimatedEtaMinutes < 60 ? `${estimatedEtaMinutes} min` : `${Math.floor(estimatedEtaMinutes / 60)}h ${estimatedEtaMinutes % 60}m`}
-              </Text>
+              <View style={styles.etaIconBox}>
+                <Ionicons name="time" size={moderateScale(16)} color={COLORS.accent} />
+              </View>
+              <View>
+                <Text style={styles.etaLabel}>Estimated Arrival</Text>
+                <Text style={styles.etaValue}>
+                  {estimatedEtaMinutes < 60 ? `${estimatedEtaMinutes} min` : `${Math.floor(estimatedEtaMinutes / 60)}h ${estimatedEtaMinutes % 60}m`}
+                </Text>
+              </View>
             </View>
           )}
 
-          {/* Progress Steps */}
+          {/* Vertical Timeline Stepper */}
           {status === 'cancelled' ? (
             <View style={styles.cancelledContainer}>
-              <Ionicons name="close-circle" size={48} color="#EF4444" />
-              <Text style={styles.cancelledText}>This {type === 'delivery' ? 'delivery' : 'ride'} has been cancelled</Text>
+              <View style={styles.cancelledIconCircle}>
+                <Ionicons name="close" size={moderateScale(28)} color={COLORS.white} />
+              </View>
+              <Text style={styles.cancelledText}>
+                This {type === 'delivery' ? 'delivery' : 'ride'} has been cancelled
+              </Text>
+              <Text style={styles.cancelledSubtext}>No charges were applied to your account.</Text>
             </View>
           ) : (
-            <View style={styles.progressContainer}>
+            <View style={styles.timelineContainer}>
+              <Text style={styles.timelineSectionTitle}>Trip Progress</Text>
               {statusSteps.map((step, index) => {
-                const isActive = index <= currentStepIndex;
+                const isCompleted = index < currentStepIndex;
                 const isCurrent = index === currentStepIndex;
+                const isUpcoming = index > currentStepIndex;
+                const stepConfig = STATUS_CONFIG[step];
+                const isLast = index === statusSteps.length - 1;
+
                 return (
-                  <View key={step} style={styles.progressStep}>
-                    <View style={[
-                      styles.progressDot,
-                      isActive && { backgroundColor: '#3B82F6' },
-                      isCurrent && styles.progressDotCurrent,
-                    ]}>
-                      {isActive && !isCurrent && (
-                        <Ionicons name="checkmark" size={10} color="#ffffff" />
+                  <View key={step} style={styles.timelineStep}>
+                    {/* Dot and Line */}
+                    <View style={styles.timelineDotColumn}>
+                      <View style={[
+                        styles.timelineDot,
+                        isCompleted && styles.timelineDotCompleted,
+                        isCurrent && [styles.timelineDotCurrent, { borderColor: stepConfig?.color || COLORS.accent }],
+                        isUpcoming && styles.timelineDotUpcoming,
+                      ]}>
+                        {isCompleted && (
+                          <Ionicons name="checkmark" size={moderateScale(12)} color={COLORS.white} />
+                        )}
+                        {isCurrent && (
+                          <View style={[styles.timelineDotInner, { backgroundColor: stepConfig?.color || COLORS.accent }]} />
+                        )}
+                      </View>
+                      {!isLast && (
+                        <View style={[
+                          styles.timelineLineVertical,
+                          isCompleted && styles.timelineLineCompleted,
+                        ]} />
                       )}
                     </View>
-                    {index < statusSteps.length - 1 && (
-                      <View style={[styles.progressLine, isActive && { backgroundColor: '#3B82F6' }]} />
-                    )}
+                    {/* Label */}
+                    <View style={styles.timelineLabel}>
+                      <Text style={[
+                        styles.timelineLabelText,
+                        isCompleted && styles.timelineLabelCompleted,
+                        isCurrent && [styles.timelineLabelCurrent, { color: stepConfig?.color || COLORS.accent }],
+                        isUpcoming && styles.timelineLabelUpcoming,
+                      ]}>
+                        {statusStepLabels[step] || formatStatus(step)}
+                      </Text>
+                      {isCurrent && (
+                        <Text style={styles.timelineLabelDesc}>{stepConfig?.description || ''}</Text>
+                      )}
+                    </View>
                   </View>
                 );
               })}
@@ -345,44 +456,68 @@ export default function TrackingScreen({ route, navigation }: any) {
           {/* Driver Card */}
           {!!driverInfo && status !== 'pending' && (
             <View style={styles.driverCard}>
+              <View style={styles.driverCardHeader}>
+                <Text style={styles.driverCardTitle}>Your Rider</Text>
+              </View>
               <View style={styles.driverInfo}>
                 {driverInfo.profile_image ? (
                   <Image source={{ uri: driverInfo.profile_image }} style={styles.driverPhoto} />
                 ) : (
-                  <View style={[styles.driverPhoto, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="person" size={24} color="#9CA3AF" />
+                  <View style={[styles.driverPhoto, styles.driverPhotoPlaceholder]}>
+                    <Ionicons name="person" size={moderateScale(24)} color={COLORS.gray400} />
                   </View>
                 )}
                 <View style={styles.driverDetails}>
                   <Text style={styles.driverName}>{driverInfo.name || 'Driver'}</Text>
                   <View style={styles.driverMeta}>
-                    <Ionicons name="star" size={14} color="#FBBF24" />
-                    <Text style={styles.driverRating}>{Number(driverInfo.rating || driverVehicle?.rating || 5.0).toFixed(1)}</Text>
-                    {!!(driverVehicle?.vehicle_plate) && (
-                      <Text style={styles.driverPlate}>{driverVehicle.vehicle_plate}</Text>
-                    )}
+                    {/* Star rating display */}
+                    <View style={styles.starsContainer}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Ionicons
+                          key={`driver-star-${star}`}
+                          name={star <= Math.round(Number(driverInfo.rating || driverVehicle?.rating || 5)) ? 'star' : 'star-outline'}
+                          size={moderateScale(14)}
+                          color={star <= Math.round(Number(driverInfo.rating || driverVehicle?.rating || 5)) ? COLORS.warningDark : COLORS.gray300}
+                        />
+                      ))}
+                      <Text style={styles.driverRatingNum}>
+                        {Number(driverInfo.rating || driverVehicle?.rating || 5.0).toFixed(1)}
+                      </Text>
+                    </View>
                   </View>
                   {!!(driverVehicle?.vehicle_model || driverVehicle?.vehicle_type) && (
-                    <Text style={styles.driverVehicle}>
-                      {[driverVehicle.vehicle_type, driverVehicle.vehicle_model].filter(Boolean).join(' - ')}
-                    </Text>
+                    <View style={styles.vehicleRow}>
+                      <Ionicons name="bicycle-outline" size={moderateScale(14)} color={COLORS.gray500} />
+                      <Text style={styles.driverVehicle}>
+                        {[driverVehicle.vehicle_type, driverVehicle.vehicle_model].filter(Boolean).join(' - ')}
+                      </Text>
+                    </View>
                   )}
                 </View>
+                {!!(driverVehicle?.vehicle_plate) && (
+                  <View style={styles.plateContainer}>
+                    <Text style={styles.plateText}>{driverVehicle.vehicle_plate}</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.driverActions}>
                 <TouchableOpacity
                   style={styles.actionBtn}
+                  activeOpacity={0.7}
                   onPress={() => navigation.navigate('Chat', {
                     rider: driverInfo,
                     rideId: type === 'ride' ? rideId : undefined,
                     deliveryId: type === 'delivery' ? rideId : undefined,
                   })}
                 >
-                  <Ionicons name="chatbubble" size={18} color="#3B82F6" />
-                  <Text style={styles.actionBtnText}>Chat</Text>
+                  <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.accentBg }]}>
+                    <Ionicons name="chatbubble-ellipses" size={moderateScale(18)} color={COLORS.accent} />
+                  </View>
+                  <Text style={[styles.actionBtnText, { color: COLORS.accent }]}>Message</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#ECFDF5' }]}
+                  style={styles.actionBtn}
+                  activeOpacity={0.7}
                   onPress={() => {
                     if (driverInfo.phone) {
                       Linking.openURL(`tel:${driverInfo.phone}`);
@@ -391,8 +526,10 @@ export default function TrackingScreen({ route, navigation }: any) {
                     }
                   }}
                 >
-                  <Ionicons name="call" size={18} color="#10B981" />
-                  <Text style={[styles.actionBtnText, { color: '#10B981' }]}>Call</Text>
+                  <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.successBg }]}>
+                    <Ionicons name="call" size={moderateScale(18)} color={COLORS.success} />
+                  </View>
+                  <Text style={[styles.actionBtnText, { color: COLORS.success }]}>Call</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -400,8 +537,11 @@ export default function TrackingScreen({ route, navigation }: any) {
 
           {/* Route Details */}
           <View style={styles.routeCard}>
+            <Text style={styles.routeCardTitle}>Route Details</Text>
             <View style={styles.routeRow}>
-              <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+              <View style={styles.routeDotOuter}>
+                <View style={[styles.routeDot, { backgroundColor: COLORS.success }]} />
+              </View>
               <View style={styles.routeInfo}>
                 <Text style={styles.routeLabel}>Pickup</Text>
                 <Text style={styles.routeAddress} numberOfLines={2}>{pickupLabel}</Text>
@@ -411,7 +551,9 @@ export default function TrackingScreen({ route, navigation }: any) {
               <View style={styles.routeLine} />
             </View>
             <View style={styles.routeRow}>
-              <View style={[styles.routeDot, { backgroundColor: '#EF4444' }]} />
+              <View style={styles.routeDotOuter}>
+                <View style={[styles.routeDot, { backgroundColor: COLORS.primary }]} />
+              </View>
               <View style={styles.routeInfo}>
                 <Text style={styles.routeLabel}>Drop-off</Text>
                 <Text style={styles.routeAddress} numberOfLines={2}>{dropoffLabel}</Text>
@@ -423,22 +565,28 @@ export default function TrackingScreen({ route, navigation }: any) {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <Ionicons name="speedometer-outline" size={18} color="#6B7280" />
+                <View style={[styles.summaryIconCircle, { backgroundColor: COLORS.infoBg }]}>
+                  <Ionicons name="speedometer-outline" size={moderateScale(16)} color={COLORS.info} />
+                </View>
                 <Text style={styles.summaryLabel}>Distance</Text>
                 <Text style={styles.summaryValue}>{rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Ionicons name={paymentInfo.icon as any} size={18} color={paymentInfo.color} />
+                <View style={[styles.summaryIconCircle, { backgroundColor: `${paymentInfo.color}15` }]}>
+                  <Ionicons name={paymentInfo.icon as any} size={moderateScale(16)} color={paymentInfo.color} />
+                </View>
                 <Text style={styles.summaryLabel}>Payment</Text>
                 <Text style={[styles.summaryValue, { color: paymentInfo.color }]}>{paymentInfo.name}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Ionicons name="cash-outline" size={18} color="#10B981" />
-                <Text style={styles.summaryLabel}>{status === 'completed' ? 'Total Fare' : 'Est. Fare'}</Text>
-                <Text style={[styles.summaryValue, { color: '#10B981' }]}>
-                  ₱{Number(rideFare || 0).toFixed(0)}
+                <View style={[styles.summaryIconCircle, { backgroundColor: COLORS.successBg }]}>
+                  <Ionicons name="cash-outline" size={moderateScale(16)} color={COLORS.success} />
+                </View>
+                <Text style={styles.summaryLabel}>{status === 'completed' ? 'Total' : 'Estimated'}</Text>
+                <Text style={[styles.summaryValue, { color: COLORS.success, fontSize: RESPONSIVE.fontSize.large }]}>
+                  {'\u20B1'}{Number(rideFare || 0).toFixed(0)}
                 </Text>
               </View>
             </View>
@@ -450,12 +598,13 @@ export default function TrackingScreen({ route, navigation }: any) {
               style={styles.driverActionButton}
               onPress={handleUpdateStatus}
               disabled={updatingStatus}
+              activeOpacity={0.8}
             >
               {updatingStatus ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <>
-                  <Ionicons name={getNextDriverStatus()!.icon as any} size={20} color="#ffffff" />
+                  <Ionicons name={getNextDriverStatus()!.icon as any} size={moderateScale(20)} color={COLORS.white} />
                   <Text style={styles.driverActionButtonText}>{getNextDriverStatus()!.label}</Text>
                 </>
               )}
@@ -465,17 +614,26 @@ export default function TrackingScreen({ route, navigation }: any) {
           {/* Actions */}
           {status !== 'completed' && status !== 'cancelled' && !isDriver && (
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[
+                styles.cancelButton,
+                (status === 'in_progress' || status === 'picked_up') && styles.cancelButtonDisabled,
+              ]}
               onPress={handleCancel}
               disabled={cancelling || status === 'in_progress' || status === 'picked_up'}
+              activeOpacity={0.7}
             >
               {cancelling ? (
-                <ActivityIndicator color="#EF4444" />
+                <ActivityIndicator color={COLORS.error} />
               ) : status === 'in_progress' || status === 'picked_up' ? (
-                <Text style={[styles.cancelButtonText, { color: '#9CA3AF' }]}>Cannot cancel - {type === 'delivery' ? 'delivery' : 'ride'} in progress</Text>
+                <>
+                  <Ionicons name="lock-closed-outline" size={moderateScale(18)} color={COLORS.gray400} />
+                  <Text style={[styles.cancelButtonText, { color: COLORS.gray400 }]}>
+                    Cannot cancel - {type === 'delivery' ? 'delivery' : 'ride'} in progress
+                  </Text>
+                </>
               ) : (
                 <>
-                  <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+                  <Ionicons name="close-circle-outline" size={moderateScale(18)} color={COLORS.error} />
                   <Text style={styles.cancelButtonText}>Cancel {type === 'delivery' ? 'Delivery' : 'Ride'}</Text>
                 </>
               )}
@@ -488,16 +646,19 @@ export default function TrackingScreen({ route, navigation }: any) {
                 <TouchableOpacity
                   style={styles.rateButton}
                   onPress={() => setShowRating(true)}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="star" size={20} color="#FBBF24" />
+                  <Ionicons name="star" size={moderateScale(20)} color={COLORS.warningDark} />
                   <Text style={styles.rateButtonText}>Rate Your Rider</Text>
+                  <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.warningDark} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={styles.doneButton}
                 onPress={() => navigation.goBack()}
+                activeOpacity={0.8}
               >
-                <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                <Ionicons name="checkmark-circle" size={moderateScale(20)} color={COLORS.white} />
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -507,8 +668,9 @@ export default function TrackingScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.doneButton}
               onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
             >
-              <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+              <Ionicons name="checkmark-circle" size={moderateScale(20)} color={COLORS.white} />
               <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           )}
@@ -523,31 +685,70 @@ export default function TrackingScreen({ route, navigation }: any) {
       <Modal visible={showRating} animationType="slide" transparent>
         <View style={styles.ratingOverlay}>
           <View style={styles.ratingModal}>
-            <Text style={styles.ratingTitle}>Rate Your Rider</Text>
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.ratingCloseBtn}
+              onPress={() => { setShowRating(false); setHasRated(true); }}
+            >
+              <Ionicons name="close" size={moderateScale(22)} color={COLORS.gray500} />
+            </TouchableOpacity>
+
+            {/* Driver avatar in modal */}
             {!!driverInfo && (
-              <Text style={styles.ratingDriverName}>{driverInfo.name || 'Driver'}</Text>
+              <View style={styles.ratingDriverAvatar}>
+                {driverInfo.profile_image ? (
+                  <Image source={{ uri: driverInfo.profile_image }} style={styles.ratingDriverImage} />
+                ) : (
+                  <View style={[styles.ratingDriverImage, styles.ratingDriverImagePlaceholder]}>
+                    <Ionicons name="person" size={moderateScale(30)} color={COLORS.gray400} />
+                  </View>
+                )}
+              </View>
             )}
 
+            <Text style={styles.ratingTitle}>How was your trip?</Text>
+            {!!driverInfo && (
+              <Text style={styles.ratingDriverName}>with {driverInfo.name || 'Driver'}</Text>
+            )}
+
+            {/* Star rating with bounce animation */}
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={`star-${star}`} onPress={() => setRating(star)} style={styles.starButton}>
-                  <Ionicons
-                    name={star <= rating ? 'star' : 'star-outline'}
-                    size={40}
-                    color={star <= rating ? '#FBBF24' : '#D1D5DB'}
-                  />
+                <TouchableOpacity
+                  key={`star-${star}`}
+                  onPress={() => handleStarPress(star)}
+                  style={styles.starButton}
+                  activeOpacity={0.7}
+                >
+                  <Animated.View style={{ transform: [{ scale: starAnims[star - 1] }] }}>
+                    <Ionicons
+                      name={star <= rating ? 'star' : 'star-outline'}
+                      size={moderateScale(40)}
+                      color={star <= rating ? COLORS.warningDark : COLORS.gray300}
+                    />
+                  </Animated.View>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.ratingLabel}>
-              {rating === 5 ? 'Excellent!' : rating === 4 ? 'Great!' : rating === 3 ? 'Good' : rating === 2 ? 'Fair' : 'Poor'}
-            </Text>
+            {/* Rating label with color feedback */}
+            <View style={[
+              styles.ratingLabelBadge,
+              { backgroundColor: rating >= 4 ? COLORS.successBg : rating >= 3 ? COLORS.warningBg : COLORS.errorBg },
+            ]}>
+              <Text style={[
+                styles.ratingLabel,
+                { color: rating >= 4 ? COLORS.successDark : rating >= 3 ? COLORS.warningDark : COLORS.errorDark },
+              ]}>
+                {RATING_LABELS[rating - 1]}
+              </Text>
+            </View>
 
             {type !== 'delivery' && (
               <TextInput
                 style={styles.reviewInput}
-                placeholder="Leave a review (optional)"
+                placeholder="Share your experience (optional)"
+                placeholderTextColor={COLORS.gray400}
                 value={review}
                 onChangeText={setReview}
                 multiline
@@ -559,11 +760,15 @@ export default function TrackingScreen({ route, navigation }: any) {
               style={styles.submitRatingButton}
               onPress={handleSubmitRating}
               disabled={submittingRating}
+              activeOpacity={0.8}
             >
               {submittingRating ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
-                <Text style={styles.submitRatingText}>Submit Rating</Text>
+                <>
+                  <Ionicons name="star" size={moderateScale(18)} color={COLORS.white} />
+                  <Text style={styles.submitRatingText}>Submit Rating</Text>
+                </>
               )}
             </TouchableOpacity>
 
@@ -571,7 +776,7 @@ export default function TrackingScreen({ route, navigation }: any) {
               style={styles.skipRatingButton}
               onPress={() => { setShowRating(false); setHasRated(true); }}
             >
-              <Text style={styles.skipRatingText}>Skip</Text>
+              <Text style={styles.skipRatingText}>Maybe Later</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -583,7 +788,16 @@ export default function TrackingScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    gap: verticalScale(12),
+  },
+  loadingText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    color: COLORS.gray500,
+    fontWeight: '500',
   },
   map: {
     width,
@@ -593,89 +807,90 @@ const styles = StyleSheet.create({
     width: moderateScale(28),
     height: moderateScale(28),
     borderRadius: moderateScale(14),
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.success,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(4),
+    borderColor: COLORS.white,
+    ...SHADOWS.lg,
   },
   markerDropoff: {
     width: moderateScale(28),
     height: moderateScale(28),
     borderRadius: moderateScale(14),
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(4),
+    borderColor: COLORS.white,
+    ...SHADOWS.lg,
   },
   markerRider: {
     width: moderateScale(32),
     height: moderateScale(32),
     borderRadius: moderateScale(16),
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(5),
+    borderColor: COLORS.white,
+    ...SHADOWS.xl,
   },
-  backButton: {
+  // Top bar
+  topBar: {
     position: 'absolute',
     top: isIOS ? verticalScale(50) : verticalScale(35),
     left: RESPONSIVE.paddingHorizontal,
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
-    backgroundColor: '#ffffff',
+    right: RESPONSIVE.paddingHorizontal,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    gap: moderateScale(10),
+  },
+  topBarButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(3),
+    ...SHADOWS.md,
   },
+  // Bottom sheet
   bottomSheet: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: RESPONSIVE.borderRadius.xlarge,
     borderTopRightRadius: RESPONSIVE.borderRadius.xlarge,
     marginTop: moderateScale(-24),
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    paddingTop: verticalScale(10),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(-4) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(8),
-    elevation: moderateScale(10),
+    ...SHADOWS.xl,
   },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: verticalScale(10),
+  },
+  handle: {
+    width: moderateScale(40),
+    height: moderateScale(4),
+    borderRadius: moderateScale(2),
+    backgroundColor: COLORS.gray300,
+  },
+  // Status Banner
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(14),
-    marginTop: verticalScale(6),
     marginBottom: verticalScale(12),
   },
   statusIconCircle: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -685,121 +900,236 @@ const styles = StyleSheet.create({
   },
   statusTitle: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   statusDescription: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    fontSize: fontScale(13),
+    color: COLORS.gray500,
     marginTop: verticalScale(2),
+    lineHeight: fontScale(18),
   },
+  // ETA
   etaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.accentBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(12),
+    marginBottom: verticalScale(12),
+    gap: moderateScale(12),
+  },
+  etaIconBox: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(8),
-    gap: moderateScale(6),
   },
-  etaText: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+  etaLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
+  etaValue: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '800',
+    color: COLORS.accentDark,
+  },
+  // Cancelled
   cancelledContainer: {
     alignItems: 'center',
-    paddingVertical: verticalScale(16),
+    paddingVertical: verticalScale(24),
+    marginBottom: verticalScale(12),
+  },
+  cancelledIconCircle: {
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
+    backgroundColor: COLORS.error,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: verticalScale(12),
   },
   cancelledText: {
-    fontSize: RESPONSIVE.fontSize.regular,
-    color: '#EF4444',
-    fontWeight: '600',
-    marginTop: verticalScale(8),
+    fontSize: RESPONSIVE.fontSize.large,
+    color: COLORS.error,
+    fontWeight: '700',
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cancelledSubtext: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
+    marginTop: verticalScale(4),
+  },
+  // Vertical Timeline
+  timelineContainer: {
+    backgroundColor: COLORS.gray50,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
     marginBottom: verticalScale(12),
-    paddingHorizontal: moderateScale(8),
   },
-  progressStep: {
-    flex: 1,
+  timelineSectionTitle: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: COLORS.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: verticalScale(14),
+  },
+  timelineStep: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  progressDot: {
-    width: moderateScale(18),
-    height: moderateScale(18),
-    borderRadius: moderateScale(9),
-    backgroundColor: '#E5E7EB',
+  timelineDotColumn: {
     alignItems: 'center',
-    justifyContent: 'center',
+    width: moderateScale(28),
   },
-  progressDotCurrent: {
+  timelineDot: {
     width: moderateScale(22),
     height: moderateScale(22),
     borderRadius: moderateScale(11),
-    borderWidth: 3,
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.gray200,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressLine: {
+  timelineDotCompleted: {
+    backgroundColor: COLORS.success,
+  },
+  timelineDotCurrent: {
+    backgroundColor: COLORS.white,
+    borderWidth: moderateScale(3),
+  },
+  timelineDotUpcoming: {
+    backgroundColor: COLORS.gray200,
+  },
+  timelineDotInner: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+  },
+  timelineLineVertical: {
+    width: moderateScale(2),
+    height: verticalScale(24),
+    backgroundColor: COLORS.gray200,
+    marginVertical: verticalScale(2),
+  },
+  timelineLineCompleted: {
+    backgroundColor: COLORS.success,
+  },
+  timelineLabel: {
     flex: 1,
-    height: moderateScale(3),
-    backgroundColor: '#E5E7EB',
-    borderRadius: moderateScale(2),
+    marginLeft: moderateScale(12),
+    paddingBottom: verticalScale(8),
+    minHeight: moderateScale(28),
+    justifyContent: 'center',
   },
+  timelineLabelText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600',
+    color: COLORS.gray500,
+  },
+  timelineLabelCompleted: {
+    color: COLORS.success,
+  },
+  timelineLabelCurrent: {
+    fontWeight: '700',
+    fontSize: RESPONSIVE.fontSize.regular,
+  },
+  timelineLabelUpcoming: {
+    color: COLORS.gray400,
+  },
+  timelineLabelDesc: {
+    fontSize: fontScale(12),
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
+    lineHeight: fontScale(17),
+  },
+  // Driver Card
   driverCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(14),
+    padding: moderateScale(16),
     marginBottom: verticalScale(10),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.sm,
+  },
+  driverCardHeader: {
+    marginBottom: verticalScale(12),
+  },
+  driverCardTitle: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: COLORS.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   driverInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: verticalScale(10),
+    marginBottom: verticalScale(14),
   },
   driverPhoto: {
-    width: moderateScale(52),
-    height: moderateScale(52),
-    borderRadius: moderateScale(26),
-    borderWidth: 2,
-    borderColor: '#3B82F6',
+    width: moderateScale(56),
+    height: moderateScale(56),
+    borderRadius: moderateScale(28),
+    borderWidth: moderateScale(3),
+    borderColor: COLORS.accentLight,
+  },
+  driverPhotoPlaceholder: {
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: COLORS.gray200,
   },
   driverDetails: {
     flex: 1,
-    marginLeft: moderateScale(12),
+    marginLeft: moderateScale(14),
   },
   driverName: {
-    fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.gray900,
   },
   driverMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: verticalScale(3),
+    marginTop: verticalScale(4),
   },
-  driverRating: {
-    fontSize: RESPONSIVE.fontSize.small,
-    fontWeight: '600',
-    color: '#92400E',
-    marginLeft: moderateScale(4),
+  starsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(2),
   },
-  driverPlate: {
-    fontSize: RESPONSIVE.fontSize.small,
-    fontWeight: '600',
-    color: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: moderateScale(8),
-    paddingVertical: moderateScale(2),
-    borderRadius: moderateScale(4),
-    marginLeft: moderateScale(8),
-    overflow: 'hidden',
+  driverRatingNum: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: COLORS.warningDark,
+    marginLeft: moderateScale(6),
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(4),
+    gap: moderateScale(6),
   },
   driverVehicle: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
-    marginTop: verticalScale(2),
+    color: COLORS.gray500,
+  },
+  plateContainer: {
+    backgroundColor: COLORS.gray900,
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: verticalScale(6),
+    borderRadius: moderateScale(6),
+  },
+  plateText: {
+    fontSize: fontScale(12),
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 1,
   },
   driverActions: {
     flexDirection: 'row',
@@ -810,31 +1140,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.small,
-    paddingVertical: moderateScale(10),
-    gap: moderateScale(6),
+    paddingVertical: moderateScale(12),
+    gap: moderateScale(8),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  actionBtnIcon: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtnText: {
     fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    color: '#3B82F6',
   },
+  // Route Card
   routeCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: RESPONSIVE.paddingHorizontal,
     marginBottom: verticalScale(10),
+  },
+  routeCardTitle: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: COLORS.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: verticalScale(12),
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+  routeDotOuter: {
+    width: moderateScale(20),
+    height: moderateScale(20),
+    borderRadius: moderateScale(10),
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: verticalScale(4),
+    ...SHADOWS.sm,
+  },
   routeDot: {
     width: moderateScale(10),
     height: moderateScale(10),
     borderRadius: moderateScale(5),
-    marginTop: verticalScale(5),
   },
   routeInfo: {
     flex: 1,
@@ -843,30 +1199,31 @@ const styles = StyleSheet.create({
   routeLabel: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: COLORS.gray400,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   routeAddress: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#1F2937',
+    color: COLORS.gray800,
     fontWeight: '500',
     marginTop: verticalScale(2),
   },
   routeConnector: {
-    paddingLeft: moderateScale(4),
-    paddingVertical: moderateScale(2),
+    paddingLeft: moderateScale(9),
+    paddingVertical: moderateScale(1),
   },
   routeLine: {
-    width: 2,
-    height: verticalScale(18),
-    backgroundColor: '#D1D5DB',
+    width: moderateScale(2),
+    height: verticalScale(20),
+    backgroundColor: COLORS.gray300,
     marginVertical: verticalScale(2),
   },
+  // Summary Card
   summaryCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     marginBottom: verticalScale(12),
   },
   summaryRow: {
@@ -877,152 +1234,208 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  summaryIconCircle: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(6),
+  },
   summaryLabel: {
-    fontSize: fontScale(11),
-    color: '#6B7280',
-    marginTop: verticalScale(5),
+    fontSize: fontScale(10),
+    color: COLORS.gray500,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   summaryValue: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '800',
+    color: COLORS.gray900,
     marginTop: verticalScale(2),
   },
   summaryDivider: {
     width: 1,
-    height: moderateScale(40),
-    backgroundColor: '#E5E7EB',
+    height: moderateScale(50),
+    backgroundColor: COLORS.gray200,
   },
+  // Action Buttons
   cancelButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.errorBg,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(14),
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: COLORS.errorLight,
     gap: moderateScale(8),
+  },
+  cancelButtonDisabled: {
+    backgroundColor: COLORS.gray100,
+    borderColor: COLORS.gray200,
   },
   cancelButtonText: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
-    color: '#EF4444',
+    color: COLORS.error,
   },
   driverActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.success,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     marginBottom: verticalScale(8),
     gap: moderateScale(8),
+    ...SHADOWS.colored(COLORS.success),
   },
   driverActionButtonText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '800',
+    color: COLORS.white,
   },
   doneButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.success,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     gap: moderateScale(8),
+    ...SHADOWS.colored(COLORS.success),
   },
   doneButtonText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '800',
+    color: COLORS.white,
   },
   rateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: COLORS.warningBg,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     marginBottom: verticalScale(8),
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: COLORS.warningLight,
     gap: moderateScale(8),
   },
   rateButtonText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#92400E',
+    fontWeight: '700',
+    color: COLORS.warningDark,
+    flex: 1,
   },
+  // Rating Modal
   ratingOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   ratingModal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: RESPONSIVE.borderRadius.xlarge,
     borderTopRightRadius: RESPONSIVE.borderRadius.xlarge,
     padding: moderateScale(24),
-    paddingBottom: verticalScale(36),
+    paddingBottom: verticalScale(40),
     alignItems: 'center',
+  },
+  ratingCloseBtn: {
+    position: 'absolute',
+    top: moderateScale(16),
+    right: moderateScale(16),
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingDriverAvatar: {
+    marginBottom: verticalScale(12),
+    ...SHADOWS.md,
+  },
+  ratingDriverImage: {
+    width: moderateScale(72),
+    height: moderateScale(72),
+    borderRadius: moderateScale(36),
+    borderWidth: moderateScale(3),
+    borderColor: COLORS.accentLight,
+  },
+  ratingDriverImagePlaceholder: {
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: COLORS.gray200,
   },
   ratingTitle: {
     fontSize: RESPONSIVE.fontSize.xxlarge,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '800',
+    color: COLORS.gray900,
     marginBottom: verticalScale(3),
   },
   ratingDriverName: {
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
-    marginBottom: verticalScale(16),
+    color: COLORS.gray500,
+    marginBottom: verticalScale(20),
   },
   starsRow: {
     flexDirection: 'row',
-    marginBottom: verticalScale(6),
+    marginBottom: verticalScale(8),
   },
   starButton: {
     paddingHorizontal: moderateScale(6),
   },
+  ratingLabelBadge: {
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: verticalScale(6),
+    borderRadius: moderateScale(20),
+    marginBottom: verticalScale(16),
+  },
   ratingLabel: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: verticalScale(12),
+    fontWeight: '700',
   },
   reviewInput: {
     width: '100%',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(14),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.gray200,
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#1F2937',
+    color: COLORS.gray800,
     textAlignVertical: 'top',
-    marginBottom: verticalScale(12),
-    minHeight: verticalScale(70),
+    marginBottom: verticalScale(16),
+    minHeight: verticalScale(80),
   },
   submitRatingButton: {
     width: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: moderateScale(8),
     marginBottom: verticalScale(8),
+    ...SHADOWS.colored(COLORS.accent),
   },
   submitRatingText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: COLORS.white,
   },
   skipRatingButton: {
-    padding: moderateScale(10),
+    padding: moderateScale(12),
   },
   skipRatingText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
+    color: COLORS.gray400,
+    fontWeight: '500',
   },
 });

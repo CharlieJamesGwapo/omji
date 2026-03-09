@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../services/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 interface Notification {
@@ -19,6 +20,11 @@ interface Notification {
   type: string;
   read: boolean;
   created_at: string;
+}
+
+interface NotificationGroup {
+  title: string;
+  data: Notification[];
 }
 
 export default function NotificationsScreen({ navigation }: any) {
@@ -61,21 +67,49 @@ export default function NotificationsScreen({ navigation }: any) {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'ride':
-      case 'ride_request': return { icon: 'navigate-circle', color: '#10B981' };
-      case 'delivery':
-      case 'delivery_request': return { icon: 'cube', color: '#3B82F6' };
-      case 'order':
-      case 'order_update': return { icon: 'storefront', color: '#EF4444' };
-      case 'promo': return { icon: 'pricetag', color: '#F59E0B' };
-      case 'wallet': return { icon: 'wallet', color: '#8B5CF6' };
-      default: return { icon: 'notifications', color: '#6B7280' };
+  const handleMarkAllRead = async () => {
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+    const prev = [...notifications];
+    setNotifications(ns => ns.map(n => ({ ...n, read: true })));
+    try {
+      await Promise.allSettled(unreadIds.map(id => notificationService.markAsRead(id)));
+    } catch {
+      setNotifications(prev);
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+
+  const getNotificationConfig = (type: string) => {
+    switch (type) {
+      case 'ride':
+      case 'ride_request': return { icon: 'navigate-circle', color: COLORS.success, bg: COLORS.successBg, borderColor: COLORS.success };
+      case 'delivery':
+      case 'delivery_request': return { icon: 'cube', color: COLORS.accent, bg: COLORS.accentBg, borderColor: COLORS.accent };
+      case 'order':
+      case 'order_update': return { icon: 'storefront', color: COLORS.primary, bg: COLORS.primaryBg, borderColor: COLORS.primary };
+      case 'promo': return { icon: 'pricetag', color: COLORS.warning, bg: COLORS.warningBg, borderColor: COLORS.warning };
+      case 'wallet': return { icon: 'wallet', color: COLORS.info, bg: COLORS.infoBg, borderColor: COLORS.info };
+      default: return { icon: 'notifications', color: COLORS.gray500, bg: COLORS.gray100, borderColor: COLORS.gray400 };
+    }
+  };
+
+  const getDateGroup = (dateStr: string): string => {
+    if (!dateStr) return 'Earlier';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    if (notifDate.getTime() === today.getTime()) return 'Today';
+    if (notifDate.getTime() === yesterday.getTime()) return 'Yesterday';
+    return 'Earlier';
+  };
+
+  const formatTime = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     const now = new Date();
@@ -88,35 +122,72 @@ export default function NotificationsScreen({ navigation }: any) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => {
-    const iconData = getNotificationIcon(item.type);
+  const groupedNotifications = useMemo(() => {
+    const groups: Record<string, Notification[]> = { 'Today': [], 'Yesterday': [], 'Earlier': [] };
+    notifications.forEach(n => {
+      const group = getDateGroup(n.created_at);
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(n);
+    });
+    const result: NotificationGroup[] = [];
+    if (groups['Today'].length > 0) result.push({ title: 'Today', data: groups['Today'] });
+    if (groups['Yesterday'].length > 0) result.push({ title: 'Yesterday', data: groups['Yesterday'] });
+    if (groups['Earlier'].length > 0) result.push({ title: 'Earlier', data: groups['Earlier'] });
+    return result;
+  }, [notifications]);
+
+  const renderNotification = (item: Notification) => {
+    const config = getNotificationConfig(item.type);
     return (
       <TouchableOpacity
-        style={[styles.notificationCard, !item.read && styles.unreadCard]}
+        key={item.id}
+        style={[
+          styles.notificationCard,
+          !item.read && { borderLeftWidth: moderateScale(3), borderLeftColor: config.borderColor },
+        ]}
         onPress={() => handleMarkRead(item.id)}
         activeOpacity={0.7}
       >
-        <View style={[styles.iconContainer, { backgroundColor: `${iconData.color}15` }]}>
-          <Ionicons name={iconData.icon as any} size={24} color={iconData.color} />
+        <View style={[styles.iconContainer, { backgroundColor: config.bg }]}>
+          <Ionicons name={config.icon as any} size={moderateScale(22)} color={config.color} />
         </View>
         <View style={styles.contentContainer}>
           <View style={styles.titleRow}>
             <Text style={[styles.title, !item.read && styles.unreadTitle]} numberOfLines={1}>
               {item.title}
             </Text>
-            {!item.read && <View style={styles.unreadDot} />}
+            {!item.read && (
+              <View style={[styles.unreadDot, { backgroundColor: config.color }]} />
+            )}
           </View>
-          <Text style={styles.message} numberOfLines={2}>{item.body}</Text>
-          <Text style={styles.time}>{formatDate(item.created_at)}</Text>
+          <Text style={[styles.message, !item.read && styles.unreadMessage]} numberOfLines={2}>{item.body}</Text>
+          <View style={styles.timeRow}>
+            <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.gray400} />
+            <Text style={styles.time}>{formatTime(item.created_at)}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
   };
 
+  const renderGroupedList = () => {
+    if (groupedNotifications.length === 0) return null;
+    return groupedNotifications.map(group => (
+      <View key={group.title}>
+        <View style={styles.groupHeader}>
+          <View style={styles.groupHeaderLine} />
+          <Text style={styles.groupHeaderText}>{group.title}</Text>
+          <View style={styles.groupHeaderLine} />
+        </View>
+        {group.data.map(item => renderNotification(item))}
+      </View>
+    ));
+  };
+
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
@@ -124,27 +195,59 @@ export default function NotificationsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.headerBackBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh-outline" size={24} color="#1F2937" />
-        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          {unreadCount > 0 && (
+            <View style={styles.unreadCountBadge}>
+              <Text style={styles.unreadCountText}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
+        {unreadCount > 0 ? (
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
+            <Ionicons name="checkmark-done" size={moderateScale(18)} color={COLORS.accent} />
+            <Text style={styles.markAllText}>Read all</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onRefresh}>
+            <Ionicons name="refresh-outline" size={moderateScale(22)} color={COLORS.gray800} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
-        data={notifications}
-        renderItem={renderNotification}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No notifications</Text>
-            <Text style={styles.emptySubtext}>You're all caught up!</Text>
+        data={[1]}
+        renderItem={() => (
+          <View>
+            {notifications.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="notifications-off-outline" size={moderateScale(56)} color={COLORS.gray300} />
+                </View>
+                <Text style={styles.emptyTitle}>No Notifications</Text>
+                <Text style={styles.emptySubtext}>
+                  When you receive notifications about your rides, deliveries, or orders, they will appear here.
+                </Text>
+                <TouchableOpacity style={styles.emptyButton} onPress={onRefresh}>
+                  <Ionicons name="refresh-outline" size={moderateScale(18)} color={COLORS.accent} />
+                  <Text style={styles.emptyButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              renderGroupedList()
+            )}
           </View>
+        )}
+        keyExtractor={() => 'notifications'}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.accent]} tintColor={COLORS.accent} />
         }
       />
     </View>
@@ -154,48 +257,105 @@ export default function NotificationsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: verticalScale(16),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.gray200,
+  },
+  headerBackBtn: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: moderateScale(12),
+    gap: moderateScale(8),
   },
   headerTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
+  },
+  unreadCountBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(22),
+    height: moderateScale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: moderateScale(6),
+  },
+  unreadCountText: {
+    fontSize: fontScale(11),
+    fontWeight: 'bold',
+    color: COLORS.white,
+  },
+  markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accentBg,
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(6),
+    borderRadius: RESPONSIVE.borderRadius.small,
+    gap: moderateScale(4),
+  },
+  markAllText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.accent,
   },
   listContent: {
     padding: RESPONSIVE.paddingHorizontal,
     paddingBottom: verticalScale(100),
   },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(12),
+  },
+  groupHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.gray200,
+  },
+  groupHeaderText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '700',
+    color: COLORS.gray500,
+    paddingHorizontal: moderateScale(12),
+    textTransform: 'uppercase',
+    letterSpacing: moderateScale(0.8),
+  },
   notificationCard: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
-  },
-  unreadCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
+    padding: moderateScale(14),
+    marginBottom: verticalScale(10),
+    ...SHADOWS.sm,
   },
   iconContainer: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: moderateScale(12),
@@ -211,43 +371,78 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: '500',
+    color: COLORS.gray700,
   },
   unreadTitle: {
     fontWeight: 'bold',
+    color: COLORS.gray900,
   },
   unreadDot: {
     width: moderateScale(8),
     height: moderateScale(8),
     borderRadius: moderateScale(4),
-    backgroundColor: '#3B82F6',
     marginLeft: moderateScale(8),
   },
   message: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
     lineHeight: fontScale(20),
     marginBottom: verticalScale(6),
   },
+  unreadMessage: {
+    color: COLORS.gray600,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+  },
   time: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#9CA3AF',
+    color: COLORS.gray400,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: verticalScale(80),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
-  emptyText: {
-    fontSize: RESPONSIVE.fontSize.large,
+  emptyIconWrap: {
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(20),
+  },
+  emptyTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#6B7280',
-    marginTop: verticalScale(16),
+    color: COLORS.gray800,
+    marginBottom: verticalScale(8),
   },
   emptySubtext: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#9CA3AF',
-    marginTop: verticalScale(8),
+    color: COLORS.gray500,
+    textAlign: 'center',
+    lineHeight: fontScale(22),
+    marginBottom: verticalScale(24),
+    maxWidth: moderateScale(280),
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accentBg,
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(10),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    gap: moderateScale(8),
+  },
+  emptyButtonText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '600',
+    color: COLORS.accent,
   },
 });

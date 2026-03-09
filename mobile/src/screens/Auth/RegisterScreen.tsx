@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,35 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, isTablet } from '../../utils/responsive';
+import { COLORS } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
+
+type PasswordStrength = 'none' | 'weak' | 'medium' | 'strong';
+
+const getPasswordStrength = (password: string): PasswordStrength => {
+  if (!password) return 'none';
+  let score = 0;
+  if (password.length >= 6) score++;
+  if (password.length >= 10) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  if (score <= 1) return 'weak';
+  if (score <= 3) return 'medium';
+  return 'strong';
+};
+
+const STRENGTH_CONFIG: Record<PasswordStrength, { label: string; color: string; width: string }> = {
+  none: { label: '', color: COLORS.gray200, width: '0%' },
+  weak: { label: 'Weak', color: COLORS.error, width: '33%' },
+  medium: { label: 'Medium', color: COLORS.warning, width: '66%' },
+  strong: { label: 'Strong', color: COLORS.success, width: '100%' },
+};
 
 export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState('');
@@ -27,6 +51,8 @@ export default function RegisterScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const { register } = useAuth();
 
   // Toast state
@@ -36,6 +62,7 @@ export default function RegisterScreen({ navigation }: any) {
 
   // Shake animation
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const successScaleAnim = useRef(new Animated.Value(0)).current;
   const shake = () => {
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
@@ -45,6 +72,9 @@ export default function RegisterScreen({ navigation }: any) {
       Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
     ]).start();
   };
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+  const strengthConfig = STRENGTH_CONFIG[passwordStrength];
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -57,6 +87,7 @@ export default function RegisterScreen({ navigation }: any) {
     else if (password.length < 6) errors.password = 'Password must be at least 6 characters';
     if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
     else if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
+    if (!agreedToTerms) errors.terms = 'You must agree to the Terms & Privacy Policy';
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -71,7 +102,15 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
     try {
       await register(name, email, phone, password);
-      showToast('Account created successfully!', 'success');
+      // Show success visual feedback
+      setRegistrationSuccess(true);
+      Animated.spring(successScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 8,
+      }).start();
+      showToast('Account created successfully! Welcome to OMJI!', 'success');
     } catch (error: any) {
       shake();
       const msg = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
@@ -103,11 +142,11 @@ export default function RegisterScreen({ navigation }: any) {
             hasError && styles.inputError,
           ]}
         >
-          <Ionicons name={icon as any} size={20} color={hasError ? '#EF4444' : isFocused ? '#3B82F6' : '#9CA3AF'} />
+          <Ionicons name={icon as any} size={20} color={hasError ? COLORS.error : isFocused ? COLORS.accent : COLORS.gray400} />
           <TextInput
             style={styles.input}
             placeholder={placeholder}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={COLORS.gray400}
             value={value}
             onChangeText={(t) => {
               onChangeText(t);
@@ -121,13 +160,13 @@ export default function RegisterScreen({ navigation }: any) {
           />
           {options?.secure && (
             <TouchableOpacity onPress={toggleVisibility}>
-              <Ionicons name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#9CA3AF" />
+              <Ionicons name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.gray400} />
             </TouchableOpacity>
           )}
         </View>
         {hasError && (
           <View style={styles.errorRow}>
-            <Ionicons name="alert-circle" size={14} color="#EF4444" />
+            <Ionicons name="alert-circle" size={14} color={COLORS.error} />
             <Text style={styles.errorText}>{fieldErrors[fieldKey]}</Text>
           </View>
         )}
@@ -147,41 +186,112 @@ export default function RegisterScreen({ navigation }: any) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Account</Text>
         </View>
 
-        {/* Form */}
-        <Animated.View style={[styles.formContainer, { transform: [{ translateX: shakeAnim }] }]}>
-          <Text style={styles.welcomeText}>Join OMJI Today!</Text>
-          <Text style={styles.subtitleText}>Get access to all services in Balingasag</Text>
+        {/* Success Overlay */}
+        {registrationSuccess ? (
+          <Animated.View style={[styles.successContainer, { transform: [{ scale: successScaleAnim }] }]}>
+            <View style={styles.successIconWrapper}>
+              <Ionicons name="checkmark-circle" size={moderateScale(72)} color={COLORS.success} />
+            </View>
+            <Text style={styles.successTitle}>Welcome to OMJI!</Text>
+            <Text style={styles.successSubtitle}>Your account has been created successfully. You are now being logged in...</Text>
+          </Animated.View>
+        ) : (
+          /* Form */
+          <Animated.View style={[styles.formContainer, { transform: [{ translateX: shakeAnim }] }]}>
+            <Text style={styles.welcomeText}>Join OMJI Today!</Text>
+            <Text style={styles.subtitleText}>Get access to all services in Balingasag</Text>
 
-          {renderInput('person-outline', 'Full Name', name, setName, 'name', { autoCapitalize: 'words' })}
-          {renderInput('mail-outline', 'Email Address', email, setEmail, 'email', { keyboard: 'email-address' })}
-          {renderInput('phone-portrait-outline', 'Phone Number', phone, setPhone, 'phone', { keyboard: 'phone-pad' })}
-          {renderInput('lock-closed-outline', 'Password', password, setPassword, 'password', { secure: true })}
-          {renderInput('lock-closed-outline', 'Confirm Password', confirmPassword, setConfirmPassword, 'confirmPassword', { secure: true })}
+            {renderInput('person-outline', 'Full Name', name, setName, 'name', { autoCapitalize: 'words' })}
+            {renderInput('mail-outline', 'Email Address', email, setEmail, 'email', { keyboard: 'email-address' })}
+            {renderInput('phone-portrait-outline', 'Phone Number', phone, setPhone, 'phone', { keyboard: 'phone-pad' })}
+            {renderInput('lock-closed-outline', 'Password', password, setPassword, 'password', { secure: true })}
 
-          {/* Register Button */}
-          <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.registerButtonText}>Create Account</Text>
+            {/* Password Strength Indicator */}
+            {password.length > 0 && (
+              <View style={styles.strengthContainer}>
+                <View style={styles.strengthBarBg}>
+                  <View
+                    style={[
+                      styles.strengthBarFill,
+                      { width: strengthConfig.width as any, backgroundColor: strengthConfig.color },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.strengthLabel, { color: strengthConfig.color }]}>
+                  {strengthConfig.label}
+                </Text>
+              </View>
             )}
-          </TouchableOpacity>
 
-          {/* Login Link */}
-          <TouchableOpacity style={styles.loginContainer} onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <Text style={styles.loginLink}>Login</Text>
-          </TouchableOpacity>
-        </Animated.View>
+            {renderInput('lock-closed-outline', 'Confirm Password', confirmPassword, setConfirmPassword, 'confirmPassword', { secure: true })}
+
+            {/* Terms & Privacy Checkbox */}
+            <TouchableOpacity
+              style={styles.termsRow}
+              onPress={() => {
+                setAgreedToTerms(!agreedToTerms);
+                if (fieldErrors.terms) setFieldErrors(prev => { const n = { ...prev }; delete n.terms; return n; });
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[
+                styles.checkbox,
+                agreedToTerms && styles.checkboxChecked,
+                fieldErrors.terms ? styles.checkboxError : null,
+              ]}>
+                {agreedToTerms && (
+                  <Ionicons name="checkmark" size={moderateScale(14)} color={COLORS.white} />
+                )}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://omji.app/terms')}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://omji.app/privacy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+            {fieldErrors.terms && (
+              <View style={[styles.errorRow, { marginTop: verticalScale(-4), marginBottom: verticalScale(8) }]}>
+                <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                <Text style={styles.errorText}>{fieldErrors.terms}</Text>
+              </View>
+            )}
+
+            {/* Register Button */}
+            <TouchableOpacity
+              style={[styles.registerButton, (loading || !agreedToTerms) && styles.registerButtonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.registerButtonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Login Link */}
+            <TouchableOpacity style={styles.loginContainer} onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={styles.loginLink}>Login</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </ScrollView>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
@@ -190,32 +300,138 @@ export default function RegisterScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: COLORS.gray50 },
   scrollContent: { flexGrow: 1, padding: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35) },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(28) },
   backButton: { marginRight: moderateScale(16) },
-  headerTitle: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937' },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: COLORS.gray800 },
   formContainer: {
-    backgroundColor: '#ffffff', borderRadius: moderateScale(20), padding: RESPONSIVE.paddingHorizontal,
-    shadowColor: '#000', shadowOffset: { width: 0, height: verticalScale(2) }, shadowOpacity: 0.1, shadowRadius: moderateScale(8), elevation: moderateScale(4),
+    backgroundColor: COLORS.white, borderRadius: moderateScale(20), padding: RESPONSIVE.paddingHorizontal,
+    shadowColor: COLORS.black, shadowOffset: { width: 0, height: verticalScale(2) }, shadowOpacity: 0.1, shadowRadius: moderateScale(8), elevation: moderateScale(4),
   },
-  welcomeText: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937', marginBottom: verticalScale(8), textAlign: 'center' },
-  subtitleText: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280', marginBottom: verticalScale(20), textAlign: 'center' },
+  welcomeText: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: COLORS.gray800, marginBottom: verticalScale(8), textAlign: 'center' },
+  subtitleText: { fontSize: RESPONSIVE.fontSize.medium, color: COLORS.gray500, marginBottom: verticalScale(20), textAlign: 'center' },
   inputContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6',
-    borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(12), borderWidth: 1.5, borderColor: '#E5E7EB',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.gray100,
+    borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(12), borderWidth: 1.5, borderColor: COLORS.gray200,
   },
-  inputFocused: { borderColor: '#3B82F6', backgroundColor: '#F8FAFF' },
-  inputError: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },
+  inputFocused: { borderColor: COLORS.accent, backgroundColor: '#F8FAFF' },
+  inputError: { borderColor: COLORS.error, backgroundColor: COLORS.errorBg },
+  input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: COLORS.gray800 },
   errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(4), marginLeft: moderateScale(4) },
-  errorText: { fontSize: RESPONSIVE.fontSize.small, color: '#EF4444', marginLeft: moderateScale(4) },
+  errorText: { fontSize: RESPONSIVE.fontSize.small, color: COLORS.error, marginLeft: moderateScale(4) },
+
+  // Password strength indicator
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(-8),
+    marginBottom: verticalScale(10),
+    paddingHorizontal: moderateScale(4),
+  },
+  strengthBarBg: {
+    flex: 1,
+    height: moderateScale(4),
+    backgroundColor: COLORS.gray200,
+    borderRadius: moderateScale(2),
+    overflow: 'hidden',
+    marginRight: moderateScale(10),
+  },
+  strengthBarFill: {
+    height: '100%',
+    borderRadius: moderateScale(2),
+  },
+  strengthLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    minWidth: moderateScale(52),
+    textAlign: 'right',
+  },
+
+  // Terms & Privacy
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: verticalScale(16),
+    paddingHorizontal: moderateScale(2),
+  },
+  checkbox: {
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(6),
+    borderWidth: 2,
+    borderColor: COLORS.gray300,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(10),
+    marginTop: verticalScale(1),
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  checkboxError: {
+    borderColor: COLORS.error,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray600,
+    lineHeight: fontScale(18),
+  },
+  termsLink: {
+    color: COLORS.accent,
+    fontWeight: '600',
+  },
+
+  // Success state
+  successContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(20),
+    padding: RESPONSIVE.paddingHorizontal,
+    alignItems: 'center',
+    paddingVertical: verticalScale(48),
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: verticalScale(2) },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(4),
+  },
+  successIconWrapper: {
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: COLORS.successBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(20),
+  },
+  successTitle: {
+    fontSize: RESPONSIVE.fontSize.xxlarge,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(8),
+  },
+  successSubtitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    lineHeight: fontScale(20),
+    paddingHorizontal: moderateScale(16),
+  },
+
   registerButton: {
-    backgroundColor: '#3B82F6', borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(16), alignItems: 'center', marginTop: verticalScale(8), marginBottom: verticalScale(12),
+    backgroundColor: COLORS.accent, borderRadius: RESPONSIVE.borderRadius.medium, paddingVertical: moderateScale(16), alignItems: 'center', marginTop: verticalScale(8), marginBottom: verticalScale(12),
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: verticalScale(3) },
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(6),
+    elevation: moderateScale(4),
   },
   registerButtonDisabled: { opacity: 0.6 },
-  registerButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold' },
+  registerButtonText: { color: COLORS.white, fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold' },
   loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8) },
-  loginText: { color: '#6B7280', fontSize: RESPONSIVE.fontSize.medium },
-  loginLink: { color: '#3B82F6', fontSize: RESPONSIVE.fontSize.medium, fontWeight: 'bold' },
+  loginText: { color: COLORS.gray500, fontSize: RESPONSIVE.fontSize.medium },
+  loginLink: { color: COLORS.accent, fontSize: RESPONSIVE.fontSize.medium, fontWeight: 'bold' },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
+import { COLORS, SHADOWS, STATUS_CONFIG, formatStatus, getStatusColor, getStatusBg } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 interface RideItem {
@@ -31,6 +32,12 @@ interface RideItem {
   _type?: string;
   _key?: string;
 }
+
+const SERVICE_CONFIG: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  ride: { label: 'Pasundo Ride', icon: 'navigate-circle', color: COLORS.pasundo, bg: COLORS.pasundoBg },
+  delivery: { label: 'Pasugo Delivery', icon: 'cube', color: COLORS.pasugo, bg: COLORS.pasugoBg },
+  order: { label: 'Store Order', icon: 'storefront', color: COLORS.store, bg: COLORS.storeBg },
+};
 
 export default function RideHistoryScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
@@ -83,13 +90,6 @@ export default function RideHistoryScreen({ navigation }: any) {
     fetchRides();
   }, [fetchRides]);
 
-  const filterOptions = [
-    { id: 'all', label: 'All' },
-    { id: 'completed', label: 'Completed' },
-    { id: 'pending', label: 'Pending' },
-    { id: 'cancelled', label: 'Cancelled' },
-  ];
-
   const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'preparing'];
   const filteredRides =
     filterType === 'all'
@@ -99,7 +99,22 @@ export default function RideHistoryScreen({ navigation }: any) {
         : rides.filter((ride) => ride.status === filterType);
 
   const totalRides = rides.length;
+  const completedRides = rides.filter(r => r.status === 'completed' || r.status === 'delivered').length;
   const totalSpent = rides.reduce((sum, ride) => sum + (ride.final_fare || ride.estimated_fare || 0), 0);
+
+  const filterCounts = useMemo(() => ({
+    all: rides.length,
+    completed: rides.filter(r => r.status === 'completed' || r.status === 'delivered').length,
+    pending: rides.filter(r => ongoingStatuses.includes(r.status)).length,
+    cancelled: rides.filter(r => r.status === 'cancelled').length,
+  }), [rides]);
+
+  const filterOptions = [
+    { id: 'all', label: 'All', icon: 'list' },
+    { id: 'completed', label: 'Completed', icon: 'checkmark-circle' },
+    { id: 'pending', label: 'Active', icon: 'time' },
+    { id: 'cancelled', label: 'Cancelled', icon: 'close-circle' },
+  ];
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -107,25 +122,6 @@ export default function RideHistoryScreen({ navigation }: any) {
       await fetchRides();
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#10B981';
-      case 'pending': return '#F59E0B';
-      case 'in_progress': return '#3B82F6';
-      case 'cancelled': return '#EF4444';
-      default: return '#6B7280';
-    }
-  };
-
-  const getServiceIcon = (vehicleType: string) => {
-    switch (vehicleType) {
-      case 'motorcycle': return 'navigate-circle';
-      case 'car': return 'car';
-      case 'order': return 'storefront';
-      default: return 'navigate-circle';
     }
   };
 
@@ -138,8 +134,8 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
@@ -148,152 +144,198 @@ export default function RideHistoryScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.headerBackBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ride History</Text>
+        <Text style={styles.headerTitle}>Activity History</Text>
         <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh-outline" size={24} color="#1F2937" />
+          <Ionicons name="refresh-outline" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.accent]} tintColor={COLORS.accent} />
         }
       >
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Ionicons name="bicycle" size={24} color="#3B82F6" />
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.accentBg }]}>
+              <Ionicons name="bicycle" size={moderateScale(20)} color={COLORS.accent} />
+            </View>
             <Text style={styles.statValue}>{totalRides}</Text>
-            <Text style={styles.statLabel}>Total Rides</Text>
+            <Text style={styles.statLabel}>Total Trips</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="cash" size={24} color="#10B981" />
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.successBg }]}>
+              <Ionicons name="checkmark-done" size={moderateScale(20)} color={COLORS.success} />
+            </View>
+            <Text style={styles.statValue}>{completedRides}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.warningBg }]}>
+              <Ionicons name="cash" size={moderateScale(20)} color={COLORS.warning} />
+            </View>
             <Text style={styles.statValue}>₱{totalSpent.toFixed(0)}</Text>
             <Text style={styles.statLabel}>Total Spent</Text>
           </View>
         </View>
 
-        {/* Filters */}
+        {/* Filter Tabs */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filtersContainer}
           contentContainerStyle={styles.filtersContent}
         >
-          {filterOptions.map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.filterChip,
-                filterType === option.id && styles.filterChipActive,
-              ]}
-              onPress={() => setFilterType(option.id)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  filterType === option.id && styles.filterTextActive,
-                ]}
+          {filterOptions.map((option) => {
+            const count = filterCounts[option.id as keyof typeof filterCounts];
+            const isActive = filterType === option.id;
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                onPress={() => setFilterType(option.id)}
+                activeOpacity={0.7}
               >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons
+                  name={option.icon as any}
+                  size={moderateScale(14)}
+                  color={isActive ? COLORS.white : COLORS.gray500}
+                />
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {option.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[styles.filterCountBadge, isActive && styles.filterCountBadgeActive]}>
+                    <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Ride History List */}
         <View style={styles.historySection}>
-          {filteredRides.map((ride) => (
-            <TouchableOpacity
-              key={ride._key || ride.id}
-              style={styles.rideCard}
-              onPress={() => {
-                if (ride._type === 'order') {
-                  Alert.alert(
-                    'Store Order',
-                    `Store: ${ride.pickup || ride.pickup_location || 'Store'}\nDelivery: ${ride.dropoff || ride.dropoff_location || 'N/A'}\nTotal: ₱${(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}\nStatus: ${ride.status.replace(/_/g, ' ')}`,
-                  );
-                } else {
-                  navigation.navigate('Tracking', {
-                    type: ride._type === 'delivery' ? 'delivery' : 'ride',
-                    rideId: ride.id,
-                    pickup: ride.pickup || ride.pickup_location || '',
-                    dropoff: ride.dropoff || ride.dropoff_location || '',
-                    fare: ride.final_fare || ride.estimated_fare,
-                  });
-                }
-              }}
-            >
-              <View style={styles.rideHeader}>
-                <View
-                  style={[styles.rideIcon, { backgroundColor: `${getStatusColor(ride.status)}20` }]}
-                >
-                  <Ionicons
-                    name={getServiceIcon(ride.vehicle_type) as any}
-                    size={24}
-                    color={getStatusColor(ride.status)}
-                  />
-                </View>
-                <View style={styles.rideHeaderInfo}>
-                  <Text style={styles.rideService}>{ride._type === 'order' ? 'Store Order' : ride._type === 'delivery' ? 'Pasugo Delivery' : 'Pasundo Ride'}</Text>
-                  <Text style={styles.rideDate}>{formatDate(ride.created_at)}</Text>
-                </View>
-                <Text style={styles.rideFare}>₱{(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}</Text>
-              </View>
+          {filteredRides.map((ride) => {
+            const serviceConfig = SERVICE_CONFIG[ride._type || 'ride'] || SERVICE_CONFIG.ride;
+            const statusColor = getStatusColor(ride.status);
+            const statusBg = getStatusBg(ride.status);
+            return (
+              <TouchableOpacity
+                key={ride._key || ride.id}
+                style={styles.rideCard}
+                onPress={() => {
+                  if (ride._type === 'order') {
+                    Alert.alert(
+                      'Store Order',
+                      `Store: ${ride.pickup || ride.pickup_location || 'Store'}\nDelivery: ${ride.dropoff || ride.dropoff_location || 'N/A'}\nTotal: ₱${(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}\nStatus: ${formatStatus(ride.status)}`,
+                    );
+                  } else {
+                    navigation.navigate('Tracking', {
+                      type: ride._type === 'delivery' ? 'delivery' : 'ride',
+                      rideId: ride.id,
+                      pickup: ride.pickup || ride.pickup_location || '',
+                      dropoff: ride.dropoff || ride.dropoff_location || '',
+                      fare: ride.final_fare || ride.estimated_fare,
+                    });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                {/* Card accent strip */}
+                <View style={[styles.cardAccent, { backgroundColor: statusColor }]} />
 
-              <View style={styles.rideBody}>
-                <View style={styles.locationRow}>
-                  <View style={styles.locationDot} />
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {ride.pickup || ride.pickup_location || 'Pickup'}
-                  </Text>
-                </View>
-                <View style={styles.locationConnector} />
-                <View style={styles.locationRow}>
-                  <View style={[styles.locationDot, styles.locationDotDropoff]} />
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {ride.dropoff || ride.dropoff_location || 'Dropoff'}
-                  </Text>
-                </View>
-              </View>
+                <View style={styles.rideCardInner}>
+                  {/* Header row */}
+                  <View style={styles.rideHeader}>
+                    <View style={[styles.rideIcon, { backgroundColor: serviceConfig.bg }]}>
+                      <Ionicons name={serviceConfig.icon as any} size={moderateScale(20)} color={serviceConfig.color} />
+                    </View>
+                    <View style={styles.rideHeaderInfo}>
+                      <View style={styles.rideHeaderTop}>
+                        <Text style={styles.rideService}>{serviceConfig.label}</Text>
+                        <View style={[styles.serviceTypeBadge, { backgroundColor: serviceConfig.bg }]}>
+                          <Text style={[styles.serviceTypeBadgeText, { color: serviceConfig.color }]}>
+                            {ride._type === 'order' ? 'Order' : ride._type === 'delivery' ? 'Delivery' : 'Ride'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.rideDate}>{formatDate(ride.created_at)}</Text>
+                    </View>
+                    <Text style={styles.rideFare}>₱{(ride.final_fare || ride.estimated_fare || 0).toFixed(0)}</Text>
+                  </View>
 
-              <View style={styles.rideFooter}>
-                {!!(ride.driver || ride.Driver) && (
-                  <View style={styles.riderInfo}>
-                    <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
-                    <Text style={styles.riderName}>{(ride.driver || ride.Driver)?.name}</Text>
-                    {!!((ride.driver || ride.Driver)?.rating) && (
-                      <>
-                        <Ionicons name="star" size={12} color="#FBBF24" />
-                        <Text style={styles.riderRating}>{Number((ride.driver || ride.Driver)?.rating).toFixed(1)}</Text>
-                      </>
+                  {/* Locations */}
+                  <View style={styles.rideBody}>
+                    <View style={styles.locationRow}>
+                      <View style={[styles.locationDot, { backgroundColor: COLORS.success }]} />
+                      <Text style={styles.locationText} numberOfLines={1}>
+                        {ride.pickup || ride.pickup_location || 'Pickup'}
+                      </Text>
+                    </View>
+                    <View style={styles.locationConnector} />
+                    <View style={styles.locationRow}>
+                      <View style={[styles.locationDot, { backgroundColor: COLORS.primary }]} />
+                      <Text style={styles.locationText} numberOfLines={1}>
+                        {ride.dropoff || ride.dropoff_location || 'Dropoff'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Footer */}
+                  <View style={styles.rideFooter}>
+                    {!!(ride.driver || ride.Driver) && (
+                      <View style={styles.riderInfo}>
+                        <View style={styles.riderAvatar}>
+                          <Ionicons name="person" size={moderateScale(12)} color={COLORS.gray500} />
+                        </View>
+                        <Text style={styles.riderName}>{(ride.driver || ride.Driver)?.name}</Text>
+                        {!!((ride.driver || ride.Driver)?.rating) && (
+                          <View style={styles.ratingBadge}>
+                            <Ionicons name="star" size={moderateScale(10)} color={COLORS.warning} />
+                            <Text style={styles.riderRating}>{Number((ride.driver || ride.Driver)?.rating).toFixed(1)}</Text>
+                          </View>
+                        )}
+                      </View>
                     )}
+                    <View style={styles.rideMetrics}>
+                      <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+                        <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+                        <Text style={[styles.statusText, { color: statusColor }]}>{formatStatus(ride.status)}</Text>
+                      </View>
+                      {(ride.distance_km || ride.distance || 0) > 0 && (
+                        <View style={styles.distanceBadge}>
+                          <Ionicons name="navigate-outline" size={moderateScale(10)} color={COLORS.gray500} />
+                          <Text style={styles.rideMetric}>{(ride.distance_km || ride.distance || 0).toFixed(1)} km</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
-                )}
-                <View style={styles.rideMetrics}>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ride.status) }]}>
-                    <Text style={styles.statusText}>{ride.status.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</Text>
-                  </View>
-                  {(ride.distance_km || ride.distance || 0) > 0 && (
-                    <Text style={styles.rideMetric}>{(ride.distance_km || ride.distance || 0).toFixed(1)} km</Text>
-                  )}
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
 
           {filteredRides.length === 0 && (
             <View style={styles.emptyState}>
-              <Ionicons name="time-outline" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No rides found</Text>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="time-outline" size={moderateScale(56)} color={COLORS.gray300} />
+              </View>
+              <Text style={styles.emptyTitle}>No trips found</Text>
               <Text style={styles.emptySubtext}>
                 {filterType === 'all'
-                  ? 'Start booking rides to see your history'
-                  : `No ${filterType} rides yet`}
+                  ? 'Start booking rides to see your history here'
+                  : `No ${filterOptions.find(f => f.id === filterType)?.label.toLowerCase()} trips yet`}
               </Text>
             </View>
           )}
@@ -308,50 +350,68 @@ export default function RideHistoryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: verticalScale(12),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray200,
+  },
+  headerBackBtn: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
+    flex: 1,
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingVertical: verticalScale(16),
+    gap: moderateScale(10),
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(14),
     alignItems: 'center',
-    marginHorizontal: moderateScale(4),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.md,
+  },
+  statIconWrap: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(8),
   },
   statValue: {
-    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: verticalScale(6),
-    marginBottom: verticalScale(3),
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
   },
   statLabel: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
     textAlign: 'center',
   },
   filtersContainer: {
@@ -359,48 +419,78 @@ const styles = StyleSheet.create({
   },
   filtersContent: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    gap: moderateScale(8),
   },
   filterChip: {
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(14),
     paddingVertical: moderateScale(8),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
-    backgroundColor: '#F3F4F6',
-    marginRight: moderateScale(8),
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    gap: moderateScale(6),
   },
   filterChipActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   filterText: {
     fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    color: '#6B7280',
+    color: COLORS.gray600,
   },
   filterTextActive: {
-    color: '#ffffff',
+    color: COLORS.white,
+  },
+  filterCountBadge: {
+    backgroundColor: COLORS.gray100,
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(20),
+    height: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: moderateScale(6),
+  },
+  filterCountBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  filterCountText: {
+    fontSize: fontScale(10),
+    fontWeight: 'bold',
+    color: COLORS.gray600,
+  },
+  filterCountTextActive: {
+    color: COLORS.white,
   },
   historySection: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   rideCard: {
-    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
     marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    overflow: 'hidden',
+    ...SHADOWS.sm,
+  },
+  cardAccent: {
+    width: moderateScale(4),
+  },
+  rideCardInner: {
+    flex: 1,
+    padding: moderateScale(14),
   },
   rideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: verticalScale(10),
+    marginBottom: verticalScale(12),
   },
   rideIcon: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -408,26 +498,42 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: moderateScale(12),
   },
+  rideHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(2),
+  },
   rideService: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(2),
+    color: COLORS.gray800,
+  },
+  serviceTypeBadge: {
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(6),
+  },
+  serviceTypeBadgeText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: moderateScale(0.3),
   },
   rideDate: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   rideFare: {
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray900,
   },
   rideBody: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.small,
     padding: moderateScale(12),
-    marginBottom: verticalScale(10),
+    marginBottom: verticalScale(12),
   },
   locationRow: {
     flexDirection: 'row',
@@ -437,22 +543,18 @@ const styles = StyleSheet.create({
     width: moderateScale(10),
     height: moderateScale(10),
     borderRadius: moderateScale(5),
-    backgroundColor: '#10B981',
-  },
-  locationDotDropoff: {
-    backgroundColor: '#EF4444',
   },
   locationConnector: {
-    width: 2,
+    width: moderateScale(2),
     height: verticalScale(14),
-    backgroundColor: '#D1D5DB',
+    backgroundColor: COLORS.gray300,
     marginLeft: moderateScale(4),
     marginVertical: verticalScale(3),
   },
   locationText: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#374151',
+    color: COLORS.gray700,
     marginLeft: moderateScale(12),
   },
   rideFooter: {
@@ -463,18 +565,35 @@ const styles = StyleSheet.create({
   riderInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  riderAvatar: {
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   riderName: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray600,
     marginLeft: moderateScale(6),
     marginRight: moderateScale(8),
   },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warningBg,
+    paddingHorizontal: moderateScale(6),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(6),
+    gap: moderateScale(2),
+  },
   riderRating: {
-    fontSize: RESPONSIVE.fontSize.small,
+    fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#92400E',
-    marginLeft: moderateScale(4),
+    color: COLORS.warningDark,
   },
   rideMetrics: {
     flexDirection: 'row',
@@ -482,35 +601,61 @@ const styles = StyleSheet.create({
     gap: moderateScale(8),
   },
   rideMetric: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    fontWeight: '500',
   },
   statusBadge: {
-    paddingHorizontal: moderateScale(8),
-    paddingVertical: moderateScale(3),
-    borderRadius: moderateScale(6),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(8),
+    gap: moderateScale(4),
+  },
+  statusIndicator: {
+    width: moderateScale(6),
+    height: moderateScale(6),
+    borderRadius: moderateScale(3),
   },
   statusText: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#ffffff',
-    textTransform: 'capitalize',
+  },
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray100,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(6),
+    gap: moderateScale(4),
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: verticalScale(50),
+    paddingVertical: verticalScale(60),
   },
-  emptyText: {
-    fontSize: RESPONSIVE.fontSize.large,
+  emptyIconWrap: {
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(20),
+  },
+  emptyTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#6B7280',
-    marginTop: verticalScale(12),
+    color: COLORS.gray800,
+    marginBottom: verticalScale(8),
   },
   emptySubtext: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#9CA3AF',
-    marginTop: verticalScale(6),
+    color: COLORS.gray500,
     textAlign: 'center',
+    maxWidth: moderateScale(260),
+    lineHeight: fontScale(22),
   },
 });

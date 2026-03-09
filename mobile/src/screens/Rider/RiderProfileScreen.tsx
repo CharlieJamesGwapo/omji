@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { driverService } from '../../services/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function RiderProfileScreen({ navigation }: any) {
@@ -63,50 +64,50 @@ export default function RiderProfileScreen({ navigation }: any) {
   const totalRides = riderProfile.totalRides;
 
   const stats = [
-    { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: '#3B82F6' },
-    { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: '#FBBF24' },
-    { label: 'Acceptance', value: earningsData.acceptance_rate ? `${earningsData.acceptance_rate}%` : totalRides > 0 ? '-' : '-', icon: 'checkmark-circle', color: '#10B981' },
-    { label: 'Completion', value: earningsData.completion_rate ? `${earningsData.completion_rate}%` : totalRides > 0 ? '-' : '-', icon: 'checkmark-done', color: '#10B981' },
+    { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: COLORS.accent, bg: COLORS.accentBg },
+    { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
+    { label: 'Acceptance', value: earningsData.acceptance_rate ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
+    { label: 'Completion', value: earningsData.completion_rate ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
   ];
 
   const achievements = [
-    { title: 'First Ride', icon: 'trophy', color: '#FBBF24', earned: totalRides >= 1 },
-    { title: '5-Star Rider', icon: 'star', color: '#FBBF24', earned: riderProfile.rating >= 4.5 },
-    { title: '10 Rides', icon: 'sunny', color: '#F59E0B', earned: totalRides >= 10 },
-    { title: '50 Rides', icon: 'trophy', color: '#3B82F6', earned: totalRides >= 50 },
-    { title: '100 Rides', icon: 'moon', color: '#6366F1', earned: totalRides >= 100 },
-    { title: '500 Rides', icon: 'trophy', color: '#EF4444', earned: totalRides >= 500 },
+    { title: 'First Ride', icon: 'trophy', color: COLORS.warning, target: 1, current: totalRides, earned: totalRides >= 1 },
+    { title: '5-Star Rider', icon: 'star', color: COLORS.warning, target: 4.5, current: riderProfile.rating, earned: riderProfile.rating >= 4.5, unit: '' },
+    { title: '10 Rides', icon: 'sunny', color: COLORS.store, target: 10, current: totalRides, earned: totalRides >= 10 },
+    { title: '50 Rides', icon: 'trophy', color: COLORS.accent, target: 50, current: totalRides, earned: totalRides >= 50 },
+    { title: '100 Rides', icon: 'moon', color: COLORS.info, target: 100, current: totalRides, earned: totalRides >= 100 },
+    { title: '500 Rides', icon: 'trophy', color: COLORS.primary, target: 500, current: totalRides, earned: totalRides >= 500 },
   ];
 
   const menuSections = [
     {
       title: 'Vehicle',
       items: [
-        { icon: 'bicycle-outline', label: 'Vehicle Details', action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${driverData.vehicle_model || '-'}\nLicense: ${riderProfile.licenseNumber}`) },
-        { icon: 'document-text-outline', label: 'Documents', action: () => Alert.alert('Documents', 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.') },
+        { icon: 'bicycle', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Vehicle Details', subtitle: `${riderProfile.vehicleType} - ${riderProfile.plateNumber}`, action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${driverData.vehicle_model || '-'}\nLicense: ${riderProfile.licenseNumber}`) },
+        { icon: 'document-text', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Documents', subtitle: 'Verified & on file', action: () => Alert.alert('Documents', 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.') },
       ],
     },
     {
       title: 'Performance',
       items: [
-        { icon: 'stats-chart-outline', label: 'Statistics', action: () => navigation.navigate('RiderEarnings') },
-        { icon: 'star-outline', label: 'Ratings & Reviews', action: () => Alert.alert('Ratings', `Your Rating: ${riderProfile.rating.toFixed(1)} \u2B50\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!`) },
+        { icon: 'stats-chart', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Earnings & Statistics', subtitle: 'View detailed breakdown', action: () => navigation.navigate('RiderEarnings') },
+        { icon: 'star', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Ratings & Reviews', subtitle: `${riderProfile.rating.toFixed(1)} average rating`, action: () => Alert.alert('Ratings', `Your Rating: ${riderProfile.rating.toFixed(1)} / 5.0\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!`) },
       ],
     },
     {
       title: 'Account',
       items: [
-        { icon: 'person-outline', label: 'Edit Profile', action: () => Alert.alert('Edit Profile', `Name: ${riderProfile.name}\nEmail: ${riderProfile.email}\nPhone: ${riderProfile.phone}\n\nContact support to update your profile information.`) },
-        { icon: 'card-outline', label: 'Bank Account', action: () => Alert.alert('Bank Account', 'Manage your payout account.\n\nCurrently using the account registered during signup.\nContact support to update your bank details.') },
-        { icon: 'shield-outline', label: 'Privacy & Security', action: () => Alert.alert('Privacy & Security', 'Your data is encrypted and protected.\n\n\u2022 Location shared only during active rides\n\u2022 Personal info never shared with passengers\n\u2022 You can request data deletion anytime') },
+        { icon: 'person', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Edit Profile', subtitle: riderProfile.email, action: () => Alert.alert('Edit Profile', `Name: ${riderProfile.name}\nEmail: ${riderProfile.email}\nPhone: ${riderProfile.phone}\n\nContact support to update your profile information.`) },
+        { icon: 'card', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Bank Account', subtitle: 'Manage payout account', action: () => Alert.alert('Bank Account', 'Manage your payout account.\n\nCurrently using the account registered during signup.\nContact support to update your bank details.') },
+        { icon: 'shield-checkmark', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Privacy & Security', subtitle: 'Data protection settings', action: () => Alert.alert('Privacy & Security', 'Your data is encrypted and protected.\n\n\u2022 Location shared only during active rides\n\u2022 Personal info never shared with passengers\n\u2022 You can request data deletion anytime') },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', action: () => Alert.alert('Help Center', 'For assistance:\n\nEmail: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily\n\nFAQ:\n\u2022 How to accept rides?\n\u2022 How to withdraw earnings?\n\u2022 How to update vehicle info?') },
-        { icon: 'book-outline', label: 'Rider Guide', action: () => Alert.alert('Rider Guide', 'OMJI Rider Guide\n\n1. Go online to receive ride requests\n2. Accept requests within 30 seconds\n3. Navigate to pickup location\n4. Confirm pickup with customer\n5. Complete the ride at destination\n6. Earnings are added to your wallet\n\nTips:\n\u2022 Maintain a high rating\n\u2022 Stay in busy areas\n\u2022 Be polite and professional') },
-        { icon: 'chatbubble-outline', label: 'Contact Support', action: () => Alert.alert('Contact Support', 'Email: driver-support@omji.app\nPhone: +63 912 345 6789\nHours: 24/7 for driver support') },
+        { icon: 'help-circle', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Help Center', subtitle: 'FAQs & troubleshooting', action: () => Alert.alert('Help Center', 'For assistance:\n\nEmail: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily\n\nFAQ:\n\u2022 How to accept rides?\n\u2022 How to withdraw earnings?\n\u2022 How to update vehicle info?') },
+        { icon: 'book', iconColor: COLORS.pasabay, iconBg: COLORS.pasabayBg, label: 'Rider Guide', subtitle: 'Tips & best practices', action: () => Alert.alert('Rider Guide', 'OMJI Rider Guide\n\n1. Go online to receive ride requests\n2. Accept requests within 30 seconds\n3. Navigate to pickup location\n4. Confirm pickup with customer\n5. Complete the ride at destination\n6. Earnings are added to your wallet\n\nTips:\n\u2022 Maintain a high rating\n\u2022 Stay in busy areas\n\u2022 Be polite and professional') },
+        { icon: 'chatbubble', iconColor: COLORS.primary, iconBg: COLORS.primaryBg, label: 'Contact Support', subtitle: '24/7 driver support', action: () => Alert.alert('Contact Support', 'Email: driver-support@omji.app\nPhone: +63 912 345 6789\nHours: 24/7 for driver support') },
       ],
     },
   ];
@@ -124,68 +125,74 @@ export default function RiderProfileScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Settings', 'Rider Settings', [
-          { text: 'View Earnings', onPress: () => navigation.navigate('RiderEarnings') },
-          { text: 'Switch to User Mode', onPress: () => {
-            Alert.alert('Switch Mode', 'Switch back to user mode?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Switch', onPress: () => {
-                updateUser({ role: 'user' });
+      {/* Header with colored background */}
+      <View style={styles.headerBg}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <TouchableOpacity
+            style={styles.headerSettingsBtn}
+            onPress={() => Alert.alert('Settings', 'Rider Settings', [
+              { text: 'View Earnings', onPress: () => navigation.navigate('RiderEarnings') },
+              { text: 'Switch to User Mode', onPress: () => {
+                Alert.alert('Switch Mode', 'Switch back to user mode?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Switch', onPress: () => {
+                    updateUser({ role: 'user' });
+                  }},
+                ]);
               }},
-            ]);
-          }},
-          { text: 'Logout', style: 'destructive', onPress: handleLogout },
-          { text: 'Cancel', style: 'cancel' },
-        ])}>
-          <Ionicons name="settings-outline" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: riderProfile.avatar }}
-              style={styles.avatar}
-            />
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-            </View>
-          </View>
-          <Text style={styles.profileName}>{riderProfile.name}</Text>
-          <Text style={styles.profileEmail}>{riderProfile.email}</Text>
-          <View style={styles.profileMeta}>
-            <Ionicons name="call-outline" size={16} color="#6B7280" />
-            <Text style={styles.profilePhone}>{riderProfile.phone}</Text>
-          </View>
-          <View style={styles.profileMeta}>
-            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-            <Text style={styles.profileJoined}>Joined {riderProfile.joinedDate}</Text>
-          </View>
+              { text: 'Logout', style: 'destructive', onPress: handleLogout },
+              { text: 'Cancel', style: 'cancel' },
+            ])}
+          >
+            <Ionicons name="settings-outline" size={moderateScale(22)} color={COLORS.white} />
+          </TouchableOpacity>
         </View>
 
+        {/* Profile Card - overlapping the header */}
+        <View style={styles.profileCardWrapper}>
+          <View style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{ uri: riderProfile.avatar }}
+                style={styles.avatar}
+              />
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={moderateScale(22)} color={COLORS.success} />
+              </View>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{riderProfile.name}</Text>
+              <Text style={styles.profileEmail}>{riderProfile.email}</Text>
+              <View style={styles.profileMetaRow}>
+                <View style={styles.profileMetaItem}>
+                  <Ionicons name="call-outline" size={moderateScale(13)} color={COLORS.gray500} />
+                  <Text style={styles.profileMetaText}>{riderProfile.phone}</Text>
+                </View>
+                <View style={styles.profileMetaDot} />
+                <View style={styles.profileMetaItem}>
+                  <Ionicons name="calendar-outline" size={moderateScale(13)} color={COLORS.gray500} />
+                  <Text style={styles.profileMetaText}>{riderProfile.joinedDate}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {stats.map((stat) => (
             <View key={stat.label} style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIcon,
-                  { backgroundColor: `${stat.color}20` },
-                ]}
-              >
-                <Ionicons
-                  name={stat.icon as any}
-                  size={20}
-                  color={stat.color}
-                />
+              <View style={[styles.statIcon, { backgroundColor: stat.bg }]}>
+                <Ionicons name={stat.icon as any} size={moderateScale(18)} color={stat.color} />
               </View>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
@@ -194,26 +201,31 @@ export default function RiderProfileScreen({ navigation }: any) {
         </View>
 
         {/* Verification Status */}
-        <View style={[styles.vehicleCard, { marginBottom: 0 }]}>
-          <View style={styles.vehicleHeader}>
-            <Ionicons
-              name={driverData.status === 'approved' ? 'shield-checkmark' : 'shield-outline'}
-              size={28}
-              color={driverData.status === 'approved' ? '#10B981' : '#F59E0B'}
-            />
-            <Text style={styles.vehicleTitle}>Verification Status</Text>
-            <View style={{
-              marginLeft: 'auto',
-              backgroundColor: driverData.status === 'approved' ? '#ECFDF5' : '#FEF3C7',
-              paddingHorizontal: moderateScale(12),
-              paddingVertical: moderateScale(4),
-              borderRadius: RESPONSIVE.borderRadius.small,
-            }}>
-              <Text style={{
-                fontSize: RESPONSIVE.fontSize.small,
-                fontWeight: '600',
-                color: driverData.status === 'approved' ? '#10B981' : '#F59E0B',
-              }}>
+        <View style={styles.verificationCard}>
+          <View style={styles.verificationHeader}>
+            <View style={[styles.verificationIconWrap, {
+              backgroundColor: driverData.status === 'approved' ? COLORS.successBg : COLORS.warningBg,
+            }]}>
+              <Ionicons
+                name={driverData.status === 'approved' ? 'shield-checkmark' : 'shield-outline'}
+                size={moderateScale(22)}
+                color={driverData.status === 'approved' ? COLORS.success : COLORS.warning}
+              />
+            </View>
+            <View style={styles.verificationInfo}>
+              <Text style={styles.verificationTitle}>Verification Status</Text>
+              <Text style={[styles.verificationSubtitle, {
+                color: driverData.status === 'approved' ? COLORS.success : COLORS.warning,
+              }]}>
+                {driverData.status === 'approved' ? 'All documents verified' : 'Verification in progress'}
+              </Text>
+            </View>
+            <View style={[styles.verificationBadge, {
+              backgroundColor: driverData.status === 'approved' ? COLORS.successBg : COLORS.warningBg,
+            }]}>
+              <Text style={[styles.verificationBadgeText, {
+                color: driverData.status === 'approved' ? COLORS.success : COLORS.warning,
+              }]}>
                 {driverData.status === 'approved' ? 'Verified' : 'Pending'}
               </Text>
             </View>
@@ -223,27 +235,46 @@ export default function RiderProfileScreen({ navigation }: any) {
         {/* Vehicle Info */}
         <View style={styles.vehicleCard}>
           <View style={styles.vehicleHeader}>
-            <Ionicons name={(driverData.vehicle_type === 'car' ? 'car' : 'navigate-circle') as any} size={28} color="#3B82F6" />
+            <View style={[styles.vehicleIconWrap, { backgroundColor: COLORS.accentBg }]}>
+              <Ionicons name={(driverData.vehicle_type === 'car' ? 'car' : 'navigate-circle') as any} size={moderateScale(22)} color={COLORS.accent} />
+            </View>
             <Text style={styles.vehicleTitle}>Vehicle Information</Text>
           </View>
           <View style={styles.vehicleDetails}>
             <View style={styles.vehicleRow}>
-              <Text style={styles.vehicleLabel}>Type</Text>
+              <View style={styles.vehicleLabelRow}>
+                <Ionicons name="car-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                <Text style={styles.vehicleLabel}>Type</Text>
+              </View>
               <Text style={styles.vehicleValue}>{driverData.vehicle_type || riderProfile.vehicleType}</Text>
             </View>
+            <View style={styles.vehicleDivider} />
             <View style={styles.vehicleRow}>
-              <Text style={styles.vehicleLabel}>Plate Number</Text>
+              <View style={styles.vehicleLabelRow}>
+                <Ionicons name="pricetag-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                <Text style={styles.vehicleLabel}>Plate Number</Text>
+              </View>
               <Text style={styles.vehicleValue}>{driverData.vehicle_plate || riderProfile.plateNumber}</Text>
             </View>
+            <View style={styles.vehicleDivider} />
             <View style={styles.vehicleRow}>
-              <Text style={styles.vehicleLabel}>Model</Text>
+              <View style={styles.vehicleLabelRow}>
+                <Ionicons name="construct-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                <Text style={styles.vehicleLabel}>Model</Text>
+              </View>
               <Text style={styles.vehicleValue}>{driverData.vehicle_model || '-'}</Text>
             </View>
             {!!driverData.license_number && (
-              <View style={styles.vehicleRow}>
-                <Text style={styles.vehicleLabel}>License Number</Text>
-                <Text style={styles.vehicleValue}>{driverData.license_number}</Text>
-              </View>
+              <>
+                <View style={styles.vehicleDivider} />
+                <View style={styles.vehicleRow}>
+                  <View style={styles.vehicleLabelRow}>
+                    <Ionicons name="id-card-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                    <Text style={styles.vehicleLabel}>License</Text>
+                  </View>
+                  <Text style={styles.vehicleValue}>{driverData.license_number}</Text>
+                </View>
+              </>
             )}
           </View>
         </View>
@@ -252,36 +283,38 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
           <View style={styles.achievementsGrid}>
-            {achievements.map((achievement) => (
-              <View
-                key={achievement.title}
-                style={[
-                  styles.achievementCard,
-                  !achievement.earned && styles.achievementCardLocked,
-                ]}
-              >
+            {achievements.map((achievement) => {
+              const progress = achievement.earned ? 1 : Math.min(achievement.current / achievement.target, 0.99);
+              return (
                 <View
-                  style={[
-                    styles.achievementIcon,
-                    { backgroundColor: achievement.earned ? `${achievement.color}20` : '#F3F4F6' },
-                  ]}
+                  key={achievement.title}
+                  style={[styles.achievementCard, !achievement.earned && styles.achievementCardLocked]}
                 >
-                  <Ionicons
-                    name={achievement.icon as any}
-                    size={24}
-                    color={achievement.earned ? achievement.color : '#D1D5DB'}
-                  />
+                  <View style={[styles.achievementIcon, {
+                    backgroundColor: achievement.earned ? `${achievement.color}20` : COLORS.gray100,
+                  }]}>
+                    <Ionicons
+                      name={achievement.icon as any}
+                      size={moderateScale(22)}
+                      color={achievement.earned ? achievement.color : COLORS.gray300}
+                    />
+                  </View>
+                  <Text style={[styles.achievementTitle, !achievement.earned && styles.achievementTitleLocked]}>
+                    {achievement.title}
+                  </Text>
+                  {/* Progress bar */}
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, {
+                      width: `${Math.max(progress * 100, 3)}%`,
+                      backgroundColor: achievement.earned ? achievement.color : COLORS.gray300,
+                    }]} />
+                  </View>
+                  <Text style={[styles.progressText, { color: achievement.earned ? achievement.color : COLORS.gray400 }]}>
+                    {achievement.earned ? 'Earned!' : `${Math.round(progress * 100)}%`}
+                  </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.achievementTitle,
-                    !achievement.earned && styles.achievementTitleLocked,
-                  ]}
-                >
-                  {achievement.title}
-                </Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </View>
 
@@ -298,10 +331,18 @@ export default function RiderProfileScreen({ navigation }: any) {
                     itemIndex < section.items.length - 1 && styles.menuItemBorder,
                   ]}
                   onPress={() => item.action?.()}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons name={item.icon as any} size={22} color="#6B7280" />
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                  <View style={[styles.menuIconWrap, { backgroundColor: item.iconBg }]}>
+                    <Ionicons name={item.icon as any} size={moderateScale(18)} color={item.iconColor} />
+                  </View>
+                  <View style={styles.menuItemInfo}>
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                    {!!item.subtitle && (
+                      <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.gray300} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -309,8 +350,10 @@ export default function RiderProfileScreen({ navigation }: any) {
         ))}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+          <View style={styles.logoutIconWrap}>
+            <Ionicons name="log-out-outline" size={moderateScale(20)} color={COLORS.error} />
+          </View>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -326,7 +369,11 @@ export default function RiderProfileScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
+  },
+  headerBg: {
+    backgroundColor: COLORS.success,
+    paddingBottom: verticalScale(60),
   },
   header: {
     flexDirection: 'row',
@@ -335,93 +382,117 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: verticalScale(16),
-    backgroundColor: '#ffffff',
+  },
+  headerBackBtn: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.white,
+  },
+  headerSettingsBtn: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileCardWrapper: {
+    position: 'absolute',
+    bottom: verticalScale(-50),
+    left: RESPONSIVE.marginHorizontal,
+    right: RESPONSIVE.marginHorizontal,
+    zIndex: 10,
   },
   profileCard: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginTop: verticalScale(20),
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.large,
-    padding: moderateScale(24),
+    padding: moderateScale(16),
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.lg,
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: verticalScale(16),
   },
   avatar: {
-    width: moderateScale(100),
-    height: moderateScale(100),
-    borderRadius: moderateScale(50),
-    borderWidth: moderateScale(4),
-    borderColor: '#E5E7EB',
+    width: moderateScale(72),
+    height: moderateScale(72),
+    borderRadius: moderateScale(36),
+    borderWidth: moderateScale(3),
+    borderColor: COLORS.successBg,
   },
   verifiedBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.medium,
+    bottom: -moderateScale(2),
+    right: -moderateScale(2),
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(12),
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: moderateScale(14),
   },
   profileName: {
-    fontSize: RESPONSIVE.fontSize.xxlarge,
+    fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(4),
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
   },
   profileEmail: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
-    marginBottom: verticalScale(12),
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginBottom: verticalScale(8),
   },
-  profileMeta: {
+  profileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: verticalScale(4),
+    flexWrap: 'wrap',
   },
-  profilePhone: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
-    marginLeft: moderateScale(6),
+  profileMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
   },
-  profileJoined: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
-    marginLeft: moderateScale(6),
+  profileMetaText: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+  },
+  profileMetaDot: {
+    width: moderateScale(3),
+    height: moderateScale(3),
+    borderRadius: moderateScale(2),
+    backgroundColor: COLORS.gray400,
+    marginHorizontal: moderateScale(8),
+  },
+  scrollView: {
+    marginTop: verticalScale(60),
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: moderateScale(16),
-    marginTop: verticalScale(20),
+    gap: moderateScale(8),
   },
   statCard: {
     width: '48%',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
+    padding: moderateScale(14),
     alignItems: 'center',
-    margin: moderateScale(4),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.sm,
   },
   statIcon: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(8),
@@ -429,38 +500,82 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(4),
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
   },
   statLabel: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray500,
     textAlign: 'center',
   },
-  vehicleCard: {
-    backgroundColor: '#ffffff',
+  verificationCard: {
+    backgroundColor: COLORS.white,
     marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginTop: verticalScale(20),
+    marginTop: verticalScale(16),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(20),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    padding: moderateScale(16),
+    ...SHADOWS.sm,
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationIconWrap: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verificationInfo: {
+    flex: 1,
+    marginLeft: moderateScale(12),
+  },
+  verificationTitle: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(2),
+  },
+  verificationSubtitle: {
+    fontSize: RESPONSIVE.fontSize.small,
+  },
+  verificationBadge: {
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(6),
+    borderRadius: RESPONSIVE.borderRadius.small,
+  },
+  verificationBadgeText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '700',
+  },
+  vehicleCard: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(16),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    ...SHADOWS.sm,
   },
   vehicleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: verticalScale(16),
-    paddingBottom: verticalScale(16),
+    paddingBottom: verticalScale(14),
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: COLORS.gray100,
+  },
+  vehicleIconWrap: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   vehicleTitle: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginLeft: moderateScale(12),
   },
   vehicleDetails: {},
@@ -470,14 +585,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: verticalScale(10),
   },
+  vehicleLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+  },
   vehicleLabel: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   vehicleValue: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.gray800,
+  },
+  vehicleDivider: {
+    height: 1,
+    backgroundColor: COLORS.gray100,
   },
   section: {
     marginTop: verticalScale(24),
@@ -486,34 +610,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(12),
   },
   achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: moderateScale(-4),
+    gap: moderateScale(8),
   },
   achievementCard: {
     width: '31%',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(12),
     alignItems: 'center',
-    margin: moderateScale(4),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.sm,
   },
   achievementCardLocked: {
-    opacity: 0.5,
+    opacity: 0.65,
   },
   achievementIcon: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(8),
@@ -521,11 +640,28 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.gray700,
     textAlign: 'center',
+    marginBottom: verticalScale(6),
   },
   achievementTitleLocked: {
-    color: '#9CA3AF',
+    color: COLORS.gray400,
+  },
+  progressBarBg: {
+    width: '100%',
+    height: moderateScale(4),
+    backgroundColor: COLORS.gray200,
+    borderRadius: moderateScale(2),
+    overflow: 'hidden',
+    marginBottom: verticalScale(4),
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: moderateScale(2),
+  },
+  progressText: {
+    fontSize: fontScale(9),
+    fontWeight: '700',
   },
   menuSection: {
     marginTop: verticalScale(24),
@@ -533,59 +669,78 @@ const styles = StyleSheet.create({
   },
   menuSectionTitle: {
     fontSize: RESPONSIVE.fontSize.medium,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: verticalScale(12),
+    fontWeight: '700',
+    color: COLORS.gray500,
+    marginBottom: verticalScale(10),
     textTransform: 'uppercase',
     letterSpacing: moderateScale(0.5),
   },
   menuCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    ...SHADOWS.sm,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: moderateScale(16),
+    padding: moderateScale(14),
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: COLORS.gray100,
+  },
+  menuIconWrap: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuItemInfo: {
+    flex: 1,
+    marginLeft: moderateScale(14),
   },
   menuLabel: {
-    flex: 1,
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#1F2937',
-    marginLeft: moderateScale(16),
+    fontWeight: '600',
+    color: COLORS.gray800,
+  },
+  menuSubtitle: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     marginHorizontal: RESPONSIVE.marginHorizontal,
     marginTop: verticalScale(24),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
+    padding: moderateScale(14),
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: COLORS.errorLight,
+    gap: moderateScale(8),
+  },
+  logoutIconWrap: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.errorBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
-    color: '#EF4444',
-    marginLeft: moderateScale(8),
+    color: COLORS.error,
   },
   versionText: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#9CA3AF',
+    color: COLORS.gray400,
     textAlign: 'center',
-    marginTop: verticalScale(24),
+    marginTop: verticalScale(20),
   },
 });

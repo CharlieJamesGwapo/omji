@@ -76,6 +76,7 @@ export default function PasugoScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [itemSize, setItemSize] = useState<'small' | 'medium' | 'large'>('small');
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
+  const [estimatedTime, setEstimatedTime] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [promoCode, setPromoCode] = useState('');
@@ -160,6 +161,17 @@ export default function PasugoScreen({ navigation }: any) {
   const perKmRate = 15;
   const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  // Calculate estimated delivery time
+  useEffect(() => {
+    if (distance > 0) {
+      const avgSpeed = 20; // delivery average km/h
+      const minutes = Math.ceil((distance / avgSpeed) * 60) + 5; // +5 for pickup time
+      setEstimatedTime(minutes <= 1 ? '~1 min' : `~${minutes} min`);
+    } else {
+      setEstimatedTime('');
+    }
+  }, [distance]);
 
   // Reset promo when fare basis changes (locations changed)
   useEffect(() => {
@@ -302,11 +314,12 @@ export default function PasugoScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="cube" size={28} color="#DC2626" />
-          <Text style={styles.headerTitle}>Pasugo Delivery</Text>
+          <Ionicons name="cube" size={24} color="#ffffff" />
+          <Text style={styles.headerTitle}>Pasugo</Text>
+          <Text style={styles.headerSubtitle}>Delivery Service</Text>
         </View>
         <View style={{ width: moderateScale(40) }} />
       </View>
@@ -490,19 +503,41 @@ export default function PasugoScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* ETA Display */}
+        {!!estimatedTime && (
+          <View style={styles.etaCard}>
+            <View style={styles.etaIconContainer}>
+              <Ionicons name="time" size={20} color="#DC2626" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.etaLabel}>Estimated Delivery Time</Text>
+              <Text style={styles.etaValue}>{estimatedTime}</Text>
+            </View>
+            <View style={styles.etaDistanceBadge}>
+              <Text style={styles.etaDistanceText}>{distance.toFixed(1)} km</Text>
+            </View>
+          </View>
+        )}
+
         {/* Book Button */}
         <TouchableOpacity
           style={[styles.bookButton, (loading || !!activeDelivery) && { opacity: 0.7 }]}
           onPress={handleBookDelivery}
           disabled={loading || !!activeDelivery}
+          activeOpacity={0.85}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <>
-              <Text style={styles.bookButtonText}>Book Delivery</Text>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-            </>
+            <View style={styles.bookButtonContent}>
+              <View>
+                <Text style={styles.bookButtonText}>Book Delivery</Text>
+                {estimatedFare > 0 && <Text style={styles.bookButtonFare}>₱{estimatedFare.toFixed(0)}</Text>}
+              </View>
+              <View style={styles.bookButtonArrow}>
+                <Ionicons name="arrow-forward" size={20} color="#DC2626" />
+              </View>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -542,10 +577,11 @@ export default function PasugoScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
-  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#1F2937' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(16), backgroundColor: '#DC2626' },
+  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#ffffff' },
+  headerSubtitle: { fontSize: RESPONSIVE.fontSize.small, color: 'rgba(255,255,255,0.85)', marginTop: verticalScale(2) },
   activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FECACA' },
   activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#DC2626' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600' },
@@ -571,8 +607,17 @@ const styles = StyleSheet.create({
   priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: verticalScale(6) },
   priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
   priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#DC2626' },
-  bookButton: { flexDirection: 'row', backgroundColor: '#DC2626', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(16), alignItems: 'center', justifyContent: 'center' },
-  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: moderateScale(8) },
+  etaCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), borderWidth: 1, borderColor: '#FECACA' },
+  etaIconContainer: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginRight: moderateScale(12) },
+  etaLabel: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280' },
+  etaValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937', marginTop: verticalScale(2) },
+  etaDistanceBadge: { backgroundColor: '#FEF2F2', paddingHorizontal: moderateScale(12), paddingVertical: verticalScale(6), borderRadius: RESPONSIVE.borderRadius.small },
+  etaDistanceText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#991B1B' },
+  bookButton: { backgroundColor: '#DC2626', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: verticalScale(8), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#DC2626', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
+  bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
+  bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
+  bookButtonArrow: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

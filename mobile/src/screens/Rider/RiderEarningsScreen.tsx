@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService, walletService } from '../../services/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function RiderEarningsScreen({ navigation }: any) {
@@ -20,6 +22,11 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [earningsApiData, setEarningsApiData] = useState<any>({});
   const [walletBalance, setWalletBalance] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -52,10 +59,12 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const minimumWithdraw = 100;
 
   const periods = [
-    { id: 'today', label: 'Today' },
-    { id: 'week', label: 'This Week' },
-    { id: 'month', label: 'This Month' },
+    { id: 'today', label: 'Today', icon: 'today-outline' as const },
+    { id: 'week', label: 'This Week', icon: 'calendar-outline' as const },
+    { id: 'month', label: 'This Month', icon: 'calendar' as const },
   ];
+
+  const quickAmounts = [100, 500, 1000];
 
   const totalRides = earningsApiData.completed_rides || 0;
   const dailyEarnings = earningsApiData.today_earnings || 0;
@@ -92,23 +101,26 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const getBreakdown = () => {
     if (selectedPeriod === 'today') {
       return [
-        { service: 'Pasundo (Rides)', rides: todayRideCount, earnings: Math.round(todayRideEarnings), color: '#F59E0B' },
-        { service: 'Pasugo (Deliveries)', rides: todayDeliveryCount, earnings: Math.round(todayDeliveryEarnings), color: '#3B82F6' },
+        { service: 'Pasundo (Rides)', rides: todayRideCount, earnings: Math.round(todayRideEarnings), color: COLORS.warning, icon: 'navigate-circle' as const },
+        { service: 'Pasugo (Deliveries)', rides: todayDeliveryCount, earnings: Math.round(todayDeliveryEarnings), color: COLORS.accent, icon: 'cube' as const },
       ];
     }
     if (selectedPeriod === 'week') {
       return [
-        { service: 'Pasundo (Rides)', rides: weekRideCount, earnings: Math.round(weekRideEarnings), color: '#F59E0B' },
-        { service: 'Pasugo (Deliveries)', rides: weekDeliveryCount, earnings: Math.round(weekDeliveryEarnings), color: '#3B82F6' },
+        { service: 'Pasundo (Rides)', rides: weekRideCount, earnings: Math.round(weekRideEarnings), color: COLORS.warning, icon: 'navigate-circle' as const },
+        { service: 'Pasugo (Deliveries)', rides: weekDeliveryCount, earnings: Math.round(weekDeliveryEarnings), color: COLORS.accent, icon: 'cube' as const },
       ];
     }
     return [
-      { service: 'Pasundo (Rides)', rides: rideCount, earnings: Math.round(rideEarnings), color: '#F59E0B' },
-      { service: 'Pasugo (Deliveries)', rides: deliveryCount, earnings: Math.round(deliveryEarnings), color: '#3B82F6' },
+      { service: 'Pasundo (Rides)', rides: rideCount, earnings: Math.round(rideEarnings), color: COLORS.warning, icon: 'navigate-circle' as const },
+      { service: 'Pasugo (Deliveries)', rides: deliveryCount, earnings: Math.round(deliveryEarnings), color: COLORS.accent, icon: 'cube' as const },
     ];
   };
 
   const earningsBreakdown = getBreakdown();
+
+  // Calculate max for bar chart proportional display
+  const maxBreakdownEarnings = Math.max(...earningsBreakdown.map(b => b.earnings), 1);
 
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
@@ -163,169 +175,287 @@ export default function RiderEarningsScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Download Report', 'Coming soon! Earnings report download will be available in a future update.')}>
-          <Ionicons name="download-outline" size={24} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.downloadButton}
+          onPress={() => Alert.alert('Download Report', 'Coming soon! Earnings report download will be available in a future update.')}
+        >
+          <Ionicons name="download-outline" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Balance Card */}
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceHeader}>
-            <Ionicons name="wallet" size={32} color="#ffffff" />
-            <Text style={styles.balanceLabel}>Available Balance</Text>
-          </View>
-          <Text style={styles.balanceAmount}>₱{balance.toFixed(2)}</Text>
+        <View style={styles.balanceCardWrapper}>
+          <View style={styles.balanceCard}>
+            {/* Decorative circles */}
+            <View style={styles.balanceDecor1} />
+            <View style={styles.balanceDecor2} />
 
-          {/* Withdraw Section */}
-          <View style={styles.withdrawSection}>
-            <View style={styles.withdrawInputContainer}>
-              <Text style={styles.currencySymbol}>₱</Text>
-              <TextInput
-                style={styles.withdrawInput}
-                placeholder="0"
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={withdrawAmount}
-                onChangeText={setWithdrawAmount}
-                keyboardType="numeric"
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.withdrawButton, withdrawLoading && { opacity: 0.6 }]}
-              onPress={handleWithdraw}
-              disabled={withdrawLoading}
-            >
-              {withdrawLoading ? (
-                <ActivityIndicator color="#10B981" size="small" />
-              ) : (
-                <Text style={styles.withdrawButtonText}>Withdraw</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.withdrawHint}>
-            Minimum withdrawal: ₱{minimumWithdraw}
-          </Text>
-        </View>
-
-        {/* Period Selector */}
-        <View style={styles.periodSelector}>
-          {periods.map((period) => (
-            <TouchableOpacity
-              key={period.id}
-              style={[
-                styles.periodButton,
-                selectedPeriod === period.id && styles.periodButtonActive,
-              ]}
-              onPress={() => setSelectedPeriod(period.id)}
-            >
-              <Text
-                style={[
-                  styles.periodText,
-                  selectedPeriod === period.id && styles.periodTextActive,
-                ]}
-              >
-                {period.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Earnings Summary */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryItem}>
-              <Ionicons name="trending-up" size={24} color="#10B981" />
-              <View style={styles.summaryInfo}>
-                <Text style={styles.summaryValue}>₱{currentData.total}</Text>
-                <Text style={styles.summaryLabel}>Total Earnings</Text>
+            <View style={styles.balanceHeader}>
+              <View style={styles.balanceIconCircle}>
+                <Ionicons name="wallet" size={moderateScale(20)} color={COLORS.white} />
               </View>
+              <Text style={styles.balanceLabel}>Available Balance</Text>
             </View>
-          </View>
+            <Text style={styles.balanceAmount}>₱{balance.toFixed(2)}</Text>
 
-          <View style={styles.summaryRow}>
-            <View style={styles.summarySmallCard}>
-              <Ionicons name="bicycle" size={20} color="#3B82F6" />
-              <Text style={styles.summarySmallValue}>{currentData.rides}</Text>
-              <Text style={styles.summarySmallLabel}>Total Rides</Text>
+            {/* Quick Amount Buttons */}
+            <View style={styles.quickAmountsRow}>
+              {quickAmounts.map((amt) => (
+                <TouchableOpacity
+                  key={amt}
+                  style={[
+                    styles.quickAmountButton,
+                    withdrawAmount === String(amt) && styles.quickAmountButtonActive,
+                  ]}
+                  onPress={() => setWithdrawAmount(String(amt))}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.quickAmountText,
+                    withdrawAmount === String(amt) && styles.quickAmountTextActive,
+                  ]}>
+                    ₱{amt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            <View style={styles.summarySmallCard}>
-              <Ionicons name="stats-chart" size={20} color="#F59E0B" />
-              <Text style={styles.summarySmallValue}>₱{currentData.avg}</Text>
-              <Text style={styles.summarySmallLabel}>Avg per Ride</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Earnings Breakdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Earnings Breakdown</Text>
-          {earningsBreakdown.map((item) => (
-            <View key={`breakdown-${item.service}`} style={styles.breakdownCard}>
-              <View
-                style={[
-                  styles.breakdownIcon,
-                  { backgroundColor: `${item.color}20` },
-                ]}
-              >
-                <View
-                  style={[styles.breakdownDot, { backgroundColor: item.color }]}
+            {/* Withdraw Section */}
+            <View style={styles.withdrawSection}>
+              <View style={styles.withdrawInputContainer}>
+                <Text style={styles.currencySymbol}>₱</Text>
+                <TextInput
+                  style={styles.withdrawInput}
+                  placeholder="Enter amount"
+                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                  value={withdrawAmount}
+                  onChangeText={setWithdrawAmount}
+                  keyboardType="numeric"
                 />
               </View>
-              <View style={styles.breakdownInfo}>
-                <Text style={styles.breakdownService}>{item.service}</Text>
-                <Text style={styles.breakdownRides}>{item.rides} rides</Text>
-              </View>
-              <View style={styles.breakdownEarnings}>
-                <Text style={styles.breakdownAmount}>₱{item.earnings}</Text>
-                <Text style={styles.breakdownPercentage}>
-                  {currentData.total > 0 ? Math.round((item.earnings / currentData.total) * 100) : 0}%
+              <TouchableOpacity
+                style={[styles.withdrawButton, withdrawLoading && { opacity: 0.6 }]}
+                onPress={handleWithdraw}
+                disabled={withdrawLoading}
+                activeOpacity={0.8}
+              >
+                {withdrawLoading ? (
+                  <ActivityIndicator color="#059669" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="arrow-up-circle" size={moderateScale(18)} color="#059669" />
+                    <Text style={styles.withdrawButtonText}>Withdraw</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.withdrawHint}>
+              Min. withdrawal: ₱{minimumWithdraw} | Processing: 1-3 business days
+            </Text>
+          </View>
+        </View>
+
+        {/* Period Selector - Pill Style */}
+        <View style={styles.periodSelectorContainer}>
+          <View style={styles.periodSelector}>
+            {periods.map((period) => (
+              <TouchableOpacity
+                key={period.id}
+                style={[
+                  styles.periodPill,
+                  selectedPeriod === period.id && styles.periodPillActive,
+                ]}
+                onPress={() => setSelectedPeriod(period.id)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={period.icon}
+                  size={fontScale(14)}
+                  color={selectedPeriod === period.id ? COLORS.white : COLORS.gray500}
+                />
+                <Text
+                  style={[
+                    styles.periodPillText,
+                    selectedPeriod === period.id && styles.periodPillTextActive,
+                  ]}
+                >
+                  {period.label}
                 </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Earnings Summary Cards */}
+        <View style={styles.summarySection}>
+          {/* Total Earnings Card */}
+          <View style={styles.totalEarningsCard}>
+            <View style={styles.totalEarningsLeft}>
+              <View style={[styles.summaryIconCircle, { backgroundColor: COLORS.successBg }]}>
+                <Ionicons name="trending-up" size={moderateScale(22)} color={COLORS.success} />
+              </View>
+              <View style={styles.totalEarningsInfo}>
+                <Text style={styles.totalEarningsLabel}>Total Earnings</Text>
+                <Text style={styles.totalEarningsValue}>₱{currentData.total.toLocaleString()}</Text>
               </View>
             </View>
-          ))}
+          </View>
+
+          {/* Stats Row */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summarySmallCard}>
+              <View style={[styles.smallCardIconCircle, { backgroundColor: COLORS.accentBg }]}>
+                <Ionicons name="bicycle" size={moderateScale(18)} color={COLORS.accent} />
+              </View>
+              <Text style={styles.summarySmallValue}>{currentData.rides}</Text>
+              <Text style={styles.summarySmallLabel}>Total Trips</Text>
+            </View>
+            <View style={styles.summarySmallCard}>
+              <View style={[styles.smallCardIconCircle, { backgroundColor: COLORS.warningBg }]}>
+                <Ionicons name="analytics" size={moderateScale(18)} color={COLORS.warning} />
+              </View>
+              <Text style={styles.summarySmallValue}>₱{currentData.avg}</Text>
+              <Text style={styles.summarySmallLabel}>Per Trip Avg</Text>
+            </View>
+          </View>
+
+          {/* Per Trip Average highlight */}
+          {currentData.avg > 0 && (
+            <View style={styles.perTripCard}>
+              <View style={styles.perTripLeft}>
+                <Ionicons name="speedometer-outline" size={moderateScale(20)} color={COLORS.info} />
+                <View style={styles.perTripInfo}>
+                  <Text style={styles.perTripLabel}>Average Earning Per Trip</Text>
+                  <Text style={styles.perTripSub}>Based on {currentData.rides} completed trip{currentData.rides !== 1 ? 's' : ''}</Text>
+                </View>
+              </View>
+              <Text style={styles.perTripValue}>₱{currentData.avg}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Bar Chart Visualization */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Earnings by Service</Text>
+          <View style={styles.barChartCard}>
+            {earningsBreakdown.map((item) => {
+              const barWidth = maxBreakdownEarnings > 0
+                ? Math.max(5, (item.earnings / maxBreakdownEarnings) * 100)
+                : 5;
+              const percentage = currentData.total > 0
+                ? Math.round((item.earnings / currentData.total) * 100)
+                : 0;
+
+              return (
+                <View key={`bar-${item.service}`} style={styles.barChartRow}>
+                  <View style={styles.barChartLabel}>
+                    <View style={[styles.barChartDot, { backgroundColor: item.color }]} />
+                    <Text style={styles.barChartService} numberOfLines={1}>
+                      {item.service.split('(')[0].trim()}
+                    </Text>
+                  </View>
+                  <View style={styles.barChartBarContainer}>
+                    <View style={styles.barChartBarBg}>
+                      <View
+                        style={[
+                          styles.barChartBarFill,
+                          { width: `${barWidth}%`, backgroundColor: item.color },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barChartAmount}>₱{item.earnings.toLocaleString()}</Text>
+                  </View>
+                  <Text style={styles.barChartPercent}>{percentage}%</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Earnings Breakdown with Progress Bars */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Detailed Breakdown</Text>
+          {earningsBreakdown.map((item) => {
+            const percentage = currentData.total > 0
+              ? Math.round((item.earnings / currentData.total) * 100)
+              : 0;
+            return (
+              <View key={`breakdown-${item.service}`} style={styles.breakdownCard}>
+                <View style={styles.breakdownHeader}>
+                  <View style={[styles.breakdownIcon, { backgroundColor: `${item.color}15` }]}>
+                    <Ionicons name={item.icon} size={moderateScale(22)} color={item.color} />
+                  </View>
+                  <View style={styles.breakdownInfo}>
+                    <Text style={styles.breakdownService}>{item.service}</Text>
+                    <Text style={styles.breakdownRides}>{item.rides} trip{item.rides !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <View style={styles.breakdownEarnings}>
+                    <Text style={[styles.breakdownAmount, { color: item.color }]}>₱{item.earnings.toLocaleString()}</Text>
+                    <Text style={styles.breakdownPercentage}>{percentage}%</Text>
+                  </View>
+                </View>
+                {/* Progress bar */}
+                <View style={styles.breakdownProgressBg}>
+                  <View
+                    style={[
+                      styles.breakdownProgressFill,
+                      { width: `${percentage}%`, backgroundColor: item.color },
+                    ]}
+                  />
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         {/* Earnings Summary */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Earnings Summary</Text>
-            <TouchableOpacity onPress={fetchEarnings}>
-              <Text style={styles.seeAllText}>Refresh</Text>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={fetchEarnings}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={fontScale(14)} color={COLORS.accent} />
+              <Text style={styles.refreshText}>Refresh</Text>
             </TouchableOpacity>
           </View>
 
           {totalRides === 0 ? (
-            <View style={styles.earningCard}>
-              <View style={[styles.earningIcon, { backgroundColor: 'rgba(243,244,246,0.13)' }]}>
-                <Ionicons name="bicycle-outline" size={20} color="#6B7280" />
+            <View style={styles.emptyEarningCard}>
+              <View style={styles.emptyEarningIconCircle}>
+                <Ionicons name="bicycle-outline" size={moderateScale(28)} color={COLORS.gray400} />
               </View>
-              <View style={styles.earningInfo}>
-                <Text style={styles.earningService}>No rides yet</Text>
-                <Text style={styles.earningDate}>Start accepting rides to earn</Text>
-              </View>
+              <Text style={styles.emptyEarningTitle}>No rides yet</Text>
+              <Text style={styles.emptyEarningText}>Start accepting rides to see your earnings here</Text>
             </View>
           ) : (
             earningsBreakdown.map((item) => (
               <View key={`earning-${item.service}`} style={styles.earningCard}>
-                <View style={[styles.earningIcon, { backgroundColor: `${item.color}20` }]}>
+                <View style={[styles.earningIcon, { backgroundColor: `${item.color}12` }]}>
                   <Ionicons
-                    name={item.service.includes('Deliveries') ? 'cube' : 'navigate-circle'}
-                    size={20}
+                    name={item.icon}
+                    size={moderateScale(20)}
                     color={item.color}
                   />
                 </View>
                 <View style={styles.earningInfo}>
                   <Text style={styles.earningService}>{item.service}</Text>
-                  <Text style={styles.earningDate}>{item.rides} rides</Text>
+                  <Text style={styles.earningDate}>{item.rides} trip{item.rides !== 1 ? 's' : ''} completed</Text>
                 </View>
-                <Text style={styles.earningAmount}>₱{item.earnings}</Text>
+                <Text style={[styles.earningAmount, { color: item.color }]}>₱{item.earnings.toLocaleString()}</Text>
               </View>
             ))
           )}
@@ -333,7 +463,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
         {/* Payment Info */}
         <View style={styles.paymentInfoCard}>
-          <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          <View style={styles.paymentInfoIconCircle}>
+            <Ionicons name="information" size={moderateScale(16)} color={COLORS.accent} />
+          </View>
           <Text style={styles.paymentInfoText}>
             Withdrawals are processed within 1-3 business days to your
             registered bank account or e-wallet.
@@ -342,56 +474,131 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
   },
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
-    paddingBottom: verticalScale(16),
-    backgroundColor: '#ffffff',
+    paddingTop: isIOS ? verticalScale(52) : verticalScale(38),
+    paddingBottom: verticalScale(14),
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  backButton: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  downloadButton: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Balance Card
+  balanceCardWrapper: {
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: verticalScale(16),
   },
   balanceCard: {
-    backgroundColor: '#10B981',
-    margin: moderateScale(20),
-    borderRadius: RESPONSIVE.borderRadius.large,
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     padding: moderateScale(24),
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(12),
-    elevation: moderateScale(8),
+    overflow: 'hidden',
+    backgroundColor: '#059669',
+    ...SHADOWS.xl,
+  },
+  balanceDecor1: {
+    position: 'absolute',
+    top: moderateScale(-30),
+    right: moderateScale(-30),
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  balanceDecor2: {
+    position: 'absolute',
+    bottom: moderateScale(-20),
+    left: moderateScale(-20),
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   balanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: verticalScale(16),
+    marginBottom: verticalScale(12),
+  },
+  balanceIconCircle: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   balanceLabel: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginLeft: moderateScale(12),
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginLeft: moderateScale(10),
+    fontWeight: '500',
   },
   balanceAmount: {
-    fontSize: fontScale(40),
+    fontSize: fontScale(38),
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: verticalScale(20),
+    color: COLORS.white,
+    marginBottom: verticalScale(16),
+    letterSpacing: 0.5,
   },
+  // Quick Amount Buttons
+  quickAmountsRow: {
+    flexDirection: 'row',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(12),
+  },
+  quickAmountButton: {
+    paddingVertical: moderateScale(6),
+    paddingHorizontal: moderateScale(16),
+    borderRadius: moderateScale(20),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  quickAmountButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderColor: COLORS.white,
+  },
+  quickAmountText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  quickAmountTextActive: {
+    color: COLORS.white,
+  },
+  // Withdraw
   withdrawSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -401,171 +608,294 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: RESPONSIVE.borderRadius.medium,
-    paddingHorizontal: moderateScale(16),
-    marginRight: moderateScale(12),
+    paddingHorizontal: moderateScale(14),
+    marginRight: moderateScale(10),
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   currencySymbol: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginRight: moderateScale(8),
+    color: COLORS.white,
+    marginRight: moderateScale(6),
   },
   withdrawInput: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.large,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    paddingVertical: verticalScale(12),
+    fontWeight: '600',
+    color: COLORS.white,
+    paddingVertical: verticalScale(11),
   },
   withdrawButton: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: moderateScale(24),
-    paddingVertical: verticalScale(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    paddingHorizontal: moderateScale(18),
+    paddingVertical: verticalScale(11),
     borderRadius: RESPONSIVE.borderRadius.medium,
+    gap: moderateScale(4),
   },
   withdrawButtonText: {
-    color: '#10B981',
-    fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
+    color: '#059669',
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
   },
   withdrawHint: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: fontScale(11),
+    color: 'rgba(255, 255, 255, 0.65)',
+  },
+  // Period Selector
+  periodSelectorContainer: {
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(20),
+    marginBottom: verticalScale(20),
   },
   periodSelector: {
     flexDirection: 'row',
+    backgroundColor: COLORS.gray100,
+    borderRadius: moderateScale(25),
+    padding: moderateScale(4),
+  },
+  periodPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(10),
+    borderRadius: moderateScale(22),
+    gap: moderateScale(4),
+  },
+  periodPillActive: {
+    backgroundColor: COLORS.accent,
+    ...SHADOWS.sm,
+  },
+  periodPillText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.gray500,
+  },
+  periodPillTextActive: {
+    color: COLORS.white,
+  },
+  // Summary Section
+  summarySection: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     marginBottom: verticalScale(20),
   },
-  periodButton: {
-    flex: 1,
-    paddingVertical: verticalScale(10),
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    marginHorizontal: moderateScale(4),
-    borderRadius: RESPONSIVE.borderRadius.small,
-  },
-  periodButtonActive: {
-    backgroundColor: '#3B82F6',
-  },
-  periodText: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  periodTextActive: {
-    color: '#ffffff',
-  },
-  summarySection: {
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    marginBottom: verticalScale(24),
-  },
-  summaryCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.medium,
+  totalEarningsCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
     padding: moderateScale(20),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    marginBottom: verticalScale(10),
+    ...SHADOWS.md,
   },
-  summaryItem: {
+  totalEarningsLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  summaryInfo: {
-    marginLeft: moderateScale(16),
-  },
-  summaryValue: {
-    fontSize: RESPONSIVE.fontSize.title,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(4),
-  },
-  summaryLabel: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    marginHorizontal: moderateScale(-4),
-  },
-  summarySmallCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    alignItems: 'center',
-    marginHorizontal: moderateScale(4),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
-  },
-  summarySmallValue: {
-    fontSize: RESPONSIVE.fontSize.xlarge,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: verticalScale(8),
-    marginBottom: verticalScale(4),
-  },
-  summarySmallLabel: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  section: {
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    marginBottom: verticalScale(24),
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: verticalScale(12),
-  },
-  sectionTitle: {
-    fontSize: RESPONSIVE.fontSize.large,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(12),
-  },
-  seeAllText: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-  breakdownCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
-  },
-  breakdownIcon: {
+  summaryIconCircle: {
     width: moderateScale(48),
     height: moderateScale(48),
     borderRadius: moderateScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  breakdownDot: {
-    width: moderateScale(12),
-    height: moderateScale(12),
-    borderRadius: moderateScale(6),
+  totalEarningsInfo: {
+    marginLeft: moderateScale(14),
+  },
+  totalEarningsLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    fontWeight: '500',
+    marginBottom: verticalScale(2),
+  },
+  totalEarningsValue: {
+    fontSize: RESPONSIVE.fontSize.title,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: moderateScale(10),
+  },
+  summarySmallCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(16),
+    alignItems: 'center',
+    ...SHADOWS.sm,
+  },
+  smallCardIconCircle: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summarySmallValue: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginTop: verticalScale(8),
+    marginBottom: verticalScale(2),
+  },
+  summarySmallLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  // Per trip highlight
+  perTripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.infoBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginTop: verticalScale(10),
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  perTripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  perTripInfo: {
+    marginLeft: moderateScale(10),
+    flex: 1,
+  },
+  perTripLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.infoDark,
+  },
+  perTripSub: {
+    fontSize: fontScale(11),
+    color: COLORS.info,
+    marginTop: verticalScale(1),
+  },
+  perTripValue: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: 'bold',
+    color: COLORS.infoDark,
+    marginLeft: moderateScale(8),
+  },
+  // Section
+  section: {
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(20),
+  },
+  sectionTitle: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(12),
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(12),
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+    paddingVertical: moderateScale(4),
+    paddingHorizontal: moderateScale(10),
+    borderRadius: moderateScale(12),
+    backgroundColor: COLORS.accentBg,
+  },
+  refreshText: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  // Bar Chart
+  barChartCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(18),
+    ...SHADOWS.sm,
+  },
+  barChartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(14),
+  },
+  barChartLabel: {
+    width: moderateScale(80),
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  barChartDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    marginRight: moderateScale(6),
+  },
+  barChartService: {
+    fontSize: fontScale(12),
+    color: COLORS.gray700,
+    fontWeight: '500',
+    flex: 1,
+  },
+  barChartBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: moderateScale(8),
+  },
+  barChartBarBg: {
+    flex: 1,
+    height: moderateScale(20),
+    backgroundColor: COLORS.gray100,
+    borderRadius: moderateScale(10),
+    overflow: 'hidden',
+  },
+  barChartBarFill: {
+    height: '100%',
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(4),
+  },
+  barChartAmount: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    color: COLORS.gray700,
+    marginLeft: moderateScale(8),
+    minWidth: moderateScale(50),
+  },
+  barChartPercent: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    fontWeight: '600',
+    width: moderateScale(32),
+    textAlign: 'right',
+  },
+  // Breakdown
+  breakdownCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(16),
+    marginBottom: verticalScale(10),
+    ...SHADOWS.sm,
+  },
+  breakdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(12),
+  },
+  breakdownIcon: {
+    width: moderateScale(46),
+    height: moderateScale(46),
+    borderRadius: moderateScale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   breakdownInfo: {
     flex: 1,
@@ -574,12 +904,12 @@ const styles = StyleSheet.create({
   breakdownService: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(2),
   },
   breakdownRides: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: COLORS.gray500,
   },
   breakdownEarnings: {
     alignItems: 'flex-end',
@@ -587,30 +917,38 @@ const styles = StyleSheet.create({
   breakdownAmount: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#10B981',
+    color: COLORS.success,
     marginBottom: verticalScale(2),
   },
   breakdownPercentage: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray400,
+    fontWeight: '500',
   },
+  breakdownProgressBg: {
+    height: moderateScale(5),
+    backgroundColor: COLORS.gray100,
+    borderRadius: moderateScale(3),
+    overflow: 'hidden',
+  },
+  breakdownProgressFill: {
+    height: '100%',
+    borderRadius: moderateScale(3),
+  },
+  // Earning cards
   earningCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    padding: moderateScale(14),
+    marginBottom: verticalScale(8),
+    ...SHADOWS.sm,
   },
   earningIcon: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(12),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -619,28 +957,68 @@ const styles = StyleSheet.create({
     marginLeft: moderateScale(12),
   },
   earningService: {
-    fontSize: fontScale(15),
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(2),
   },
   earningDate: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    fontSize: fontScale(12),
+    color: COLORS.gray500,
   },
   earningAmount: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
-    color: '#10B981',
+    color: COLORS.success,
   },
+  // Empty state
+  emptyEarningCard: {
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    paddingVertical: moderateScale(32),
+    paddingHorizontal: moderateScale(20),
+    ...SHADOWS.sm,
+  },
+  emptyEarningIconCircle: {
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(12),
+  },
+  emptyEarningTitle: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '700',
+    color: COLORS.gray700,
+    marginBottom: verticalScale(4),
+  },
+  emptyEarningText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    textAlign: 'center',
+  },
+  // Payment Info
   paymentInfoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.accentBg,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(16),
     marginHorizontal: RESPONSIVE.marginHorizontal,
     marginBottom: verticalScale(20),
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  paymentInfoIconCircle: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   paymentInfoText: {
     flex: 1,

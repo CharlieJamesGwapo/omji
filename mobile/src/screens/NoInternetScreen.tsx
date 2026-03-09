@@ -1,17 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Linking,
+  Platform,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
-import { RESPONSIVE, verticalScale, moderateScale, isIOS } from '../utils/responsive';
+import { COLORS, SHADOWS } from '../constants/theme';
+import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../utils/responsive';
 
 export default function NoInternetScreen() {
   const [checking, setChecking] = useState(false);
+
+  // Animated pulse for the icon
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Fade in on mount
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    // Pulse loop
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.08,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
 
   const handleRetry = async () => {
     setChecking(true);
@@ -22,35 +60,102 @@ export default function NoInternetScreen() {
     setTimeout(() => setChecking(false), 1000);
   };
 
+  const openWiFiSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('App-Prefs:WIFI');
+    } else {
+      Linking.sendIntent('android.settings.WIFI_SETTINGS').catch(() => {
+        Linking.openSettings();
+      });
+    }
+  };
+
+  const openMobileDataSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('App-Prefs:MOBILE_DATA_SETTINGS_ID');
+    } else {
+      Linking.sendIntent('android.settings.DATA_ROAMING_SETTINGS').catch(() => {
+        Linking.openSettings();
+      });
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="cloud-offline" size={moderateScale(80)} color="#EF4444" />
-        </View>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {/* Animated Icon */}
+        <Animated.View style={[styles.iconOuterRing, { transform: [{ scale: pulseAnim }] }]}>
+          <View style={styles.iconInnerRing}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="cloud-offline" size={moderateScale(52)} color={COLORS.primary} />
+            </View>
+          </View>
+        </Animated.View>
 
         <Text style={styles.title}>No Internet Connection</Text>
 
         <Text style={styles.description}>
-          Please check your WiFi or mobile data connection and try again. OMJI requires an active internet connection to work.
+          It looks like you're offline. Please check your connection and try again.
         </Text>
 
+        {/* Retry Button */}
         <TouchableOpacity
           style={[styles.retryButton, checking && styles.retryButtonDisabled]}
           onPress={handleRetry}
           disabled={checking}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
           {checking ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
             <>
-              <Ionicons name="refresh" size={20} color="#ffffff" />
+              <Ionicons name="refresh" size={moderateScale(20)} color={COLORS.white} />
               <Text style={styles.retryText}>Try Again</Text>
             </>
           )}
         </TouchableOpacity>
-      </View>
+
+        {/* Suggestions */}
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsTitle}>Troubleshooting</Text>
+
+          <TouchableOpacity style={styles.suggestionItem} onPress={openWiFiSettings} activeOpacity={0.7}>
+            <View style={[styles.suggestionIcon, { backgroundColor: COLORS.accentBg }]}>
+              <Ionicons name="wifi" size={moderateScale(18)} color={COLORS.accent} />
+            </View>
+            <View style={styles.suggestionInfo}>
+              <Text style={styles.suggestionLabel}>Check WiFi Settings</Text>
+              <Text style={styles.suggestionSubtext}>Make sure WiFi is turned on and connected</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray300} />
+          </TouchableOpacity>
+
+          <View style={styles.suggestionDivider} />
+
+          <TouchableOpacity style={styles.suggestionItem} onPress={openMobileDataSettings} activeOpacity={0.7}>
+            <View style={[styles.suggestionIcon, { backgroundColor: COLORS.successBg }]}>
+              <Ionicons name="cellular" size={moderateScale(18)} color={COLORS.success} />
+            </View>
+            <View style={styles.suggestionInfo}>
+              <Text style={styles.suggestionLabel}>Check Mobile Data</Text>
+              <Text style={styles.suggestionSubtext}>Ensure mobile data is enabled</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray300} />
+          </TouchableOpacity>
+
+          <View style={styles.suggestionDivider} />
+
+          <View style={styles.suggestionItem}>
+            <View style={[styles.suggestionIcon, { backgroundColor: COLORS.warningBg }]}>
+              <Ionicons name="airplane" size={moderateScale(18)} color={COLORS.warning} />
+            </View>
+            <View style={styles.suggestionInfo}>
+              <Text style={styles.suggestionLabel}>Airplane Mode</Text>
+              <Text style={styles.suggestionSubtext}>Make sure airplane mode is turned off</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -58,65 +163,123 @@ export default function NoInternetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   content: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.large,
-    padding: moderateScale(32),
-    marginHorizontal: RESPONSIVE.marginHorizontal,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(12),
-    elevation: moderateScale(5),
     width: '100%',
-    maxWidth: 400,
+    maxWidth: moderateScale(400),
   },
-  iconContainer: {
-    width: moderateScale(140),
-    height: moderateScale(140),
-    borderRadius: moderateScale(70),
-    backgroundColor: '#FEE2E2',
+  iconOuterRing: {
+    width: moderateScale(160),
+    height: moderateScale(160),
+    borderRadius: moderateScale(80),
+    backgroundColor: COLORS.primaryBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(24),
+    marginBottom: verticalScale(28),
+  },
+  iconInnerRing: {
+    width: moderateScale(130),
+    height: moderateScale(130),
+    borderRadius: moderateScale(65),
+    backgroundColor: `${COLORS.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.md,
   },
   title: {
     fontSize: RESPONSIVE.fontSize.xxlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(12),
+    color: COLORS.gray900,
+    marginBottom: verticalScale(10),
     textAlign: 'center',
   },
   description: {
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
+    color: COLORS.gray500,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: fontScale(24),
     marginBottom: verticalScale(28),
+    paddingHorizontal: moderateScale(16),
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     paddingVertical: moderateScale(14),
-    paddingHorizontal: moderateScale(32),
+    paddingHorizontal: moderateScale(36),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    minWidth: moderateScale(160),
+    minWidth: moderateScale(180),
     gap: moderateScale(8),
+    marginBottom: verticalScale(32),
+    ...SHADOWS.colored(COLORS.accent),
   },
   retryButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: COLORS.accentLight,
   },
   retryText: {
-    color: '#ffffff',
+    color: COLORS.white,
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '700',
+  },
+  suggestionsContainer: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(20),
+    ...SHADOWS.md,
+  },
+  suggestionsTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: moderateScale(0.5),
+    marginBottom: verticalScale(16),
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: verticalScale(10),
+  },
+  suggestionIcon: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionInfo: {
+    flex: 1,
+    marginLeft: moderateScale(14),
+  },
+  suggestionLabel: {
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '600',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(2),
+  },
+  suggestionSubtext: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+  },
+  suggestionDivider: {
+    height: 1,
+    backgroundColor: COLORS.gray100,
+    marginVertical: verticalScale(4),
+    marginLeft: moderateScale(54),
   },
 });

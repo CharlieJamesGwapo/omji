@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,45 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
-import { rideService, deliveryService } from '../../services/api';
+import { rideService, deliveryService, notificationService } from '../../services/api';
+
+// Dynamic greeting based on time of day
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+// Formatted current date (e.g., "Sunday, March 9")
+const getFormattedDate = (): string => {
+  const now = new Date();
+  return now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+};
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const lastFetchRef = useRef<number>(0);
   const dotPulse = useRef(new Animated.Value(1)).current;
+  const headerFade = useRef(new Animated.Value(0)).current;
+
+  // Header fade-in on mount
+  useEffect(() => {
+    Animated.timing(headerFade, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, [headerFade]);
 
   // Pulsing dot for active rides/deliveries
   useEffect(() => {
@@ -34,6 +64,19 @@ export default function HomeScreen({ navigation }: any) {
       return () => pulse.stop();
     }
   }, [activeRides.length, activeDeliveries.length, dotPulse]);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await notificationService.getNotifications();
+      const notifications = res?.data?.data;
+      if (Array.isArray(notifications)) {
+        const unread = notifications.filter((n: any) => !n.is_read).length;
+        setUnreadCount(unread);
+      }
+    } catch {
+      // Silently fail - notification count is non-critical
+    }
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -58,9 +101,13 @@ export default function HomeScreen({ navigation }: any) {
           console.error('Error fetching active orders:', error);
         }
       })();
+      fetchUnreadCount();
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, fetchUnreadCount]);
+
+  const greeting = useMemo(() => getGreeting(), []);
+  const formattedDate = useMemo(() => getFormattedDate(), []);
 
   const services = [
     {
@@ -68,8 +115,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasugo',
       description: 'Delivery Service',
       icon: 'cube-outline',
-      color: '#3B82F6',
-      gradient: ['#3B82F6', '#2563EB'],
+      color: COLORS.pasugo,
+      darkColor: COLORS.successDark,
       screen: 'Pasugo',
     },
     {
@@ -77,8 +124,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasabay',
       description: 'Ride Sharing',
       icon: 'bicycle-outline',
-      color: '#10B981',
-      gradient: ['#10B981', '#059669'],
+      color: COLORS.pasabay,
+      darkColor: '#7C3AED',
       screen: 'Pasabay',
     },
     {
@@ -86,8 +133,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasundo',
       description: 'Pick-up Service',
       icon: 'people-outline',
-      color: '#F59E0B',
-      gradient: ['#F59E0B', '#D97706'],
+      color: COLORS.store,
+      darkColor: COLORS.warningDark,
       screen: 'Pasundo',
     },
     {
@@ -95,31 +142,49 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Stores',
       description: 'Shop & Deliver',
       icon: 'storefront-outline',
-      color: '#EF4444',
-      gradient: ['#EF4444', '#DC2626'],
+      color: COLORS.primary,
+      darkColor: COLORS.primaryDark,
       screen: 'Services',
     },
   ];
 
   const quickActions = [
-    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
-    { icon: 'time-outline', label: 'History', screen: 'RideHistory' },
-    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!') },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app') },
+    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.accent },
+    { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.info },
+    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!'), color: COLORS.warning },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app'), color: COLORS.success },
   ];
+
+  const firstName = user?.name?.split(' ')[0] || 'Guest';
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello,</Text>
-          <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
+      {/* Premium Header */}
+      <Animated.View style={[styles.header, { opacity: headerFade }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.dateText}>{formattedDate}</Text>
+            <Text style={styles.greeting}>{greeting},</Text>
+            <Text style={styles.userName} numberOfLines={1}>{firstName}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notifications')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.notificationCircle}>
+              <Ionicons name="notifications-outline" size={moderateScale(22)} color={COLORS.gray800} />
+            </View>
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -131,60 +196,113 @@ export default function HomeScreen({ navigation }: any) {
             key={`ride-${ride.id}`}
             style={styles.activeCard}
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.final_fare || ride.estimated_fare })}
+            activeOpacity={0.8}
           >
-            <Animated.View style={[styles.activeDot, { backgroundColor: '#F59E0B', transform: [{ scale: dotPulse }] }]} />
-            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-              <Text style={styles.activeTitle}>Active Ride</Text>
-              <Text style={styles.activeSub} numberOfLines={1}>{ride.dropoff_location || 'In progress'} - {ride.status?.replace(/_/g, ' ')}</Text>
+            <View style={[styles.activeAccent, { backgroundColor: COLORS.warning }]} />
+            <View style={styles.activeCardContent}>
+              <View style={styles.activeCardLeft}>
+                <View style={[styles.activeIconWrap, { backgroundColor: COLORS.warningBg }]}>
+                  <Animated.View style={[styles.activeDot, { backgroundColor: COLORS.warning, transform: [{ scale: dotPulse }] }]} />
+                </View>
+                <View style={styles.activeTextWrap}>
+                  <Text style={styles.activeTitle}>Active Ride</Text>
+                  <Text style={styles.activeSub} numberOfLines={1}>
+                    {ride.dropoff_location || 'In progress'}
+                  </Text>
+                  <View style={styles.activeStatusWrap}>
+                    <View style={[styles.activeStatusDot, { backgroundColor: COLORS.warning }]} />
+                    <Text style={[styles.activeStatusText, { color: COLORS.warningDark }]}>
+                      {formatStatus(ride.status || '')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.warning} />
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
           </TouchableOpacity>
         ))}
         {activeDeliveries.map((del: any) => (
           <TouchableOpacity
             key={`del-${del.id}`}
-            style={[styles.activeCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+            style={[styles.activeCard]}
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: del.id, pickup: del.pickup_location, dropoff: del.dropoff_location, fare: del.delivery_fee })}
+            activeOpacity={0.8}
           >
-            <Animated.View style={[styles.activeDot, { backgroundColor: '#DC2626', transform: [{ scale: dotPulse }] }]} />
-            <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-              <Text style={[styles.activeTitle, { color: '#991B1B' }]}>Active Delivery</Text>
-              <Text style={[styles.activeSub, { color: '#B91C1C' }]} numberOfLines={1}>{del.dropoff_location || 'In progress'} - {del.status?.replace(/_/g, ' ')}</Text>
+            <View style={[styles.activeAccent, { backgroundColor: COLORS.primary }]} />
+            <View style={styles.activeCardContent}>
+              <View style={styles.activeCardLeft}>
+                <View style={[styles.activeIconWrap, { backgroundColor: COLORS.primaryBg }]}>
+                  <Animated.View style={[styles.activeDot, { backgroundColor: COLORS.primary, transform: [{ scale: dotPulse }] }]} />
+                </View>
+                <View style={styles.activeTextWrap}>
+                  <Text style={[styles.activeTitle, { color: COLORS.gray900 }]}>Active Delivery</Text>
+                  <Text style={styles.activeSub} numberOfLines={1}>
+                    {del.dropoff_location || 'In progress'}
+                  </Text>
+                  <View style={styles.activeStatusWrap}>
+                    <View style={[styles.activeStatusDot, { backgroundColor: COLORS.primary }]} />
+                    <Text style={[styles.activeStatusText, { color: COLORS.primaryDark }]}>
+                      {formatStatus(del.status || '')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.primary} />
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#DC2626" />
           </TouchableOpacity>
         ))}
 
-        {/* Banner */}
+        {/* Hero Banner */}
         <View style={styles.banner}>
-          <Image
-            source={require('../../../assets/icon.png')}
-            style={styles.bannerLogo}
-          />
-          <View style={styles.bannerText}>
-            <Text style={styles.bannerTitle}>OMJI - Balingasag</Text>
-            <Text style={styles.bannerSubtitle}>
-              One App. All Rides. All Services.
-            </Text>
+          <View style={styles.bannerDecorTop} />
+          <View style={styles.bannerDecorBottom} />
+          <View style={styles.bannerInner}>
+            <Image
+              source={require('../../../assets/icon.png')}
+              style={styles.bannerLogo}
+            />
+            <View style={styles.bannerText}>
+              <Text style={styles.bannerLabel}>WELCOME TO</Text>
+              <Text style={styles.bannerTitle}>OMJI</Text>
+              <Text style={styles.bannerSubtitle}>
+                One App. All Rides. All Services.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.bannerTagWrap}>
+            <View style={styles.bannerTag}>
+              <Ionicons name="location" size={moderateScale(12)} color={COLORS.white} />
+              <Text style={styles.bannerTagText}>Balingasag, Misamis Oriental</Text>
+            </View>
           </View>
         </View>
 
         {/* Service Cards */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Services</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Our Services</Text>
+            <Text style={styles.sectionSubtitle}>Choose a service to get started</Text>
+          </View>
           <View style={styles.servicesGrid}>
             {services.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={[styles.serviceCard, { backgroundColor: service.color }]}
+                style={[styles.serviceCard, { backgroundColor: service.color }, SHADOWS.colored(service.darkColor)]}
                 onPress={() => navigation.navigate(service.screen)}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
-                <View style={styles.serviceIconContainer}>
-                  <Ionicons name={service.icon as any} size={32} color="#ffffff" />
+                <View style={styles.serviceCardInner}>
+                  <View style={styles.serviceIconContainer}>
+                    <View style={styles.serviceIconInner}>
+                      <Ionicons name={service.icon as any} size={moderateScale(28)} color="#ffffff" />
+                    </View>
+                  </View>
+                  <Text style={styles.serviceName}>{service.name}</Text>
+                  <Text style={styles.serviceDescription}>{service.description}</Text>
+                  <View style={styles.serviceArrow}>
+                    <Ionicons name="arrow-forward" size={moderateScale(14)} color="rgba(255,255,255,0.7)" />
+                  </View>
                 </View>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceDescription}>{service.description}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -192,16 +310,19 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
           <View style={styles.quickActionsGrid}>
-            {quickActions.map((action, index) => (
+            {quickActions.map((action) => (
               <TouchableOpacity
                 key={action.label}
                 style={styles.quickActionButton}
                 onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
+                activeOpacity={0.7}
               >
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name={action.icon as any} size={24} color="#3B82F6" />
+                <View style={[styles.quickActionIcon, { backgroundColor: action.color + '14' }]}>
+                  <Ionicons name={action.icon as any} size={moderateScale(24)} color={action.color} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -210,18 +331,32 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Promo Banner */}
-        <TouchableOpacity style={styles.promoBanner} onPress={() => Alert.alert('Special Promo', 'Use code OMJI20 for 20% off your first ride!')}>
-          <Ionicons name="gift" size={32} color="#F59E0B" />
-          <View style={styles.promoText}>
-            <Text style={styles.promoTitle}>Special Promo!</Text>
-            <Text style={styles.promoSubtitle}>Get 20% off your first ride</Text>
+        <TouchableOpacity
+          style={styles.promoBanner}
+          onPress={() => Alert.alert('Special Promo', 'Use code OMJI20 for 20% off your first ride!')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.promoGlow} />
+          <View style={styles.promoContent}>
+            <View style={styles.promoIconWrap}>
+              <Ionicons name="gift" size={moderateScale(28)} color={COLORS.white} />
+            </View>
+            <View style={styles.promoText}>
+              <Text style={styles.promoLabel}>LIMITED OFFER</Text>
+              <Text style={styles.promoTitle}>20% Off Your First Ride!</Text>
+              <Text style={styles.promoSubtitle}>Use code OMJI20 at checkout</Text>
+            </View>
+            <View style={styles.promoArrow}>
+              <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.white} />
+            </View>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </TouchableOpacity>
 
         {/* Info Section */}
         <View style={styles.infoCard}>
-          <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          <View style={styles.infoIconWrap}>
+            <Ionicons name="information-circle" size={moderateScale(20)} color={COLORS.accent} />
+          </View>
           <Text style={styles.infoText}>
             All services available in Balingasag, Misamis Oriental
           </Text>
@@ -234,104 +369,305 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
   },
+
+  // --- Header ---
   header: {
+    backgroundColor: COLORS.white,
+    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
+    paddingBottom: verticalScale(16),
+    borderBottomLeftRadius: RESPONSIVE.borderRadius.xlarge,
+    borderBottomRightRadius: RESPONSIVE.borderRadius.xlarge,
+    ...SHADOWS.md,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
-    paddingBottom: RESPONSIVE.paddingVertical,
-    backgroundColor: '#ffffff',
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: moderateScale(16),
+  },
+  dateText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginBottom: verticalScale(2),
+    letterSpacing: 0.3,
   },
   greeting: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
+    color: COLORS.gray500,
+    marginBottom: verticalScale(1),
   },
   userName: {
     fontSize: RESPONSIVE.fontSize.xxlarge,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: COLORS.gray900,
+    letterSpacing: -0.3,
   },
   notificationButton: {
     position: 'relative',
   },
+  notificationCircle: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -verticalScale(2),
+    right: -moderateScale(4),
+    backgroundColor: COLORS.primary,
+    borderRadius: moderateScale(10),
+    minWidth: moderateScale(20),
+    height: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: moderateScale(5),
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  badgeText: {
+    fontSize: RESPONSIVE.fontSize.small - 2,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+
+  // --- Scroll ---
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
+    paddingTop: verticalScale(16),
     paddingBottom: verticalScale(100),
   },
-  banner: {
-    flexDirection: 'row',
-    backgroundColor: '#3B82F6',
+
+  // --- Active Ride/Delivery Cards ---
+  activeCard: {
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.large,
-    padding: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(12),
+    overflow: 'hidden',
+    ...SHADOWS.md,
+  },
+  activeAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: moderateScale(4),
+    borderTopLeftRadius: RESPONSIVE.borderRadius.large,
+    borderBottomLeftRadius: RESPONSIVE.borderRadius.large,
+  },
+  activeCardContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: verticalScale(14),
+    paddingHorizontal: moderateScale(16),
+    paddingLeft: moderateScale(20),
+  },
+  activeCardLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeIconWrap: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
+  },
+  activeDot: {
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+  },
+  activeTextWrap: {
+    flex: 1,
+  },
+  activeTitle: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
+  },
+  activeSub: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginBottom: verticalScale(4),
+  },
+  activeStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeStatusDot: {
+    width: moderateScale(6),
+    height: moderateScale(6),
+    borderRadius: moderateScale(3),
+    marginRight: moderateScale(6),
+  },
+  activeStatusText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+  },
+
+  // --- Hero Banner ---
+  banner: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    padding: moderateScale(20),
     marginBottom: RESPONSIVE.marginVertical * 1.5,
+    overflow: 'hidden',
+  },
+  bannerDecorTop: {
+    position: 'absolute',
+    top: -moderateScale(30),
+    right: -moderateScale(30),
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  bannerDecorBottom: {
+    position: 'absolute',
+    bottom: -moderateScale(20),
+    left: -moderateScale(20),
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  bannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   bannerLogo: {
-    width: isTablet() ? 80 : 60,
-    height: isTablet() ? 80 : 60,
-    borderRadius: RESPONSIVE.borderRadius.medium,
+    width: moderateScale(isTablet() ? 80 : 64),
+    height: moderateScale(isTablet() ? 80 : 64),
+    borderRadius: RESPONSIVE.borderRadius.large,
     marginRight: moderateScale(16),
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   bannerText: {
     flex: 1,
   },
+  bannerLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.5,
+    marginBottom: verticalScale(2),
+  },
   bannerTitle: {
-    fontSize: RESPONSIVE.fontSize.xlarge,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontSize: RESPONSIVE.fontSize.title,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 1,
     marginBottom: verticalScale(4),
   },
   bannerSubtitle: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#E0E7FF',
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: RESPONSIVE.fontSize.medium * 1.4,
   },
+  bannerTagWrap: {
+    marginTop: verticalScale(14),
+    flexDirection: 'row',
+  },
+  bannerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: moderateScale(20),
+    paddingVertical: verticalScale(5),
+    paddingHorizontal: moderateScale(12),
+  },
+  bannerTagText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.white,
+    marginLeft: moderateScale(5),
+    fontWeight: '500',
+  },
+
+  // --- Sections ---
   section: {
     marginBottom: RESPONSIVE.marginVertical * 1.5,
   },
-  sectionTitle: {
-    fontSize: RESPONSIVE.fontSize.xlarge,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  sectionHeader: {
     marginBottom: RESPONSIVE.marginVertical,
   },
+  sectionTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    letterSpacing: -0.3,
+  },
+  sectionSubtitle: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginTop: verticalScale(2),
+  },
+
+  // --- Service Cards ---
   servicesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   serviceCard: {
-    width: getCardWidth(isTablet() ? 4 : 2, RESPONSIVE.paddingHorizontal, 16),
-    borderRadius: RESPONSIVE.borderRadius.large,
-    padding: RESPONSIVE.paddingHorizontal,
+    width: getCardWidth(isTablet() ? 4 : 2, RESPONSIVE.paddingHorizontal, moderateScale(12)),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
     marginBottom: RESPONSIVE.marginVertical,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(8),
-    elevation: moderateScale(4),
+    overflow: 'hidden',
+  },
+  serviceCardInner: {
+    padding: moderateScale(16),
+    paddingTop: moderateScale(18),
+    paddingBottom: moderateScale(14),
   },
   serviceIconContainer: {
-    width: isTablet() ? 64 : 56,
-    height: isTablet() ? 64 : 56,
-    borderRadius: isTablet() ? 32 : 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: moderateScale(isTablet() ? 64 : 52),
+    height: moderateScale(isTablet() ? 64 : 52),
+    borderRadius: moderateScale(isTablet() ? 20 : 16),
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(12),
+    marginBottom: verticalScale(14),
+  },
+  serviceIconInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   serviceName: {
     fontSize: RESPONSIVE.fontSize.large,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: verticalScale(4),
+    fontWeight: '700',
+    color: COLORS.white,
+    marginBottom: verticalScale(3),
+    letterSpacing: 0.2,
   },
   serviceDescription: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginBottom: verticalScale(10),
   },
+  serviceArrow: {
+    alignSelf: 'flex-end',
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // --- Quick Actions ---
   quickActionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -339,86 +675,109 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     alignItems: 'center',
-    width: getCardWidth(isTablet() ? 8 : 4, RESPONSIVE.paddingHorizontal, 16),
+    width: getCardWidth(isTablet() ? 8 : 4, RESPONSIVE.paddingHorizontal, moderateScale(12)),
     marginBottom: RESPONSIVE.marginVertical,
   },
   quickActionIcon: {
-    width: isTablet() ? 64 : 56,
-    height: isTablet() ? 64 : 56,
-    borderRadius: isTablet() ? 32 : 28,
-    backgroundColor: '#EFF6FF',
+    width: moderateScale(isTablet() ? 64 : 56),
+    height: moderateScale(isTablet() ? 64 : 56),
+    borderRadius: moderateScale(isTablet() ? 20 : 16),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(8),
   },
   quickActionLabel: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: COLORS.gray600,
+    fontWeight: '500',
     textAlign: 'center',
   },
+
+  // --- Promo Banner ---
   promoBanner: {
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    marginBottom: RESPONSIVE.marginVertical * 1.5,
+    overflow: 'hidden',
+    backgroundColor: '#F97316',
+    ...SHADOWS.lg,
+  },
+  promoGlow: {
+    position: 'absolute',
+    top: -moderateScale(40),
+    right: -moderateScale(40),
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  promoContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: RESPONSIVE.borderRadius.large,
-    padding: RESPONSIVE.paddingVertical,
-    marginBottom: RESPONSIVE.marginVertical,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    paddingVertical: verticalScale(18),
+    paddingHorizontal: moderateScale(18),
+  },
+  promoIconWrap: {
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(14),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   promoText: {
     flex: 1,
-    marginLeft: moderateScale(16),
+    marginLeft: moderateScale(14),
+  },
+  promoLabel: {
+    fontSize: RESPONSIVE.fontSize.small - 1,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 1.2,
+    marginBottom: verticalScale(2),
   },
   promoTitle: {
-    fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(4),
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.white,
+    marginBottom: verticalScale(3),
   },
   promoSubtitle: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#6B7280',
+    color: 'rgba(255,255,255,0.8)',
   },
+  promoArrow: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: moderateScale(8),
+  },
+
+  // --- Info Card ---
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingVertical,
+    backgroundColor: COLORS.accentBg,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(14),
+    borderWidth: 1,
+    borderColor: COLORS.accentLight + '40',
+  },
+  infoIconWrap: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
   },
   infoText: {
     flex: 1,
-    marginLeft: moderateScale(12),
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#1F2937',
-  },
-  activeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(14),
-    marginBottom: verticalScale(12),
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  activeDot: {
-    width: moderateScale(12),
-    height: moderateScale(12),
-    borderRadius: moderateScale(6),
-  },
-  activeTitle: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  activeSub: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: '#B45309',
-    marginTop: verticalScale(2),
+    color: COLORS.gray700,
+    lineHeight: RESPONSIVE.fontSize.medium * 1.5,
   },
 });

@@ -23,6 +23,7 @@
     "expo": "~54.0.0",
     "expo-constants": "~18.0.13",
     "expo-image-picker": "~17.0.10",
+    "expo-linear-gradient": "~15.0.8",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.16",
     "expo-status-bar": "~3.0.9",

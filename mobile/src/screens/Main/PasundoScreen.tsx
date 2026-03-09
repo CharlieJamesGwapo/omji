@@ -75,6 +75,7 @@ export default function PasundoScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [activeRide, setActiveRide] = useState<any>(null);
+  const [estimatedTime, setEstimatedTime] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
@@ -148,6 +149,17 @@ export default function PasundoScreen({ navigation }: any) {
     ? Math.round((selectedVehicle.base + distance * selectedVehicle.rate) * 100) / 100
     : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
+
+  // Calculate estimated arrival time
+  useEffect(() => {
+    if (distance > 0) {
+      const avgSpeed = vehicleType === 'car' ? 30 : 25; // km/h average in Balingasag
+      const minutes = Math.ceil((distance / avgSpeed) * 60);
+      setEstimatedTime(minutes <= 1 ? '~1 min' : `~${minutes} min`);
+    } else {
+      setEstimatedTime('');
+    }
+  }, [distance, vehicleType]);
 
   // Reset promo when fare basis changes (locations or vehicle changed)
   useEffect(() => {
@@ -289,11 +301,12 @@ export default function PasundoScreen({ navigation }: any) {
       {/* Header with back button */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="people" size={28} color="#F59E0B" />
-          <Text style={styles.headerTitle}>Pasundo Service</Text>
+          <Ionicons name="people" size={24} color="#ffffff" />
+          <Text style={styles.headerTitle}>Pasundo</Text>
+          <Text style={styles.headerSubtitle}>Pick-up Service</Text>
         </View>
         <View style={{ width: moderateScale(40) }} />
       </View>
@@ -477,6 +490,22 @@ export default function PasundoScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* ETA Display */}
+        {!!estimatedTime && (
+          <View style={styles.etaCard}>
+            <View style={styles.etaIconContainer}>
+              <Ionicons name="time" size={20} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.etaLabel}>Estimated Travel Time</Text>
+              <Text style={styles.etaValue}>{estimatedTime}</Text>
+            </View>
+            <View style={styles.etaDistanceBadge}>
+              <Text style={styles.etaDistanceText}>{distance.toFixed(1)} km</Text>
+            </View>
+          </View>
+        )}
+
         {/* Info */}
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#F59E0B" />
@@ -488,14 +517,20 @@ export default function PasundoScreen({ navigation }: any) {
           style={[styles.bookButton, (loading || !!activeRide) && styles.bookButtonDisabled]}
           onPress={handleBookPickup}
           disabled={loading || !!activeRide}
+          activeOpacity={0.85}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <>
-              <Text style={styles.bookButtonText}>Book Pickup Service</Text>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-            </>
+            <View style={styles.bookButtonContent}>
+              <View>
+                <Text style={styles.bookButtonText}>Book Pickup Service</Text>
+                {estimatedFare > 0 && <Text style={styles.bookButtonFare}>₱{estimatedFare.toFixed(0)}</Text>}
+              </View>
+              <View style={styles.bookButtonArrow}>
+                <Ionicons name="arrow-forward" size={20} color="#F59E0B" />
+              </View>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -535,10 +570,11 @@ export default function PasundoScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
-  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#1F2937' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(16), backgroundColor: '#F59E0B' },
+  backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#ffffff' },
+  headerSubtitle: { fontSize: RESPONSIVE.fontSize.small, color: 'rgba(255,255,255,0.85)', marginTop: verticalScale(2) },
   activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FDE68A' },
   activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#F59E0B' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#92400E' },
@@ -568,9 +604,18 @@ const styles = StyleSheet.create({
   priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#F59E0B' },
   infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12) },
   infoText: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.small, color: '#92400E' },
-  bookButton: { flexDirection: 'row', backgroundColor: '#F59E0B', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, alignItems: 'center', justifyContent: 'center' },
+  etaCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), borderWidth: 1, borderColor: '#FDE68A' },
+  etaIconContainer: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: '#FFFBEB', alignItems: 'center', justifyContent: 'center', marginRight: moderateScale(12) },
+  etaLabel: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280' },
+  etaValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937', marginTop: verticalScale(2) },
+  etaDistanceBadge: { backgroundColor: '#FFFBEB', paddingHorizontal: moderateScale(12), paddingVertical: verticalScale(6), borderRadius: RESPONSIVE.borderRadius.small },
+  etaDistanceText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#92400E' },
+  bookButton: { backgroundColor: '#F59E0B', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: verticalScale(8), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#F59E0B', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
   bookButtonDisabled: { opacity: 0.7 },
-  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', marginRight: moderateScale(8) },
+  bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
+  bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
+  bookButtonArrow: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
 });

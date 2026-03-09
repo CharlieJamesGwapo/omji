@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { walletService } from '../../services/api';
+import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function WalletScreen({ navigation }: any) {
@@ -60,11 +61,18 @@ export default function WalletScreen({ navigation }: any) {
     }
   }, [fetchWallet]);
 
+  const quickTopUpAmounts = [
+    { amount: 50, label: '50' },
+    { amount: 100, label: '100' },
+    { amount: 500, label: '500' },
+    { amount: 1000, label: '1,000' },
+  ];
+
   const topUpOptions = [
-    { amount: 100, label: '₱100' },
-    { amount: 200, label: '₱200' },
-    { amount: 500, label: '₱500' },
-    { amount: 1000, label: '₱1,000' },
+    { amount: 100, label: '100' },
+    { amount: 200, label: '200' },
+    { amount: 500, label: '500' },
+    { amount: 1000, label: '1,000' },
   ];
 
   const paymentMethods = [
@@ -75,17 +83,17 @@ export default function WalletScreen({ navigation }: any) {
   const handleTopUp = () => {
     const amount = parseInt(topUpAmount, 10);
     if (isNaN(amount) || amount < 10) {
-      Alert.alert('Invalid Amount', 'Minimum top-up amount is ₱10');
+      Alert.alert('Invalid Amount', 'Minimum top-up amount is \u20B110');
       return;
     }
     if (amount > 50000) {
-      Alert.alert('Invalid Amount', 'Maximum top-up amount is ₱50,000');
+      Alert.alert('Invalid Amount', 'Maximum top-up amount is \u20B150,000');
       return;
     }
 
     Alert.alert(
       'Confirm Top Up',
-      `Add ₱${amount} to your wallet using ${selectedMethod.toUpperCase()}?`,
+      `Add \u20B1${amount} to your wallet using ${selectedMethod.toUpperCase()}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -101,7 +109,7 @@ export default function WalletScreen({ navigation }: any) {
               setBalance(data?.balance != null ? Number(data.balance) : balance + amount);
               setShowTopUp(false);
               setTopUpAmount('');
-              Alert.alert('Success', `₱${amount} has been added to your wallet!`);
+              Alert.alert('Success', `\u20B1${amount} has been added to your wallet!`);
               fetchWallet();
             } catch (error: any) {
               Alert.alert(
@@ -117,14 +125,14 @@ export default function WalletScreen({ navigation }: any) {
     );
   };
 
-  const getTransactionIcon = (type: string) => {
+  const getTransactionIcon = (type: string): { icon: string; color: string; bg: string } => {
     switch (type) {
-      case 'top_up': return { icon: 'add-circle', color: '#10B981' };
-      case 'payment': return { icon: 'cart', color: '#EF4444' };
-      case 'refund': return { icon: 'return-down-back', color: '#3B82F6' };
-      case 'earning': return { icon: 'cash', color: '#10B981' };
-      case 'withdrawal': return { icon: 'arrow-down-circle', color: '#F59E0B' };
-      default: return { icon: 'swap-horizontal', color: '#6B7280' };
+      case 'top_up': return { icon: 'arrow-up-circle', color: COLORS.success, bg: COLORS.successBg };
+      case 'payment': return { icon: 'cart', color: COLORS.error, bg: COLORS.errorBg };
+      case 'refund': return { icon: 'return-down-back', color: COLORS.accent, bg: COLORS.accentBg };
+      case 'earning': return { icon: 'cash', color: COLORS.success, bg: COLORS.successBg };
+      case 'withdrawal': return { icon: 'arrow-down-circle', color: COLORS.warning, bg: COLORS.warningBg };
+      default: return { icon: 'swap-horizontal', color: COLORS.gray500, bg: COLORS.gray100 };
     }
   };
 
@@ -138,13 +146,25 @@ export default function WalletScreen({ navigation }: any) {
     if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatTransactionType = (type: string): string => {
+    switch (type) {
+      case 'top_up': return 'Top Up';
+      case 'payment': return 'Payment';
+      case 'refund': return 'Refund';
+      case 'earning': return 'Earning';
+      case 'withdrawal': return 'Withdrawal';
+      default: return type?.replace(/_/g, ' ') || 'Transaction';
+    }
   };
 
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={styles.loadingText}>Loading wallet...</Text>
       </View>
     );
   }
@@ -153,51 +173,96 @@ export default function WalletScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Wallet</Text>
-        <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh-outline" size={24} color="#1F2937" />
+        <Text style={styles.headerTitle}>My Wallet</Text>
+        <TouchableOpacity onPress={onRefresh} style={styles.headerRefreshBtn}>
+          <Ionicons name="refresh-outline" size={22} color={COLORS.gray600} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
       >
         {/* Balance Card */}
         <View style={styles.balanceCard}>
-          <View style={styles.balanceHeader}>
-            <Ionicons name="wallet" size={32} color="#ffffff" />
-            <Text style={styles.balanceLabel}>Available Balance</Text>
-          </View>
-          <Text style={styles.balanceAmount}>₱{balance.toFixed(2)}</Text>
-          <View style={{ flexDirection: 'row', gap: moderateScale(10) }}>
-            <TouchableOpacity
-              style={[styles.topUpButton, { flex: 1 }]}
-              onPress={() => { setShowTopUp(!showTopUp); setShowWithdraw(false); }}
-            >
-              <Ionicons name="add-circle" size={20} color="#ffffff" />
-              <Text style={styles.topUpButtonText}>Top Up</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.topUpButton, { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }]}
-              onPress={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
-            >
-              <Ionicons name="arrow-down-circle" size={20} color="#ffffff" />
-              <Text style={styles.topUpButtonText}>Withdraw</Text>
-            </TouchableOpacity>
+          <View style={styles.balanceCardOverlay} />
+          <View style={styles.balanceCardContent}>
+            <View style={styles.balanceTopRow}>
+              <View style={styles.walletIconWrapper}>
+                <Ionicons name="wallet" size={moderateScale(24)} color={COLORS.white} />
+              </View>
+              <Text style={styles.balanceLabel}>Available Balance</Text>
+            </View>
+            <Text style={styles.balanceAmount}>
+              {'\u20B1'}{balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.topUpActionBtn]}
+                onPress={() => { setShowTopUp(!showTopUp); setShowWithdraw(false); }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.actionIconCircle}>
+                  <Ionicons name="add" size={moderateScale(20)} color={COLORS.accent} />
+                </View>
+                <Text style={[styles.actionButtonText, { color: COLORS.accent }]}>Top Up</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.withdrawActionBtn]}
+                onPress={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                  <Ionicons name="arrow-down" size={moderateScale(20)} color={COLORS.white} />
+                </View>
+                <Text style={styles.actionButtonText}>Withdraw</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
+        {/* Quick Top Up Buttons */}
+        {!showTopUp && !showWithdraw && (
+          <View style={styles.quickTopUpSection}>
+            <Text style={styles.quickTopUpLabel}>Quick Top Up</Text>
+            <View style={styles.quickTopUpRow}>
+              {quickTopUpAmounts.map((item) => (
+                <TouchableOpacity
+                  key={item.amount}
+                  style={styles.quickTopUpBtn}
+                  onPress={() => {
+                    setTopUpAmount(item.amount.toString());
+                    setShowTopUp(true);
+                    setShowWithdraw(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.quickTopUpCurrency}>{'\u20B1'}</Text>
+                  <Text style={styles.quickTopUpValue}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Top Up Section */}
         {showTopUp && (
-          <View style={styles.topUpSection}>
-            <Text style={styles.sectionTitle}>Top Up Amount</Text>
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Text style={styles.formSectionTitle}>Top Up Wallet</Text>
+              <TouchableOpacity onPress={() => setShowTopUp(false)}>
+                <Ionicons name="close-circle" size={moderateScale(24)} color={COLORS.gray400} />
+              </TouchableOpacity>
+            </View>
 
             {/* Quick Amount Selection */}
+            <Text style={styles.inputLabel}>Select Amount</Text>
             <View style={styles.quickAmounts}>
               {topUpOptions.map((option) => (
                 <TouchableOpacity
@@ -208,6 +273,7 @@ export default function WalletScreen({ navigation }: any) {
                   ]}
                   onPress={() => setTopUpAmount(option.amount.toString())}
                 >
+                  <Text style={styles.quickAmountCurrency}>{'\u20B1'}</Text>
                   <Text
                     style={[
                       styles.quickAmountText,
@@ -223,10 +289,11 @@ export default function WalletScreen({ navigation }: any) {
             {/* Custom Amount */}
             <Text style={styles.inputLabel}>Or enter custom amount</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.currencySymbol}>₱</Text>
+              <Text style={styles.currencySymbol}>{'\u20B1'}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0"
+                placeholderTextColor={COLORS.gray400}
                 value={topUpAmount}
                 onChangeText={setTopUpAmount}
                 keyboardType="numeric"
@@ -234,7 +301,7 @@ export default function WalletScreen({ navigation }: any) {
             </View>
 
             {/* Payment Method */}
-            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <Text style={styles.inputLabel}>Payment Method</Text>
             <View style={styles.paymentMethods}>
               {paymentMethods.map((method) => (
                 <TouchableOpacity
@@ -245,11 +312,16 @@ export default function WalletScreen({ navigation }: any) {
                   ]}
                   onPress={() => setSelectedMethod(method.id)}
                 >
-                  <Ionicons
-                    name={method.icon as any}
-                    size={24}
-                    color={selectedMethod === method.id ? '#3B82F6' : '#6B7280'}
-                  />
+                  <View style={[
+                    styles.paymentIconCircle,
+                    selectedMethod === method.id && styles.paymentIconCircleActive,
+                  ]}>
+                    <Ionicons
+                      name={method.icon as any}
+                      size={moderateScale(20)}
+                      color={selectedMethod === method.id ? COLORS.accent : COLORS.gray500}
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.paymentMethodText,
@@ -259,7 +331,7 @@ export default function WalletScreen({ navigation }: any) {
                     {method.name}
                   </Text>
                   {selectedMethod === method.id && (
-                    <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+                    <Ionicons name="checkmark-circle" size={moderateScale(22)} color={COLORS.accent} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -267,14 +339,18 @@ export default function WalletScreen({ navigation }: any) {
 
             {/* Confirm Button */}
             <TouchableOpacity
-              style={[styles.confirmButton, topUpLoading && { opacity: 0.6 }]}
+              style={[styles.confirmButton, topUpLoading && styles.confirmButtonDisabled]}
               onPress={handleTopUp}
               disabled={topUpLoading}
+              activeOpacity={0.8}
             >
               {topUpLoading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
-                <Text style={styles.confirmButtonText}>Top Up Now</Text>
+                <>
+                  <Ionicons name="flash" size={moderateScale(18)} color={COLORS.white} />
+                  <Text style={styles.confirmButtonText}>Top Up Now</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -282,22 +358,31 @@ export default function WalletScreen({ navigation }: any) {
 
         {/* Withdraw Section */}
         {showWithdraw && (
-          <View style={styles.topUpSection}>
-            <Text style={styles.sectionTitle}>Withdraw Amount</Text>
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Text style={styles.formSectionTitle}>Withdraw Funds</Text>
+              <TouchableOpacity onPress={() => setShowWithdraw(false)}>
+                <Ionicons name="close-circle" size={moderateScale(24)} color={COLORS.gray400} />
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.inputLabel}>Enter amount to withdraw</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.currencySymbol}>₱</Text>
+              <Text style={styles.currencySymbol}>{'\u20B1'}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0"
+                placeholderTextColor={COLORS.gray400}
                 value={withdrawAmount}
                 onChangeText={setWithdrawAmount}
                 keyboardType="numeric"
               />
             </View>
+            <Text style={styles.availableHint}>
+              Available: {'\u20B1'}{balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
 
-            <Text style={styles.sectionTitle}>Withdraw To</Text>
+            <Text style={styles.inputLabel}>Withdraw To</Text>
             <View style={styles.paymentMethods}>
               {paymentMethods.map((method) => (
                 <TouchableOpacity
@@ -308,11 +393,16 @@ export default function WalletScreen({ navigation }: any) {
                   ]}
                   onPress={() => setWithdrawMethod(method.id)}
                 >
-                  <Ionicons
-                    name={method.icon as any}
-                    size={24}
-                    color={withdrawMethod === method.id ? '#3B82F6' : '#6B7280'}
-                  />
+                  <View style={[
+                    styles.paymentIconCircle,
+                    withdrawMethod === method.id && styles.paymentIconCircleActive,
+                  ]}>
+                    <Ionicons
+                      name={method.icon as any}
+                      size={moderateScale(20)}
+                      color={withdrawMethod === method.id ? COLORS.accent : COLORS.gray500}
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.paymentMethodText,
@@ -322,27 +412,27 @@ export default function WalletScreen({ navigation }: any) {
                     {method.name}
                   </Text>
                   {withdrawMethod === method.id && (
-                    <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+                    <Ionicons name="checkmark-circle" size={moderateScale(22)} color={COLORS.accent} />
                   )}
                 </TouchableOpacity>
               ))}
             </View>
 
             <TouchableOpacity
-              style={[styles.confirmButton, withdrawLoading && { opacity: 0.6 }]}
+              style={[styles.confirmButton, styles.withdrawConfirmBtn, withdrawLoading && styles.confirmButtonDisabled]}
               onPress={() => {
                 const amount = parseInt(withdrawAmount, 10);
                 if (isNaN(amount) || amount < 10) {
-                  Alert.alert('Invalid Amount', 'Minimum withdrawal is ₱10');
+                  Alert.alert('Invalid Amount', 'Minimum withdrawal is \u20B110');
                   return;
                 }
                 if (amount > balance) {
-                  Alert.alert('Insufficient Balance', `Your balance is ₱${balance.toFixed(2)}`);
+                  Alert.alert('Insufficient Balance', `Your balance is \u20B1${balance.toFixed(2)}`);
                   return;
                 }
                 Alert.alert(
                   'Confirm Withdrawal',
-                  `Withdraw ₱${amount} to ${withdrawMethod.toUpperCase()}?`,
+                  `Withdraw \u20B1${amount} to ${withdrawMethod.toUpperCase()}?`,
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -358,7 +448,7 @@ export default function WalletScreen({ navigation }: any) {
                           setBalance(data?.balance != null ? Number(data.balance) : balance - amount);
                           setShowWithdraw(false);
                           setWithdrawAmount('');
-                          Alert.alert('Success', `₱${amount} withdrawal request submitted!`);
+                          Alert.alert('Success', `\u20B1${amount} withdrawal request submitted!`);
                           fetchWallet();
                         } catch (error: any) {
                           Alert.alert(
@@ -374,11 +464,15 @@ export default function WalletScreen({ navigation }: any) {
                 );
               }}
               disabled={withdrawLoading}
+              activeOpacity={0.8}
             >
               {withdrawLoading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
-                <Text style={styles.confirmButtonText}>Withdraw Now</Text>
+                <>
+                  <Ionicons name="arrow-down-circle" size={moderateScale(18)} color={COLORS.white} />
+                  <Text style={styles.confirmButtonText}>Withdraw Now</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -386,29 +480,48 @@ export default function WalletScreen({ navigation }: any) {
 
         {/* Transaction History */}
         <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Transaction History</Text>
+          <View style={styles.historySectionHeader}>
+            <Text style={styles.historySectionTitle}>Transaction History</Text>
+            {transactions.length > 0 && (
+              <Text style={styles.transactionCount}>{transactions.length} transactions</Text>
+            )}
+          </View>
 
           {fetchError ? (
-            <View style={styles.emptyTransactions}>
-              <Ionicons name="cloud-offline-outline" size={48} color="#EF4444" />
-              <Text style={styles.emptyTransactionsText}>Could not load wallet</Text>
-              <Text style={styles.emptyTransactionsSubtext}>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrapper}>
+                <Ionicons name="cloud-offline-outline" size={moderateScale(40)} color={COLORS.error} />
+              </View>
+              <Text style={styles.emptyTitle}>Could not load wallet</Text>
+              <Text style={styles.emptySubtitle}>
                 Pull down to refresh or check your connection
               </Text>
               <TouchableOpacity
-                style={{ backgroundColor: '#3B82F6', borderRadius: RESPONSIVE.borderRadius.small, paddingHorizontal: moderateScale(20), paddingVertical: moderateScale(10), marginTop: verticalScale(12) }}
+                style={styles.retryButton}
                 onPress={() => { setLoading(true); fetchWallet(); }}
+                activeOpacity={0.8}
               >
-                <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Retry</Text>
+                <Ionicons name="refresh" size={moderateScale(16)} color={COLORS.white} />
+                <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
           ) : transactions.length === 0 ? (
-            <View style={styles.emptyTransactions}>
-              <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
-              <Text style={styles.emptyTransactionsSubtext}>
-                Top up your wallet to get started
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrapper}>
+                <Ionicons name="receipt-outline" size={moderateScale(40)} color={COLORS.gray300} />
+              </View>
+              <Text style={styles.emptyTitle}>No transactions yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Your transaction history will appear here once you start using your wallet
               </Text>
+              <TouchableOpacity
+                style={styles.emptyActionBtn}
+                onPress={() => { setShowTopUp(true); setShowWithdraw(false); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={moderateScale(18)} color={COLORS.accent} />
+                <Text style={styles.emptyActionText}>Add funds to get started</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             transactions.map((tx: any) => {
@@ -416,18 +529,28 @@ export default function WalletScreen({ navigation }: any) {
               const isCredit = tx.type === 'top_up' || tx.type === 'refund' || tx.type === 'earning';
               return (
                 <View key={tx.id} style={styles.transactionCard}>
-                  <View style={[styles.transactionIcon, { backgroundColor: `${txStyle.color}15` }]}>
-                    <Ionicons name={txStyle.icon as any} size={24} color={txStyle.color} />
+                  <View style={[styles.transactionIcon, { backgroundColor: txStyle.bg }]}>
+                    <Ionicons name={txStyle.icon as any} size={moderateScale(22)} color={txStyle.color} />
                   </View>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionTitle}>
-                      {tx.description || tx.type?.replace(/_/g, ' ')}
+                      {tx.description || formatTransactionType(tx.type)}
                     </Text>
-                    <Text style={styles.transactionDate}>{formatDate(tx.created_at)}</Text>
+                    <View style={styles.transactionMeta}>
+                      <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.gray400} />
+                      <Text style={styles.transactionDate}>{formatDate(tx.created_at)}</Text>
+                    </View>
                   </View>
-                  <Text style={[styles.amountText, isCredit ? styles.amountCredit : styles.amountDebit]}>
-                    {isCredit ? '+' : '-'}₱{Math.abs(tx.amount || 0).toFixed(2)}
-                  </Text>
+                  <View style={styles.transactionAmountWrapper}>
+                    <Text style={[styles.amountText, isCredit ? styles.amountCredit : styles.amountDebit]}>
+                      {isCredit ? '+' : '-'}{'\u20B1'}{Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                    <View style={[styles.amountBadge, { backgroundColor: isCredit ? COLORS.successBg : COLORS.errorBg }]}>
+                      <Text style={[styles.amountBadgeText, { color: isCredit ? COLORS.success : COLORS.error }]}>
+                        {isCredit ? 'Received' : 'Sent'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               );
             })
@@ -443,7 +566,12 @@ export default function WalletScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
+  },
+  loadingText: {
+    marginTop: verticalScale(12),
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
   },
   header: {
     flexDirection: 'row',
@@ -452,187 +580,355 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: moderateScale(16),
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  headerBackBtn: {
+    padding: moderateScale(4),
   },
   headerTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
   },
+  headerRefreshBtn: {
+    padding: moderateScale(4),
+  },
+
+  // Balance Card
   balanceCard: {
-    backgroundColor: '#3B82F6',
     margin: RESPONSIVE.marginHorizontal,
-    borderRadius: RESPONSIVE.borderRadius.large,
-    padding: moderateScale(24),
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(12),
-    elevation: moderateScale(8),
+    marginTop: verticalScale(16),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    overflow: 'hidden',
+    backgroundColor: COLORS.accent,
+    shadowColor: COLORS.accentDark,
+    shadowOffset: { width: 0, height: verticalScale(6) },
+    shadowOpacity: 0.35,
+    shadowRadius: moderateScale(14),
+    elevation: moderateScale(10),
   },
-  balanceHeader: {
+  balanceCardOverlay: {
+    position: 'absolute',
+    top: -moderateScale(40),
+    right: -moderateScale(40),
+    width: moderateScale(160),
+    height: moderateScale(160),
+    borderRadius: moderateScale(80),
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  balanceCardContent: {
+    padding: moderateScale(24),
+  },
+  balanceTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: verticalScale(16),
+    marginBottom: verticalScale(12),
+  },
+  walletIconWrapper: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(12),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(12),
   },
   balanceLabel: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginLeft: moderateScale(12),
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontWeight: '500',
   },
   balanceAmount: {
-    fontSize: fontScale(40),
+    fontSize: fontScale(36),
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: COLORS.white,
     marginBottom: verticalScale(20),
+    letterSpacing: 0.5,
   },
-  topUpButton: {
+
+  // Action buttons in balance card
+  actionButtonsRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(14),
+    gap: moderateScale(12),
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+  },
+  topUpActionBtn: {
+    backgroundColor: COLORS.white,
+  },
+  withdrawActionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  topUpButtonText: {
-    color: '#ffffff',
-    fontSize: RESPONSIVE.fontSize.regular,
+  actionIconCircle: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.accentBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(8),
+  },
+  actionButtonText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+
+  // Quick Top Up
+  quickTopUpSection: {
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(20),
+    marginBottom: verticalScale(4),
+  },
+  quickTopUpLabel: {
+    fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    marginLeft: moderateScale(8),
+    color: COLORS.gray600,
+    marginBottom: verticalScale(10),
   },
-  topUpSection: {
-    backgroundColor: '#ffffff',
+  quickTopUpRow: {
+    flexDirection: 'row',
+    gap: moderateScale(10),
+  },
+  quickTopUpBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(14),
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: verticalScale(1) },
+    shadowOpacity: 0.04,
+    shadowRadius: moderateScale(3),
+    elevation: moderateScale(1),
+  },
+  quickTopUpCurrency: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.accent,
+    marginRight: moderateScale(2),
+  },
+  quickTopUpValue: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+
+  // Form section (shared by Top Up and Withdraw)
+  formSection: {
+    backgroundColor: COLORS.white,
     marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginBottom: verticalScale(20),
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(4),
     borderRadius: RESPONSIVE.borderRadius.large,
     padding: RESPONSIVE.paddingHorizontal,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: moderateScale(4),
-    elevation: moderateScale(2),
+    shadowOpacity: 0.06,
+    shadowRadius: moderateScale(6),
+    elevation: moderateScale(3),
   },
-  sectionTitle: {
-    fontSize: RESPONSIVE.fontSize.regular,
+  formSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(16),
+  },
+  formSectionTitle: {
+    fontSize: RESPONSIVE.fontSize.large,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: verticalScale(12),
+    color: COLORS.gray800,
+  },
+  inputLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.gray600,
+    marginBottom: verticalScale(8),
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   quickAmounts: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: moderateScale(8),
     marginBottom: verticalScale(20),
   },
   quickAmount: {
     flex: 1,
-    minWidth: '22%',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.small,
-    padding: moderateScale(12),
+    paddingVertical: moderateScale(12),
     alignItems: 'center',
-    margin: moderateScale(4),
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
   },
   quickAmountActive: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#3B82F6',
+    backgroundColor: COLORS.accentBg,
+    borderColor: COLORS.accent,
+  },
+  quickAmountCurrency: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginBottom: verticalScale(2),
   },
   quickAmountText: {
     fontSize: fontScale(15),
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '700',
+    color: COLORS.gray700,
   },
   quickAmountTextActive: {
-    color: '#3B82F6',
-  },
-  inputLabel: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: '#6B7280',
-    marginBottom: verticalScale(8),
+    color: COLORS.accent,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.gray200,
     paddingHorizontal: moderateScale(16),
     marginBottom: verticalScale(20),
   },
   currencySymbol: {
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#6B7280',
+    color: COLORS.accent,
     marginRight: moderateScale(8),
   },
   input: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.xlarge,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: COLORS.gray800,
     paddingVertical: verticalScale(14),
+  },
+  availableHint: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginTop: verticalScale(-14),
+    marginBottom: verticalScale(16),
+    fontWeight: '500',
   },
   paymentMethods: {
     marginBottom: verticalScale(20),
+    gap: verticalScale(10),
   },
   paymentMethod: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
+    padding: moderateScale(14),
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.gray200,
   },
   paymentMethodActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accentBg,
+  },
+  paymentIconCircle: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: COLORS.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentIconCircleActive: {
+    backgroundColor: COLORS.white,
   },
   paymentMethodText: {
     flex: 1,
     fontSize: RESPONSIVE.fontSize.regular,
-    color: '#6B7280',
+    color: COLORS.gray500,
     marginLeft: moderateScale(12),
+    fontWeight: '500',
   },
   paymentMethodTextActive: {
-    color: '#1F2937',
+    color: COLORS.gray800,
     fontWeight: '600',
   },
   confirmButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
+    paddingVertical: moderateScale(16),
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: moderateScale(8),
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: verticalScale(3) },
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(6),
+    elevation: moderateScale(4),
+  },
+  withdrawConfirmBtn: {
+    backgroundColor: COLORS.warning,
+    shadowColor: COLORS.warning,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.6,
   },
   confirmButtonText: {
-    color: '#ffffff',
+    color: COLORS.white,
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
+
+  // Transaction History
   historySection: {
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(24),
+  },
+  historySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(14),
+  },
+  historySectionTitle: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+  },
+  transactionCount: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    fontWeight: '500',
   },
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.05,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(10),
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: verticalScale(1) },
+    shadowOpacity: 0.04,
     shadowRadius: moderateScale(4),
     elevation: moderateScale(2),
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
   },
   transactionIcon: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(14),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -641,39 +937,108 @@ const styles = StyleSheet.create({
     marginLeft: moderateScale(12),
   },
   transactionTitle: {
-    fontSize: fontScale(15),
+    fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.gray800,
     marginBottom: verticalScale(4),
     textTransform: 'capitalize',
   },
+  transactionMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+  },
   transactionDate: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: '#9CA3AF',
+    color: COLORS.gray400,
+  },
+  transactionAmountWrapper: {
+    alignItems: 'flex-end',
   },
   amountText: {
-    fontSize: RESPONSIVE.fontSize.regular,
+    fontSize: fontScale(15),
     fontWeight: 'bold',
+    marginBottom: verticalScale(4),
   },
   amountCredit: {
-    color: '#10B981',
+    color: COLORS.success,
   },
   amountDebit: {
-    color: '#EF4444',
+    color: COLORS.error,
   },
-  emptyTransactions: {
+  amountBadge: {
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(4),
+  },
+  amountBadgeText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // Empty state
+  emptyState: {
     alignItems: 'center',
     paddingVertical: verticalScale(40),
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    borderStyle: 'dashed',
   },
-  emptyTransactionsText: {
+  emptyIconWrapper: {
+    width: moderateScale(72),
+    height: moderateScale(72),
+    borderRadius: moderateScale(36),
+    backgroundColor: COLORS.gray50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(16),
+  },
+  emptyTitle: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginTop: verticalScale(12),
+    fontWeight: '700',
+    color: COLORS.gray700,
+    marginBottom: verticalScale(6),
   },
-  emptyTransactionsSubtext: {
+  emptySubtitle: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#9CA3AF',
-    marginTop: verticalScale(4),
+    color: COLORS.gray400,
+    textAlign: 'center',
+    paddingHorizontal: moderateScale(32),
+    lineHeight: fontScale(20),
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent,
+    borderRadius: RESPONSIVE.borderRadius.small,
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(10),
+    marginTop: verticalScale(16),
+    gap: moderateScale(6),
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: RESPONSIVE.fontSize.medium,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(16),
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(10),
+    borderRadius: RESPONSIVE.borderRadius.small,
+    backgroundColor: COLORS.accentBg,
+    gap: moderateScale(6),
+  },
+  emptyActionText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600',
+    color: COLORS.accent,
   },
 });
