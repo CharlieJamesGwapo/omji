@@ -201,7 +201,7 @@ export default function LoginScreen({ navigation }: any) {
               />
             </View>
             <Text style={styles.appName}>OMJI</Text>
-            <Text style={styles.tagline}>One App. All Rides.</Text>
+            <Text style={styles.tagline}>One App. All Rides. All Services.</Text>
           </View>
 
           {/* Compact Login Form */}
@@ -414,20 +414,18 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(28),
   },
   logoContainer: {
-    width: moderateScale(100),
-    height: moderateScale(100),
-    borderRadius: moderateScale(50),
-    backgroundColor: COLORS.primaryBg,
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(20),
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: verticalScale(12),
-    borderWidth: moderateScale(3),
-    borderColor: COLORS.primaryDark,
     overflow: 'hidden',
-    shadowColor: COLORS.primaryDark,
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(8),
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(12),
     elevation: moderateScale(6),
   },
   logo: {
@@ -450,14 +448,13 @@ const styles = StyleSheet.create({
   // Form Container
   formContainer: {
     backgroundColor: COLORS.white,
-    borderRadius: RESPONSIVE.borderRadius.xlarge,
-    padding: RESPONSIVE.paddingHorizontal,
+    borderRadius: moderateScale(24),
+    padding: moderateScale(24),
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: verticalScale(2) },
-    shadowOpacity: 0.08,
-    shadowRadius: moderateScale(12),
-    elevation: moderateScale(4),
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: verticalScale(4) },
+    shadowOpacity: 0.06,
+    shadowRadius: moderateScale(16),
+    elevation: moderateScale(3),
   },
   welcomeText: {
     fontSize: fontScale(22),
@@ -505,11 +502,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.gray50,
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    borderWidth: 1.5,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    borderWidth: 1,
     borderColor: COLORS.gray200,
-    paddingHorizontal: moderateScale(14),
-    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(15),
     marginBottom: verticalScale(12),
   },
   inputWrapperFocused: {
@@ -553,16 +550,16 @@ const styles = StyleSheet.create({
   // Login Button
   loginButton: {
     backgroundColor: COLORS.primaryDark,
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    paddingVertical: verticalScale(14),
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    paddingVertical: verticalScale(16),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(12),
     shadowColor: COLORS.primaryDark,
     shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(6),
-    elevation: moderateScale(4),
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(5),
   },
   buttonDisabled: {
     opacity: 0.6,

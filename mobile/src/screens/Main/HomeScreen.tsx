@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Alert,
   Animated,
 } from 'react-native';
@@ -23,15 +22,7 @@ const getGreeting = (): string => {
   return 'Good evening';
 };
 
-// Formatted current date (e.g., "Sunday, March 9")
-const getFormattedDate = (): string => {
-  const now = new Date();
-  return now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-};
+
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -107,7 +98,6 @@ export default function HomeScreen({ navigation }: any) {
   }, [navigation, fetchUnreadCount]);
 
   const greeting = useMemo(() => getGreeting(), []);
-  const formattedDate = useMemo(() => getFormattedDate(), []);
 
   const services = [
     {
@@ -132,9 +122,9 @@ export default function HomeScreen({ navigation }: any) {
       id: 'pasundo',
       name: 'Pasundo',
       description: 'Pick-up Service',
-      icon: 'people-outline',
-      color: COLORS.store,
-      darkColor: COLORS.warningDark,
+      icon: 'car-outline',
+      color: COLORS.pasundo,
+      darkColor: '#2563EB',
       screen: 'Pasundo',
     },
     {
@@ -162,8 +152,16 @@ export default function HomeScreen({ navigation }: any) {
       {/* Premium Header */}
       <Animated.View style={[styles.header, { opacity: headerFade }]}>
         <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+            </View>
+          </TouchableOpacity>
           <View style={styles.headerLeft}>
-            <Text style={styles.dateText}>{formattedDate}</Text>
             <Text style={styles.greeting}>{greeting},</Text>
             <Text style={styles.userName} numberOfLines={1}>{firstName}</Text>
           </View>
@@ -252,30 +250,18 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         ))}
 
-        {/* Hero Banner */}
-        <View style={styles.banner}>
-          <View style={styles.bannerDecorTop} />
-          <View style={styles.bannerDecorBottom} />
-          <View style={styles.bannerInner}>
-            <Image
-              source={require('../../../assets/icon.png')}
-              style={styles.bannerLogo}
-            />
-            <View style={styles.bannerText}>
-              <Text style={styles.bannerLabel}>WELCOME TO</Text>
-              <Text style={styles.bannerTitle}>OMJI</Text>
-              <Text style={styles.bannerSubtitle}>
-                One App. All Rides. All Services.
-              </Text>
-            </View>
+        {/* Destination Search Bar */}
+        <TouchableOpacity
+          style={styles.destinationBar}
+          onPress={() => navigation.navigate('Pasabay')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.destinationDot} />
+          <Text style={styles.destinationText}>Where would you like to go?</Text>
+          <View style={styles.destinationArrow}>
+            <Ionicons name="arrow-forward" size={moderateScale(16)} color={COLORS.accent} />
           </View>
-          <View style={styles.bannerTagWrap}>
-            <View style={styles.bannerTag}>
-              <Ionicons name="location" size={moderateScale(12)} color={COLORS.white} />
-              <Text style={styles.bannerTagText}>Balingasag, Misamis Oriental</Text>
-            </View>
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Service Cards */}
         <View style={styles.section}>
@@ -352,14 +338,10 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* Info Section */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoIconWrap}>
-            <Ionicons name="information-circle" size={moderateScale(20)} color={COLORS.accent} />
-          </View>
-          <Text style={styles.infoText}>
-            All services available in Balingasag, Misamis Oriental
-          </Text>
+        {/* Location Info */}
+        <View style={styles.locationTag}>
+          <Ionicons name="location" size={moderateScale(14)} color={COLORS.accent} />
+          <Text style={styles.locationTagText}>Balingasag, Misamis Oriental</Text>
         </View>
       </ScrollView>
     </View>
@@ -387,19 +369,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
+  avatarButton: {
+    marginRight: moderateScale(12),
+  },
+  avatarCircle: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
   headerLeft: {
     flex: 1,
     marginRight: moderateScale(16),
   },
-  dateText: {
+  greeting: {
     fontSize: RESPONSIVE.fontSize.small,
     color: COLORS.gray400,
-    marginBottom: verticalScale(2),
-    letterSpacing: 0.3,
-  },
-  greeting: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: COLORS.gray500,
     marginBottom: verticalScale(1),
   },
   userName: {
@@ -517,83 +509,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // --- Hero Banner ---
-  banner: {
-    backgroundColor: COLORS.accent,
+  // --- Destination Bar ---
+  destinationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.xlarge,
-    padding: moderateScale(20),
+    padding: moderateScale(16),
     marginBottom: RESPONSIVE.marginVertical * 1.5,
-    overflow: 'hidden',
+    ...SHADOWS.md,
   },
-  bannerDecorTop: {
-    position: 'absolute',
-    top: -moderateScale(30),
-    right: -moderateScale(30),
-    width: moderateScale(100),
-    height: moderateScale(100),
-    borderRadius: moderateScale(50),
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  destinationDot: {
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    backgroundColor: COLORS.accent,
+    marginRight: moderateScale(14),
   },
-  bannerDecorBottom: {
-    position: 'absolute',
-    bottom: -moderateScale(20),
-    left: -moderateScale(20),
-    width: moderateScale(80),
-    height: moderateScale(80),
-    borderRadius: moderateScale(40),
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  bannerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bannerLogo: {
-    width: moderateScale(isTablet() ? 80 : 64),
-    height: moderateScale(isTablet() ? 80 : 64),
-    borderRadius: RESPONSIVE.borderRadius.large,
-    marginRight: moderateScale(16),
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  bannerText: {
+  destinationText: {
     flex: 1,
-  },
-  bannerLabel: {
-    fontSize: RESPONSIVE.fontSize.small,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 1.5,
-    marginBottom: verticalScale(2),
-  },
-  bannerTitle: {
-    fontSize: RESPONSIVE.fontSize.title,
-    fontWeight: '800',
-    color: COLORS.white,
-    letterSpacing: 1,
-    marginBottom: verticalScale(4),
-  },
-  bannerSubtitle: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: RESPONSIVE.fontSize.medium * 1.4,
-  },
-  bannerTagWrap: {
-    marginTop: verticalScale(14),
-    flexDirection: 'row',
-  },
-  bannerTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: moderateScale(20),
-    paddingVertical: verticalScale(5),
-    paddingHorizontal: moderateScale(12),
-  },
-  bannerTagText: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: COLORS.white,
-    marginLeft: moderateScale(5),
+    fontSize: RESPONSIVE.fontSize.regular,
+    color: COLORS.gray400,
     fontWeight: '500',
+  },
+  destinationArrow: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.accentBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // --- Sections ---
@@ -755,29 +700,17 @@ const styles = StyleSheet.create({
     marginLeft: moderateScale(8),
   },
 
-  // --- Info Card ---
-  infoCard: {
+  // --- Location Tag ---
+  locationTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accentBg,
-    borderRadius: RESPONSIVE.borderRadius.large,
-    padding: moderateScale(14),
-    borderWidth: 1,
-    borderColor: COLORS.accentLight + '40',
-  },
-  infoIconWrap: {
-    width: moderateScale(32),
-    height: moderateScale(32),
-    borderRadius: moderateScale(16),
-    backgroundColor: COLORS.white,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: moderateScale(12),
+    paddingVertical: verticalScale(10),
   },
-  infoText: {
-    flex: 1,
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: COLORS.gray700,
-    lineHeight: RESPONSIVE.fontSize.medium * 1.5,
+  locationTagText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginLeft: moderateScale(6),
+    fontWeight: '500',
   },
 });
