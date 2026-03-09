@@ -822,7 +822,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 const timeAgo = getTimeAgo(request.created_at);
                 const timeColors = getTimeAgoBadgeColor(request.created_at);
                 return (
-                  <View key={request.id} style={styles.jobCard}>
+                  <View key={`${request.type || 'ride'}-${request.id}`} style={styles.jobCard}>
                     {/* Time ago badge */}
                     {timeAgo && (
                       <View style={[styles.timeAgoBadge, { backgroundColor: timeColors.bg }]}>

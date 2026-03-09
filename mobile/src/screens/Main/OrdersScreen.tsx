@@ -154,6 +154,19 @@ export default function OrdersScreen({ navigation }: any) {
         }
       }
 
+      // Deduplicate active orders (in case same item appears in multiple active calls)
+      const seen = new Set<string>();
+      const dedupedOrders: OrderItem[] = [];
+      for (const o of allOrders) {
+        const key = `${o.type}-${o.id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          dedupedOrders.push(o);
+        }
+      }
+      allOrders.length = 0;
+      allOrders.push(...dedupedOrders);
+
       // Add history data (completed/cancelled)
       const existingIds = new Set(allOrders.map(o => `${o.type}-${o.id}`));
 

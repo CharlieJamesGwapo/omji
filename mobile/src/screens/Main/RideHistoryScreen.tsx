@@ -232,7 +232,7 @@ export default function RideHistoryScreen({ navigation }: any) {
             const statusBg = getStatusBg(ride.status);
             return (
               <TouchableOpacity
-                key={ride._key || ride.id}
+                key={ride._key || `${ride._type}-${ride.id}`}
                 style={styles.rideCard}
                 onPress={() => {
                   if (ride._type === 'order') {

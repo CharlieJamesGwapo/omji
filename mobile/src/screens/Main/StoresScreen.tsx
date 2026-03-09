@@ -270,7 +270,7 @@ export default function StoresScreen({ navigation }: any) {
                 const catStyle = CATEGORY_STYLES[store.category];
                 return (
                   <TouchableOpacity
-                    key={store.id}
+                    key={`featured-${store.id}`}
                     style={styles.featuredCard}
                     onPress={() => navigation.navigate('StoreDetail', { store })}
                     activeOpacity={0.8}
