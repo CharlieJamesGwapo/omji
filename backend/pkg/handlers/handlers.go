@@ -3176,3 +3176,230 @@ func GetPublicRates(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": rates})
 	}
 }
+
+// ===== ADMIN USER UPDATE HANDLER =====
+
+func AdminUpdateUser(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var user models.User
+		if err := db.First(&user, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+		var input struct {
+			Name       *string `json:"name"`
+			Email      *string `json:"email"`
+			Phone      *string `json:"phone"`
+			Role       *string `json:"role"`
+			IsVerified *bool   `json:"is_verified"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		updates := map[string]interface{}{}
+		if input.Name != nil {
+			updates["name"] = *input.Name
+		}
+		if input.Email != nil {
+			updates["email"] = *input.Email
+		}
+		if input.Phone != nil {
+			updates["phone"] = *input.Phone
+		}
+		if input.Role != nil {
+			validRoles := map[string]bool{"user": true, "driver": true, "admin": true}
+			if !validRoles[*input.Role] {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid role. Must be user, driver, or admin"})
+				return
+			}
+			updates["role"] = *input.Role
+		}
+		if input.IsVerified != nil {
+			updates["is_verified"] = *input.IsVerified
+		}
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
+			return
+		}
+		if err := db.Model(&user).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update user"})
+			return
+		}
+		db.First(&user, id)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": user, "timestamp": time.Now()})
+	}
+}
+
+// ===== ADMIN DRIVER UPDATE HANDLER =====
+
+func AdminUpdateDriver(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var driver models.Driver
+		if err := db.Preload("User").First(&driver, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
+		var input struct {
+			VehicleType   *string `json:"vehicle_type"`
+			VehicleModel  *string `json:"vehicle_model"`
+			VehiclePlate  *string `json:"vehicle_plate"`
+			LicenseNumber *string `json:"license_number"`
+			IsAvailable   *bool   `json:"is_available"`
+			IsVerified    *bool   `json:"is_verified"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		updates := map[string]interface{}{}
+		if input.VehicleType != nil {
+			updates["vehicle_type"] = *input.VehicleType
+		}
+		if input.VehicleModel != nil {
+			updates["vehicle_model"] = *input.VehicleModel
+		}
+		if input.VehiclePlate != nil {
+			updates["vehicle_plate"] = *input.VehiclePlate
+		}
+		if input.LicenseNumber != nil {
+			updates["license_number"] = *input.LicenseNumber
+		}
+		if input.IsAvailable != nil {
+			updates["is_available"] = *input.IsAvailable
+		}
+		if input.IsVerified != nil {
+			updates["is_verified"] = *input.IsVerified
+			// Also update user role when verifying
+			if *input.IsVerified {
+				if err := db.Model(&models.User{}).Where("id = ?", driver.UserID).Update("role", "driver").Error; err != nil {
+					log.Printf("Failed to update user role for driver %d (user %d): %v", driver.ID, driver.UserID, err)
+				}
+			}
+		}
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
+			return
+		}
+		if err := db.Model(&driver).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update driver"})
+			return
+		}
+		db.Preload("User").First(&driver, id)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": driver, "timestamp": time.Now()})
+	}
+}
+
+// ===== ADMIN MENU ITEM HANDLERS =====
+
+func AdminGetMenuItems(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		storeId := c.Param("id")
+		var store models.Store
+		if err := db.First(&store, storeId).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
+			return
+		}
+		var items []models.MenuItem
+		db.Where("store_id = ?", storeId).Order("category, name").Find(&items)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "count": len(items), "timestamp": time.Now()})
+	}
+}
+
+func AdminCreateMenuItem(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		storeId := c.Param("id")
+		var store models.Store
+		if err := db.First(&store, storeId).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
+			return
+		}
+		var item models.MenuItem
+		if err := c.ShouldBindJSON(&item); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		// Parse storeId to uint
+		sid, err := strconv.ParseUint(storeId, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid store ID"})
+			return
+		}
+		item.StoreID = uint(sid)
+		if item.Name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Item name is required"})
+			return
+		}
+		if err := db.Create(&item).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create menu item"})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": item, "timestamp": time.Now()})
+	}
+}
+
+func AdminUpdateMenuItem(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		itemId := c.Param("itemId")
+		var item models.MenuItem
+		if err := db.First(&item, itemId).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Menu item not found"})
+			return
+		}
+		var input struct {
+			Name      *string  `json:"name"`
+			Price     *float64 `json:"price"`
+			Image     *string  `json:"image"`
+			Category  *string  `json:"category"`
+			Available *bool    `json:"available"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		updates := map[string]interface{}{}
+		if input.Name != nil {
+			updates["name"] = *input.Name
+		}
+		if input.Price != nil {
+			updates["price"] = *input.Price
+		}
+		if input.Image != nil {
+			updates["image"] = *input.Image
+		}
+		if input.Category != nil {
+			updates["category"] = *input.Category
+		}
+		if input.Available != nil {
+			updates["available"] = *input.Available
+		}
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
+			return
+		}
+		if err := db.Model(&item).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update menu item"})
+			return
+		}
+		db.First(&item, itemId)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": item, "timestamp": time.Now()})
+	}
+}
+
+func AdminDeleteMenuItem(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		itemId := c.Param("itemId")
+		var item models.MenuItem
+		if err := db.First(&item, itemId).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Menu item not found"})
+			return
+		}
+		if err := db.Delete(&item).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete menu item"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Menu item deleted"}, "timestamp": time.Now()})
+	}
+}

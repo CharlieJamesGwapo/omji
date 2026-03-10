@@ -137,10 +137,12 @@ func main() {
 		// User management
 		admin.GET("/users", handlers.GetAllUsers(database))
 		admin.GET("/users/:id", handlers.GetUserByID(database))
+		admin.PUT("/users/:id", handlers.AdminUpdateUser(database))
 		admin.DELETE("/users/:id", handlers.DeleteUser(database))
 
 		// Driver management
 		admin.GET("/drivers", handlers.GetAllDrivers(database))
+		admin.PUT("/drivers/:id", handlers.AdminUpdateDriver(database))
 		admin.POST("/drivers/:id/verify", handlers.VerifyDriver(database))
 		admin.DELETE("/drivers/:id", handlers.DeleteDriver(database))
 
@@ -149,6 +151,12 @@ func main() {
 		admin.POST("/stores", handlers.CreateStore(database))
 		admin.PUT("/stores/:id", handlers.UpdateStore(database))
 		admin.DELETE("/stores/:id", handlers.DeleteStore(database))
+
+		// Store menu management
+		admin.GET("/stores/:id/menu", handlers.AdminGetMenuItems(database))
+		admin.POST("/stores/:id/menu", handlers.AdminCreateMenuItem(database))
+		admin.PUT("/stores/:id/menu/:itemId", handlers.AdminUpdateMenuItem(database))
+		admin.DELETE("/stores/:id/menu/:itemId", handlers.AdminDeleteMenuItem(database))
 
 		// Analytics
 		admin.GET("/analytics/rides", handlers.GetRidesAnalytics(database))

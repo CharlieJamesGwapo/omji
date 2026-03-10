@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/api';
 
 const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' }) => (
@@ -22,6 +23,7 @@ const SkeletonRow: React.FC = () => (
 );
 
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDrivers: 0,
@@ -37,6 +39,12 @@ const DashboardPage: React.FC = () => {
     pendingUsers: 0,
     verifiedDrivers: 0,
     pendingDrivers: 0,
+    completedRides: 0,
+    completedDeliveries: 0,
+    deliveredOrders: 0,
+    cancelledRides: 0,
+    cancelledDeliveries: 0,
+    cancelledOrders: 0,
   });
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
   const [recentDrivers, setRecentDrivers] = useState<any[]>([]);
@@ -90,6 +98,12 @@ const DashboardPage: React.FC = () => {
         pendingUsers,
         verifiedDrivers,
         pendingDrivers,
+        completedRides: ridesData.completed || 0,
+        completedDeliveries: deliveriesData.completed || 0,
+        deliveredOrders: ordersData.delivered || 0,
+        cancelledRides: ridesData.cancelled || 0,
+        cancelledDeliveries: deliveriesData.cancelled || 0,
+        cancelledOrders: ordersData.cancelled || 0,
       });
 
       setRecentUsers(Array.isArray(users) ? users.slice(0, 5) : []);
@@ -271,7 +285,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1">Total Revenue</p>
-              <p className="text-xl sm:text-4xl font-bold">P{stats.totalEarnings.toLocaleString()}</p>
+              <p className="text-xl sm:text-4xl font-bold">₱{stats.totalEarnings.toLocaleString()}</p>
               <p className="text-purple-100 text-[10px] mt-0.5 sm:mt-2 hidden sm:block">All time earnings</p>
             </div>
             <svg className="w-8 h-8 sm:w-12 sm:h-12 text-purple-200 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,6 +334,132 @@ const DashboardPage: React.FC = () => {
               <p className="text-[10px] sm:text-sm text-gray-500 truncate">Total Orders</p>
               <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions / Needs Attention */}
+      {(stats.pendingDrivers > 0 || stats.activeRides > 0) && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            Needs Attention
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {stats.pendingDrivers > 0 && (
+              <button onClick={() => navigate('/rider-approval')} className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200 hover:bg-amber-100 transition-colors text-left group">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">{stats.pendingDrivers} Pending</p>
+                  <p className="text-xs text-amber-600">Driver approvals waiting</p>
+                </div>
+                <svg className="w-4 h-4 text-amber-400 ml-auto group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+            {stats.activeRides > 0 && (
+              <button onClick={() => navigate('/rides')} className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors text-left group">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-blue-800">{stats.activeRides} Active</p>
+                  <p className="text-xs text-blue-600">Rides in progress</p>
+                </div>
+                <svg className="w-4 h-4 text-blue-400 ml-auto group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+            <button onClick={() => navigate('/users')} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors text-left group">
+              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-800">Manage Users</p>
+                <p className="text-xs text-gray-500">{stats.totalUsers} total</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button onClick={() => navigate('/stores')} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors text-left group">
+              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-800">Manage Stores</p>
+                <p className="text-xs text-gray-500">View & edit menus</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Revenue Breakdown */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ride Revenue</span>
+            </div>
+            <span className="text-[10px] text-gray-400">{stats.completedRides} completed</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">₱{stats.rideRevenue.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${stats.totalEarnings > 0 ? (stats.rideRevenue / stats.totalEarnings * 100) : 0}%` }} />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400">{stats.totalEarnings > 0 ? (stats.rideRevenue / stats.totalEarnings * 100).toFixed(0) : 0}%</span>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-amber-500" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Delivery Revenue</span>
+            </div>
+            <span className="text-[10px] text-gray-400">{stats.completedDeliveries} completed</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">₱{stats.deliveryRevenue.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${stats.totalEarnings > 0 ? (stats.deliveryRevenue / stats.totalEarnings * 100) : 0}%` }} />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400">{stats.totalEarnings > 0 ? (stats.deliveryRevenue / stats.totalEarnings * 100).toFixed(0) : 0}%</span>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Revenue</span>
+            </div>
+            <span className="text-[10px] text-gray-400">{stats.deliveredOrders} delivered</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">₱{stats.orderRevenue.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${stats.totalEarnings > 0 ? (stats.orderRevenue / stats.totalEarnings * 100) : 0}%` }} />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400">{stats.totalEarnings > 0 ? (stats.orderRevenue / stats.totalEarnings * 100).toFixed(0) : 0}%</span>
           </div>
         </div>
       </div>
@@ -416,8 +556,9 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Recent Users */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-base sm:text-xl font-bold text-gray-900">Recent Users</h2>
+            <button onClick={() => navigate('/users')} className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors">View All →</button>
           </div>
           <div className="overflow-x-auto">
             <div className="divide-y divide-gray-100 min-w-[320px]">
@@ -453,8 +594,9 @@ const DashboardPage: React.FC = () => {
 
         {/* Recent Drivers */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-base sm:text-xl font-bold text-gray-900">Recent Drivers</h2>
+            <button onClick={() => navigate('/drivers')} className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors">View All →</button>
           </div>
           <div className="overflow-x-auto">
             <div className="divide-y divide-gray-100 min-w-[320px]">

@@ -42,17 +42,25 @@ export const adminService = {
   getUsers: () => API.get('/admin/users'),
   getUserById: (id: number) => API.get(`/admin/users/${id}`),
   deleteUser: (id: number) => API.delete(`/admin/users/${id}`),
+  updateUser: (id: number, data: any) => API.put(`/admin/users/${id}`, data),
 
   // Drivers
   getDrivers: () => API.get('/admin/drivers'),
   verifyDriver: (id: number) => API.post(`/admin/drivers/${id}/verify`),
   deleteDriver: (id: number) => API.delete(`/admin/drivers/${id}`),
+  updateDriver: (id: number, data: any) => API.put(`/admin/drivers/${id}`, data),
 
   // Stores
   getStores: () => API.get('/admin/stores'),
   createStore: (data: any) => API.post('/admin/stores', data),
   updateStore: (id: number, data: any) => API.put(`/admin/stores/${id}`, data),
   deleteStore: (id: number) => API.delete(`/admin/stores/${id}`),
+
+  // Store Menu Items
+  getMenuItems: (storeId: number) => API.get(`/admin/stores/${storeId}/menu`),
+  createMenuItem: (storeId: number, data: any) => API.post(`/admin/stores/${storeId}/menu`, data),
+  updateMenuItem: (storeId: number, itemId: number, data: any) => API.put(`/admin/stores/${storeId}/menu/${itemId}`, data),
+  deleteMenuItem: (storeId: number, itemId: number) => API.delete(`/admin/stores/${storeId}/menu/${itemId}`),
 
   // Analytics
   getRidesAnalytics: () => API.get('/admin/analytics/rides'),
