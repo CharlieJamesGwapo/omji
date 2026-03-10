@@ -290,6 +290,20 @@ type WalletTransaction struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// RateConfig model for admin-managed pricing
+type RateConfig struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	ServiceType   string    `gorm:"uniqueIndex:idx_rate_service_vehicle" json:"service_type"` // ride, delivery, order
+	VehicleType   string    `gorm:"uniqueIndex:idx_rate_service_vehicle;default:''" json:"vehicle_type"` // motorcycle, car, or empty for delivery/order
+	BaseFare      float64   `json:"base_fare"`
+	RatePerKm     float64   `json:"rate_per_km"`
+	MinimumFare   float64   `gorm:"default:0" json:"minimum_fare"`
+	Description   string    `json:"description"`
+	IsActive      bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) {
 	db.AutoMigrate(
@@ -309,6 +323,7 @@ func AutoMigrate(db *gorm.DB) {
 		&Wallet{},
 		&WalletTransaction{},
 		&Favorite{},
+		&RateConfig{},
 	)
 }
 

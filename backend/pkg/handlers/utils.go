@@ -32,6 +32,38 @@ func CalculateFare(distance float64, vehicleType string) float64 {
 	return math.Round(fare*100) / 100
 }
 
+func CalculateFareFromDB(db *gorm.DB, distance float64, vehicleType string) float64 {
+	var rate models.RateConfig
+	if err := db.Where("service_type = ? AND vehicle_type = ? AND is_active = ?", "ride", vehicleType, true).First(&rate).Error; err == nil {
+		fare := rate.BaseFare + (distance * rate.RatePerKm)
+		if fare < rate.MinimumFare && rate.MinimumFare > 0 {
+			fare = rate.MinimumFare
+		}
+		return math.Round(fare*100) / 100
+	}
+	return CalculateFare(distance, vehicleType)
+}
+
+func CalculateDeliveryFeeFromDB(db *gorm.DB, distance float64) float64 {
+	var rate models.RateConfig
+	if err := db.Where("service_type = ? AND is_active = ?", "delivery", true).First(&rate).Error; err == nil {
+		fee := rate.BaseFare + (distance * rate.RatePerKm)
+		if fee < rate.MinimumFare && rate.MinimumFare > 0 {
+			fee = rate.MinimumFare
+		}
+		return math.Round(fee*100) / 100
+	}
+	return math.Round((50.0+(distance*15.0))*100) / 100
+}
+
+func GetOrderDeliveryFeeFromDB(db *gorm.DB) float64 {
+	var rate models.RateConfig
+	if err := db.Where("service_type = ? AND is_active = ?", "order", true).First(&rate).Error; err == nil {
+		return rate.BaseFare
+	}
+	return 30.0
+}
+
 func SendOTPEmail(email, otp string) error {
 	fmt.Printf("OTP for %s: %s (expires in 5 minutes)\n", email, otp)
 	return nil

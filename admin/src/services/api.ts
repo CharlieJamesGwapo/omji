@@ -87,6 +87,12 @@ export const adminService = {
   getNotifications: () => API.get('/admin/notifications'),
   sendNotification: (data: { title: string; message: string; type?: string; target_type: string }) =>
     API.post('/admin/notifications', data),
+
+  // Rates
+  getRates: () => API.get('/admin/rates'),
+  createRate: (data: any) => API.post('/admin/rates', data),
+  updateRate: (id: number, data: any) => API.put(`/admin/rates/${id}`, data),
+  deleteRate: (id: number) => API.delete(`/admin/rates/${id}`),
 };
 
 export default API;

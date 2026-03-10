@@ -125,6 +125,9 @@ func main() {
 		// Notification routes
 		protected.GET("/notifications", handlers.GetUserNotifications(database))
 		protected.PUT("/notifications/:id/read", handlers.MarkNotificationRead(database))
+
+		// Public rate configs (for mobile fare estimation)
+		protected.GET("/rates", handlers.GetPublicRates(database))
 	}
 
 	// Admin routes
@@ -175,6 +178,12 @@ func main() {
 		// Notifications
 		admin.GET("/notifications", handlers.AdminGetNotifications(database))
 		admin.POST("/notifications", handlers.AdminSendNotification(database))
+
+		// Rate config management
+		admin.GET("/rates", handlers.AdminGetRates(database))
+		admin.POST("/rates", handlers.AdminCreateRate(database))
+		admin.PUT("/rates/:id", handlers.AdminUpdateRate(database))
+		admin.DELETE("/rates/:id", handlers.AdminDeleteRate(database))
 	}
 
 	// WebSocket routes

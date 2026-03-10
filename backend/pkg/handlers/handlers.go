@@ -336,7 +336,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		if distance < 0.1 {
 			distance = 1.0
 		}
-		fare := CalculateFare(distance, input.VehicleType)
+		fare := CalculateFareFromDB(db, distance, input.VehicleType)
 		// Use client-provided fare if it's higher (e.g. Pasabay with extra passengers)
 		if input.EstimatedFare > fare {
 			fare = input.EstimatedFare
@@ -716,7 +716,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 		if distance < 0.1 {
 			distance = 1.0
 		}
-		fee := 50.0 + (distance * 15.0)
+		fee := CalculateDeliveryFeeFromDB(db, distance)
 		var promoID *uint
 		if promoCode != "" {
 			var promo models.Promo
@@ -944,7 +944,7 @@ func CreateOrder(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid order items"})
 			return
 		}
-		deliveryFee := 30.0
+		deliveryFee := GetOrderDeliveryFeeFromDB(db)
 		tax := subtotal * 0.05
 		order := models.Order{
 			UserID: userID, StoreID: input.StoreID, Items: datatypes.JSON(input.Items), Subtotal: subtotal, DeliveryFee: deliveryFee, Tax: tax,
@@ -3088,5 +3088,91 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 				db.Model(&models.Driver{}).Where("id = ?", driverID).Updates(map[string]interface{}{"current_latitude": msg.Latitude, "current_longitude": msg.Longitude})
 			}
 		}
+	}
+}
+
+// ===== RATE CONFIG HANDLERS =====
+
+// Admin Rate Config CRUD
+func AdminGetRates(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rates []models.RateConfig
+		if err := db.Order("service_type, vehicle_type").Find(&rates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rates"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": rates})
+	}
+}
+
+func AdminCreateRate(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input models.RateConfig
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid input"})
+			return
+		}
+		if input.ServiceType == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "service_type is required"})
+			return
+		}
+		if input.ServiceType == "ride" && input.VehicleType == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_type is required for rides"})
+			return
+		}
+		if err := db.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create rate config. A config for this service/vehicle may already exist."})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": input})
+	}
+}
+
+func AdminUpdateRate(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var rate models.RateConfig
+		if err := db.First(&rate, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Rate config not found"})
+			return
+		}
+		var input map[string]interface{}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid input"})
+			return
+		}
+		if err := db.Model(&rate).Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update rate config"})
+			return
+		}
+		db.First(&rate, id)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": rate})
+	}
+}
+
+func AdminDeleteRate(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var rate models.RateConfig
+		if err := db.First(&rate, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Rate config not found"})
+			return
+		}
+		if err := db.Delete(&rate).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete rate config"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Rate config deleted"})
+	}
+}
+
+func GetPublicRates(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var rates []models.RateConfig
+		if err := db.Where("is_active = ?", true).Find(&rates).Error; err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": true, "data": []models.RateConfig{}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": rates})
 	}
 }
