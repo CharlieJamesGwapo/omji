@@ -290,13 +290,21 @@ export default function PasugoScreen({ navigation }: any) {
                 ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
                 : await deliveryService.createDelivery(deliveryData);
               const delivery = response.data?.data || {};
-              navigation.navigate('Tracking', {
-                type: 'delivery',
-                rideId: delivery.id || 0,
-                pickup: pickupLocation.address,
-                dropoff: dropoffLocation.address,
-                fare: delivery.delivery_fee || estimatedFare,
-              });
+              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+                navigation.navigate('Payment', {
+                  type: paymentMethod,
+                  amount: delivery.delivery_fee || estimatedFare,
+                  serviceType: 'delivery',
+                });
+              } else {
+                navigation.navigate('Tracking', {
+                  type: 'delivery',
+                  rideId: delivery.id || 0,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
+                  fare: delivery.delivery_fee || estimatedFare,
+                });
+              }
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book delivery';
               showToast(msg, 'error');

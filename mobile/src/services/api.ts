@@ -181,6 +181,11 @@ export const paymentService = {
   deletePaymentMethod: (id: number) => api.delete(`/payments/methods/${id}`),
 };
 
+// Payment Config Services
+export const paymentConfigService = {
+  getConfigs: () => api.get('/payment-configs'),
+};
+
 // Promo Services
 export const promoService = {
   getAvailablePromos: () => api.get('/promos/available'),

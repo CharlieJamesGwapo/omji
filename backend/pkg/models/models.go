@@ -304,6 +304,18 @@ type RateConfig struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// PaymentConfig model for admin-managed payment accounts (GCash, Maya)
+type PaymentConfig struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	Type          string    `gorm:"uniqueIndex" json:"type"` // gcash, maya
+	AccountName   string    `json:"account_name"`
+	AccountNumber string    `json:"account_number"`
+	QRCodeURL     string    `json:"qr_code_url"`
+	IsActive      bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) {
 	db.AutoMigrate(
@@ -324,6 +336,7 @@ func AutoMigrate(db *gorm.DB) {
 		&WalletTransaction{},
 		&Favorite{},
 		&RateConfig{},
+		&PaymentConfig{},
 	)
 }
 

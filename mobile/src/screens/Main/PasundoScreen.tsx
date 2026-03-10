@@ -277,13 +277,21 @@ export default function PasundoScreen({ navigation }: any) {
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
               });
               const ride = response.data?.data || {};
-              navigation.navigate('Tracking', {
-                type: 'ride',
-                rideId: ride.id || 0,
-                pickup: pickupLocation.address,
-                dropoff: dropoffLocation.address,
-                fare: ride.estimated_fare || estimatedFare,
-              });
+              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+                navigation.navigate('Payment', {
+                  type: paymentMethod,
+                  amount: ride.estimated_fare || estimatedFare,
+                  serviceType: 'ride',
+                });
+              } else {
+                navigation.navigate('Tracking', {
+                  type: 'ride',
+                  rideId: ride.id || 0,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
+                  fare: ride.estimated_fare || estimatedFare,
+                });
+              }
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to book ride';
               showToast(msg, 'error');

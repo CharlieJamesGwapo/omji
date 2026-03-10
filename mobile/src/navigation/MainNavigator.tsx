@@ -25,6 +25,7 @@ import SavedAddressesScreen from '../screens/Main/SavedAddressesScreen';
 import PaymentMethodsScreen from '../screens/Main/PaymentMethodsScreen';
 import FavoritesScreen from '../screens/Main/FavoritesScreen';
 import NotificationsScreen from '../screens/Main/NotificationsScreen';
+import PaymentScreen from '../screens/Main/PaymentScreen';
 import RiderRegistrationScreen from '../screens/Auth/RiderRegistrationScreen';
 
 const Tab = createBottomTabNavigator();
@@ -100,6 +101,7 @@ export default function MainNavigator() {
       <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Payment" component={PaymentScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

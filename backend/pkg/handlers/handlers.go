@@ -3403,3 +3403,107 @@ func AdminDeleteMenuItem(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Menu item deleted"}, "timestamp": time.Now()})
 	}
 }
+
+// ===== PAYMENT CONFIG HANDLERS =====
+
+// Admin CRUD for payment configs
+func AdminGetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var configs []models.PaymentConfig
+		db.Order("type").Find(&configs)
+		c.JSON(200, gin.H{"data": configs, "count": len(configs)})
+	}
+}
+
+func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var config models.PaymentConfig
+		if err := c.ShouldBindJSON(&config); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if config.Type == "" {
+			c.JSON(400, gin.H{"error": "Payment type is required"})
+			return
+		}
+		validTypes := map[string]bool{"gcash": true, "maya": true}
+		if !validTypes[config.Type] {
+			c.JSON(400, gin.H{"error": "Invalid type. Must be gcash or maya"})
+			return
+		}
+		if err := db.Create(&config).Error; err != nil {
+			c.JSON(500, gin.H{"error": "Failed to create payment config. Type may already exist."})
+			return
+		}
+		c.JSON(201, gin.H{"data": config})
+	}
+}
+
+func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var config models.PaymentConfig
+		if err := db.First(&config, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "Payment config not found"})
+			return
+		}
+		var input struct {
+			AccountName   *string `json:"account_name"`
+			AccountNumber *string `json:"account_number"`
+			QRCodeURL     *string `json:"qr_code_url"`
+			IsActive      *bool   `json:"is_active"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		updates := map[string]interface{}{}
+		if input.AccountName != nil {
+			updates["account_name"] = *input.AccountName
+		}
+		if input.AccountNumber != nil {
+			updates["account_number"] = *input.AccountNumber
+		}
+		if input.QRCodeURL != nil {
+			updates["qr_code_url"] = *input.QRCodeURL
+		}
+		if input.IsActive != nil {
+			updates["is_active"] = *input.IsActive
+		}
+		if len(updates) == 0 {
+			c.JSON(400, gin.H{"error": "No fields to update"})
+			return
+		}
+		if err := db.Model(&config).Updates(updates).Error; err != nil {
+			c.JSON(500, gin.H{"error": "Failed to update payment config"})
+			return
+		}
+		db.First(&config, id)
+		c.JSON(200, gin.H{"data": config})
+	}
+}
+
+func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var config models.PaymentConfig
+		if err := db.First(&config, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "Payment config not found"})
+			return
+		}
+		if err := db.Delete(&config).Error; err != nil {
+			c.JSON(500, gin.H{"error": "Failed to delete payment config"})
+			return
+		}
+		c.JSON(200, gin.H{"message": "Payment config deleted"})
+	}
+}
+
+// Public endpoint - returns active payment configs for mobile
+func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var configs []models.PaymentConfig
+		db.Where("is_active = ?", true).Find(&configs)
+		c.JSON(200, gin.H{"data": configs})
+	}
+}

@@ -128,6 +128,9 @@ func main() {
 
 		// Public rate configs (for mobile fare estimation)
 		protected.GET("/rates", handlers.GetPublicRates(database))
+
+		// Payment configs (active configs for mobile)
+		protected.GET("/payment-configs", handlers.GetPaymentConfigs(database))
 	}
 
 	// Admin routes
@@ -192,6 +195,12 @@ func main() {
 		admin.POST("/rates", handlers.AdminCreateRate(database))
 		admin.PUT("/rates/:id", handlers.AdminUpdateRate(database))
 		admin.DELETE("/rates/:id", handlers.AdminDeleteRate(database))
+
+		// Payment config management
+		admin.GET("/payment-configs", handlers.AdminGetPaymentConfigs(database))
+		admin.POST("/payment-configs", handlers.AdminCreatePaymentConfig(database))
+		admin.PUT("/payment-configs/:id", handlers.AdminUpdatePaymentConfig(database))
+		admin.DELETE("/payment-configs/:id", handlers.AdminDeletePaymentConfig(database))
 	}
 
 	// WebSocket routes

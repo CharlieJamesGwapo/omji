@@ -140,12 +140,20 @@ export default function CartScreen({ route, navigation }: any) {
                 delivery_latitude: userLocation?.latitude || 0,
                 delivery_longitude: userLocation?.longitude || 0,
               });
-              Alert.alert('Success', 'Your order has been placed!', [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.navigate('Orders'),
-                },
-              ]);
+              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+                navigation.navigate('Payment', {
+                  type: paymentMethod,
+                  amount: total,
+                  serviceType: 'order',
+                });
+              } else {
+                Alert.alert('Success', 'Your order has been placed!', [
+                  {
+                    text: 'OK',
+                    onPress: () => navigation.navigate('Orders'),
+                  },
+                ]);
+              }
             } catch (error: any) {
               Alert.alert(
                 'Order Failed',

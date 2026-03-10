@@ -101,6 +101,12 @@ export const adminService = {
   createRate: (data: any) => API.post('/admin/rates', data),
   updateRate: (id: number, data: any) => API.put(`/admin/rates/${id}`, data),
   deleteRate: (id: number) => API.delete(`/admin/rates/${id}`),
+
+  // Payment Configs
+  getPaymentConfigs: () => API.get('/admin/payment-configs'),
+  createPaymentConfig: (data: any) => API.post('/admin/payment-configs', data),
+  updatePaymentConfig: (id: number, data: any) => API.put(`/admin/payment-configs/${id}`, data),
+  deletePaymentConfig: (id: number) => API.delete(`/admin/payment-configs/${id}`),
 };
 
 export default API;
