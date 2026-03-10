@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -114,34 +114,34 @@ const OrdersPage: React.FC = () => {
     setCurrentPage(1);
   }, [search, filterStatus]);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
       const res = await adminService.getOrders();
       setOrders(res.data.data || []);
     } catch (err) {
       console.error('Failed to load orders:', err);
+      toast.error('Failed to load orders');
     }
     setLoading(false);
-  };
+  }, []);
 
-  const handleStatusUpdate = async (id: number, newStatus: string) => {
+  const handleStatusUpdate = useCallback(async (id: number, newStatus: string) => {
     setUpdatingId(id);
     try {
       await adminService.updateOrderStatus(id, newStatus);
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
       );
-      if (selectedOrder?.id === id) {
-        setSelectedOrder({ ...selectedOrder, status: newStatus });
-      }
+      setSelectedOrder(prev => prev && prev.id === id ? { ...prev, status: newStatus } : prev);
+      toast.success(`Order #${id} updated to ${newStatus.replace(/_/g, ' ')}`);
     } catch {
       toast.error('Failed to update order status');
     }
     setUpdatingId(null);
-  };
+  }, []);
 
-  const filtered = orders.filter((o) => {
+  const filtered = useMemo(() => orders.filter((o) => {
     if (filterStatus !== 'all' && o.status !== filterStatus) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -153,7 +153,7 @@ const OrdersPage: React.FC = () => {
       );
     }
     return true;
-  });
+  }), [orders, filterStatus, search]);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -162,7 +162,7 @@ const OrdersPage: React.FC = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: orders.length,
     active: orders.filter((o) => ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status)).length,
     delivered: orders.filter((o) => o.status === 'delivered').length,
@@ -170,7 +170,7 @@ const OrdersPage: React.FC = () => {
     revenue: orders
       .filter((o) => o.status !== 'cancelled')
       .reduce((sum, o) => sum + (o.total_amount || 0), 0),
-  };
+  }), [orders]);
 
   const filterButtons: { label: string; value: FilterStatus; count: number }[] = [
     { label: 'All', value: 'all', count: orders.length },

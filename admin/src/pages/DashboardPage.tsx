@@ -31,7 +31,11 @@ const DashboardPage: React.FC = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadDashboard = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+    if (isRefresh) {
+      setRefreshing(true);
+      // Invalidate caches on manual refresh
+      await adminService.refreshDashboard();
+    }
     try {
       const [usersRes, driversRes, ridesRes, earningsRes, monthlyRevenueRes] = await Promise.all([
         adminService.getUsers().catch(() => ({ data: { data: [] } })),

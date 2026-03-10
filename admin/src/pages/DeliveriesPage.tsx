@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
 
@@ -70,30 +70,30 @@ const DeliveriesPage: React.FC = () => {
     setCurrentPage(1);
   }, [search, filterStatus]);
 
-  const loadDeliveries = async () => {
+  const loadDeliveries = useCallback(async () => {
     setLoading(true);
     try {
       const res = await adminService.getDeliveries();
       setDeliveries(res.data.data || []);
     } catch (err) {
       console.error('Failed to load deliveries:', err);
+      toast.error('Failed to load deliveries');
     }
     setLoading(false);
-  };
+  }, []);
 
-  const handleStatusUpdate = async (id: number, status: string) => {
+  const handleStatusUpdate = useCallback(async (id: number, status: string) => {
     setUpdatingId(id);
     try {
       await adminService.updateDeliveryStatus(id, status);
-      setDeliveries(deliveries.map(d => d.id === id ? { ...d, status } : d));
-      if (selectedDelivery?.id === id) {
-        setSelectedDelivery({ ...selectedDelivery, status });
-      }
+      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status } : d));
+      setSelectedDelivery(prev => prev && prev.id === id ? { ...prev, status } : prev);
+      toast.success(`Delivery #${id} updated to ${status.replace(/_/g, ' ')}`);
     } catch {
       toast.error('Failed to update delivery status');
     }
     setUpdatingId(null);
-  };
+  }, []);
 
   const getStatusBadge = (status: string) => {
     const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-700', label: status };
@@ -104,7 +104,7 @@ const DeliveriesPage: React.FC = () => {
     );
   };
 
-  const filtered = deliveries.filter((d) => {
+  const filtered = useMemo(() => deliveries.filter((d) => {
     const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' ? ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(d.status) : d.status === filterStatus);
     const q = search.toLowerCase();
     const matchesSearch =
@@ -116,7 +116,7 @@ const DeliveriesPage: React.FC = () => {
       (d.Driver?.User?.name || '').toLowerCase().includes(q) ||
       String(d.id).includes(q);
     return matchesStatus && matchesSearch;
-  });
+  }), [deliveries, filterStatus, search]);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -125,7 +125,7 @@ const DeliveriesPage: React.FC = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: deliveries.length,
     active: deliveries.filter(d => ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(d.status)).length,
     completed: deliveries.filter(d => d.status === 'completed').length,
@@ -133,7 +133,7 @@ const DeliveriesPage: React.FC = () => {
     revenue: deliveries
       .filter(d => d.status === 'completed')
       .reduce((sum, d) => sum + (d.delivery_fee || 0), 0),
-  };
+  }), [deliveries]);
 
   const filterButtons: { key: FilterStatus; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: deliveries.length },

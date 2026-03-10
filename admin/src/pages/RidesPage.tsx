@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
 
@@ -74,7 +74,7 @@ const RidesPage: React.FC = () => {
     setCurrentPage(1);
   }, [search, filter]);
 
-  const loadRides = async () => {
+  const loadRides = useCallback(async () => {
     setLoading(true);
     try {
       const res = await adminService.getRides();
@@ -84,26 +84,25 @@ const RidesPage: React.FC = () => {
       toast.error('Failed to load rides');
     }
     setLoading(false);
-  };
+  }, []);
 
-  const handleStatusUpdate = async (id: number, status: string) => {
+  const handleStatusUpdate = useCallback(async (id: number, status: string) => {
     try {
       await adminService.updateRideStatus(id, status);
-      setRides(rides.map((r) => (r.id === id ? { ...r, status } : r)));
-      if (selectedRide && selectedRide.id === id) {
-        setSelectedRide({ ...selectedRide, status });
-      }
+      setRides(prev => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+      setSelectedRide(prev => prev && prev.id === id ? { ...prev, status } : prev);
+      toast.success(`Ride #${id} updated to ${status.replace(/_/g, ' ')}`);
     } catch {
       toast.error('Failed to update ride status');
     }
-  };
+  }, []);
 
   const handleViewDetails = (ride: Ride) => {
     setSelectedRide(ride);
     setShowModal(true);
   };
 
-  const filtered = rides.filter((r) => {
+  const filtered = useMemo(() => rides.filter((r) => {
     const userName = (r.User?.name || '').toLowerCase();
     const userEmail = (r.User?.email || '').toLowerCase();
     const pickup = (r.pickup_location || '').toLowerCase();
@@ -119,7 +118,7 @@ const RidesPage: React.FC = () => {
     else if (filter === 'cancelled') matchesFilter = r.status === 'cancelled';
 
     return matchesSearch && matchesFilter;
-  });
+  }), [rides, search, filter]);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -128,7 +127,7 @@ const RidesPage: React.FC = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: rides.length,
     active: rides.filter((r) => r.status === 'accepted' || r.status === 'driver_arrived' || r.status === 'in_progress').length,
     completed: rides.filter((r) => r.status === 'completed').length,
@@ -136,7 +135,7 @@ const RidesPage: React.FC = () => {
     revenue: rides
       .filter((r) => r.status === 'completed')
       .reduce((sum, r) => sum + (r.final_fare || r.estimated_fare || 0), 0),
-  };
+  }), [rides]);
 
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: rides.length },

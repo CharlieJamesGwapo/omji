@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface Notification {
   id: number;
@@ -20,7 +21,6 @@ const NotificationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [sending, setSending] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,32 +34,26 @@ const NotificationsPage: React.FC = () => {
     loadNotifications();
   }, []);
 
-  useEffect(() => {
-    if (feedback) {
-      const timer = setTimeout(() => setFeedback(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedback]);
-
   // Reset page on filter/search change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, filterType]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const res = await adminService.getNotifications();
       setNotifications(res.data.data || []);
     } catch (err) {
       console.error('Failed to load notifications:', err);
+      toast.error('Failed to load notifications');
       setNotifications([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
     try {
@@ -69,17 +63,17 @@ const NotificationsPage: React.FC = () => {
         type: formData.target_type,
         target_type: formData.target_type,
       });
-      setFeedback({ type: 'success', message: 'Notification sent successfully!' });
+      toast.success('Notification sent successfully!');
       setShowModal(false);
       setFormData({ title: '', message: '', target_type: 'all' });
       await loadNotifications();
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Failed to send notification. Please try again.';
-      setFeedback({ type: 'error', message: msg });
+      toast.error(msg);
     } finally {
       setSending(false);
     }
-  };
+  }, [formData, loadNotifications]);
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -107,22 +101,24 @@ const NotificationsPage: React.FC = () => {
     }
   };
 
-  const totalSent = notifications.length;
-  const toUsers = notifications.filter(n => n.type === 'users' || n.type === 'all').length;
-  const toDrivers = notifications.filter(n => n.type === 'drivers' || n.type === 'all').length;
-  const sentToday = notifications.filter(
-    n => new Date(n.created_at).toDateString() === new Date().toDateString()
-  ).length;
+  const { totalSent, toUsers, toDrivers, sentToday } = useMemo(() => ({
+    totalSent: notifications.length,
+    toUsers: notifications.filter(n => n.type === 'users' || n.type === 'all').length,
+    toDrivers: notifications.filter(n => n.type === 'drivers' || n.type === 'all').length,
+    sentToday: notifications.filter(
+      n => new Date(n.created_at).toDateString() === new Date().toDateString()
+    ).length,
+  }), [notifications]);
 
   // Filter and search
-  const filtered = notifications.filter((n) => {
+  const filtered = useMemo(() => notifications.filter((n) => {
     const matchesFilter = filterType === 'all' || n.type === filterType;
     const q = search.toLowerCase();
     const matchesSearch = !q ||
       n.title.toLowerCase().includes(q) ||
       n.body.toLowerCase().includes(q);
     return matchesFilter && matchesSearch;
-  });
+  }), [notifications, filterType, search]);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -169,33 +165,6 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Feedback Toast */}
-      {feedback && (
-        <div
-          className={`fixed top-4 right-4 z-[60] px-5 py-3 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2 transition-all ${
-            feedback.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
-          }`}
-        >
-          {feedback.type === 'success' ? (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
-          {feedback.message}
-          <button onClick={() => setFeedback(null)} className="ml-2 opacity-70 hover:opacity-100">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>

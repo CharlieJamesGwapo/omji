@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface PaymentConfig {
   id: number;
@@ -46,19 +47,12 @@ const PaymentConfigsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const loadConfigs = useCallback(async () => {
     try {
       const res = await adminService.getPaymentConfigs();
       setConfigs(res.data.data || []);
     } catch {
-      console.error('Failed to load payment configs');
+      toast.error('Failed to load payment configs');
     }
     setLoading(false);
   }, []);
@@ -89,22 +83,22 @@ const PaymentConfigsPage: React.FC = () => {
 
   const handleSave = async () => {
     if (!form.account_name.trim() || !form.account_number.trim()) {
-      showToast('Account name and number are required', 'error');
+      toast.error('Account name and number are required');
       return;
     }
     setSaving(true);
     try {
       if (editId) {
         await adminService.updatePaymentConfig(editId, form);
-        showToast('Payment config updated');
+        toast.success('Payment config updated');
       } else {
         await adminService.createPaymentConfig(form);
-        showToast('Payment config created');
+        toast.success('Payment config created');
       }
       setModalOpen(false);
       await loadConfigs();
     } catch (err: any) {
-      showToast(err.response?.data?.error || 'Failed to save', 'error');
+      toast.error(err.response?.data?.error || 'Failed to save');
     }
     setSaving(false);
   };
@@ -113,10 +107,10 @@ const PaymentConfigsPage: React.FC = () => {
     if (!window.confirm('Delete this payment config?')) return;
     try {
       await adminService.deletePaymentConfig(id);
-      showToast('Payment config deleted');
+      toast.success('Payment config deleted');
       await loadConfigs();
     } catch {
-      showToast('Failed to delete', 'error');
+      toast.error('Failed to delete');
     }
   };
 
@@ -136,15 +130,6 @@ const PaymentConfigsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium ${
-          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-        }`}>
-          {toast.message}
-        </div>
-      )}
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Payment Settings</h1>
