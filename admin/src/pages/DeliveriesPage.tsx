@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
 
 interface DeliveryUser {
@@ -89,7 +90,7 @@ const DeliveriesPage: React.FC = () => {
         setSelectedDelivery({ ...selectedDelivery, status });
       }
     } catch {
-      alert('Failed to update delivery status');
+      toast.error('Failed to update delivery status');
     }
     setUpdatingId(null);
   };
@@ -425,6 +426,8 @@ const DeliveriesPage: React.FC = () => {
                     >
                       <option value="pending">Pending</option>
                       <option value="accepted">Accepted</option>
+                      <option value="driver_arrived">Driver Arrived</option>
+                      <option value="picked_up">Picked Up</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                       <option value="cancelled">Cancelled</option>

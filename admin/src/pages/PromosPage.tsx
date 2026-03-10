@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 const PromosPage: React.FC = () => {
   const [promos, setPromos] = useState<any[]>([]);
@@ -37,9 +38,10 @@ const PromosPage: React.FC = () => {
       const payload = { ...form, start_date: form.start_date ? new Date(form.start_date).toISOString() : undefined, end_date: form.end_date ? new Date(form.end_date).toISOString() : undefined };
       const res = await adminService.createPromo(payload);
       setPromos([res.data.data, ...promos]);
+      toast.success('Promo created successfully!');
       resetForm();
     } catch {
-      alert('Failed to create promo');
+      toast.error('Failed to create promo');
     }
   };
 
@@ -50,9 +52,10 @@ const PromosPage: React.FC = () => {
       const payload = { ...editingPromo, ...form, start_date: form.start_date ? new Date(form.start_date).toISOString() : undefined, end_date: form.end_date ? new Date(form.end_date).toISOString() : undefined };
       const res = await adminService.updatePromo(editingPromo.id, payload);
       setPromos(promos.map(p => p.id === editingPromo.id ? res.data.data : p));
+      toast.success('Promo updated successfully!');
       resetForm();
     } catch {
-      alert('Failed to update promo');
+      toast.error('Failed to update promo');
     }
   };
 
@@ -78,8 +81,9 @@ const PromosPage: React.FC = () => {
     try {
       const res = await adminService.updatePromo(promo.id, { ...promo, is_active: !promo.is_active });
       setPromos(promos.map(p => p.id === promo.id ? res.data.data : p));
+      toast.success(promo.is_active ? 'Promo deactivated' : 'Promo activated');
     } catch {
-      alert('Failed to update promo status');
+      toast.error('Failed to update promo status');
     }
   };
 
@@ -88,8 +92,9 @@ const PromosPage: React.FC = () => {
     try {
       await adminService.deletePromo(id);
       setPromos(promos.filter(p => p.id !== id));
+      toast.success('Promo deleted');
     } catch {
-      alert('Failed to delete promo');
+      toast.error('Failed to delete promo');
     }
   };
 

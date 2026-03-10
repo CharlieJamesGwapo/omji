@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
 
 interface RideUser {
@@ -80,7 +81,7 @@ const RidesPage: React.FC = () => {
       setRides(res.data.data || []);
     } catch (err) {
       console.error('Failed to load rides:', err);
-      alert('Failed to load rides. Please check your connection.');
+      toast.error('Failed to load rides');
     }
     setLoading(false);
   };
@@ -93,7 +94,7 @@ const RidesPage: React.FC = () => {
         setSelectedRide({ ...selectedRide, status });
       }
     } catch {
-      alert('Failed to update ride status');
+      toast.error('Failed to update ride status');
     }
   };
 
@@ -420,6 +421,7 @@ const RidesPage: React.FC = () => {
                     >
                       <option value="pending">Pending</option>
                       <option value="accepted">Accepted</option>
+                      <option value="driver_arrived">Driver Arrived</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                       <option value="cancelled">Cancelled</option>
@@ -727,6 +729,7 @@ const RidesPage: React.FC = () => {
                   >
                     <option value="pending">Pending</option>
                     <option value="accepted">Accepted</option>
+                    <option value="driver_arrived">Driver Arrived</option>
                     <option value="in_progress">In Progress</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>

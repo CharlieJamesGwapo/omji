@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface RiderApplication {
   id: number;
@@ -40,10 +41,10 @@ const RiderApprovalPage: React.FC = () => {
 
     try {
       await adminService.verifyDriver(riderId);
-      alert('Rider approved successfully!');
+      toast.success('Rider approved successfully!');
       loadRiders();
     } catch (error) {
-      alert('Failed to approve rider');
+      toast.error('Failed to approve rider');
       console.error(error);
     }
   };
@@ -53,10 +54,10 @@ const RiderApprovalPage: React.FC = () => {
 
     try {
       await adminService.deleteDriver(riderId);
-      alert('Rider application rejected');
+      toast.success('Rider application rejected');
       loadRiders();
     } catch (error) {
-      alert('Failed to reject rider');
+      toast.error('Failed to reject rider');
       console.error(error);
     }
   };

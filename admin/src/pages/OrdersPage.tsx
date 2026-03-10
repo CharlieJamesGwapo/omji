@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface OrderUser {
   name: string;
@@ -32,7 +33,7 @@ interface Order {
   Store: OrderStore;
 }
 
-type FilterStatus = 'all' | 'pending' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+type FilterStatus = 'all' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -135,7 +136,7 @@ const OrdersPage: React.FC = () => {
         setSelectedOrder({ ...selectedOrder, status: newStatus });
       }
     } catch {
-      alert('Failed to update order status');
+      toast.error('Failed to update order status');
     }
     setUpdatingId(null);
   };
@@ -174,7 +175,9 @@ const OrdersPage: React.FC = () => {
   const filterButtons: { label: string; value: FilterStatus; count: number }[] = [
     { label: 'All', value: 'all', count: orders.length },
     { label: 'Pending', value: 'pending', count: orders.filter(o => o.status === 'pending').length },
+    { label: 'Confirmed', value: 'confirmed', count: orders.filter(o => o.status === 'confirmed').length },
     { label: 'Preparing', value: 'preparing', count: orders.filter(o => o.status === 'preparing').length },
+    { label: 'Ready', value: 'ready', count: orders.filter(o => o.status === 'ready').length },
     { label: 'Out for Delivery', value: 'out_for_delivery', count: orders.filter(o => o.status === 'out_for_delivery').length },
     { label: 'Delivered', value: 'delivered', count: stats.delivered },
     { label: 'Cancelled', value: 'cancelled', count: stats.cancelled },

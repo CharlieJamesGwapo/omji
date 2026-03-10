@@ -14,6 +14,7 @@ import DeliveriesPage from './pages/DeliveriesPage';
 import OrdersPage from './pages/OrdersPage';
 import RatesPage from './pages/RatesPage';
 import PaymentConfigsPage from './pages/PaymentConfigsPage';
+import { Toaster } from 'react-hot-toast';
 
 const navGroups = [
   {
@@ -277,6 +278,7 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '12px', padding: '12px 16px', fontSize: '14px' } }} />
       {isAuthenticated ? (
         <AdminLayout onLogout={handleLogout} user={user} />
       ) : (

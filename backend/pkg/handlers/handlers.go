@@ -3411,7 +3411,7 @@ func AdminGetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
 		db.Order("type").Find(&configs)
-		c.JSON(200, gin.H{"data": configs, "count": len(configs)})
+		c.JSON(200, gin.H{"success": true, "data": configs, "count": len(configs)})
 	}
 }
 
@@ -3435,7 +3435,7 @@ func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": "Failed to create payment config. Type may already exist."})
 			return
 		}
-		c.JSON(201, gin.H{"data": config})
+		c.JSON(201, gin.H{"success": true, "data": config})
 	}
 }
 
@@ -3479,7 +3479,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		db.First(&config, id)
-		c.JSON(200, gin.H{"data": config})
+		c.JSON(200, gin.H{"success": true, "data": config})
 	}
 }
 
@@ -3495,7 +3495,7 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": "Failed to delete payment config"})
 			return
 		}
-		c.JSON(200, gin.H{"message": "Payment config deleted"})
+		c.JSON(200, gin.H{"success": true, "message": "Payment config deleted"})
 	}
 }
 
