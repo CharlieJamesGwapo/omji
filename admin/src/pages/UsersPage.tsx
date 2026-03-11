@@ -213,7 +213,7 @@ const UsersPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading users...</p>
         </div>
       </div>
@@ -233,7 +233,7 @@ const UsersPage: React.FC = () => {
           placeholder="Search by name, email, or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm sm:text-base"
+          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
         />
       </div>
 
@@ -293,7 +293,7 @@ const UsersPage: React.FC = () => {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === tab.key
-                ? 'bg-gray-900 text-white'
+                ? 'bg-red-600 text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
@@ -523,7 +523,7 @@ const UsersPage: React.FC = () => {
                     onClick={() => setCurrentPage(item as number)}
                     className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === item
-                        ? 'bg-gray-900 text-white'
+                        ? 'bg-red-600 text-white'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -653,7 +653,7 @@ const UsersPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleEditFromDetail}
-                  className="flex-1 px-4 sm:px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors text-sm sm:text-base"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:bg-red-800 transition-colors text-sm sm:text-base"
                 >
                   Edit User
                 </button>
@@ -698,7 +698,7 @@ const UsersPage: React.FC = () => {
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="Full name"
                 />
               </div>
@@ -710,7 +710,7 @@ const UsersPage: React.FC = () => {
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="email@example.com"
                 />
               </div>
@@ -722,7 +722,7 @@ const UsersPage: React.FC = () => {
                   type="text"
                   value={editForm.phone}
                   onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="09XXXXXXXXX"
                 />
               </div>
@@ -733,7 +733,7 @@ const UsersPage: React.FC = () => {
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                 >
                   <option value="user">User</option>
                   <option value="driver">Driver</option>
@@ -773,7 +773,7 @@ const UsersPage: React.FC = () => {
               <button
                 onClick={handleSaveEdit}
                 disabled={saving}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>

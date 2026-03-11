@@ -22,20 +22,20 @@ const EMPTY_FORM = {
 };
 
 const THEME = {
-  gcash: { color: '#111827', bg: 'bg-gray-900', bgLight: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'GCash' },
-  maya: { color: '#111827', bg: 'bg-gray-900', bgLight: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'Maya' },
+  gcash: { color: '#007bff', bg: 'bg-blue-600', bgLight: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', label: 'GCash' },
+  maya: { color: '#34A853', bg: 'bg-green-600', bgLight: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', label: 'Maya' },
 } as Record<string, { color: string; bg: string; bgLight: string; border: string; text: string; label: string }>;
 
 const GCashIcon = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none">
-    <rect width="24" height="24" rx="6" fill="#111827" />
+    <rect width="24" height="24" rx="6" fill="#007bff" />
     <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">G</text>
   </svg>
 );
 
 const MayaIcon = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none">
-    <rect width="24" height="24" rx="6" fill="#111827" />
+    <rect width="24" height="24" rx="6" fill="#34A853" />
     <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">M</text>
   </svg>
 );
@@ -281,7 +281,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_name}
                     onChange={e => setForm({ ...form, account_name: e.target.value })}
                     placeholder="e.g. Juan Dela Cruz"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_number}
                     onChange={e => setForm({ ...form, account_number: e.target.value })}
                     placeholder="e.g. 09171234567"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
                   />
                 </div>
                 <div className="flex items-end">
@@ -314,7 +314,7 @@ const PaymentConfigsPage: React.FC = () => {
                   value={form.qr_code_url}
                   onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
                   placeholder="https://example.com/my-qr-code.png"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
                 />
               </div>
 

@@ -85,9 +85,9 @@ const DashboardPage: React.FC = () => {
   }, [loadDashboard]);
 
   const revenueData = [
-    { name: 'Rides', value: stats.rideRevenue, color: '#374151' },
-    { name: 'Deliveries', value: stats.deliveryRevenue, color: '#9CA3AF' },
-    { name: 'Orders', value: stats.orderRevenue, color: '#D1D5DB' },
+    { name: 'Rides', value: stats.rideRevenue, color: '#dc2626' },
+    { name: 'Deliveries', value: stats.deliveryRevenue, color: '#f87171' },
+    { name: 'Orders', value: stats.orderRevenue, color: '#fca5a5' },
   ];
 
   const quickActions = [
@@ -132,7 +132,7 @@ const DashboardPage: React.FC = () => {
         <button
           onClick={() => loadDashboard(true)}
           disabled={refreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-red-50 disabled:opacity-50"
         >
           <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -162,7 +162,7 @@ const DashboardPage: React.FC = () => {
           <button
             key={action.path}
             onClick={() => navigate(action.path)}
-            className="relative bg-white rounded-lg border border-gray-200 p-3 sm:p-4 text-center hover:border-gray-300 hover:bg-gray-50 transition-colors"
+            className="relative bg-white rounded-lg border border-gray-200 p-3 sm:p-4 text-center hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             {action.badge ? (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -187,7 +187,7 @@ const DashboardPage: React.FC = () => {
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} />
               <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} width={40} />
               <Tooltip />
-              <Line type="monotone" dataKey="revenue" stroke="#111827" strokeWidth={2} dot={{ r: 3, fill: '#111827' }} />
+              <Line type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: '#dc2626' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -225,7 +225,7 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Recent Users</h2>
-            <button onClick={() => navigate('/users')} className="text-xs font-medium text-gray-500 hover:text-gray-700">View All →</button>
+            <button onClick={() => navigate('/users')} className="text-xs font-medium text-red-600 hover:text-red-700">View All →</button>
           </div>
           <div className="divide-y divide-gray-50">
             {recentUsers.length === 0 ? (
@@ -254,7 +254,7 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Recent Drivers</h2>
-            <button onClick={() => navigate('/drivers')} className="text-xs font-medium text-gray-500 hover:text-gray-700">View All →</button>
+            <button onClick={() => navigate('/drivers')} className="text-xs font-medium text-red-600 hover:text-red-700">View All →</button>
           </div>
           <div className="divide-y divide-gray-50">
             {recentDrivers.length === 0 ? (

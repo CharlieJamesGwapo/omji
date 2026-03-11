@@ -273,7 +273,7 @@ const OrdersPage: React.FC = () => {
               onClick={() => setFilterStatus(btn.value)}
               className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                 filterStatus === btn.value
-                  ? 'bg-gray-900 text-white'
+                  ? 'bg-red-600 text-white'
                   : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
             >
@@ -517,7 +517,7 @@ const OrdersPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-gray-900 text-white'
+                          ? 'bg-red-600 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >

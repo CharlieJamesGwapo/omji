@@ -173,7 +173,7 @@ const NotificationsPage: React.FC = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center text-sm sm:text-base"
+          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:bg-red-800 transition-colors shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center text-sm sm:text-base"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -250,7 +250,7 @@ const NotificationsPage: React.FC = () => {
               onClick={() => setFilterType(btn.key)}
               className={`flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 filterType === btn.key
-                  ? 'bg-gray-900 text-white shadow-sm'
+                  ? 'bg-red-600 text-white shadow-sm'
                   : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
             >
@@ -263,7 +263,7 @@ const NotificationsPage: React.FC = () => {
           placeholder="Search by title or message..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-72 px-4 py-2.5 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
+          className="w-full sm:w-72 px-4 py-2.5 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
         />
       </div>
 
@@ -414,7 +414,7 @@ const NotificationsPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-gray-900 text-white shadow-sm'
+                          ? 'bg-red-600 text-white shadow-sm'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -471,13 +471,13 @@ const NotificationsPage: React.FC = () => {
                       onClick={() => setFormData({ ...formData, target_type: opt.value as 'all' | 'users' | 'drivers' })}
                       className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all min-h-[44px] ${
                         formData.target_type === opt.value
-                          ? 'border-gray-900 bg-gray-50 shadow-sm'
+                          ? 'border-red-600 bg-red-50 shadow-sm'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
                       <svg
                         className={`w-5 h-5 sm:w-6 sm:h-6 mb-1.5 ${
-                          formData.target_type === opt.value ? 'text-gray-900' : 'text-gray-400'
+                          formData.target_type === opt.value ? 'text-red-600' : 'text-gray-400'
                         }`}
                         fill="none"
                         stroke="currentColor"
@@ -486,7 +486,7 @@ const NotificationsPage: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={opt.icon} />
                       </svg>
                       <div className={`text-xs sm:text-sm font-semibold ${
-                        formData.target_type === opt.value ? 'text-gray-900' : 'text-gray-500'
+                        formData.target_type === opt.value ? 'text-red-600' : 'text-gray-500'
                       }`}>
                         {opt.label}
                       </div>
@@ -502,7 +502,7 @@ const NotificationsPage: React.FC = () => {
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm sm:text-base"
                   placeholder="Enter notification title"
                   required
                 />
@@ -513,7 +513,7 @@ const NotificationsPage: React.FC = () => {
                 <textarea
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none resize-none text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none resize-none text-sm sm:text-base"
                   placeholder="Enter notification message"
                   rows={4}
                   maxLength={500}
@@ -554,7 +554,7 @@ const NotificationsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={sending}
-                  className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2 min-h-[44px]"
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2 min-h-[44px]"
                 >
                   {sending ? (
                     <>

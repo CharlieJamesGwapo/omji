@@ -125,7 +125,7 @@ const RiderApprovalPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin" />
         <p className="text-gray-500 text-sm">Loading rider applications...</p>
       </div>
     );
@@ -145,7 +145,7 @@ const RiderApprovalPage: React.FC = () => {
             placeholder="Search name, email, phone, plate..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2.5 min-h-[44px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
+            className="w-full sm:w-64 px-4 py-2.5 min-h-[44px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
           />
           <button
             onClick={loadRiders}
@@ -183,7 +183,7 @@ const RiderApprovalPage: React.FC = () => {
             onClick={() => setFilter(f)}
             className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === f
-                ? 'bg-gray-900 text-white'
+                ? 'bg-red-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >

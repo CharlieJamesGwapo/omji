@@ -208,7 +208,7 @@ export default function RatesPage() {
         </div>
         <button
           onClick={openCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 shadow-sm transition-all"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 shadow-sm transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -353,7 +353,7 @@ export default function RatesPage() {
             </div>
             <p className="text-gray-500 font-medium mb-1">No custom rates configured</p>
             <p className="text-gray-400 text-sm mb-4">Default rates are being used. Add a custom rate to override defaults.</p>
-            <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors">
+            <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -538,7 +538,7 @@ export default function RatesPage() {
                 <select
                   value={form.service_type}
                   onChange={e => setForm(prev => ({ ...prev, service_type: e.target.value, vehicle_type: e.target.value === 'ride' ? 'motorcycle' : '' }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   disabled={!!editingRate}
                 >
                   <option value="ride">Pasundo (Ride)</option>
@@ -554,7 +554,7 @@ export default function RatesPage() {
                   <select
                     value={form.vehicle_type}
                     onChange={e => setForm(prev => ({ ...prev, vehicle_type: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                     disabled={!!editingRate}
                   >
                     <option value="motorcycle">Motorcycle</option>
@@ -574,7 +574,7 @@ export default function RatesPage() {
                   min="0"
                   value={form.base_fare ?? ''}
                   onChange={e => setForm(prev => ({ ...prev, base_fare: Number(e.target.value) }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="e.g. 40"
                 />
               </div>
@@ -589,7 +589,7 @@ export default function RatesPage() {
                     min="0"
                     value={form.rate_per_km ?? ''}
                     onChange={e => setForm(prev => ({ ...prev, rate_per_km: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                     placeholder="e.g. 10"
                   />
                 </div>
@@ -604,7 +604,7 @@ export default function RatesPage() {
                   min="0"
                   value={form.minimum_fare ?? ''}
                   onChange={e => setForm(prev => ({ ...prev, minimum_fare: Number(e.target.value) }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="0 = no minimum"
                 />
                 <p className="text-xs text-gray-400 mt-1">Set to 0 for no minimum fare requirement</p>
@@ -617,7 +617,7 @@ export default function RatesPage() {
                   type="text"
                   value={form.description || ''}
                   onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all"
                   placeholder="e.g. Standard motorcycle fare"
                 />
               </div>
@@ -674,7 +674,7 @@ export default function RatesPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>

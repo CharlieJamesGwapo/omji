@@ -121,7 +121,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gray-900 rounded-xl mx-auto mb-3 flex items-center justify-center overflow-hidden">
+          <div className="w-16 h-16 bg-red-600 rounded-xl mx-auto mb-3 flex items-center justify-center overflow-hidden">
             <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">OMJI Admin</h1>
@@ -172,7 +172,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm text-gray-900 placeholder-gray-400"
+                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm text-gray-900 placeholder-gray-400"
                 placeholder="admin"
                 required
                 disabled={loading}
@@ -186,7 +186,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm text-gray-900 placeholder-gray-400"
+                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm text-gray-900 placeholder-gray-400"
                 placeholder="••••••••"
                 required
                 disabled={loading}
@@ -196,7 +196,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

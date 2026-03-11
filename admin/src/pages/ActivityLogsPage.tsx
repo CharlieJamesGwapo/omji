@@ -224,7 +224,7 @@ const ActivityLogsPage: React.FC = () => {
           placeholder="Search by name, action, or details..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm sm:text-base"
+          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
         />
       </div>
 
@@ -260,7 +260,7 @@ const ActivityLogsPage: React.FC = () => {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-4 py-2.5 min-h-[40px] rounded-lg text-sm font-medium transition-all ${
               filter === f.key
-                ? 'bg-gray-900 text-white shadow-sm'
+                ? 'bg-red-600 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
             }`}
           >
@@ -435,7 +435,7 @@ const ActivityLogsPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-gray-900 text-white shadow-sm'
+                          ? 'bg-red-600 text-white shadow-sm'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >

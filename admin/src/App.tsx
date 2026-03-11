@@ -72,12 +72,12 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
         {/* Brand */}
         <div className="px-5 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center overflow-hidden">
               <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-900">OMJI</h1>
-              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Admin</p>
+              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">ADMIN PANEL</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center">
@@ -103,8 +103,8 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
                     onClick={onClose}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
                       isActive
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-red-600 text-white'
+                        : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
                     }`}
                   >
                     <svg className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,7 +121,7 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
         {/* User */}
         <div className="p-3 border-t border-gray-100">
           <div className="flex items-center gap-2.5 px-2 mb-2">
-            <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">
+            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-red-600 text-xs font-bold flex-shrink-0">
               {(user?.name || 'A')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
               </svg>
             </button>
             <div className="lg:hidden flex items-center gap-2">
-              <div className="w-7 h-7 bg-gray-900 rounded-md flex items-center justify-center overflow-hidden">
+              <div className="w-7 h-7 bg-red-600 rounded-md flex items-center justify-center overflow-hidden">
                 <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
               </div>
               <span className="font-bold text-gray-900 text-sm">OMJI</span>
@@ -253,7 +253,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-10 h-10 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>
       </div>

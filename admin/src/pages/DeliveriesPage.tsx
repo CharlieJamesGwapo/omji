@@ -251,7 +251,7 @@ const DeliveriesPage: React.FC = () => {
             onClick={() => setFilterStatus(btn.key)}
             className={`flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
               filterStatus === btn.key
-                ? 'bg-gray-900 text-white'
+                ? 'bg-red-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -503,7 +503,7 @@ const DeliveriesPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-gray-900 text-white'
+                          ? 'bg-red-600 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -687,7 +687,7 @@ const DeliveriesPage: React.FC = () => {
                         disabled={updatingId === selectedDelivery.id || isActive}
                         className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                           isActive
-                            ? 'bg-gray-900 text-white'
+                            ? 'bg-red-600 text-white'
                             : `${config.bg} ${config.text} hover:opacity-80`
                         }`}
                       >

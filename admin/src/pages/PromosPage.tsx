@@ -168,11 +168,11 @@ const PromosPage: React.FC = () => {
             placeholder="Search promos..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
+            className="w-full sm:w-64 px-4 py-2 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
           />
           <button
             onClick={() => { if (showForm && !editingPromo) { resetForm(); } else { setEditingPromo(null); setForm({ code: '', description: '', discount_type: 'percentage', discount_value: 0, minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true, start_date: '', end_date: '' }); setShowForm(true); } }}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm sm:text-base w-full sm:w-auto"
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm sm:text-base w-full sm:w-auto"
           >
             {showForm && !editingPromo ? 'Cancel' : '+ Create Promo'}
           </button>
@@ -183,17 +183,17 @@ const PromosPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <h2 className="text-lg font-bold mb-4">{editingPromo ? 'Edit Promo Code' : 'New Promo Code'}</h2>
           <form onSubmit={editingPromo ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
-            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
-            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900">
+            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
+            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
+            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600">
               <option value="percentage">Percentage</option>
               <option value="fixed">Fixed Amount</option>
             </select>
-            <input type="number" placeholder="Discount Value" value={form.discount_value ?? ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
-            <input type="number" placeholder="Min Amount" value={form.minimum_amount ?? ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
-            <input type="number" placeholder="Max Discount" value={form.max_discount ?? ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
-            <input type="number" placeholder="Usage Limit" value={form.usage_limit ?? ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
-            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900">
+            <input type="number" placeholder="Discount Value" value={form.discount_value ?? ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
+            <input type="number" placeholder="Min Amount" value={form.minimum_amount ?? ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
+            <input type="number" placeholder="Max Discount" value={form.max_discount ?? ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
+            <input type="number" placeholder="Usage Limit" value={form.usage_limit ?? ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
+            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600">
               <option value="all">All Services</option>
               <option value="rides">Rides Only</option>
               <option value="deliveries">Deliveries Only</option>
@@ -201,11 +201,11 @@ const PromosPage: React.FC = () => {
             </select>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Start Date</label>
-              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
+              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">End Date</label>
-              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
+              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
             </div>
             <div className="flex items-center gap-3 md:col-span-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -213,13 +213,13 @@ const PromosPage: React.FC = () => {
                   type="checkbox"
                   checked={form.is_active}
                   onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="w-4 h-4 text-gray-900 rounded focus:ring-gray-900"
+                  className="w-4 h-4 text-red-600 rounded focus:ring-red-600"
                 />
                 <span className="text-sm text-gray-700">Active</span>
               </label>
             </div>
             <div className="flex gap-3 md:col-span-2">
-              <button type="submit" disabled={saving} className="flex-1 px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={saving} className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 {saving ? 'Saving...' : editingPromo ? 'Update Promo' : 'Create Promo'}
               </button>
               {editingPromo && (
