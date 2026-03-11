@@ -83,6 +83,7 @@ const DeliveriesPage: React.FC = () => {
   }, []);
 
   const handleStatusUpdate = useCallback(async (id: number, status: string) => {
+    if (!window.confirm(`Change delivery #${id} status to "${status}"?`)) return;
     setUpdatingId(id);
     try {
       await adminService.updateDeliveryStatus(id, status);
@@ -119,7 +120,7 @@ const DeliveriesPage: React.FC = () => {
   }), [deliveries, filterStatus, search]);
 
   // Pagination
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -194,9 +195,20 @@ const DeliveriesPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Pasugo Deliveries</h1>
-          <p className="text-gray-500 text-sm mt-1">{stats.total} total deliveries</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Pasugo Deliveries</h1>
+            <p className="text-gray-500 text-sm mt-1">{stats.total} total deliveries</p>
+          </div>
+          <button
+            onClick={loadDeliveries}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Refresh deliveries"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
         <input
           type="text"
@@ -209,25 +221,25 @@ const DeliveriesPage: React.FC = () => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.total}</div>
-          <div className="text-blue-100 text-xs sm:text-sm mt-1">Total Deliveries</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Deliveries</div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.active}</div>
-          <div className="text-purple-100 text-xs sm:text-sm mt-1">Active</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.active}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Active</div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.completed}</div>
-          <div className="text-green-100 text-xs sm:text-sm mt-1">Completed</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.completed}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Completed</div>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.cancelled}</div>
-          <div className="text-red-100 text-xs sm:text-sm mt-1">Cancelled</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.cancelled}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Cancelled</div>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-6 text-white shadow-lg col-span-2 sm:col-span-1">
-          <div className="text-2xl sm:text-3xl font-bold">P{stats.revenue.toLocaleString()}</div>
-          <div className="text-orange-100 text-xs sm:text-sm mt-1">Total Revenue</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 sm:col-span-1">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">P{stats.revenue.toLocaleString()}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Revenue</div>
         </div>
       </div>
 
@@ -239,8 +251,8 @@ const DeliveriesPage: React.FC = () => {
             onClick={() => setFilterStatus(btn.key)}
             className={`flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
               filterStatus === btn.key
-                ? 'bg-red-600 text-white shadow-md shadow-red-600/25'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                ? 'bg-gray-900 text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
             {btn.label} ({btn.count})
@@ -273,7 +285,7 @@ const DeliveriesPage: React.FC = () => {
                     className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-11 h-11 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                  <div className="w-11 h-11 bg-gray-100 text-gray-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
@@ -368,7 +380,7 @@ const DeliveriesPage: React.FC = () => {
                           className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                        <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-lg flex items-center justify-center flex-shrink-0">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
@@ -381,7 +393,7 @@ const DeliveriesPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{delivery.User?.name || 'Unknown'}</div>
-                    <div className="text-xs text-gray-500">{delivery.User?.email || ''}</div>
+                    <div className="text-xs text-gray-500">{delivery.User?.email || 'N/A'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">{delivery.Driver?.User?.name || 'Unassigned'}</div>
@@ -491,7 +503,7 @@ const DeliveriesPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -516,17 +528,17 @@ const DeliveriesPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6 rounded-t-2xl">
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-lg sm:text-2xl font-bold text-white truncate">Delivery #{selectedDelivery.id}</h2>
-                  <p className="text-red-100 text-xs sm:text-sm mt-1">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Delivery #{selectedDelivery.id}</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-1">
                     {formatDate(selectedDelivery.created_at)}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  className="text-gray-400 hover:bg-gray-100 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -600,16 +612,16 @@ const DeliveriesPage: React.FC = () => {
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Customer</div>
                   <div className="text-sm font-medium text-gray-900">{selectedDelivery.User?.name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.User?.email || ''}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.User?.phone || ''}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.User?.email || 'N/A'}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.User?.phone || 'N/A'}</div>
                 </div>
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Driver</div>
                   {selectedDelivery.Driver ? (
                     <>
                       <div className="text-sm font-medium text-gray-900">{selectedDelivery.Driver.User?.name || 'Unknown'}</div>
-                      <div className="text-xs text-gray-500 mt-0.5 capitalize">{selectedDelivery.Driver.vehicle_type || ''}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.Driver.vehicle_plate || ''}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 capitalize">{selectedDelivery.Driver.vehicle_type || 'N/A'}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{selectedDelivery.Driver.vehicle_plate || 'N/A'}</div>
                     </>
                   ) : (
                     <div className="text-sm text-gray-400 italic">Unassigned</div>
@@ -675,7 +687,7 @@ const DeliveriesPage: React.FC = () => {
                         disabled={updatingId === selectedDelivery.id || isActive}
                         className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                           isActive
-                            ? 'bg-red-600 text-white shadow-md'
+                            ? 'bg-gray-900 text-white'
                             : `${config.bg} ${config.text} hover:opacity-80`
                         }`}
                       >

@@ -218,7 +218,7 @@ export default function StoresPage() {
     try {
       await adminService.updateStore(store.id, { is_verified: !store.is_verified });
       toast.success(store.is_verified ? 'Store unverified' : 'Store verified');
-      fetchStores();
+      setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_verified: !store.is_verified } : s));
     } catch {
       toast.error('Failed to update verification');
     }
@@ -277,8 +277,9 @@ export default function StoresPage() {
         setMenuItems(prev => prev.map(i => i.id === editingMenuItem.id ? (res.data?.data || { ...editingMenuItem, ...menuForm }) : i));
         toast.success('Menu item updated');
       } else {
-        const res = await adminService.createMenuItem(menuStore.id, menuForm);
-        setMenuItems(prev => [...prev, res.data?.data || { ...menuForm, id: Date.now(), store_id: menuStore.id }]);
+        await adminService.createMenuItem(menuStore.id, menuForm);
+        const menuRes = await adminService.getMenuItems(menuStore.id);
+        setMenuItems(menuRes.data?.data || []);
         toast.success('Menu item created');
       }
       setShowMenuForm(false);
@@ -355,7 +356,7 @@ export default function StoresPage() {
         </div>
         <button
           onClick={openCreateStore}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/25 transition-all"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 shadow-sm transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -445,7 +446,7 @@ export default function StoresPage() {
           placeholder="Search by name, category, address, or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm transition-all"
+          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm transition-all"
         />
         <div className="flex flex-wrap gap-2">
           {(['all', 'restaurant', 'grocery', 'pharmacy', 'verified', 'unverified'] as FilterTab[]).map((tab) => (
@@ -454,7 +455,7 @@ export default function StoresPage() {
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 activeTab === tab
-                  ? 'bg-red-600 text-white shadow-sm'
+                  ? 'bg-gray-900 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -661,7 +662,7 @@ export default function StoresPage() {
           <p className="text-gray-500 font-medium mb-1">{search || activeTab !== 'all' ? 'No stores match your filters' : 'No stores yet'}</p>
           <p className="text-gray-400 text-sm mb-4">{search || activeTab !== 'all' ? 'Try adjusting your search or filters' : 'Add your first store to get started'}</p>
           {!search && activeTab === 'all' && (
-            <button onClick={openCreateStore} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
+            <button onClick={openCreateStore} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -694,7 +695,7 @@ export default function StoresPage() {
                     onClick={() => setCurrentPage(page)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                       currentPage === page
-                        ? 'bg-red-600 text-white'
+                        ? 'bg-gray-900 text-white'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -735,7 +736,7 @@ export default function StoresPage() {
                   type="text"
                   value={storeForm.name}
                   onChange={e => setStoreForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="e.g. Jollibee CDO"
                 />
               </div>
@@ -746,7 +747,7 @@ export default function StoresPage() {
                 <select
                   value={storeForm.category}
                   onChange={e => setStoreForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all bg-white"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all bg-white"
                 >
                   <option value="restaurant">Restaurant</option>
                   <option value="grocery">Grocery</option>
@@ -761,7 +762,7 @@ export default function StoresPage() {
                   type="text"
                   value={storeForm.address}
                   onChange={e => setStoreForm(prev => ({ ...prev, address: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="e.g. 123 Corrales Ave, CDO"
                 />
               </div>
@@ -773,7 +774,7 @@ export default function StoresPage() {
                   type="text"
                   value={storeForm.phone}
                   onChange={e => setStoreForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="e.g. 09171234567"
                 />
               </div>
@@ -784,7 +785,7 @@ export default function StoresPage() {
                 <textarea
                   value={storeForm.description}
                   onChange={e => setStoreForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   rows={3}
                   placeholder="Brief description of the store..."
                 />
@@ -797,7 +798,7 @@ export default function StoresPage() {
                   type="text"
                   value={storeForm.logo}
                   onChange={e => setStoreForm(prev => ({ ...prev, logo: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="https://example.com/logo.png"
                 />
               </div>
@@ -833,7 +834,7 @@ export default function StoresPage() {
               <button
                 onClick={handleSaveStore}
                 disabled={savingStore}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {savingStore ? (
                   <>
@@ -864,7 +865,7 @@ export default function StoresPage() {
                 {!showMenuForm && (
                   <button
                     onClick={openCreateMenuItem}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg hover:bg-gray-800 transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -892,7 +893,7 @@ export default function StoresPage() {
                         type="text"
                         value={menuForm.name}
                         onChange={e => setMenuForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
                         placeholder="e.g. Chicken Joy"
                       />
                     </div>
@@ -904,7 +905,7 @@ export default function StoresPage() {
                         min="0"
                         value={menuForm.price || ''}
                         onChange={e => setMenuForm(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
                         placeholder="e.g. 99"
                       />
                     </div>
@@ -915,7 +916,7 @@ export default function StoresPage() {
                       <select
                         value={menuForm.category}
                         onChange={e => setMenuForm(prev => ({ ...prev, category: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none bg-white"
                       >
                         <option value="food">Food</option>
                         <option value="drink">Drink</option>
@@ -930,7 +931,7 @@ export default function StoresPage() {
                         type="text"
                         value={menuForm.image}
                         onChange={e => setMenuForm(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
                         placeholder="https://..."
                       />
                     </div>
@@ -960,7 +961,7 @@ export default function StoresPage() {
                     <button
                       onClick={handleSaveMenuItem}
                       disabled={savingMenuItem}
-                      className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {savingMenuItem ? (
                         <>
@@ -1002,7 +1003,7 @@ export default function StoresPage() {
                   <p className="text-gray-400 text-xs mb-4">Add items to this store's menu</p>
                   <button
                     onClick={openCreateMenuItem}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-xs font-semibold rounded-lg hover:bg-gray-800 transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1039,7 +1040,7 @@ export default function StoresPage() {
                               {item.category}
                             </span>
                           </div>
-                          <p className="text-sm font-semibold text-red-600 mt-0.5">
+                          <p className="text-sm font-semibold text-gray-900 mt-0.5">
                             PHP {(item.price ?? 0).toFixed(2)}
                           </p>
                         </div>
@@ -1057,7 +1058,7 @@ export default function StoresPage() {
                         </button>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditMenuItem(item)}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"

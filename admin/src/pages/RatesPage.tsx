@@ -208,7 +208,7 @@ export default function RatesPage() {
         </div>
         <button
           onClick={openCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/25 transition-all"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 shadow-sm transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -318,21 +318,21 @@ export default function RatesPage() {
           Fare Preview (5km example)
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Motorcycle 5km</p>
-            <p className="text-lg font-bold text-blue-700">₱{(motoRate.base + motoRate.perKm * 5).toFixed(0)}</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Motorcycle 5km</p>
+            <p className="text-lg font-bold text-gray-900">₱{Math.max(motoRate.base + motoRate.perKm * 5, getActiveRate('ride', 'motorcycle')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Car 5km</p>
-            <p className="text-lg font-bold text-blue-700">₱{(carRate.base + carRate.perKm * 5).toFixed(0)}</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Car 5km</p>
+            <p className="text-lg font-bold text-gray-900">₱{Math.max(carRate.base + carRate.perKm * 5, getActiveRate('ride', 'car')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
-          <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-purple-600 uppercase mb-1">Delivery 5km</p>
-            <p className="text-lg font-bold text-purple-700">₱{(deliveryRate.base + deliveryRate.perKm * 5).toFixed(0)}</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Delivery 5km</p>
+            <p className="text-lg font-bold text-gray-900">₱{Math.max(deliveryRate.base + deliveryRate.perKm * 5, getActiveRate('delivery', '')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
-          <div className="bg-orange-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Order Fee</p>
-            <p className="text-lg font-bold text-orange-700">₱{orderRate.base.toFixed(0)}</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Order Fee</p>
+            <p className="text-lg font-bold text-gray-900">₱{orderRate.base.toFixed(0)}</p>
           </div>
         </div>
       </div>
@@ -353,7 +353,7 @@ export default function RatesPage() {
             </div>
             <p className="text-gray-500 font-medium mb-1">No custom rates configured</p>
             <p className="text-gray-400 text-sm mb-4">Default rates are being used. Add a custom rate to override defaults.</p>
-            <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
+            <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -538,7 +538,7 @@ export default function RatesPage() {
                 <select
                   value={form.service_type}
                   onChange={e => setForm(prev => ({ ...prev, service_type: e.target.value, vehicle_type: e.target.value === 'ride' ? 'motorcycle' : '' }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   disabled={!!editingRate}
                 >
                   <option value="ride">Pasundo (Ride)</option>
@@ -554,7 +554,7 @@ export default function RatesPage() {
                   <select
                     value={form.vehicle_type}
                     onChange={e => setForm(prev => ({ ...prev, vehicle_type: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                     disabled={!!editingRate}
                   >
                     <option value="motorcycle">Motorcycle</option>
@@ -572,9 +572,9 @@ export default function RatesPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={form.base_fare || ''}
-                  onChange={e => setForm(prev => ({ ...prev, base_fare: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  value={form.base_fare ?? ''}
+                  onChange={e => setForm(prev => ({ ...prev, base_fare: Number(e.target.value) }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="e.g. 40"
                 />
               </div>
@@ -587,9 +587,9 @@ export default function RatesPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={form.rate_per_km || ''}
-                    onChange={e => setForm(prev => ({ ...prev, rate_per_km: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                    value={form.rate_per_km ?? ''}
+                    onChange={e => setForm(prev => ({ ...prev, rate_per_km: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                     placeholder="e.g. 10"
                   />
                 </div>
@@ -602,9 +602,9 @@ export default function RatesPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={form.minimum_fare || ''}
-                  onChange={e => setForm(prev => ({ ...prev, minimum_fare: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  value={form.minimum_fare ?? ''}
+                  onChange={e => setForm(prev => ({ ...prev, minimum_fare: Number(e.target.value) }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="0 = no minimum"
                 />
                 <p className="text-xs text-gray-400 mt-1">Set to 0 for no minimum fare requirement</p>
@@ -617,7 +617,7 @@ export default function RatesPage() {
                   type="text"
                   value={form.description || ''}
                   onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="e.g. Standard motorcycle fare"
                 />
               </div>
@@ -643,20 +643,20 @@ export default function RatesPage() {
 
               {/* Fare Preview */}
               {form.base_fare !== undefined && form.base_fare > 0 && (
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Fare Preview</p>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
                       <p className="text-[10px] text-gray-400">1 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{((form.base_fare || 0) + (form.rate_per_km || 0) * 1).toFixed(0)}</p>
+                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 1, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400">5 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{((form.base_fare || 0) + (form.rate_per_km || 0) * 5).toFixed(0)}</p>
+                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 5, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400">10 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{((form.base_fare || 0) + (form.rate_per_km || 0) * 10).toFixed(0)}</p>
+                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 10, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                   </div>
                 </div>
@@ -674,7 +674,7 @@ export default function RatesPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>

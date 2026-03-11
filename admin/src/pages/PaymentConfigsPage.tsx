@@ -22,20 +22,20 @@ const EMPTY_FORM = {
 };
 
 const THEME = {
-  gcash: { color: '#2563EB', bg: 'bg-blue-600', bgLight: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', label: 'GCash' },
-  maya: { color: '#16A34A', bg: 'bg-green-600', bgLight: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', label: 'Maya' },
+  gcash: { color: '#111827', bg: 'bg-gray-900', bgLight: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'GCash' },
+  maya: { color: '#111827', bg: 'bg-gray-900', bgLight: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'Maya' },
 } as Record<string, { color: string; bg: string; bgLight: string; border: string; text: string; label: string }>;
 
 const GCashIcon = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none">
-    <rect width="24" height="24" rx="6" fill="#2563EB" />
+    <rect width="24" height="24" rx="6" fill="#111827" />
     <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">G</text>
   </svg>
 );
 
 const MayaIcon = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none">
-    <rect width="24" height="24" rx="6" fill="#16A34A" />
+    <rect width="24" height="24" rx="6" fill="#111827" />
     <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">M</text>
   </svg>
 );
@@ -281,7 +281,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_name}
                     onChange={e => setForm({ ...form, account_name: e.target.value })}
                     placeholder="e.g. Juan Dela Cruz"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_number}
                     onChange={e => setForm({ ...form, account_number: e.target.value })}
                     placeholder="e.g. 09171234567"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
                   />
                 </div>
                 <div className="flex items-end">
@@ -314,7 +314,7 @@ const PaymentConfigsPage: React.FC = () => {
                   value={form.qr_code_url}
                   onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
                   placeholder="https://example.com/my-qr-code.png"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
                 />
               </div>
 
@@ -349,7 +349,7 @@ const PaymentConfigsPage: React.FC = () => {
                             alt="QR Preview"
                             className="w-40 h-40 object-contain rounded-lg border border-gray-100"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = '';
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50" y="55" font-size="10" text-anchor="middle" fill="%239ca3af">No image</text></svg>';
                               (e.target as HTMLImageElement).alt = 'Invalid image URL';
                             }}
                           />

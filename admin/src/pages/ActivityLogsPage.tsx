@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface ActivityLog {
   id: number;
@@ -82,7 +83,9 @@ const getTypeIcon = (type: string): React.ReactNode => {
 };
 
 const formatTime = (dateStr: string): string => {
+  if (!dateStr) return 'N/A';
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return 'Invalid date';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -116,6 +119,7 @@ const ActivityLogsPage: React.FC = () => {
       setLogs(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load activity logs:', error);
+      toast.error('Failed to load activity logs');
     }
     if (showLoading) setLoading(false);
   }, []);
@@ -220,31 +224,31 @@ const ActivityLogsPage: React.FC = () => {
           placeholder="Search by name, action, or details..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
+          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm sm:text-base"
         />
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{counts.total}</div>
-          <div className="text-red-100 text-xs sm:text-sm mt-1">Total Activities</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.total}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Activities</div>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{counts.ride}</div>
-          <div className="text-blue-100 text-xs sm:text-sm mt-1">Rides</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.ride}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Rides</div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{counts.delivery}</div>
-          <div className="text-purple-100 text-xs sm:text-sm mt-1">Deliveries</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.delivery}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Deliveries</div>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{counts.order}</div>
-          <div className="text-orange-100 text-xs sm:text-sm mt-1">Orders</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.order}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Orders</div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg col-span-2 lg:col-span-1">
-          <div className="text-2xl sm:text-3xl font-bold">{counts.registration}</div>
-          <div className="text-green-100 text-xs sm:text-sm mt-1">Registrations</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 lg:col-span-1">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.registration}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Registrations</div>
         </div>
       </div>
 
@@ -256,7 +260,7 @@ const ActivityLogsPage: React.FC = () => {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-3 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all ${
               filter === f.key
-                ? 'bg-red-600 text-white shadow-lg'
+                ? 'bg-gray-900 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
             }`}
           >
@@ -431,7 +435,7 @@ const ActivityLogsPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-gray-900 text-white shadow-sm'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >

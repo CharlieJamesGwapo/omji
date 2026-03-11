@@ -63,6 +63,7 @@ const RidesPage: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -87,6 +88,8 @@ const RidesPage: React.FC = () => {
   }, []);
 
   const handleStatusUpdate = useCallback(async (id: number, status: string) => {
+    if (!window.confirm(`Change ride #${id} status to "${status}"?`)) return;
+    setUpdatingId(id);
     try {
       await adminService.updateRideStatus(id, status);
       setRides(prev => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -94,6 +97,8 @@ const RidesPage: React.FC = () => {
       toast.success(`Ride #${id} updated to ${status.replace(/_/g, ' ')}`);
     } catch {
       toast.error('Failed to update ride status');
+    } finally {
+      setUpdatingId(null);
     }
   }, []);
 
@@ -121,7 +126,7 @@ const RidesPage: React.FC = () => {
   }), [rides, search, filter]);
 
   // Pagination
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginatedRides = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -189,9 +194,20 @@ const RidesPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Rides (Pasundo)</h1>
-          <p className="text-gray-500 text-sm mt-1">{stats.total} total rides</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Rides (Pasundo)</h1>
+            <p className="text-gray-500 text-sm mt-1">{stats.total} total rides</p>
+          </div>
+          <button
+            onClick={loadRides}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Refresh rides"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
         <input
           type="text"
@@ -204,25 +220,25 @@ const RidesPage: React.FC = () => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.total}</div>
-          <div className="text-blue-100 text-xs sm:text-sm mt-1">Total Rides</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Rides</div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.active}</div>
-          <div className="text-purple-100 text-xs sm:text-sm mt-1">Active</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.active}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Active</div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.completed}</div>
-          <div className="text-green-100 text-xs sm:text-sm mt-1">Completed</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.completed}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Completed</div>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.cancelled}</div>
-          <div className="text-red-100 text-xs sm:text-sm mt-1">Cancelled</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.cancelled}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Cancelled</div>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-6 text-white shadow-lg col-span-2 sm:col-span-1">
-          <div className="text-2xl sm:text-3xl font-bold">P{stats.revenue.toLocaleString()}</div>
-          <div className="text-emerald-100 text-xs sm:text-sm mt-1">Total Revenue</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 sm:col-span-1">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">P{stats.revenue.toLocaleString()}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Revenue</div>
         </div>
       </div>
 
@@ -234,7 +250,7 @@ const RidesPage: React.FC = () => {
             onClick={() => setFilter(fb.key)}
             className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === fb.key
-                ? 'bg-red-600 text-white shadow-sm'
+                ? 'bg-gray-900 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -313,7 +329,8 @@ const RidesPage: React.FC = () => {
                   e.stopPropagation();
                   handleStatusUpdate(ride.id, e.target.value);
                 }}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white"
+                disabled={updatingId === ride.id}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
@@ -356,7 +373,7 @@ const RidesPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                      <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                         {(ride.User?.name || 'U').charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -416,7 +433,8 @@ const RidesPage: React.FC = () => {
                         e.stopPropagation();
                         handleStatusUpdate(ride.id, e.target.value);
                       }}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white cursor-pointer"
+                      disabled={updatingId === ride.id}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="pending">Pending</option>
                       <option value="accepted">Accepted</option>
@@ -485,7 +503,7 @@ const RidesPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -510,11 +528,11 @@ const RidesPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6 rounded-t-2xl">
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-lg sm:text-2xl font-bold text-white">Ride #{selectedRide.id}</h2>
-                  <p className="text-red-100 text-xs sm:text-sm mt-1">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Ride #{selectedRide.id}</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-1">
                     {new Date(selectedRide.created_at).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -525,7 +543,7 @@ const RidesPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  className="text-gray-400 hover:bg-gray-100 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -554,7 +572,7 @@ const RidesPage: React.FC = () => {
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Passenger</div>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                       {(selectedRide.User?.name || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -568,7 +586,7 @@ const RidesPage: React.FC = () => {
                   <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Driver</div>
                   {selectedRide.Driver ? (
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                      <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                         {(selectedRide.Driver.User?.name || 'D').charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -724,7 +742,8 @@ const RidesPage: React.FC = () => {
                   <select
                     value={selectedRide.status}
                     onChange={(e) => handleStatusUpdate(selectedRide.id, e.target.value)}
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white"
+                    disabled={updatingId === selectedRide.id}
+                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="pending">Pending</option>
                     <option value="accepted">Accepted</option>

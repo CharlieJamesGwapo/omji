@@ -181,7 +181,7 @@ const UsersPage: React.FC = () => {
       return <img src={user.profile_image} alt={user.name} className={`${sizeClasses} rounded-full object-cover flex-shrink-0`} />;
     }
     return (
-      <div className={`${sizeClasses} bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
+      <div className={`${sizeClasses} bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0`}>
         {user.name?.charAt(0).toUpperCase() || 'U'}
       </div>
     );
@@ -213,7 +213,7 @@ const UsersPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading users...</p>
         </div>
       </div>
@@ -233,55 +233,55 @@ const UsersPage: React.FC = () => {
           placeholder="Search by name, email, or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
+          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm sm:text-base"
         />
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold">{stats.total}</div>
-          <div className="text-blue-100 text-xs sm:text-sm mt-1">Total Users</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Users</div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold">{stats.verified}</div>
-          <div className="text-green-100 text-xs sm:text-sm mt-1">Verified Users</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.verified}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Verified Users</div>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold">{stats.admins}</div>
-          <div className="text-red-100 text-xs sm:text-sm mt-1">Admin Users</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.admins}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Admin Users</div>
         </div>
-        <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold">{stats.regular}</div>
-          <div className="text-gray-200 text-xs sm:text-sm mt-1">Regular Users</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.regular}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Regular Users</div>
         </div>
       </div>
 
@@ -293,7 +293,7 @@ const UsersPage: React.FC = () => {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === tab.key
-                ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
+                ? 'bg-gray-900 text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
@@ -523,7 +523,7 @@ const UsersPage: React.FC = () => {
                     onClick={() => setCurrentPage(item as number)}
                     className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === item
-                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
+                        ? 'bg-gray-900 text-white'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -561,26 +561,26 @@ const UsersPage: React.FC = () => {
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDetailModal(false)} />
           <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6 rounded-t-2xl">
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 sm:gap-4">
                   {selectedUser.profile_image ? (
-                    <img src={selectedUser.profile_image} alt={selectedUser.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-white/30 flex-shrink-0" />
+                    <img src={selectedUser.profile_image} alt={selectedUser.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" />
                   ) : (
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center text-red-600 text-xl sm:text-2xl font-bold flex-shrink-0">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
                       {selectedUser.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   )}
                   <div className="min-w-0">
-                    <h2 className="text-lg sm:text-2xl font-bold text-white truncate">{selectedUser.name}</h2>
-                    <p className="text-red-100 text-xs sm:text-sm">User ID: #{selectedUser.id}</p>
+                    <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{selectedUser.name}</h2>
+                    <p className="text-gray-500 text-xs sm:text-sm">User ID: #{selectedUser.id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {/* Edit button in header */}
                   <button
                     onClick={handleEditFromDetail}
-                    className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
                     title="Edit user"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -589,7 +589,7 @@ const UsersPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setShowDetailModal(false)}
-                    className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -653,7 +653,7 @@ const UsersPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleEditFromDetail}
-                  className="flex-1 px-4 sm:px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:bg-red-800 transition-colors text-sm sm:text-base"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 transition-colors text-sm sm:text-base"
                 >
                   Edit User
                 </button>
@@ -698,7 +698,7 @@ const UsersPage: React.FC = () => {
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="Full name"
                 />
               </div>
@@ -710,7 +710,7 @@ const UsersPage: React.FC = () => {
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="email@example.com"
                 />
               </div>
@@ -722,7 +722,7 @@ const UsersPage: React.FC = () => {
                   type="text"
                   value={editForm.phone}
                   onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                   placeholder="09XXXXXXXXX"
                 />
               </div>
@@ -733,7 +733,7 @@ const UsersPage: React.FC = () => {
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
                 >
                   <option value="user">User</option>
                   <option value="driver">Driver</option>
@@ -773,7 +773,7 @@ const UsersPage: React.FC = () => {
               <button
                 onClick={handleSaveEdit}
                 disabled={saving}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-800 shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>

@@ -29,7 +29,7 @@ function invalidateCache(pattern?: string) {
 // ── Axios instance ───────────────────────────────────────────────────
 const API = axios.create({
   baseURL: API_URL,
-  timeout: 120000,
+  timeout: 30000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',

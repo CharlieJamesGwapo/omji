@@ -2,12 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 
+interface Promo {
+  id: number;
+  code: string;
+  description: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  minimum_amount: number;
+  max_discount: number;
+  usage_limit: number;
+  usage_count: number;
+  is_active: boolean;
+  applicable_to: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const PromosPage: React.FC = () => {
-  const [promos, setPromos] = useState<any[]>([]);
+  const [promos, setPromos] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingPromo, setEditingPromo] = useState<any | null>(null);
+  const [editingPromo, setEditingPromo] = useState<Promo | null>(null);
   const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     code: '', description: '', discount_type: 'percentage', discount_value: 0,
     minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true,
@@ -22,6 +41,7 @@ const PromosPage: React.FC = () => {
       setPromos(res.data.data || []);
     } catch (err) {
       console.error('Failed to load promos:', err);
+      toast.error('Failed to load promos');
     }
     setLoading(false);
   };
@@ -34,32 +54,56 @@ const PromosPage: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.discount_type === 'percentage' && (form.discount_value < 0 || form.discount_value > 100)) {
+      toast.error('Percentage discount must be between 0 and 100');
+      return;
+    }
+    if (form.start_date && form.end_date && new Date(form.end_date) <= new Date(form.start_date)) {
+      toast.error('End date must be after start date');
+      return;
+    }
+    setSaving(true);
     try {
       const payload = { ...form, start_date: form.start_date ? new Date(form.start_date).toISOString() : undefined, end_date: form.end_date ? new Date(form.end_date).toISOString() : undefined };
       const res = await adminService.createPromo(payload);
-      setPromos([res.data.data, ...promos]);
+      const newPromo = res.data.data;
+      if (newPromo) setPromos([newPromo, ...promos]);
       toast.success('Promo created successfully!');
       resetForm();
     } catch {
       toast.error('Failed to create promo');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPromo) return;
+    if (form.discount_type === 'percentage' && (form.discount_value < 0 || form.discount_value > 100)) {
+      toast.error('Percentage discount must be between 0 and 100');
+      return;
+    }
+    if (form.start_date && form.end_date && new Date(form.end_date) <= new Date(form.start_date)) {
+      toast.error('End date must be after start date');
+      return;
+    }
+    setSaving(true);
     try {
-      const payload = { ...editingPromo, ...form, start_date: form.start_date ? new Date(form.start_date).toISOString() : undefined, end_date: form.end_date ? new Date(form.end_date).toISOString() : undefined };
+      const payload = { ...form, start_date: form.start_date ? new Date(form.start_date).toISOString() : undefined, end_date: form.end_date ? new Date(form.end_date).toISOString() : undefined };
       const res = await adminService.updatePromo(editingPromo.id, payload);
-      setPromos(promos.map(p => p.id === editingPromo.id ? res.data.data : p));
+      const updated = res.data.data;
+      if (updated) setPromos(promos.map(p => p.id === updated.id ? updated : p));
       toast.success('Promo updated successfully!');
       resetForm();
     } catch {
       toast.error('Failed to update promo');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleEdit = (promo: any) => {
+  const handleEdit = (promo: Promo) => {
     setEditingPromo(promo);
     setForm({
       code: promo.code || '',
@@ -77,10 +121,11 @@ const PromosPage: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleToggleActive = async (promo: any) => {
+  const handleToggleActive = async (promo: Promo) => {
     try {
-      const res = await adminService.updatePromo(promo.id, { ...promo, is_active: !promo.is_active });
-      setPromos(promos.map(p => p.id === promo.id ? res.data.data : p));
+      const res = await adminService.updatePromo(promo.id, { is_active: !promo.is_active });
+      const updated = res.data.data;
+      if (updated) setPromos(promos.map(p => p.id === promo.id ? updated : p));
       toast.success(promo.is_active ? 'Promo deactivated' : 'Promo activated');
     } catch {
       toast.error('Failed to update promo status');
@@ -123,11 +168,11 @@ const PromosPage: React.FC = () => {
             placeholder="Search promos..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="w-full sm:w-64 px-4 py-2 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
           />
           <button
             onClick={() => { if (showForm && !editingPromo) { resetForm(); } else { setEditingPromo(null); setForm({ code: '', description: '', discount_type: 'percentage', discount_value: 0, minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true, start_date: '', end_date: '' }); setShowForm(true); } }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm sm:text-base w-full sm:w-auto"
           >
             {showForm && !editingPromo ? 'Cancel' : '+ Create Promo'}
           </button>
@@ -138,17 +183,17 @@ const PromosPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <h2 className="text-lg font-bold mb-4">{editingPromo ? 'Edit Promo Code' : 'New Promo Code'}</h2>
           <form onSubmit={editingPromo ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required />
-            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required />
-            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
+            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
+            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900">
               <option value="percentage">Percentage</option>
               <option value="fixed">Fixed Amount</option>
             </select>
-            <input type="number" placeholder="Discount Value" value={form.discount_value || ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required />
-            <input type="number" placeholder="Min Amount" value={form.minimum_amount || ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="number" placeholder="Max Discount" value={form.max_discount || ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="number" placeholder="Usage Limit" value={form.usage_limit || ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="number" placeholder="Discount Value" value={form.discount_value ?? ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
+            <input type="number" placeholder="Min Amount" value={form.minimum_amount ?? ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
+            <input type="number" placeholder="Max Discount" value={form.max_discount ?? ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
+            <input type="number" placeholder="Usage Limit" value={form.usage_limit ?? ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" />
+            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900">
               <option value="all">All Services</option>
               <option value="rides">Rides Only</option>
               <option value="deliveries">Deliveries Only</option>
@@ -156,11 +201,11 @@ const PromosPage: React.FC = () => {
             </select>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Start Date</label>
-              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">End Date</label>
-              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
             </div>
             <div className="flex items-center gap-3 md:col-span-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -168,14 +213,14 @@ const PromosPage: React.FC = () => {
                   type="checkbox"
                   checked={form.is_active}
                   onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-gray-900 rounded focus:ring-gray-900"
                 />
                 <span className="text-sm text-gray-700">Active</span>
               </label>
             </div>
             <div className="flex gap-3 md:col-span-2">
-              <button type="submit" className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                {editingPromo ? 'Update Promo' : 'Create Promo'}
+              <button type="submit" disabled={saving} className="flex-1 px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                {saving ? 'Saving...' : editingPromo ? 'Update Promo' : 'Create Promo'}
               </button>
               {editingPromo && (
                 <button type="button" onClick={resetForm} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
@@ -192,7 +237,7 @@ const PromosPage: React.FC = () => {
         {filtered.map((promo) => (
           <div key={promo.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div className="flex justify-between items-start mb-3">
-              <span className="font-mono font-bold text-blue-600">{promo.code}</span>
+              <span className="font-mono font-bold text-gray-900">{promo.code}</span>
               <button
                 onClick={() => handleToggleActive(promo)}
                 className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors ${promo.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
@@ -213,7 +258,7 @@ const PromosPage: React.FC = () => {
               </div>
             )}
             <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
-              <button onClick={() => handleEdit(promo)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+              <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium">Edit</button>
               <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
             </div>
           </div>
@@ -239,14 +284,14 @@ const PromosPage: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {filtered.map((promo) => (
                 <tr key={promo.id} className="hover:bg-gray-50">
-                  <td className="px-4 lg:px-6 py-4 text-sm font-mono font-bold text-blue-600">{promo.code}</td>
+                  <td className="px-4 lg:px-6 py-4 text-sm font-mono font-bold text-gray-900">{promo.code}</td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.description}</td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
                     {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}
                     {promo.max_discount > 0 && <span className="text-gray-400 text-xs ml-1">(max P{promo.max_discount})</span>}
                   </td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.usage_count || 0} / {promo.usage_limit}</td>
-                  <td className="px-4 lg:px-6 py-4"><span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 capitalize">{promo.applicable_to}</span></td>
+                  <td className="px-4 lg:px-6 py-4"><span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{promo.applicable_to}</span></td>
                   <td className="px-4 lg:px-6 py-4">
                     <button
                       onClick={() => handleToggleActive(promo)}
@@ -257,7 +302,7 @@ const PromosPage: React.FC = () => {
                   </td>
                   <td className="px-4 lg:px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleEdit(promo)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                      <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium">Edit</button>
                       <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
                     </div>
                   </td>

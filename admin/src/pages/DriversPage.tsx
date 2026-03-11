@@ -17,6 +17,7 @@ interface Driver {
   completed_rides: number;
   rating: number;
   total_ratings: number;
+  documents: Record<string, string> | null;
   created_at: string;
   updated_at: string;
   User?: {
@@ -36,6 +37,21 @@ type FilterType = 'all' | 'online' | 'offline' | 'verified' | 'pending';
 
 const ITEMS_PER_PAGE = 20;
 
+const DOC_LABELS: Record<string, string> = {
+  profile_photo: 'Profile Photo',
+  license_photo: "Driver's License",
+  orcr_photo: 'OR/CR Document',
+  id_photo: 'Valid Government ID',
+};
+
+const getDocuments = (driver: Driver): Record<string, string> => {
+  if (!driver.documents) return {};
+  if (typeof driver.documents === 'string') {
+    try { return JSON.parse(driver.documents); } catch { return {}; }
+  }
+  return driver.documents;
+};
+
 const DriversPage: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +62,7 @@ const DriversPage: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDriver, setEditDriver] = useState<Driver | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     vehicle_type: '',
     vehicle_model: '',
@@ -55,6 +72,7 @@ const DriversPage: React.FC = () => {
     is_verified: false,
   });
   const [saving, setSaving] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadDrivers();
@@ -77,15 +95,18 @@ const DriversPage: React.FC = () => {
   };
 
   const handleVerify = async (id: number) => {
+    setVerifyingId(id);
     try {
       await adminService.verifyDriver(id);
-      setDrivers(drivers.map(d => d.id === id ? { ...d, is_verified: true } : d));
+      setDrivers(prev => prev.map(d => d.id === id ? { ...d, is_verified: true } : d));
       if (selectedDriver && selectedDriver.id === id) {
         setSelectedDriver({ ...selectedDriver, is_verified: true });
       }
       toast.success('Driver verified successfully!');
     } catch (err) {
       toast.error('Failed to verify driver');
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -93,7 +114,7 @@ const DriversPage: React.FC = () => {
     if (!confirm(`Are you sure you want to delete driver "${name}"? This action cannot be undone.`)) return;
     try {
       await adminService.deleteDriver(id);
-      setDrivers(drivers.filter(d => d.id !== id));
+      setDrivers(prev => prev.filter(d => d.id !== id));
       if (showDetailModal && selectedDriver?.id === id) {
         setShowDetailModal(false);
         setSelectedDriver(null);
@@ -120,11 +141,15 @@ const DriversPage: React.FC = () => {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDriver) return;
+    if (!editForm.vehicle_type || !editForm.vehicle_plate.trim() || !editForm.license_number.trim()) {
+      toast.error('Vehicle type, plate, and license number are required');
+      return;
+    }
     setSaving(true);
     try {
       await adminService.updateDriver(editDriver.id, editForm);
-      setDrivers(drivers.map(d =>
-        d.id === editDriver.id
+      setDrivers(prev => prev.map(d =>
+        d.id === editDriver!.id
           ? { ...d, ...editForm }
           : d
       ));
@@ -166,7 +191,7 @@ const DriversPage: React.FC = () => {
   });
 
   // Pagination
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -246,7 +271,7 @@ const DriversPage: React.FC = () => {
             placeholder="Search name, email, phone, plate, license..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
+            className="w-full pl-10 pr-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm sm:text-base"
           />
         </div>
       </div>
@@ -323,7 +348,7 @@ const DriversPage: React.FC = () => {
             onClick={() => setFilter(fb.key)}
             className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === fb.key
-                ? 'bg-red-600 text-white shadow-sm'
+                ? 'bg-gray-900 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -349,7 +374,7 @@ const DriversPage: React.FC = () => {
           >
             {/* Header row */}
             <div className="flex items-start gap-3 mb-3">
-              <div className="w-11 h-11 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              <div className="w-11 h-11 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
                 {(driver.User?.name || 'D').charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -435,9 +460,10 @@ const DriversPage: React.FC = () => {
               {!driver.is_verified && (
                 <button
                   onClick={() => handleVerify(driver.id)}
-                  className="flex-1 px-3 py-2.5 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 active:bg-green-200 rounded-lg transition-colors"
+                  disabled={verifyingId === driver.id}
+                  className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${verifyingId === driver.id ? 'bg-green-50 text-green-400 cursor-not-allowed opacity-50' : 'text-green-600 bg-green-50 hover:bg-green-100 active:bg-green-200'}`}
                 >
-                  Verify
+                  {verifyingId === driver.id ? 'Verifying...' : 'Verify'}
                 </button>
               )}
               <button
@@ -474,6 +500,7 @@ const DriversPage: React.FC = () => {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehicle</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">License</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Docs</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Rating</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Earnings</th>
@@ -489,9 +516,16 @@ const DriversPage: React.FC = () => {
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                        {(driver.User?.name || 'D').charAt(0).toUpperCase()}
-                      </div>
+                      {(() => {
+                        const docs = getDocuments(driver);
+                        return docs.profile_photo ? (
+                          <img src={docs.profile_photo} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                            {(driver.User?.name || 'D').charAt(0).toUpperCase()}
+                          </div>
+                        );
+                      })()}
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">{driver.User?.name || 'Unknown'}</div>
                         <div className="text-xs text-gray-500 truncate">{driver.User?.email || 'No email'}</div>
@@ -519,6 +553,19 @@ const DriversPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-900">{driver.license_number || 'N/A'}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const docCount = Object.keys(getDocuments(driver)).length;
+                      return (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${docCount === 4 ? 'bg-green-100 text-green-700' : docCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          {docCount}/4
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5">
@@ -574,10 +621,11 @@ const DriversPage: React.FC = () => {
                       {!driver.is_verified ? (
                         <button
                           onClick={() => handleVerify(driver.id)}
-                          className="px-2.5 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          disabled={verifyingId === driver.id}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${verifyingId === driver.id ? 'text-green-400 cursor-not-allowed opacity-50' : 'text-green-600 hover:bg-green-50'}`}
                           title="Verify driver"
                         >
-                          Verify
+                          {verifyingId === driver.id ? 'Verifying...' : 'Verify'}
                         </button>
                       ) : (
                         <button
@@ -646,7 +694,7 @@ const DriversPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -671,20 +719,27 @@ const DriversPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6 rounded-t-2xl">
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center text-red-600 text-xl sm:text-2xl font-bold flex-shrink-0">
-                    {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}
-                  </div>
+                  {(() => {
+                    const docs = getDocuments(selectedDriver);
+                    return docs.profile_photo ? (
+                      <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
+                        {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}
+                      </div>
+                    );
+                  })()}
                   <div className="min-w-0">
-                    <h2 className="text-lg sm:text-2xl font-bold text-white truncate">{selectedDriver.User?.name || 'Unknown Driver'}</h2>
-                    <p className="text-red-100 text-xs sm:text-sm">Driver #{selectedDriver.id}</p>
+                    <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{selectedDriver.User?.name || 'Unknown Driver'}</h2>
+                    <p className="text-gray-500 text-xs sm:text-sm">Driver #{selectedDriver.id}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -761,6 +816,77 @@ const DriversPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Uploaded Documents */}
+              <div>
+                <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Documents
+                  <span className="text-xs font-normal text-gray-400">
+                    ({Object.keys(getDocuments(selectedDriver)).length}/4 uploaded)
+                  </span>
+                </div>
+                {Object.keys(getDocuments(selectedDriver)).length === 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                    <svg className="w-8 h-8 text-amber-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <p className="text-amber-700 font-medium text-sm">No documents uploaded</p>
+                    <p className="text-amber-500 text-xs mt-1">This driver has not uploaded any verification documents</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(['profile_photo', 'license_photo', 'orcr_photo', 'id_photo'] as const).map((docKey) => {
+                      const docs = getDocuments(selectedDriver);
+                      const url = docs[docKey];
+                      return (
+                        <div key={docKey} className={`rounded-lg border-2 overflow-hidden ${url ? 'border-gray-200' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                          <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-700">{DOC_LABELS[docKey]}</span>
+                            {url ? (
+                              <span className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Uploaded</span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">Missing</span>
+                            )}
+                          </div>
+                          {url ? (
+                            <button
+                              onClick={() => setLightboxImage(url)}
+                              className="w-full cursor-pointer hover:opacity-90 transition-opacity relative group"
+                            >
+                              <img
+                                src={url}
+                                alt={DOC_LABELS[docKey]}
+                                className="w-full h-40 object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="h-40 flex items-center justify-center text-gray-400 text-sm">Failed to load image</div>';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                                <div className="bg-white bg-opacity-90 rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                  </svg>
+                                  Click to enlarge
+                                </div>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="h-40 flex flex-col items-center justify-center text-gray-400">
+                              <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs">Not provided</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Performance */}
               <div>
                 <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Performance</div>
@@ -805,9 +931,10 @@ const DriversPage: React.FC = () => {
                     onClick={() => {
                       handleVerify(selectedDriver.id);
                     }}
-                    className="flex-1 px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 active:bg-green-800 transition-colors text-sm sm:text-base"
+                    disabled={verifyingId === selectedDriver.id}
+                    className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors text-sm sm:text-base ${verifyingId === selectedDriver.id ? 'bg-green-400 text-white cursor-not-allowed opacity-50' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
                   >
-                    Verify Driver
+                    {verifyingId === selectedDriver.id ? 'Verifying...' : 'Verify Driver'}
                   </button>
                 )}
                 <button
@@ -859,7 +986,7 @@ const DriversPage: React.FC = () => {
                 <select
                   value={editForm.vehicle_type}
                   onChange={(e) => setEditForm({ ...editForm, vehicle_type: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm sm:text-base bg-white"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm sm:text-base bg-white"
                 >
                   <option value="motorcycle">Motorcycle</option>
                   <option value="car">Car</option>
@@ -873,7 +1000,7 @@ const DriversPage: React.FC = () => {
                   type="text"
                   value={editForm.vehicle_model}
                   onChange={(e) => setEditForm({ ...editForm, vehicle_model: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm sm:text-base"
                   placeholder="e.g. Honda Click 160"
                 />
               </div>
@@ -885,7 +1012,7 @@ const DriversPage: React.FC = () => {
                   type="text"
                   value={editForm.vehicle_plate}
                   onChange={(e) => setEditForm({ ...editForm, vehicle_plate: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm sm:text-base"
                   placeholder="e.g. ABC 1234"
                 />
               </div>
@@ -897,7 +1024,7 @@ const DriversPage: React.FC = () => {
                   type="text"
                   value={editForm.license_number}
                   onChange={(e) => setEditForm({ ...editForm, license_number: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm sm:text-base"
                   placeholder="e.g. N01-12-345678"
                 />
               </div>
@@ -959,7 +1086,7 @@ const DriversPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-red-600/30 text-sm sm:text-base flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>
@@ -985,6 +1112,29 @@ const DriversPage: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-40 transition-colors"
+            onClick={() => setLightboxImage(null)}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Document preview"
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

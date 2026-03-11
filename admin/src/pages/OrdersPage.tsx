@@ -86,14 +86,18 @@ const parseItems = (items: string | any[]): any[] => {
 const formatCurrency = (amount: number) =>
   `P${(amount || 0).toLocaleString()}`;
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('en-US', {
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'Invalid date';
+  return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+};
 
 const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -127,6 +131,7 @@ const OrdersPage: React.FC = () => {
   }, []);
 
   const handleStatusUpdate = useCallback(async (id: number, newStatus: string) => {
+    if (!window.confirm(`Change order #${id} status to "${newStatus}"?`)) return;
     setUpdatingId(id);
     try {
       await adminService.updateOrderStatus(id, newStatus);
@@ -156,7 +161,7 @@ const OrdersPage: React.FC = () => {
   }), [orders, filterStatus, search]);
 
   // Pagination
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -168,7 +173,7 @@ const OrdersPage: React.FC = () => {
     delivered: orders.filter((o) => o.status === 'delivered').length,
     cancelled: orders.filter((o) => o.status === 'cancelled').length,
     revenue: orders
-      .filter((o) => o.status !== 'cancelled')
+      .filter((o) => o.status === 'delivered')
       .reduce((sum, o) => sum + (o.total_amount || 0), 0),
   }), [orders]);
 
@@ -237,25 +242,25 @@ const OrdersPage: React.FC = () => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.total}</div>
-          <div className="text-blue-100 text-xs sm:text-sm mt-1">Total Orders</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Orders</div>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.active}</div>
-          <div className="text-orange-100 text-xs sm:text-sm mt-1">Active</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.active}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Active</div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.delivered}</div>
-          <div className="text-green-100 text-xs sm:text-sm mt-1">Delivered</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.delivered}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Delivered</div>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="text-2xl sm:text-3xl font-bold">{stats.cancelled}</div>
-          <div className="text-red-100 text-xs sm:text-sm mt-1">Cancelled</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.cancelled}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Cancelled</div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg col-span-2 sm:col-span-1">
-          <div className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.revenue)}</div>
-          <div className="text-purple-100 text-xs sm:text-sm mt-1">Total Revenue</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 sm:col-span-1">
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{formatCurrency(stats.revenue)}</div>
+          <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Revenue</div>
         </div>
       </div>
 
@@ -268,8 +273,8 @@ const OrdersPage: React.FC = () => {
               onClick={() => setFilterStatus(btn.value)}
               className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                 filterStatus === btn.value
-                  ? 'bg-red-600 text-white shadow-md'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-red-50 hover:text-red-600'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
             >
               {btn.label} ({btn.count})
@@ -315,7 +320,7 @@ const OrdersPage: React.FC = () => {
               {/* User & Store */}
               <div className="space-y-1.5 mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                  <div className="w-7 h-7 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0">
                     {order.User?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <div className="min-w-0">
@@ -324,7 +329,7 @@ const OrdersPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                  <div className="w-7 h-7 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
@@ -413,7 +418,7 @@ const OrdersPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        <div className="w-9 h-9 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">
                           {order.User?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="min-w-0">
@@ -512,7 +517,7 @@ const OrdersPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -537,15 +542,15 @@ const OrdersPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6 rounded-t-2xl">
+            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-lg sm:text-2xl font-bold text-white">Order #{selectedOrder.id}</h2>
-                  <p className="text-red-100 text-xs sm:text-sm mt-0.5">{formatDate(selectedOrder.created_at)}</p>
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Order #{selectedOrder.id}</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-0.5">{formatDate(selectedOrder.created_at)}</p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-red-500/30 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  className="text-gray-400 hover:bg-gray-100 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -614,7 +619,7 @@ const OrdersPage: React.FC = () => {
                           </div>
                           {(item.price || item.total) && (
                             <span className="text-sm font-medium text-gray-700 flex-shrink-0 ml-2">
-                              {formatCurrency(item.total || item.price * (item.quantity || 1))}
+                              {formatCurrency(item.total || (item.price || 0) * (item.quantity || 1))}
                             </span>
                           )}
                         </div>
