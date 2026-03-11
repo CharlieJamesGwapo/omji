@@ -324,6 +324,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			PromoCode        string  `json:"promo_code"`
 			PaymentMethod    string  `json:"payment_method"`
 			EstimatedFare    float64 `json:"estimated_fare"`
+			DriverID         uint    `json:"driver_id"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -370,14 +371,131 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: "pending", PromoID: promoID, PaymentMethod: input.PaymentMethod,
 		}
+		// If user selected a specific driver, assign them directly
+		if input.DriverID > 0 {
+			var driver models.Driver
+			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", input.DriverID, true, true).First(&driver).Error; err == nil {
+				ride.DriverID = &driver.ID
+				ride.Status = "accepted"
+				db.Model(&driver).Update("is_available", false)
+			}
+		}
 		if err := db.Create(&ride).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride"})
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
 			"success":   true,
-			"data":      gin.H{"id": ride.ID, "status": ride.Status, "pickup_location": ride.PickupLocation, "dropoff_location": ride.DropoffLocation, "distance": ride.Distance, "estimated_fare": ride.EstimatedFare, "vehicle_type": ride.VehicleType, "payment_method": ride.PaymentMethod, "created_at": ride.CreatedAt},
+			"data":      gin.H{"id": ride.ID, "status": ride.Status, "pickup_location": ride.PickupLocation, "dropoff_location": ride.DropoffLocation, "distance": ride.Distance, "estimated_fare": ride.EstimatedFare, "vehicle_type": ride.VehicleType, "payment_method": ride.PaymentMethod, "driver_id": ride.DriverID, "created_at": ride.CreatedAt},
 			"timestamp": time.Now(),
+		})
+	}
+}
+
+// GetNearbyDrivers returns available, verified drivers sorted by distance from a given location
+func GetNearbyDrivers(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		lat, _ := strconv.ParseFloat(c.Query("latitude"), 64)
+		lng, _ := strconv.ParseFloat(c.Query("longitude"), 64)
+		vehicleType := c.Query("vehicle_type")
+		maxDistStr := c.DefaultQuery("max_distance", "10") // default 10km radius
+		maxDist, _ := strconv.ParseFloat(maxDistStr, 64)
+
+		if lat == 0 || lng == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "latitude and longitude are required"})
+			return
+		}
+
+		var drivers []models.Driver
+		query := db.Where("is_verified = ? AND is_available = ?", true, true).Preload("User")
+		if vehicleType != "" {
+			query = query.Where("vehicle_type = ?", vehicleType)
+		}
+		if err := query.Find(&drivers).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch drivers"})
+			return
+		}
+
+		type DriverResult struct {
+			ID             uint    `json:"id"`
+			UserID         uint    `json:"user_id"`
+			Name           string  `json:"name"`
+			Phone          string  `json:"phone"`
+			ProfileImage   string  `json:"profile_image"`
+			VehicleType    string  `json:"vehicle_type"`
+			VehicleModel   string  `json:"vehicle_model"`
+			VehiclePlate   string  `json:"vehicle_plate"`
+			Rating         float64 `json:"rating"`
+			TotalRatings   int     `json:"total_ratings"`
+			CompletedRides int     `json:"completed_rides"`
+			Distance       float64 `json:"distance"`
+			Latitude       float64 `json:"latitude"`
+			Longitude      float64 `json:"longitude"`
+			ETA            string  `json:"eta"`
+		}
+
+		var results []DriverResult
+		for _, d := range drivers {
+			if d.CurrentLatitude == 0 && d.CurrentLongitude == 0 {
+				continue
+			}
+			dist := GetDistance(lat, lng, d.CurrentLatitude, d.CurrentLongitude)
+			if dist > maxDist {
+				continue
+			}
+			// Estimate ETA: average speed 25 km/h for motorcycle, 35 km/h for car
+			speed := 25.0
+			if d.VehicleType == "car" {
+				speed = 35.0
+			}
+			etaMinutes := int((dist / speed) * 60)
+			if etaMinutes < 1 {
+				etaMinutes = 1
+			}
+			etaStr := strconv.Itoa(etaMinutes) + " min"
+
+			name := ""
+			phone := ""
+			profileImage := ""
+			if d.User.ID > 0 {
+				name = d.User.Name
+				phone = d.User.Phone
+				profileImage = d.User.ProfileImage
+			}
+
+			results = append(results, DriverResult{
+				ID:             d.ID,
+				UserID:         d.UserID,
+				Name:           name,
+				Phone:          phone,
+				ProfileImage:   profileImage,
+				VehicleType:    d.VehicleType,
+				VehicleModel:   d.VehicleModel,
+				VehiclePlate:   d.VehiclePlate,
+				Rating:         d.Rating,
+				TotalRatings:   d.TotalRatings,
+				CompletedRides: d.CompletedRides,
+				Distance:       dist,
+				Latitude:       d.CurrentLatitude,
+				Longitude:      d.CurrentLongitude,
+				ETA:            etaStr,
+			})
+		}
+
+		// Sort by distance (nearest first)
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Distance < results[j].Distance
+		})
+
+		// Limit to 20 nearest
+		if len(results) > 20 {
+			results = results[:20]
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    results,
+			"count":   len(results),
 		})
 	}
 }
@@ -640,6 +758,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 
 		var pickupLocation, dropoffLocation, itemDescription, itemPhoto, notes, paymentMethod, promoCode string
 		var pickupLat, pickupLng, dropoffLat, dropoffLng, weight float64
+		var driverID uint
 
 		contentType := c.ContentType()
 		isMultipart := len(contentType) >= 9 && contentType[:9] == "multipart"
@@ -656,6 +775,8 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			dropoffLat, _ = strconv.ParseFloat(c.PostForm("dropoff_latitude"), 64)
 			dropoffLng, _ = strconv.ParseFloat(c.PostForm("dropoff_longitude"), 64)
 			weight, _ = strconv.ParseFloat(c.PostForm("weight"), 64)
+			did, _ := strconv.ParseUint(c.PostForm("driver_id"), 10, 64)
+			driverID = uint(did)
 
 			// Handle file upload
 			file, err := c.FormFile("item_photo")
@@ -690,6 +811,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 				Weight           float64 `json:"weight"`
 				PaymentMethod    string  `json:"payment_method"`
 				PromoCode        string  `json:"promo_code"`
+				DriverID         uint    `json:"driver_id"`
 			}
 			if err := c.ShouldBindJSON(&input); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -707,6 +829,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			weight = input.Weight
 			paymentMethod = input.PaymentMethod
 			promoCode = input.PromoCode
+			driverID = input.DriverID
 		}
 
 		if paymentMethod == "" {
@@ -746,6 +869,15 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
 			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(), PromoID: promoID,
+		}
+		// If user selected a specific driver, assign them directly
+		if driverID > 0 {
+			var driver models.Driver
+			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", driverID, true, true).First(&driver).Error; err == nil {
+				delivery.DriverID = &driver.ID
+				delivery.Status = "accepted"
+				db.Model(&driver).Update("is_available", false)
+			}
 		}
 		if err := db.Create(&delivery).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})

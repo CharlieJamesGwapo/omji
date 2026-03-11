@@ -55,6 +55,7 @@ func main() {
 		protected.DELETE("/user/addresses/:id", handlers.DeleteSavedAddress(database))
 
 		// Ride booking routes (Pasundo)
+		protected.GET("/rides/nearby-drivers", handlers.GetNearbyDrivers(database))
 		protected.POST("/rides/create", handlers.CreateRide(database))
 		protected.GET("/rides/active", handlers.GetActiveRides(database))
 		protected.GET("/rides/:id", handlers.GetRideDetails(database))

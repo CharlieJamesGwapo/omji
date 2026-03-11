@@ -20,7 +20,7 @@ func GenerateToken(userID uint, email, role string) (string, error) {
 		"user_id": float64(userID),
 		"email":   email,
 		"role":    role,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(30 * 24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(getJWTSecret()))
