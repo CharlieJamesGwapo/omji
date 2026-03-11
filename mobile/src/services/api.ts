@@ -5,7 +5,7 @@ const API_BASE_URL = 'https://omji-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 45000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
@@ -13,17 +13,16 @@ const api = axios.create({
   },
 });
 
-// Retry GET requests once on network/timeout errors
+// Retry requests once on network/timeout errors (GET always, POST only on timeout with no response)
 api.interceptors.response.use(undefined, async (error) => {
   const config = error.config;
-  if (
-    config &&
-    !config.__retried &&
-    config.method === 'get' &&
-    (!error.response || error.code === 'ECONNABORTED')
-  ) {
-    config.__retried = true;
-    return api(config);
+  if (config && !config.__retried && (!error.response || error.code === 'ECONNABORTED')) {
+    const isGet = config.method === 'get';
+    const isPostTimeout = config.method === 'post' && error.code === 'ECONNABORTED' && !error.response;
+    if (isGet || isPostTimeout) {
+      config.__retried = true;
+      return api(config);
+    }
   }
   return Promise.reject(error);
 });
@@ -88,6 +87,8 @@ export const userService = {
 // Ride Services
 export const rideService = {
   createRide: (data: any) => api.post('/rides/create', data),
+  getNearbyDrivers: (params: { latitude: number; longitude: number; vehicle_type?: string; max_distance?: number }) =>
+    api.get('/rides/nearby-drivers', { params }),
   getActiveRides: () => api.get('/rides/active'),
   getRideDetails: (id: number) => api.get(`/rides/${id}`),
   cancelRide: (id: number) => api.put(`/rides/${id}/cancel`),
@@ -184,6 +185,11 @@ export const paymentService = {
 // Payment Config Services
 export const paymentConfigService = {
   getConfigs: () => api.get('/payment-configs'),
+};
+
+// Rates Services
+export const ratesService = {
+  getRates: () => api.get('/rates'),
 };
 
 // Promo Services

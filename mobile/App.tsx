@@ -23,6 +23,7 @@ LogBox.ignoreLogs([
   'Sending `onAnimatedValueUpdate`',
   'Non-serializable values were found in the navigation state',
   'Encountered two children with the same key',
+  'SafeAreaView has been deprecated',
 ]);
 
 // Loading Screen
@@ -69,7 +70,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer onUnhandledAction={() => { /* Silently ignore unhandled navigation actions during navigator transitions */ }}>
       <StatusBar style="auto" />
       {!user ? (
         <AuthNavigator />

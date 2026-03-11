@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { orderService, walletService } from '../../services/api';
+import { orderService, walletService, ratesService } from '../../services/api';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
@@ -24,6 +24,24 @@ export default function CartScreen({ route, navigation }: any) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState('Current Location');
+  const [deliveryFee, setDeliveryFee] = useState(30);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await ratesService.getRates();
+        const rates = res.data?.data;
+        if (Array.isArray(rates)) {
+          const orderRate = rates.find((r: any) => r.service_type === 'order' && r.is_active);
+          if (orderRate?.base_fare) {
+            setDeliveryFee(orderRate.base_fare);
+          }
+        }
+      } catch (e) {
+        // Keep fallback delivery fee
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -83,7 +101,6 @@ export default function CartScreen({ route, navigation }: any) {
   };
 
   const subtotal = cartItems.reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
-  const deliveryFee = 30;
   const tax = Math.round(subtotal * 0.05 * 100) / 100;
   const total = subtotal + deliveryFee + tax;
   const itemCount = cartItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);

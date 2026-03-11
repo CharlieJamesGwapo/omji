@@ -246,6 +246,22 @@ export default function TrackingScreen({ route, navigation }: any) {
   // ETA estimation: average speed ~25 km/h for city rides
   const estimatedEtaMinutes = rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0;
 
+  // Re-fit map when ride data changes (e.g. after first fetch)
+  useEffect(() => {
+    if (rideData && mapRef.current) {
+      const pLat = rideData.pickup_latitude || rideData.pickup_lat || 0;
+      const pLng = rideData.pickup_longitude || rideData.pickup_lng || 0;
+      const dLat = rideData.dropoff_latitude || rideData.dropoff_lat || 0;
+      const dLng = rideData.dropoff_longitude || rideData.dropoff_lng || 0;
+      if (pLat !== 0 && dLat !== 0) {
+        mapRef.current.fitToCoordinates(
+          [{ latitude: pLat, longitude: pLng }, { latitude: dLat, longitude: dLng }],
+          { edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) }, animated: true }
+        );
+      }
+    }
+  }, [rideData?.id]);
+
   // Auto-show rating when ride completes (for users only)
   useEffect(() => {
     if (status === 'completed' && !isDriver && !hasRated && driverInfo) {
@@ -285,6 +301,37 @@ export default function TrackingScreen({ route, navigation }: any) {
     );
   }
 
+  // Error state: no valid ride ID or no ride data loaded
+  if (!rideId || (!rideData && !loading)) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={COLORS.error} />
+          <Text style={[styles.loadingText, { color: COLORS.error, marginTop: verticalScale(12) }]}>
+            Could not load trip details
+          </Text>
+          <Text style={[styles.loadingText, { fontSize: fontScale(13), color: COLORS.gray500, marginTop: verticalScale(4) }]}>
+            The booking may not have been created. Please go back and try again.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.accent, paddingHorizontal: moderateScale(24), paddingVertical: moderateScale(12), borderRadius: moderateScale(8), marginTop: verticalScale(16) }}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: fontScale(15) }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Use Balingasag default if coordinates are invalid (0,0)
+  const DEFAULT_LAT = 8.4343;
+  const DEFAULT_LNG = 124.7762;
+  const mapPickupLat = pickupLat !== 0 ? pickupLat : DEFAULT_LAT;
+  const mapPickupLng = pickupLng !== 0 ? pickupLng : DEFAULT_LNG;
+  const mapDropoffLat = dropoffLat !== 0 ? dropoffLat : DEFAULT_LAT + 0.005;
+  const mapDropoffLng = dropoffLng !== 0 ? dropoffLng : DEFAULT_LNG + 0.005;
+
   return (
     <View style={styles.container}>
       {/* Map */}
@@ -293,17 +340,17 @@ export default function TrackingScreen({ route, navigation }: any) {
         provider={PROVIDER_DEFAULT}
         style={styles.map}
         initialRegion={{
-          latitude: (pickupLat + dropoffLat) / 2,
-          longitude: (pickupLng + dropoffLng) / 2,
-          latitudeDelta: Math.abs(pickupLat - dropoffLat) * 2.5 + 0.01,
-          longitudeDelta: Math.abs(pickupLng - dropoffLng) * 2.5 + 0.01,
+          latitude: (mapPickupLat + mapDropoffLat) / 2,
+          longitude: (mapPickupLng + mapDropoffLng) / 2,
+          latitudeDelta: Math.abs(mapPickupLat - mapDropoffLat) * 2.5 + 0.01,
+          longitudeDelta: Math.abs(mapPickupLng - mapDropoffLng) * 2.5 + 0.01,
         }}
         showsUserLocation
         showsMyLocationButton={false}
         onLayout={() => {
           const coords = [
-            { latitude: pickupLat, longitude: pickupLng },
-            { latitude: dropoffLat, longitude: dropoffLng },
+            { latitude: mapPickupLat, longitude: mapPickupLng },
+            { latitude: mapDropoffLat, longitude: mapDropoffLng },
           ];
           mapRef.current?.fitToCoordinates(coords, {
             edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) },
@@ -313,19 +360,19 @@ export default function TrackingScreen({ route, navigation }: any) {
       >
         <Polyline
           coordinates={[
-            { latitude: pickupLat, longitude: pickupLng },
-            { latitude: dropoffLat, longitude: dropoffLng },
+            { latitude: mapPickupLat, longitude: mapPickupLng },
+            { latitude: mapDropoffLat, longitude: mapDropoffLng },
           ]}
           strokeColor={COLORS.accent}
           strokeWidth={4}
           lineDashPattern={[0]}
         />
-        <Marker coordinate={{ latitude: pickupLat, longitude: pickupLng }} title={pickupLabel}>
+        <Marker coordinate={{ latitude: mapPickupLat, longitude: mapPickupLng }} title={pickupLabel}>
           <View style={styles.markerPickup}>
             <Ionicons name="radio-button-on" size={14} color={COLORS.white} />
           </View>
         </Marker>
-        <Marker coordinate={{ latitude: dropoffLat, longitude: dropoffLng }} title={dropoffLabel}>
+        <Marker coordinate={{ latitude: mapDropoffLat, longitude: mapDropoffLng }} title={dropoffLabel}>
           <View style={styles.markerDropoff}>
             <Ionicons name="flag" size={14} color={COLORS.white} />
           </View>
@@ -333,8 +380,8 @@ export default function TrackingScreen({ route, navigation }: any) {
         {!!driverInfo && status !== 'pending' && (
           <Marker
             coordinate={{
-              latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || pickupLat,
-              longitude: driverVehicle?.current_longitude || driverVehicle?.longitude || pickupLng,
+              latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || mapPickupLat,
+              longitude: driverVehicle?.current_longitude || driverVehicle?.longitude || mapPickupLng,
             }}
             title={driverInfo.name || 'Rider'}
           >

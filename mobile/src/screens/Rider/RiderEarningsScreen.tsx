@@ -49,7 +49,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
         setWalletBalance(walletRes.value?.data?.data?.balance ?? 0);
       }
     } catch (error) {
-      console.error('Error fetching earnings:', error);
+      console.log('Earnings fetch failed:', (error as any).response?.status || (error as any).message);
     } finally {
       setLoading(false);
     }

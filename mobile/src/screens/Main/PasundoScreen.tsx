@@ -14,9 +14,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { rideService, walletService, promoService } from '../../services/api';
+import { rideService, walletService, promoService, ratesService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
@@ -75,11 +76,13 @@ export default function PasundoScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [activeRide, setActiveRide] = useState<any>(null);
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [estimatedTime, setEstimatedTime] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
   const [applyingPromo, setApplyingPromo] = useState(false);
+  const [ratesLoading, setRatesLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -113,10 +116,36 @@ export default function PasundoScreen({ navigation }: any) {
     { id: 'document', name: 'Document', icon: 'document', desc: 'Important papers' },
   ];
 
-  const vehicleTypes = [
+  const [vehicleTypes, setVehicleTypes] = useState([
     { id: 'motorcycle', name: 'Motorcycle', icon: 'bicycle', base: 40, rate: 10 },
     { id: 'car', name: 'Car', icon: 'car', base: 60, rate: 15 },
-  ];
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await ratesService.getRates();
+        const rates = res.data?.data;
+        if (Array.isArray(rates) && rates.length > 0) {
+          const rideRates = rates.filter((r: any) => r.service_type === 'ride');
+          if (rideRates.length > 0) {
+            const mapped = rideRates.map((r: any) => ({
+              id: r.vehicle_type || 'motorcycle',
+              name: r.vehicle_type === 'car' ? 'Car' : 'Motorcycle',
+              icon: r.vehicle_type === 'car' ? 'car' : 'bicycle',
+              base: r.base_fare || 40,
+              rate: r.rate_per_km || 10,
+            }));
+            setVehicleTypes(mapped);
+          }
+        }
+      } catch (e) {
+        // Keep fallback rates
+      } finally {
+        setRatesLoading(false);
+      }
+    })();
+  }, []);
 
   const selectedVehicle = vehicleTypes.find(v => v.id === vehicleType) || vehicleTypes[0];
 
@@ -216,9 +245,36 @@ export default function PasundoScreen({ navigation }: any) {
     return label;
   };
 
+  const handleCancelActiveRide = async () => {
+    if (!activeRide) return;
+    try {
+      await rideService.cancelRide(activeRide.id);
+      setActiveRide(null);
+      showToast('Previous ride cancelled. You can now book a new one.', 'success');
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to cancel ride';
+      showToast(msg, 'error');
+    }
+  };
+
   const handleBookPickup = async () => {
     if (activeRide) {
-      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
+      Alert.alert(
+        'Active Ride Found',
+        `You have a ${activeRide.status?.replace(/_/g, ' ')} ride.\nWhat would you like to do?`,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Track Ride',
+            onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }),
+          },
+          ...(activeRide.status === 'pending' ? [{
+            text: 'Cancel & Rebook',
+            style: 'destructive' as const,
+            onPress: handleCancelActiveRide,
+          }] : []),
+        ]
+      );
       return;
     }
 
@@ -275,26 +331,35 @@ export default function PasundoScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: estimatedFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
+                ...(selectedDriver?.id ? { driver_id: selectedDriver.id } : {}),
               });
               const ride = response.data?.data || {};
+              const rideIdNum = Number(ride.id);
+              if (!rideIdNum || rideIdNum <= 0) {
+                Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
+                return;
+              }
               if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
                 navigation.navigate('Payment', {
                   type: paymentMethod,
                   amount: ride.estimated_fare || estimatedFare,
                   serviceType: 'ride',
+                  rideId: rideIdNum,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
                 });
               } else {
                 navigation.navigate('Tracking', {
                   type: 'ride',
-                  rideId: ride.id || 0,
+                  rideId: rideIdNum,
                   pickup: pickupLocation.address,
                   dropoff: dropoffLocation.address,
                   fare: ride.estimated_fare || estimatedFare,
                 });
               }
             } catch (error: any) {
-              const msg = error.response?.data?.error || 'Failed to book ride';
-              showToast(msg, 'error');
+              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
+              Alert.alert('Booking Failed', msg);
             } finally {
               setLoading(false);
             }
@@ -514,10 +579,39 @@ export default function PasundoScreen({ navigation }: any) {
           </View>
         )}
 
+        {/* Nearby Riders */}
+        {pickupLocation.latitude > 0 && (
+          <NearbyRiders
+            pickupLatitude={pickupLocation.latitude}
+            pickupLongitude={pickupLocation.longitude}
+            vehicleType={vehicleType}
+            accentColor="#3B82F6"
+            selectedDriverId={selectedDriver?.id || null}
+            onSelectDriver={setSelectedDriver}
+          />
+        )}
+
+        {/* Selected Rider Info */}
+        {selectedDriver && (
+          <View style={{ marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(8) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(12), borderWidth: 1, borderColor: '#BFDBFE' }}>
+              <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+              <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: RESPONSIVE.fontSize.small, color: '#1E40AF', fontWeight: '600' }}>
+                {selectedDriver.name} selected · {selectedDriver.eta} away
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedDriver(null)}>
+                <Ionicons name="close-circle" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Info */}
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#3B82F6" />
-          <Text style={styles.infoText}>Rider will contact the person before arrival</Text>
+          <Text style={styles.infoText}>
+            {selectedDriver ? `${selectedDriver.name} will be assigned to your ride` : 'Select a rider above or we\'ll find one for you'}
+          </Text>
         </View>
 
         {/* Book Button */}

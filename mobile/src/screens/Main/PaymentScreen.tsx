@@ -9,16 +9,16 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { paymentConfigService } from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, deviceWidth } from '../../utils/responsive';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { type, amount, serviceType } = route.params || {};
+  const { type, amount, serviceType, rideId, pickup, dropoff } = route.params || {};
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
@@ -77,7 +77,17 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const handleDone = () => {
-    navigation.goBack();
+    if (rideId) {
+      navigation.replace('Tracking', {
+        type: serviceType === 'delivery' ? 'delivery' : 'ride',
+        rideId,
+        pickup: pickup || '',
+        dropoff: dropoff || '',
+        fare: amount || 0,
+      });
+    } else {
+      navigation.goBack();
+    }
   };
 
   const serviceLabel =

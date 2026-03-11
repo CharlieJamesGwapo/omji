@@ -43,7 +43,7 @@ interface DriverRequest {
 }
 
 export default function RiderDashboardScreen({ navigation }: any) {
-  const { logout } = useAuth();
+  const { logout, updateUser, refreshUser } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const previousRequestCount = useRef(0);
+  const wasVerifiedRef = useRef<boolean | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const radarAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -126,17 +127,33 @@ export default function RiderDashboardScreen({ navigation }: any) {
     Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  const refreshUserRef = useRef(refreshUser);
+  refreshUserRef.current = refreshUser;
+
   const fetchDriverProfile = useCallback(async () => {
     try {
       const profileRes = await driverService.getProfile();
       const profileData = profileRes.data?.data;
       if (profileData) {
-        setIsVerified(profileData.is_verified === true);
+        const newVerified = profileData.is_verified === true;
+        setIsVerified(newVerified);
+
+        // Auto-transition: detect approval (false → true)
+        if (wasVerifiedRef.current === false && newVerified) {
+          // Refresh user from backend to sync role to 'driver'
+          await refreshUserRef.current();
+          setToast({ visible: true, message: 'Your account has been approved! Welcome aboard!', type: 'success' });
+          Vibration.vibrate([0, 200, 100, 200]);
+        }
+        wasVerifiedRef.current = newVerified;
       }
     } catch (error: any) {
-      console.error('Error fetching driver profile:', error);
-      // If profile not found, driver might not be registered yet
+      // 401 is handled by the auth interceptor (auto-logout); don't log as error
+      if (error.response?.status !== 401) {
+        console.log('Driver profile fetch failed:', error.response?.status || error.message);
+      }
       setIsVerified(false);
+      wasVerifiedRef.current = false;
     }
   }, []);
 
@@ -162,8 +179,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
         const activeData = requestsRes.value?.data?.active;
         setActiveJobs(Array.isArray(activeData) ? activeData : []);
       }
-    } catch (error) {
-      console.error('Error fetching driver data:', error);
+    } catch (error: any) {
+      if (error.response?.status !== 401) {
+        console.log('Driver data fetch failed:', error.response?.status || error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -181,10 +200,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, [isOnline, fetchData]);
 
-  // Poll for verification status when pending
+  // Poll for verification status when pending (every 15s for responsive approval detection)
   useEffect(() => {
     if (isVerified !== false) return;
-    const interval = setInterval(fetchDriverProfile, 30000);
+    const interval = setInterval(fetchDriverProfile, 15000);
     return () => clearInterval(interval);
   }, [isVerified, fetchDriverProfile]);
 
@@ -279,7 +298,14 @@ export default function RiderDashboardScreen({ navigation }: any) {
               });
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to accept request';
-              showToast(msg, 'error');
+              // Remove from local list if request is no longer available
+              if (error.response?.status === 400 || error.response?.status === 404 || error.response?.status === 409) {
+                setRequests(prev => prev.filter(r => r.id !== request.id));
+                Alert.alert('Request Unavailable', 'This request has already been taken by another rider or is no longer available.');
+              } else {
+                showToast(msg, 'error');
+              }
+              fetchData();
             }
           },
         },
@@ -374,9 +400,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
       const created = new Date(createdAt);
       const now = new Date();
       const diffMin = Math.floor((now.getTime() - created.getTime()) / 60000);
-      if (diffMin < 2) return { bg: '#DCFCE7', text: COLORS.successDark };
-      if (diffMin < 5) return { bg: '#FEF3C7', text: COLORS.warningDark };
-      return { bg: '#FEE2E2', text: COLORS.errorDark };
+      if (diffMin < 2) return { bg: COLORS.successBg, text: COLORS.successDark };
+      if (diffMin < 5) return { bg: COLORS.warningBg, text: COLORS.warningDark };
+      return { bg: COLORS.errorBg, text: COLORS.errorDark };
     } catch {
       return { bg: COLORS.gray100, text: COLORS.gray500 };
     }
@@ -400,7 +426,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   if (isVerified === false) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { backgroundColor: '#D97706' }]}>
+        <View style={[styles.header, { backgroundColor: COLORS.warningDark }]}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <Text style={styles.headerStatusText}>PENDING APPROVAL</Text>
@@ -435,12 +461,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
               width: moderateScale(100),
               height: moderateScale(100),
               borderRadius: moderateScale(50),
-              backgroundColor: '#FEF3C7',
+              backgroundColor: COLORS.warningBg,
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: verticalScale(20),
             }}>
-              <Ionicons name="hourglass" size={moderateScale(48)} color="#F59E0B" />
+              <Ionicons name="hourglass" size={moderateScale(48)} color={COLORS.warning} />
             </View>
             <Text style={{
               fontSize: RESPONSIVE.fontSize.xxlarge,
@@ -469,7 +495,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               width: '100%',
               marginBottom: verticalScale(20),
             }}>
-              <Text style={{ fontSize: RESPONSIVE.fontSize.small, fontWeight: '700', color: '#92400E', marginBottom: verticalScale(10) }}>
+              <Text style={{ fontSize: RESPONSIVE.fontSize.small, fontWeight: '700', color: COLORS.warningDark, marginBottom: verticalScale(10) }}>
                 What happens next?
               </Text>
               {[
@@ -487,7 +513,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     alignItems: 'center',
                     marginRight: moderateScale(12),
                   }}>
-                    <Ionicons name={step.icon as any} size={moderateScale(14)} color="#D97706" />
+                    <Ionicons name={step.icon as any} size={moderateScale(14)} color={COLORS.warningDark} />
                   </View>
                   <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: COLORS.gray700, flex: 1 }}>
                     {step.text}
@@ -509,13 +535,22 @@ export default function RiderDashboardScreen({ navigation }: any) {
               }}
               onPress={async () => {
                 setRefreshing(true);
-                await fetchDriverProfile();
-                setRefreshing(false);
-                if (isVerified) {
-                  showToast('Your account has been approved!', 'success');
-                } else {
-                  showToast('Still pending approval. Please check back later.', 'info');
+                try {
+                  const profileRes = await driverService.getProfile();
+                  const profileData = profileRes.data?.data;
+                  if (profileData?.is_verified) {
+                    setIsVerified(true);
+                    wasVerifiedRef.current = true;
+                    await refreshUserRef.current();
+                    showToast('Your account has been approved! Welcome aboard!', 'success');
+                    Vibration.vibrate([0, 200, 100, 200]);
+                  } else {
+                    showToast('Still pending approval. Please check back later.', 'info');
+                  }
+                } catch {
+                  showToast('Could not check status. Try again.', 'error');
                 }
+                setRefreshing(false);
               }}
             >
               <Ionicons name="refresh" size={moderateScale(18)} color={COLORS.gray600} style={{ marginRight: moderateScale(8) }} />
@@ -539,7 +574,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                   { text: 'Cancel', style: 'cancel' },
                   {
                     text: 'Switch',
-                    onPress: () => logout(),
+                    onPress: () => updateUser({ role: 'user' }),
                   },
                 ]
               );
@@ -643,7 +678,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
             <Switch
               value={isOnline}
               onValueChange={handleToggleOnline}
-              trackColor={{ false: COLORS.gray300, true: '#86EFAC' }}
+              trackColor={{ false: COLORS.gray300, true: COLORS.successLight }}
               thumbColor={isOnline ? COLORS.success : COLORS.gray100}
               style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] }}
             />
@@ -731,8 +766,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <Text style={styles.statLabel}>Rides</Text>
             </View>
             <View style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="star" size={moderateScale(22)} color="#FBBF24" />
+              <View style={[styles.statIcon, { backgroundColor: COLORS.warningBg }]}>
+                <Ionicons name="star" size={moderateScale(22)} color={COLORS.warningLight} />
               </View>
               <Text style={styles.statValue}>{Number(earnings.rating || 5.0).toFixed(1)}</Text>
               <Text style={styles.statLabel}>Rating</Text>
@@ -994,7 +1029,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <View style={[styles.offlineIconBubble, { backgroundColor: COLORS.accentBg, marginTop: verticalScale(-8) }]}>
                 <Ionicons name="cube-outline" size={moderateScale(24)} color={COLORS.accent} />
               </View>
-              <View style={[styles.offlineIconBubble, { backgroundColor: '#F5F3FF' }]}>
+              <View style={[styles.offlineIconBubble, { backgroundColor: COLORS.pasabayBg }]}>
                 <Ionicons name="people-outline" size={moderateScale(24)} color={COLORS.pasabay} />
               </View>
             </View>
@@ -1040,7 +1075,7 @@ const styles = StyleSheet.create({
     paddingBottom: verticalScale(18),
   },
   headerOnline: {
-    backgroundColor: '#059669',
+    backgroundColor: COLORS.successDark,
   },
   headerOffline: {
     backgroundColor: COLORS.gray700,
@@ -1065,7 +1100,7 @@ const styles = StyleSheet.create({
     marginRight: moderateScale(6),
   },
   headerDotOnline: {
-    backgroundColor: '#86EFAC',
+    backgroundColor: COLORS.successLight,
   },
   headerDotOffline: {
     backgroundColor: 'rgba(255,255,255,0.4)',
@@ -1108,8 +1143,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200,
   },
   toggleCardOnline: {
-    borderColor: '#86EFAC',
-    backgroundColor: '#F0FDF4',
+    borderColor: COLORS.successLight,
+    backgroundColor: COLORS.successBg,
   },
   toggleTouchArea: {
     flexDirection: 'row',
@@ -1460,7 +1495,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.errorBg,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: COLORS.errorLight,
   },
   declineButtonText: {
     color: COLORS.error,

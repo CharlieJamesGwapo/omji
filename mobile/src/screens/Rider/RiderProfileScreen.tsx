@@ -42,7 +42,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         setDriverData(profileRes.value?.data?.data || {});
       }
     } catch (error) {
-      console.error('Error fetching rider data:', error);
+      console.log('Rider data fetch failed:', (error as any).response?.status || (error as any).message);
     } finally {
       setLoading(false);
     }

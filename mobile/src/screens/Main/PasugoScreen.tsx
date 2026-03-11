@@ -16,10 +16,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { deliveryService, walletService, promoService } from '../../services/api';
+import { deliveryService, walletService, promoService, ratesService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 
 export default function PasugoScreen({ navigation }: any) {
@@ -74,6 +75,7 @@ export default function PasugoScreen({ navigation }: any) {
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [itemSize, setItemSize] = useState<'small' | 'medium' | 'large'>('small');
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
   const [estimatedTime, setEstimatedTime] = useState('');
@@ -83,10 +85,30 @@ export default function PasugoScreen({ navigation }: any) {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
   const [applyingPromo, setApplyingPromo] = useState(false);
+  const [baseFare, setBaseFare] = useState(50);
+  const [perKmRate, setPerKmRate] = useState(15);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const lastFetchRef = useRef<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await ratesService.getRates();
+        const rates = res.data?.data;
+        if (Array.isArray(rates) && rates.length > 0) {
+          const deliveryRate = rates.find((r: any) => r.service_type === 'delivery' && r.is_active);
+          if (deliveryRate) {
+            setBaseFare(deliveryRate.base_fare || 50);
+            setPerKmRate(deliveryRate.rate_per_km || 15);
+          }
+        }
+      } catch (e) {
+        // Keep fallback rates
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -157,8 +179,6 @@ export default function PasugoScreen({ navigation }: any) {
   };
 
   const distance = calculateDistance(pickupLocation, dropoffLocation);
-  const baseFare = 50;
-  const perKmRate = 15;
   const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
 
@@ -213,9 +233,36 @@ export default function PasugoScreen({ navigation }: any) {
     setPromoApplied(false);
   };
 
+  const handleCancelActiveDelivery = async () => {
+    if (!activeDelivery) return;
+    try {
+      await deliveryService.cancelDelivery(activeDelivery.id);
+      setActiveDelivery(null);
+      showToast('Previous delivery cancelled. You can now book a new one.', 'success');
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to cancel delivery';
+      showToast(msg, 'error');
+    }
+  };
+
   const handleBookDelivery = async () => {
     if (activeDelivery) {
-      showToast('You have an active delivery. Tap the banner above to track it.', 'warning');
+      Alert.alert(
+        'Active Delivery Found',
+        `You have a ${activeDelivery.status?.replace(/_/g, ' ')} delivery.\nWhat would you like to do?`,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Track Delivery',
+            onPress: () => navigation.navigate('Tracking', { type: 'delivery', rideId: activeDelivery.id, pickup: activeDelivery.pickup_location, dropoff: activeDelivery.dropoff_location, fare: activeDelivery.delivery_fee }),
+          },
+          ...(activeDelivery.status === 'pending' ? [{
+            text: 'Cancel & Rebook',
+            style: 'destructive' as const,
+            onPress: handleCancelActiveDelivery,
+          }] : []),
+        ]
+      );
       return;
     }
 
@@ -286,28 +333,39 @@ export default function PasugoScreen({ navigation }: any) {
               if (promoApplied && promoCode.trim()) {
                 deliveryData.promo_code = promoCode.trim();
               }
+              if (selectedDriver?.id) {
+                deliveryData.driver_id = selectedDriver.id;
+              }
               const response = itemPhoto
                 ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
                 : await deliveryService.createDelivery(deliveryData);
               const delivery = response.data?.data || {};
+              const deliveryIdNum = Number(delivery.id);
+              if (!deliveryIdNum || deliveryIdNum <= 0) {
+                Alert.alert('Booking Error', 'Delivery was created but we could not get the booking ID. Please check your active deliveries.');
+                return;
+              }
               if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
                 navigation.navigate('Payment', {
                   type: paymentMethod,
                   amount: delivery.delivery_fee || estimatedFare,
                   serviceType: 'delivery',
+                  rideId: deliveryIdNum,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
                 });
               } else {
                 navigation.navigate('Tracking', {
                   type: 'delivery',
-                  rideId: delivery.id || 0,
+                  rideId: deliveryIdNum,
                   pickup: pickupLocation.address,
                   dropoff: dropoffLocation.address,
                   fare: delivery.delivery_fee || estimatedFare,
                 });
               }
             } catch (error: any) {
-              const msg = error.response?.data?.error || 'Failed to book delivery';
-              showToast(msg, 'error');
+              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book delivery. Please check your connection and try again.');
+              Alert.alert('Booking Failed', msg);
             } finally {
               setLoading(false);
             }
@@ -523,6 +581,32 @@ export default function PasugoScreen({ navigation }: any) {
             </View>
             <View style={styles.etaDistanceBadge}>
               <Text style={styles.etaDistanceText}>{distance.toFixed(1)} km</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Nearby Riders */}
+        {pickupLocation.latitude > 0 && (
+          <NearbyRiders
+            pickupLatitude={pickupLocation.latitude}
+            pickupLongitude={pickupLocation.longitude}
+            accentColor="#10B981"
+            selectedDriverId={selectedDriver?.id || null}
+            onSelectDriver={setSelectedDriver}
+          />
+        )}
+
+        {/* Selected Rider Info */}
+        {selectedDriver && (
+          <View style={{ marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(8) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(12), borderWidth: 1, borderColor: '#A7F3D0' }}>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: RESPONSIVE.fontSize.small, color: '#065F46', fontWeight: '600' }}>
+                {selectedDriver.name} selected · {selectedDriver.eta} away
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedDriver(null)}>
+                <Ionicons name="close-circle" size={20} color="#6B7280" />
+              </TouchableOpacity>
             </View>
           </View>
         )}

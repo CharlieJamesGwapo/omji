@@ -15,10 +15,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { rideService, rideShareService, walletService, promoService } from '../../services/api';
+import { rideService, rideShareService, walletService, promoService, ratesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
+import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
@@ -76,6 +77,7 @@ export default function PasabayScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [rideType, setRideType] = useState('single');
   const [loading, setLoading] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [availableRides, setAvailableRides] = useState<any[]>([]);
   const [loadingRides, setLoadingRides] = useState(false);
   const [mode, setMode] = useState<'book' | 'join'>('book');
@@ -152,7 +154,22 @@ export default function PasabayScreen({ navigation }: any) {
 
   const handleJoinRideShare = async (ride: any) => {
     if (activeRide) {
-      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
+      Alert.alert(
+        'Active Ride Found',
+        `You have a ${activeRide.status?.replace(/_/g, ' ')} ride.\nWhat would you like to do?`,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Track Ride',
+            onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }),
+          },
+          ...(activeRide.status === 'pending' ? [{
+            text: 'Cancel & Rebook',
+            style: 'destructive' as const,
+            onPress: handleCancelActiveRide,
+          }] : []),
+        ]
+      );
       return;
     }
 
@@ -208,11 +225,38 @@ export default function PasabayScreen({ navigation }: any) {
     );
   };
 
-  const rideTypes = [
+  const [rideTypes, setRideTypes] = useState([
     { id: 'single', name: 'Single Ride', icon: 'bicycle', basePrice: 40, vehicleType: 'motorcycle', ratePerKm: 10 },
     { id: 'habal', name: 'Habal-Habal', icon: 'bicycle', basePrice: 60, vehicleType: 'motorcycle', ratePerKm: 10 },
     { id: 'tricycle', name: 'Tricycle', icon: 'car', basePrice: 80, vehicleType: 'car', ratePerKm: 15 },
-  ];
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await ratesService.getRates();
+        const rates = res.data?.data;
+        if (Array.isArray(rates) && rates.length > 0) {
+          const rideRates = rates.filter((r: any) => r.service_type === 'ride' && r.is_active);
+          if (rideRates.length > 0) {
+            const motoRate = rideRates.find((r: any) => r.vehicle_type === 'motorcycle');
+            const carRate = rideRates.find((r: any) => r.vehicle_type === 'car');
+            const motoBase = motoRate?.base_fare || 40;
+            const motoPerKm = motoRate?.rate_per_km || 10;
+            const carBase = carRate?.base_fare || 60;
+            const carPerKm = carRate?.rate_per_km || 15;
+            setRideTypes([
+              { id: 'single', name: 'Single Ride', icon: 'bicycle', basePrice: motoBase, vehicleType: 'motorcycle', ratePerKm: motoPerKm },
+              { id: 'habal', name: 'Habal-Habal', icon: 'bicycle', basePrice: Math.round(motoBase * 1.5), vehicleType: 'motorcycle', ratePerKm: motoPerKm },
+              { id: 'tricycle', name: 'Tricycle', icon: 'car', basePrice: carBase, vehicleType: 'car', ratePerKm: carPerKm },
+            ]);
+          }
+        }
+      } catch (e) {
+        // Keep fallback rates
+      }
+    })();
+  }, []);
 
   const handlePickupSelect = (location: any) => {
     setPickupLocation(location);
@@ -285,9 +329,36 @@ export default function PasabayScreen({ navigation }: any) {
     setPromoApplied(false);
   };
 
+  const handleCancelActiveRide = async () => {
+    if (!activeRide) return;
+    try {
+      await rideService.cancelRide(activeRide.id);
+      setActiveRide(null);
+      showToast('Previous ride cancelled. You can now book a new one.', 'success');
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to cancel ride';
+      showToast(msg, 'error');
+    }
+  };
+
   const handleBookRide = async () => {
     if (activeRide) {
-      showToast('You have an active ride. Tap the banner above to track it.', 'warning');
+      Alert.alert(
+        'Active Ride Found',
+        `You have a ${activeRide.status?.replace(/_/g, ' ')} ride.\nWhat would you like to do?`,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Track Ride',
+            onPress: () => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare }),
+          },
+          ...(activeRide.status === 'pending' ? [{
+            text: 'Cancel & Rebook',
+            style: 'destructive' as const,
+            onPress: handleCancelActiveRide,
+          }] : []),
+        ]
+      );
       return;
     }
 
@@ -381,18 +452,24 @@ export default function PasabayScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: totalFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
+                ...(selectedDriver?.id ? { driver_id: selectedDriver.id } : {}),
               });
               const ride = response.data?.data || {};
+              const rideIdNum = Number(ride.id);
+              if (!rideIdNum || rideIdNum <= 0) {
+                Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
+                return;
+              }
               navigation.navigate('Tracking', {
                 type: 'ride',
-                rideId: ride.id || 0,
+                rideId: rideIdNum,
                 pickup: pickupLocation.address,
                 dropoff: dropoffLocation.address,
                 fare: ride.estimated_fare || totalFare,
               });
             } catch (error: any) {
-              const msg = error.response?.data?.error || 'Failed to book ride';
-              showToast(msg, 'error');
+              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
+              Alert.alert('Booking Failed', msg);
             } finally {
               setLoading(false);
             }
@@ -688,6 +765,39 @@ export default function PasabayScreen({ navigation }: any) {
                 <Text style={styles.priceTotalValue}>₱{totalFare.toFixed(0)}</Text>
               </View>
             </View>
+
+            {/* Nearby Riders */}
+            {pickupLocation.latitude && pickupLocation.longitude && !isDriver && (
+              <NearbyRiders
+                pickupLatitude={pickupLocation.latitude}
+                pickupLongitude={pickupLocation.longitude}
+                accentColor="#8B5CF6"
+                selectedDriverId={selectedDriver?.id || null}
+                onSelectDriver={setSelectedDriver}
+              />
+            )}
+
+            {selectedDriver && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#F5F3FF',
+                borderRadius: moderateScale(10),
+                padding: moderateScale(10),
+                marginHorizontal: RESPONSIVE.marginHorizontal,
+                marginTop: verticalScale(8),
+                borderWidth: 1,
+                borderColor: '#8B5CF6',
+              }}>
+                <Ionicons name="person-circle" size={20} color="#8B5CF6" />
+                <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: fontScale(13), color: '#374151', fontWeight: '600' }}>
+                  {selectedDriver.name} · {selectedDriver.eta}
+                </Text>
+                <TouchableOpacity onPress={() => setSelectedDriver(null)}>
+                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Book */}
             <TouchableOpacity

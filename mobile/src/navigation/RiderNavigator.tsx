@@ -1,5 +1,6 @@
 import React from 'react';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
+import { COLORS } from '../constants/theme';
 
 import RiderDashboardScreen from '../screens/Rider/RiderDashboardScreen';
 import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
@@ -13,8 +14,8 @@ export default function RiderNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#10B981' },
-        headerTintColor: '#ffffff',
+        headerStyle: { backgroundColor: COLORS.success },
+        headerTintColor: COLORS.white,
         headerTitleStyle: { fontWeight: 'bold' },
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
         gestureEnabled: true,

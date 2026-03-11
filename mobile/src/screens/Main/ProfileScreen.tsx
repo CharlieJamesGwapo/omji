@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS } from '../../constants/theme';
-import { rideService, orderService, deliveryService, walletService, userService } from '../../services/api';
+import { rideService, orderService, deliveryService, walletService, userService, driverService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
 const SECTION_ACCENTS: Record<string, string> = {
@@ -33,6 +33,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [stats, setStats] = useState({ rides: 0, orders: 0, rating: 0, spent: 0 });
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [driverStatus, setDriverStatus] = useState<'none' | 'pending' | 'verified'>('none');
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -45,12 +46,13 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       setLoading(true);
 
-      const [ridesHistRes, ordersHistRes, deliveriesHistRes, walletRes, profileRes] = await Promise.allSettled([
+      const [ridesHistRes, ordersHistRes, deliveriesHistRes, walletRes, profileRes, driverRes] = await Promise.allSettled([
         rideService.getRideHistory(),
         orderService.getOrderHistory(),
         deliveryService.getDeliveryHistory(),
         walletService.getBalance(),
         userService.getProfile(),
+        driverService.getProfile(),
       ]);
 
       // Update user with fresh profile data (includes created_at)
@@ -58,6 +60,14 @@ export default function ProfileScreen({ navigation }: any) {
         const profileData = profileRes.value?.data?.data || profileRes.value?.data;
         if (profileData?.created_at) {
           updateUser({ created_at: profileData.created_at });
+        }
+      }
+
+      // Check driver registration status
+      if (driverRes.status === 'fulfilled') {
+        const driverData = driverRes.value?.data?.data;
+        if (driverData) {
+          setDriverStatus(driverData.is_verified ? 'verified' : 'pending');
         }
       }
 
@@ -132,7 +142,24 @@ export default function ProfileScreen({ navigation }: any) {
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
         { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
-        ...(!user?.role || user.role === 'user' ? [{ icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' }] : []),
+        ...(!user?.role || user.role === 'user' ? (
+          driverStatus === 'verified' ? [
+            { icon: 'swap-horizontal-outline', label: 'Switch to Rider Mode', screen: null, action: () => updateUser({ role: 'driver' }) },
+          ] : driverStatus === 'pending' ? [
+            { icon: 'hourglass-outline', label: 'Rider Application (Pending)', screen: null, action: () => {
+              Alert.alert(
+                'Application Pending',
+                'Your rider application is under review. Go to the Rider Dashboard to check status?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Go to Dashboard', onPress: () => updateUser({ role: 'driver' }) },
+                ]
+              );
+            }},
+          ] : [
+            { icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' },
+          ]
+        ) : []),
       ],
     },
     {
