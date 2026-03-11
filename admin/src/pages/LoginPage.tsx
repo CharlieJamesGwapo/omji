@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { authService } from '../services/api';
 import axios from 'axios';
 
@@ -15,9 +15,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'waking'>('checking');
+  const [statusMessage, setStatusMessage] = useState('');
   const cancelledRef = useRef(false);
+  const retryCountRef = useRef(0);
 
-  // Continuous health check polling - keeps retrying until server is online
+  // Continuous health check polling
   useEffect(() => {
     cancelledRef.current = false;
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -26,33 +28,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (cancelledRef.current) return;
       try {
         await axios.get(HEALTH_URL, { timeout: 10000 });
-        if (!cancelledRef.current) setServerStatus('online');
+        if (!cancelledRef.current) {
+          setServerStatus('online');
+          setStatusMessage('');
+        }
       } catch {
         if (!cancelledRef.current) {
-          setServerStatus(prev => prev === 'checking' ? 'waking' : prev);
-          // Retry every 8 seconds until online
-          timeoutId = setTimeout(checkHealth, 8000);
+          setServerStatus(prev => {
+            if (prev === 'checking') return 'waking';
+            return prev;
+          });
+          timeoutId = setTimeout(checkHealth, 5000);
         }
       }
     };
 
     checkHealth();
-
     return () => {
       cancelledRef.current = true;
       clearTimeout(timeoutId);
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const attemptLogin = useCallback(async (retryOnFail = true): Promise<boolean> => {
     try {
       const loginData: any = { password };
       if (username.includes('@')) {
         loginData.email = username;
       } else {
+        // Send both - backend accepts either
+        loginData.email = username;
         loginData.phone = username;
       }
 
@@ -60,26 +65,55 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const data = response.data?.data;
       if (!data?.token || !data?.user) {
         setError('Unexpected server response. Please try again.');
-        setLoading(false);
-        return;
+        return false;
       }
       const { token, user } = data;
       if (user.role !== 'admin') {
         setError('Admin access required. Please login with an admin account.');
-        setLoading(false);
-        return;
+        return false;
       }
       setServerStatus('online');
       onLogin(token, user);
+      return true;
     } catch (err: any) {
       if (err.code === 'ECONNABORTED' || !err.response) {
-        setError('Server is still starting up. Please wait and try again.');
-        setServerStatus('waking');
+        // Server timeout / not responding
+        if (retryOnFail && retryCountRef.current < 3) {
+          retryCountRef.current++;
+          setStatusMessage(`Server is starting up... Retrying (${retryCountRef.current}/3)`);
+          setServerStatus('waking');
+          // Wait for health check, then retry
+          try {
+            await axios.get(HEALTH_URL, { timeout: 60000 });
+            setServerStatus('online');
+            setStatusMessage('Server is online! Signing in...');
+            return await attemptLogin(false);
+          } catch {
+            setError('Server is taking too long to start. Please try again in a moment.');
+            return false;
+          }
+        } else {
+          setError('Could not reach the server. Please try again.');
+          return false;
+        }
       } else {
         setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        return false;
       }
     }
+  }, [username, password, onLogin]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    setStatusMessage('Connecting...');
+    retryCountRef.current = 0;
+
+    await attemptLogin(true);
+
     setLoading(false);
+    setStatusMessage('');
   };
 
   return (
@@ -104,19 +138,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             Connecting to server...
           </div>
         )}
-        {serverStatus === 'waking' && (
+        {serverStatus === 'waking' && !loading && (
           <div className="mb-4 px-3 py-2.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Server is waking up (free tier cold start)...
+              Server is waking up...
             </div>
-            <p className="mt-1 ml-6 text-[11px] text-yellow-600">This takes 30-60 seconds. You can try signing in — it will work once the server is ready.</p>
+            <p className="mt-1 ml-6 text-[11px] text-yellow-600">Free tier cold start takes ~30s. Just click Sign In — it will auto-retry until the server is ready.</p>
           </div>
         )}
-        {serverStatus === 'online' && (
+        {serverStatus === 'online' && !loading && (
           <div className="mb-4 px-3 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 bg-green-50 text-green-700">
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></div>
             Server is online
@@ -139,8 +173,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm text-gray-900 placeholder-gray-400"
-                placeholder="email@example.com or phone"
+                placeholder="admin"
                 required
+                disabled={loading}
                 autoComplete="username"
               />
             </div>
@@ -154,6 +189,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none text-sm text-gray-900 placeholder-gray-400"
                 placeholder="••••••••"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -168,7 +204,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Signing in...
+                  {statusMessage || 'Signing in...'}
                 </span>
               ) : (
                 'Sign In'
