@@ -234,7 +234,7 @@ export default function RatesPage() {
             <p className="text-2xl font-bold text-gray-900">₱{motoRate.base.toFixed(0)}</p>
             <p className="text-xs text-gray-500 mt-1">+ ₱{motoRate.perKm.toFixed(0)}/km</p>
             <div className="mt-3">
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${motoRate.isCustom ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${motoRate.isCustom ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
                 {motoRate.isCustom ? 'Custom' : 'Default'}
               </span>
             </div>
@@ -257,7 +257,7 @@ export default function RatesPage() {
             <p className="text-2xl font-bold text-gray-900">₱{carRate.base.toFixed(0)}</p>
             <p className="text-xs text-gray-500 mt-1">+ ₱{carRate.perKm.toFixed(0)}/km</p>
             <div className="mt-3">
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${carRate.isCustom ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${carRate.isCustom ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
                 {carRate.isCustom ? 'Custom' : 'Default'}
               </span>
             </div>
@@ -279,7 +279,7 @@ export default function RatesPage() {
             <p className="text-2xl font-bold text-gray-900">₱{deliveryRate.base.toFixed(0)}</p>
             <p className="text-xs text-gray-500 mt-1">+ ₱{deliveryRate.perKm.toFixed(0)}/km</p>
             <div className="mt-3">
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${deliveryRate.isCustom ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${deliveryRate.isCustom ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
                 {deliveryRate.isCustom ? 'Custom' : 'Default'}
               </span>
             </div>
@@ -301,7 +301,7 @@ export default function RatesPage() {
             <p className="text-2xl font-bold text-gray-900">₱{orderRate.base.toFixed(0)}</p>
             <p className="text-xs text-gray-500 mt-1">Flat delivery fee</p>
             <div className="mt-3">
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${orderRate.isCustom ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${orderRate.isCustom ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
                 {orderRate.isCustom ? 'Custom' : 'Default'}
               </span>
             </div>
@@ -319,19 +319,19 @@ export default function RatesPage() {
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Motorcycle 5km</p>
+            <p className="text-[11px] font-bold text-gray-500 uppercase mb-1">Motorcycle 5km</p>
             <p className="text-lg font-bold text-gray-900">₱{Math.max(motoRate.base + motoRate.perKm * 5, getActiveRate('ride', 'motorcycle')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Car 5km</p>
+            <p className="text-[11px] font-bold text-gray-500 uppercase mb-1">Car 5km</p>
             <p className="text-lg font-bold text-gray-900">₱{Math.max(carRate.base + carRate.perKm * 5, getActiveRate('ride', 'car')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Delivery 5km</p>
+            <p className="text-[11px] font-bold text-gray-500 uppercase mb-1">Delivery 5km</p>
             <p className="text-lg font-bold text-gray-900">₱{Math.max(deliveryRate.base + deliveryRate.perKm * 5, getActiveRate('delivery', '')?.minimum_fare || 0).toFixed(0)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Order Fee</p>
+            <p className="text-[11px] font-bold text-gray-500 uppercase mb-1">Order Fee</p>
             <p className="text-lg font-bold text-gray-900">₱{orderRate.base.toFixed(0)}</p>
           </div>
         </div>
@@ -446,7 +446,7 @@ export default function RatesPage() {
                       </div>
                       <button
                         onClick={() => handleToggleActive(rate)}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold min-h-[40px] ${
                           rate.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                         }`}
                       >
@@ -455,27 +455,27 @@ export default function RatesPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-3 mb-3">
                       <div>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Base</p>
-                        <p className="text-sm font-bold text-gray-900">₱{rate.base_fare.toFixed(0)}</p>
+                        <p className="text-[11px] text-gray-400 uppercase font-bold">Base</p>
+                        <p className="text-lg font-bold text-gray-900">₱{rate.base_fare.toFixed(0)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Per KM</p>
-                        <p className="text-sm font-bold text-gray-900">₱{rate.rate_per_km.toFixed(0)}</p>
+                        <p className="text-[11px] text-gray-400 uppercase font-bold">Per KM</p>
+                        <p className="text-lg font-bold text-gray-900">₱{rate.rate_per_km.toFixed(0)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Min</p>
-                        <p className="text-sm font-bold text-gray-900">{rate.minimum_fare > 0 ? `₱${rate.minimum_fare.toFixed(0)}` : '—'}</p>
+                        <p className="text-[11px] text-gray-400 uppercase font-bold">Min</p>
+                        <p className="text-lg font-bold text-gray-900">{rate.minimum_fare > 0 ? `₱${rate.minimum_fare.toFixed(0)}` : '—'}</p>
                       </div>
                     </div>
                     {rate.description && <p className="text-xs text-gray-500 mb-3">{rate.description}</p>}
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(rate)} className="flex-1 py-2 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                      <button onClick={() => openEdit(rate)} className="flex-1 py-2 min-h-[40px] text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(rate.id)}
                         disabled={deletingId === rate.id}
-                        className="flex-1 py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                        className="flex-1 py-2 min-h-[40px] text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
                       >
                         Delete
                       </button>
@@ -644,19 +644,19 @@ export default function RatesPage() {
               {/* Fare Preview */}
               {form.base_fare !== undefined && form.base_fare > 0 && (
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Fare Preview</p>
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Fare Preview</p>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
-                      <p className="text-[10px] text-gray-400">1 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 1, form.minimum_fare || 0).toFixed(0)}</p>
+                      <p className="text-[11px] text-gray-400">1 km</p>
+                      <p className="text-lg font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 1, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400">5 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 5, form.minimum_fare || 0).toFixed(0)}</p>
+                      <p className="text-[11px] text-gray-400">5 km</p>
+                      <p className="text-lg font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 5, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400">10 km</p>
-                      <p className="text-sm font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 10, form.minimum_fare || 0).toFixed(0)}</p>
+                      <p className="text-[11px] text-gray-400">10 km</p>
+                      <p className="text-lg font-bold text-gray-900">₱{Math.max((form.base_fare || 0) + (form.rate_per_km || 0) * 10, form.minimum_fare || 0).toFixed(0)}</p>
                     </div>
                   </div>
                 </div>

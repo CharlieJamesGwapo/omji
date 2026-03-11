@@ -272,7 +272,7 @@ const RidesPage: React.FC = () => {
         {paginatedRides.map((ride) => (
           <div
             key={ride.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-4"
             onClick={() => handleViewDetails(ride)}
           >
             <div className="flex items-start justify-between gap-2 mb-3">
@@ -330,7 +330,7 @@ const RidesPage: React.FC = () => {
                   handleStatusUpdate(ride.id, e.target.value);
                 }}
                 disabled={updatingId === ride.id}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm min-h-[44px] border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
@@ -480,7 +480,7 @@ const RidesPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
@@ -501,7 +501,7 @@ const RidesPage: React.FC = () => {
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
+                      className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
                           ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -516,7 +516,7 @@ const RidesPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

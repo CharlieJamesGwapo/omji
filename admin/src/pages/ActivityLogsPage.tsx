@@ -258,7 +258,7 @@ const ActivityLogsPage: React.FC = () => {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`flex-shrink-0 px-3 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-shrink-0 px-4 py-2.5 min-h-[40px] rounded-lg text-sm font-medium transition-all ${
               filter === f.key
                 ? 'bg-gray-900 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
@@ -317,10 +317,10 @@ const ActivityLogsPage: React.FC = () => {
                           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
-                          <span className="truncate max-w-[120px]">{log.user_name || 'Unknown'}</span>
+                          <span className="flex-1 min-w-0 truncate">{log.user_name || 'Unknown'}</span>
                         </span>
                         {log.user_email && (
-                          <span className="truncate max-w-[150px] text-gray-400">{log.user_email}</span>
+                          <span className="flex-1 min-w-0 truncate text-gray-400">{log.user_email}</span>
                         )}
                       </div>
                       <div className="flex items-center justify-between mt-2">

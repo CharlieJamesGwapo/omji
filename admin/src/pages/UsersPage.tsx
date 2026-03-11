@@ -341,19 +341,19 @@ const UsersPage: React.FC = () => {
             <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
               <button
                 onClick={() => handleViewDetails(user.id)}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-colors"
               >
                 View
               </button>
               <button
                 onClick={() => openEditModal(user)}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 rounded-lg transition-colors"
               >
                 Edit
               </button>
               <button
                 onClick={() => handleDelete(user.id, user.name)}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-lg transition-colors"
               >
                 Delete
               </button>
@@ -521,7 +521,7 @@ const UsersPage: React.FC = () => {
                   <button
                     key={item}
                     onClick={() => setCurrentPage(item as number)}
-                    className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === item
                         ? 'bg-gray-900 text-white'
                         : 'text-gray-600 hover:bg-gray-100'
@@ -673,7 +673,7 @@ const UsersPage: React.FC = () => {
               <h2 className="text-lg font-bold text-gray-900">Edit User</h2>
               <button
                 onClick={() => !saving && setShowEditModal(false)}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

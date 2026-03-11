@@ -447,13 +447,13 @@ const DriversPage: React.FC = () => {
             <div className="flex gap-2 pt-3 border-t border-gray-100">
               <button
                 onClick={() => handleViewDetails(driver)}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-colors"
               >
                 View
               </button>
               <button
                 onClick={() => handleOpenEdit(driver)}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors"
               >
                 Edit
               </button>
@@ -461,14 +461,14 @@ const DriversPage: React.FC = () => {
                 <button
                   onClick={() => handleVerify(driver.id)}
                   disabled={verifyingId === driver.id}
-                  className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${verifyingId === driver.id ? 'bg-green-50 text-green-400 cursor-not-allowed opacity-50' : 'text-green-600 bg-green-50 hover:bg-green-100 active:bg-green-200'}`}
+                  className={`flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium rounded-lg transition-colors ${verifyingId === driver.id ? 'bg-green-50 text-green-400 cursor-not-allowed opacity-50' : 'text-green-600 bg-green-50 hover:bg-green-100 active:bg-green-200'}`}
                 >
                   {verifyingId === driver.id ? 'Verifying...' : 'Verify'}
                 </button>
               )}
               <button
                 onClick={() => handleDelete(driver.id, driver.User?.name || 'Unknown')}
-                className="flex-1 px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-lg transition-colors"
+                className="flex-1 px-3 py-2.5 min-h-[44px] text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-lg transition-colors"
               >
                 Delete
               </button>
@@ -671,7 +671,7 @@ const DriversPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
@@ -692,7 +692,7 @@ const DriversPage: React.FC = () => {
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
+                      className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
                           ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -707,7 +707,7 @@ const DriversPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>
@@ -970,7 +970,7 @@ const DriversPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => { setShowEditModal(false); setEditDriver(null); }}
-                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 transition-colors p-1 -m-1"
+                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 transition-colors p-2 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1122,7 +1122,7 @@ const DriversPage: React.FC = () => {
           onClick={() => setLightboxImage(null)}
         >
           <button
-            className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-40 transition-colors"
+            className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-40 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
             onClick={() => setLightboxImage(null)}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

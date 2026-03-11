@@ -628,19 +628,19 @@ export default function StoresPage() {
                 <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                   <button
                     onClick={() => openMenuModal(store)}
-                    className="flex-1 py-2 text-xs font-semibold text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                    className="flex-1 py-2 min-h-[40px] text-xs font-semibold text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
                   >
                     View Menu
                   </button>
                   <button
                     onClick={() => openEditStore(store)}
-                    className="flex-1 py-2 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    className="flex-1 py-2 min-h-[40px] text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteStore(store)}
-                    className="flex-1 py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                    className="flex-1 py-2 min-h-[40px] text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                   >
                     Delete
                   </button>
@@ -721,7 +721,7 @@ export default function StoresPage() {
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100 rounded-t-2xl flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{editingStore ? 'Edit Store' : 'New Store'}</h2>
-              <button onClick={() => !savingStore && setShowStoreModal(false)} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <button onClick={() => !savingStore && setShowStoreModal(false)} className="p-2 min-w-[40px] min-h-[40px] rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -873,7 +873,7 @@ export default function StoresPage() {
                     Add Item
                   </button>
                 )}
-                <button onClick={() => { setShowMenuModal(false); setShowMenuForm(false); }} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <button onClick={() => { setShowMenuModal(false); setShowMenuForm(false); }} className="p-2 min-w-[40px] min-h-[40px] rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -1061,7 +1061,7 @@ export default function StoresPage() {
                         <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditMenuItem(item)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 min-h-[36px] min-w-[36px] rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center"
                             title="Edit"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1070,7 +1070,7 @@ export default function StoresPage() {
                           </button>
                           <button
                             onClick={() => handleDeleteMenuItem(item)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 min-h-[36px] min-w-[36px] rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center"
                             title="Delete"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

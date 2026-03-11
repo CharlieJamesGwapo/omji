@@ -145,7 +145,7 @@ const RiderApprovalPage: React.FC = () => {
             placeholder="Search name, email, phone, plate..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
+            className="w-full sm:w-64 px-4 py-2.5 min-h-[44px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm"
           />
           <button
             onClick={loadRiders}
@@ -247,7 +247,7 @@ const RiderApprovalPage: React.FC = () => {
 
                 {/* Vehicle & License Info */}
                 <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-3">
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     <div>
                       <p className="text-xs text-gray-500">Vehicle Type</p>
                       <p className="font-medium text-gray-900 text-sm capitalize">{rider.vehicle_type}</p>
@@ -282,7 +282,7 @@ const RiderApprovalPage: React.FC = () => {
                             <img
                               src={url}
                               alt={DOC_LABELS[key] || key}
-                              className="w-16 h-12 object-cover rounded-lg border border-gray-200 group-hover:border-gray-400 transition-colors"
+                              className="w-20 h-14 object-cover rounded-lg border border-gray-200 group-hover:border-gray-400 transition-colors"
                               onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 75"><rect fill="%23f3f4f6" width="100" height="75"/><text x="50" y="42" font-size="10" text-anchor="middle" fill="%239ca3af">No img</text></svg>'; }}
                             />
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
@@ -291,7 +291,7 @@ const RiderApprovalPage: React.FC = () => {
                               </svg>
                             </div>
                           </button>
-                          <p className="text-[10px] text-gray-400 mt-0.5 text-center truncate w-16">{DOC_LABELS[key]?.split(' ')[0] || key}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 text-center truncate w-20">{DOC_LABELS[key]?.split(' ')[0] || key}</p>
                         </div>
                       ))}
                     </div>
@@ -318,7 +318,7 @@ const RiderApprovalPage: React.FC = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setSelectedRider(rider)}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 font-medium transition-colors text-sm flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 min-h-[44px] bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 font-medium transition-colors text-sm flex items-center justify-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -331,14 +331,14 @@ const RiderApprovalPage: React.FC = () => {
                       <button
                         onClick={() => handleReject(rider.id)}
                         disabled={actionLoading}
-                        className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 min-h-[44px] bg-red-50 text-red-600 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Reject
                       </button>
                       <button
                         onClick={() => handleApprove(rider.id)}
                         disabled={actionLoading}
-                        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 min-h-[44px] bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Approve
                       </button>
@@ -445,7 +445,7 @@ const RiderApprovalPage: React.FC = () => {
                   </svg>
                   Vehicle Information
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-gray-500">Vehicle Type</p>
                     <p className="font-medium text-sm text-gray-900 capitalize">{selectedRider.vehicle_type}</p>
@@ -596,14 +596,14 @@ const RiderApprovalPage: React.FC = () => {
                   <button
                     onClick={() => handleReject(selectedRider.id)}
                     disabled={actionLoading}
-                    className="flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 active:bg-red-200 font-semibold transition-colors text-sm border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-3 min-h-[44px] bg-red-50 text-red-600 rounded-xl hover:bg-red-100 active:bg-red-200 font-semibold transition-colors text-sm border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Reject Application
                   </button>
                   <button
                     onClick={() => handleApprove(selectedRider.id)}
                     disabled={actionLoading}
-                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 active:bg-green-800 font-semibold transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-3 min-h-[44px] bg-green-600 text-white rounded-xl hover:bg-green-700 active:bg-green-800 font-semibold transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Approve & Verify Rider
                   </button>

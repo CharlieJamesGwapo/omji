@@ -295,7 +295,7 @@ const NotificationsPage: React.FC = () => {
                   {notification.title}
                 </h3>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${getTypeColor(
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getTypeColor(
                     notification.type
                   )}`}
                 >
@@ -469,7 +469,7 @@ const NotificationsPage: React.FC = () => {
                       key={opt.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, target_type: opt.value as 'all' | 'users' | 'drivers' })}
-                      className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${
+                      className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all min-h-[44px] ${
                         formData.target_type === opt.value
                           ? 'border-gray-900 bg-gray-50 shadow-sm'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -490,7 +490,7 @@ const NotificationsPage: React.FC = () => {
                       }`}>
                         {opt.label}
                       </div>
-                      <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5 hidden sm:block">{opt.desc}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{opt.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -536,7 +536,7 @@ const NotificationsPage: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-900">{formData.title || 'Notification Title'}</p>
                         <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{formData.message || 'Message body will appear here...'}</p>
-                        <p className="text-[10px] text-gray-400 mt-1">Just now</p>
+                        <p className="text-xs text-gray-400 mt-1">Just now</p>
                       </div>
                     </div>
                   </div>
@@ -554,7 +554,7 @@ const NotificationsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={sending}
-                  className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 active:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2 min-h-[44px]"
                 >
                   {sending ? (
                     <>

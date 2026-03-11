@@ -80,7 +80,7 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
               <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Admin</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+          <button onClick={onClose} className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -101,7 +101,7 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
                     key={item.path}
                     to={item.path}
                     onClick={onClose}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
                       isActive
                         ? 'bg-gray-900 text-white'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -131,7 +131,7 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
           </div>
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 rounded-lg transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -164,7 +164,7 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
+              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -189,7 +189,7 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
         </div>
 
         {/* Page */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 sm:pb-6 lg:pb-8 overflow-auto">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/users" element={<UsersPage />} />

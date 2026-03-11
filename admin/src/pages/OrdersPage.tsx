@@ -303,7 +303,7 @@ const OrdersPage: React.FC = () => {
         {paginated.map((order) => {
           const items = parseItems(order.items);
           return (
-            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-4">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -359,7 +359,7 @@ const OrdersPage: React.FC = () => {
                   value={order.status}
                   onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
                   disabled={updatingId === order.id}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm min-h-[44px] outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50"
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
@@ -494,7 +494,7 @@ const OrdersPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
@@ -515,7 +515,7 @@ const OrdersPage: React.FC = () => {
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
+                      className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
                           ? 'bg-gray-900 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -530,7 +530,7 @@ const OrdersPage: React.FC = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

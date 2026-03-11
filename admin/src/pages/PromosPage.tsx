@@ -182,7 +182,7 @@ const PromosPage: React.FC = () => {
       {showForm && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <h2 className="text-lg font-bold mb-4">{editingPromo ? 'Edit Promo Code' : 'New Promo Code'}</h2>
-          <form onSubmit={editingPromo ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={editingPromo ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
             <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900" required />
             <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-gray-900">
@@ -240,7 +240,7 @@ const PromosPage: React.FC = () => {
               <span className="font-mono font-bold text-gray-900">{promo.code}</span>
               <button
                 onClick={() => handleToggleActive(promo)}
-                className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors ${promo.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors min-h-[40px] ${promo.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
               >
                 {promo.is_active ? 'Active' : 'Inactive'}
               </button>
@@ -258,8 +258,8 @@ const PromosPage: React.FC = () => {
               </div>
             )}
             <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
-              <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium">Edit</button>
-              <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+              <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium min-h-[40px]">Edit</button>
+              <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium min-h-[40px]">Delete</button>
             </div>
           </div>
         ))}
