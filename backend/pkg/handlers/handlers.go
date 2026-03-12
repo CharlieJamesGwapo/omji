@@ -375,6 +375,10 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride"})
 			return
 		}
+		// Notify user of successful ride booking
+		if err := db.Create(&models.Notification{UserID: userID, Title: "Ride Booked", Body: "Your ride request has been submitted. A rider will accept soon.", Type: "ride_request"}).Error; err != nil {
+			log.Printf("Failed to create ride booking notification: %v", err)
+		}
 		c.JSON(http.StatusCreated, gin.H{
 			"success":   true,
 			"data":      gin.H{"id": ride.ID, "status": ride.Status, "pickup_location": ride.PickupLocation, "dropoff_location": ride.DropoffLocation, "distance": ride.Distance, "estimated_fare": ride.EstimatedFare, "vehicle_type": ride.VehicleType, "payment_method": ride.PaymentMethod, "driver_id": ride.DriverID, "created_at": ride.CreatedAt},
@@ -554,6 +558,19 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Model(&ride).Update("status", "cancelled").Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel ride"})
 			return
+		}
+		// Notify driver if one was assigned
+		if ride.DriverID != nil {
+			var driver models.Driver
+			if err := db.Where("id = ?", *ride.DriverID).First(&driver).Error; err == nil {
+				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Ride Cancelled", Body: "The passenger cancelled the ride from " + ride.PickupLocation + ".", Type: "ride_cancelled"}).Error; err != nil {
+					log.Printf("Failed to create ride cancel notification for driver: %v", err)
+				}
+			}
+		}
+		// Notify user
+		if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Cancelled", Body: "Your ride has been cancelled.", Type: "ride_cancelled"}).Error; err != nil {
+			log.Printf("Failed to create ride cancel notification: %v", err)
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
 	}
@@ -864,6 +881,10 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})
 			return
 		}
+		// Notify user of successful delivery booking
+		if err := db.Create(&models.Notification{UserID: userID, Title: "Delivery Booked", Body: "Your delivery request has been submitted. A rider will accept soon.", Type: "delivery_request"}).Error; err != nil {
+			log.Printf("Failed to create delivery booking notification: %v", err)
+		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": delivery.ID, "status": delivery.Status, "pickup_location": delivery.PickupLocation, "dropoff_location": delivery.DropoffLocation, "distance": delivery.Distance, "delivery_fee": delivery.DeliveryFee, "item_description": delivery.ItemDescription, "item_photo": delivery.ItemPhoto, "payment_method": delivery.PaymentMethod, "created_at": delivery.CreatedAt}, "timestamp": time.Now()})
 	}
 }
@@ -926,6 +947,19 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Model(&d).Update("status", "cancelled").Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel delivery"})
 			return
+		}
+		// Notify driver if one was assigned
+		if d.DriverID != nil {
+			var driver models.Driver
+			if err := db.Where("id = ?", *d.DriverID).First(&driver).Error; err == nil {
+				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Delivery Cancelled", Body: "The customer cancelled the delivery from " + d.PickupLocation + ".", Type: "delivery_cancelled"}).Error; err != nil {
+					log.Printf("Failed to create delivery cancel notification for driver: %v", err)
+				}
+			}
+		}
+		// Notify user
+		if err := db.Create(&models.Notification{UserID: d.UserID, Title: "Delivery Cancelled", Body: "Your delivery has been cancelled.", Type: "delivery_cancelled"}).Error; err != nil {
+			log.Printf("Failed to create delivery cancel notification: %v", err)
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
 	}
@@ -1895,6 +1929,21 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&ride).Updates(updates).Error; err != nil {
 					return err
 				}
+				// Notify user of ride status change
+				var rideStatusTitle, rideStatusBody string
+				switch input.Status {
+				case "driver_arrived":
+					rideStatusTitle = "Rider Arrived"
+					rideStatusBody = "Your rider has arrived at the pickup location."
+				case "in_progress":
+					rideStatusTitle = "Trip Started"
+					rideStatusBody = "Your ride is now in progress!"
+				}
+				if rideStatusTitle != "" {
+					if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: rideStatusTitle, Body: rideStatusBody, Type: "ride_update"}).Error; err != nil {
+						log.Printf("Failed to create ride status notification: %v", err)
+					}
+				}
 				if input.Status == "completed" {
 					finalFare := ride.FinalFare
 					if finalFare == 0 {
@@ -1980,6 +2029,24 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 				}
 				if err := tx.Model(&delivery).Updates(updates).Error; err != nil {
 					return err
+				}
+				// Notify user of delivery status change
+				var delStatusTitle, delStatusBody string
+				switch input.Status {
+				case "driver_arrived":
+					delStatusTitle = "Rider Arrived"
+					delStatusBody = "Your rider has arrived at the pickup location."
+				case "picked_up":
+					delStatusTitle = "Item Picked Up"
+					delStatusBody = "Your item has been picked up and is on its way."
+				case "in_progress":
+					delStatusTitle = "Delivery In Progress"
+					delStatusBody = "Your delivery is now in progress!"
+				}
+				if delStatusTitle != "" {
+					if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: delStatusTitle, Body: delStatusBody, Type: "delivery_update"}).Error; err != nil {
+						log.Printf("Failed to create delivery status notification: %v", err)
+					}
 				}
 				if input.Status == "completed" {
 					if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Completed", Body: "Your delivery has been completed. Fee: ₱" + strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), Type: "delivery"}).Error; err != nil {
@@ -2955,6 +3022,33 @@ func AdminUpdateOrderStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update order status"})
 			return
 		}
+		// Notify user of order status change
+		var orderStatusTitle, orderStatusBody string
+		switch input.Status {
+		case "confirmed":
+			orderStatusTitle = "Order Confirmed"
+			orderStatusBody = "Your order has been confirmed by the store."
+		case "preparing":
+			orderStatusTitle = "Order Being Prepared"
+			orderStatusBody = "Your order is being prepared."
+		case "ready":
+			orderStatusTitle = "Order Ready"
+			orderStatusBody = "Your order is ready for pickup/delivery."
+		case "out_for_delivery":
+			orderStatusTitle = "Out for Delivery"
+			orderStatusBody = "Your order is out for delivery."
+		case "delivered":
+			orderStatusTitle = "Order Delivered"
+			orderStatusBody = "Your order has been delivered. Enjoy!"
+		case "cancelled":
+			orderStatusTitle = "Order Cancelled"
+			orderStatusBody = "Your order has been cancelled."
+		}
+		if orderStatusTitle != "" {
+			if err := db.Create(&models.Notification{UserID: order.UserID, Title: orderStatusTitle, Body: orderStatusBody, Type: "order_update"}).Error; err != nil {
+				log.Printf("Failed to create order status notification: %v", err)
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": order, "timestamp": time.Now()})
 	}
 }
@@ -3464,6 +3558,10 @@ func AdminUpdateDriver(db *gorm.DB) gin.HandlerFunc {
 			if *input.IsVerified {
 				if err := db.Model(&models.User{}).Where("id = ?", driver.UserID).Update("role", "driver").Error; err != nil {
 					log.Printf("Failed to update user role for driver %d (user %d): %v", driver.ID, driver.UserID, err)
+				}
+				// Notify driver of verification
+				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Account Verified", Body: "Congratulations! Your rider account has been verified. You can now go online and accept rides.", Type: "account_update"}).Error; err != nil {
+					log.Printf("Failed to create verification notification: %v", err)
 				}
 			}
 		}

@@ -20,7 +20,6 @@ import { deliveryService, walletService, promoService, ratesService } from '../.
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
-import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 
 export default function PasugoScreen({ navigation }: any) {
@@ -75,7 +74,6 @@ export default function PasugoScreen({ navigation }: any) {
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [itemSize, setItemSize] = useState<'small' | 'medium' | 'large'>('small');
   const [activeDelivery, setActiveDelivery] = useState<any>(null);
   const [estimatedTime, setEstimatedTime] = useState('');
@@ -581,17 +579,6 @@ export default function PasugoScreen({ navigation }: any) {
               <Text style={styles.etaDistanceText}>{distance.toFixed(1)} km</Text>
             </View>
           </View>
-        )}
-
-        {/* Nearby Riders (informational — shows available riders near pickup) */}
-        {pickupLocation.latitude > 0 && (
-          <NearbyRiders
-            pickupLatitude={pickupLocation.latitude}
-            pickupLongitude={pickupLocation.longitude}
-            accentColor="#10B981"
-            selectedDriverId={null}
-            onSelectDriver={() => {}}
-          />
         )}
 
         {/* Book Button */}

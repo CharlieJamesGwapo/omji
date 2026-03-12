@@ -17,7 +17,6 @@ import * as Location from 'expo-location';
 import { rideService, walletService, promoService, ratesService } from '../../services/api';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
-import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
@@ -76,7 +75,6 @@ export default function PasundoScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [activeRide, setActiveRide] = useState<any>(null);
-  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [estimatedTime, setEstimatedTime] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
@@ -579,23 +577,11 @@ export default function PasundoScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Nearby Riders (informational — shows available riders near pickup) */}
-        {pickupLocation.latitude > 0 && (
-          <NearbyRiders
-            pickupLatitude={pickupLocation.latitude}
-            pickupLongitude={pickupLocation.longitude}
-            vehicleType={vehicleType}
-            accentColor="#3B82F6"
-            selectedDriverId={null}
-            onSelectDriver={() => {}}
-          />
-        )}
-
         {/* Info */}
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#3B82F6" />
           <Text style={styles.infoText}>
-            Nearby riders will be notified and can accept your request
+            Nearby riders will be notified when you book
           </Text>
         </View>
 

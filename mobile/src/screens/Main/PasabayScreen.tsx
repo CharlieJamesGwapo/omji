@@ -19,7 +19,6 @@ import { rideService, rideShareService, walletService, promoService, ratesServic
 import { useAuth } from '../../context/AuthContext';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
-import NearbyRiders from '../../components/NearbyRiders';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 
@@ -77,7 +76,6 @@ export default function PasabayScreen({ navigation }: any) {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [rideType, setRideType] = useState('single');
   const [loading, setLoading] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [availableRides, setAvailableRides] = useState<any[]>([]);
   const [loadingRides, setLoadingRides] = useState(false);
   const [mode, setMode] = useState<'book' | 'join'>('book');
@@ -787,18 +785,6 @@ export default function PasabayScreen({ navigation }: any) {
                 <Text style={styles.priceTotalValue}>₱{totalFare.toFixed(0)}</Text>
               </View>
             </View>
-
-            {/* Nearby Riders (informational — shows available riders near pickup) */}
-            {pickupLocation.latitude > 0 && pickupLocation.longitude !== 0 && !isDriver && (
-              <NearbyRiders
-                pickupLatitude={pickupLocation.latitude}
-                pickupLongitude={pickupLocation.longitude}
-                vehicleType={selectedType.vehicleType}
-                accentColor="#8B5CF6"
-                selectedDriverId={null}
-                onSelectDriver={() => {}}
-              />
-            )}
 
             {/* Book */}
             <TouchableOpacity
