@@ -48,7 +48,7 @@ interface DriverRequest {
 }
 
 export default function RiderDashboardScreen({ navigation }: any) {
-  const { logout, refreshUser } = useAuth();
+  const { logout, refreshUser, updateUser } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [requests, setRequests] = useState<DriverRequest[]>([]);
   const [activeJobs, setActiveJobs] = useState<DriverRequest[]>([]);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const dismissedRequestIds = useRef<Set<number>>(new Set());
   const [onlineSince, setOnlineSince] = useState<Date | null>(null);
   const [onlineMinutes, setOnlineMinutes] = useState(0);
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
@@ -175,13 +176,17 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
       if (requestsRes.status === 'fulfilled') {
         const data = requestsRes.value?.data?.data;
-        const newRequests = Array.isArray(data) ? data : [];
+        const allRequests = Array.isArray(data) ? data : [];
+        // Filter out locally dismissed pending requests
+        const newRequests = allRequests.filter(
+          (r: DriverRequest) => !(r.status === 'pending' && dismissedRequestIds.current.has(r.id))
+        );
         if (newRequests.length > previousRequestCount.current) {
           Vibration.vibrate(500);
         }
         previousRequestCount.current = newRequests.length;
         setRequests(newRequests);
-        const activeData = requestsRes.value?.data?.active;
+        const activeData = requestsRes.value?.data?.data?.active || requestsRes.value?.data?.active;
         setActiveJobs(Array.isArray(activeData) ? activeData : []);
       }
     } catch (error: any) {
@@ -275,6 +280,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
         await driverService.setAvailability({ available: false });
         setIsOnline(false);
         setOnlineSince(null);
+        dismissedRequestIds.current.clear();
         showToast('You are now offline.', 'info');
       } catch (error: any) {
         const msg = error.response?.data?.error || 'Failed to go offline. Please try again.';
@@ -348,7 +354,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
           onPress: async () => {
             try {
               if (request.status === 'pending') {
-                // Pending requests: just dismiss from local list (not accepted yet)
+                // Pending requests: dismiss locally and persist across polls
+                dismissedRequestIds.current.add(request.id);
                 setRequests(prev => prev.filter(r => r.id !== request.id));
               } else {
                 // Accepted requests: call API to reject and return to pending
@@ -531,10 +538,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.continueAsUserButton}
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack();
-              }
+            onPress={async () => {
+              await updateUser({ role: 'user' });
             }}
           >
             <Text style={styles.continueAsUserText}>

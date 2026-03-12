@@ -95,13 +95,15 @@ export default function RideHistoryScreen({ navigation }: any) {
     fetchRides();
   }, [fetchRides]);
 
-  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'preparing'];
+  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'picked_up', 'in_progress', 'preparing', 'confirmed', 'ready', 'out_for_delivery'];
   const filteredRides =
     filterType === 'all'
       ? rides
       : filterType === 'pending'
         ? rides.filter((ride) => ongoingStatuses.includes(ride.status))
-        : rides.filter((ride) => ride.status === filterType);
+        : filterType === 'completed'
+          ? rides.filter((ride) => ride.status === 'completed' || ride.status === 'delivered')
+          : rides.filter((ride) => ride.status === filterType);
 
   const totalRides = rides.length;
   const completedRides = rides.filter(r => r.status === 'completed' || r.status === 'delivered').length;

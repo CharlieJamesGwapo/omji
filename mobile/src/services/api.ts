@@ -237,6 +237,8 @@ export const driverService = {
     api.post('/driver/availability', data),
   updateRideStatus: (id: number, status: string) =>
     api.put(`/driver/rides/${id}/status`, { status }),
+  updateDeliveryStatus: (id: number, status: string) =>
+    api.put(`/driver/deliveries/${id}/status`, { status }),
 };
 
 // Chat Services

@@ -201,29 +201,21 @@ export default function PasabayScreen({ navigation }: any) {
               const response = await rideShareService.joinRideShare(ride.id, paymentMethod);
               const data = response.data?.data;
               fetchAvailableRides();
-              const joinedRideId = data?.ride_id;
+              const joinedRideId = data?.ride_id || data?.id || ride.id;
               const joinedFare = data?.fare || ride.base_fare || 0;
               const joinedPickup = data?.pickup || ride.pickup_location;
               const joinedDropoff = data?.dropoff || ride.dropoff_location;
 
               if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-                if (joinedRideId) {
-                  navigation.navigate('Payment', {
-                    type: paymentMethod,
-                    amount: joinedFare,
-                    serviceType: 'ride',
-                    rideId: joinedRideId,
-                    pickup: joinedPickup,
-                    dropoff: joinedDropoff,
-                  });
-                } else {
-                  navigation.navigate('Payment', {
-                    type: paymentMethod,
-                    amount: joinedFare,
-                    serviceType: 'ride',
-                  });
-                }
-              } else if (joinedRideId) {
+                navigation.navigate('Payment', {
+                  type: paymentMethod,
+                  amount: joinedFare,
+                  serviceType: 'ride',
+                  rideId: joinedRideId,
+                  pickup: joinedPickup,
+                  dropoff: joinedDropoff,
+                });
+              } else {
                 navigation.navigate('Tracking', {
                   type: 'ride',
                   rideId: joinedRideId,
@@ -231,8 +223,6 @@ export default function PasabayScreen({ navigation }: any) {
                   dropoff: joinedDropoff,
                   fare: joinedFare,
                 });
-              } else {
-                Alert.alert('Joined!', `You joined the ride for ₱${ride.base_fare || 0}.\nThe driver will pick you up along the route.`);
               }
             } catch (error: any) {
               const msg = error.response?.data?.error || 'Failed to join ride share';

@@ -166,7 +166,11 @@ export default function TrackingScreen({ route, navigation }: any) {
         onPress: async () => {
           setUpdatingStatus(true);
           try {
-            await driverService.updateRideStatus(rideId, next.status);
+            if (type === 'delivery') {
+              await driverService.updateDeliveryStatus(rideId, next.status);
+            } else {
+              await driverService.updateRideStatus(rideId, next.status);
+            }
             setStatus(next.status);
             fetchRideDetails();
           } catch (error: any) {
@@ -240,6 +244,8 @@ export default function TrackingScreen({ route, navigation }: any) {
   const dropoffLng = rideData?.dropoff_longitude || rideData?.dropoff_lng || 0;
   const driverInfo = rideData?.driver || rideData?.Driver;
   const driverVehicle = rideData?.driver || rideData?.Driver;
+  // For driver→passenger chat, we need the passenger info
+  const passengerInfo = rideData?.user || rideData?.User;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const paymentInfo = PAYMENT_LABELS[paymentMethod] || PAYMENT_LABELS.cash;
 
@@ -520,39 +526,42 @@ export default function TrackingScreen({ route, navigation }: any) {
             </View>
           )}
 
-          {/* Driver Card */}
-          {!!driverInfo && status !== 'pending' && (
+          {/* Contact Card - Shows driver info for passengers, passenger info for drivers */}
+          {!!(isDriver ? (passengerInfo || rideData?.user_id) : driverInfo) && status !== 'pending' && (
             <View style={styles.driverCard}>
               <View style={styles.driverCardHeader}>
-                <Text style={styles.driverCardTitle}>Your Rider</Text>
+                <Text style={styles.driverCardTitle}>{isDriver ? 'Passenger' : 'Your Rider'}</Text>
               </View>
               <View style={styles.driverInfo}>
-                {driverInfo.profile_image ? (
-                  <Image source={{ uri: driverInfo.profile_image }} style={styles.driverPhoto} />
+                {(isDriver ? passengerInfo?.profile_image : driverInfo?.profile_image) ? (
+                  <Image source={{ uri: isDriver ? passengerInfo.profile_image : driverInfo.profile_image }} style={styles.driverPhoto} />
                 ) : (
                   <View style={[styles.driverPhoto, styles.driverPhotoPlaceholder]}>
                     <Ionicons name="person" size={moderateScale(24)} color={COLORS.gray400} />
                   </View>
                 )}
                 <View style={styles.driverDetails}>
-                  <Text style={styles.driverName}>{driverInfo.name || 'Driver'}</Text>
-                  <View style={styles.driverMeta}>
-                    {/* Star rating display */}
-                    <View style={styles.starsContainer}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={`driver-star-${star}`}
-                          name={star <= Math.round(Number(driverInfo.rating || driverVehicle?.rating || 5)) ? 'star' : 'star-outline'}
-                          size={moderateScale(14)}
-                          color={star <= Math.round(Number(driverInfo.rating || driverVehicle?.rating || 5)) ? COLORS.warningDark : COLORS.gray300}
-                        />
-                      ))}
-                      <Text style={styles.driverRatingNum}>
-                        {Number(driverInfo.rating || driverVehicle?.rating || 5.0).toFixed(1)}
-                      </Text>
+                  <Text style={styles.driverName}>
+                    {isDriver ? (passengerInfo?.name || 'Passenger') : (driverInfo?.name || 'Driver')}
+                  </Text>
+                  {!isDriver && (
+                    <View style={styles.driverMeta}>
+                      <View style={styles.starsContainer}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Ionicons
+                            key={`driver-star-${star}`}
+                            name={star <= Math.round(Number(driverInfo?.rating || driverVehicle?.rating || 5)) ? 'star' : 'star-outline'}
+                            size={moderateScale(14)}
+                            color={star <= Math.round(Number(driverInfo?.rating || driverVehicle?.rating || 5)) ? COLORS.warningDark : COLORS.gray300}
+                          />
+                        ))}
+                        <Text style={styles.driverRatingNum}>
+                          {Number(driverInfo?.rating || driverVehicle?.rating || 5.0).toFixed(1)}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  {!!(driverVehicle?.vehicle_model || driverVehicle?.vehicle_type) && (
+                  )}
+                  {!isDriver && !!(driverVehicle?.vehicle_model || driverVehicle?.vehicle_type) && (
                     <View style={styles.vehicleRow}>
                       <Ionicons name="bicycle-outline" size={moderateScale(14)} color={COLORS.gray500} />
                       <Text style={styles.driverVehicle}>
@@ -561,7 +570,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                     </View>
                   )}
                 </View>
-                {!!(driverVehicle?.vehicle_plate) && (
+                {!isDriver && !!(driverVehicle?.vehicle_plate) && (
                   <View style={styles.plateContainer}>
                     <Text style={styles.plateText}>{driverVehicle.vehicle_plate}</Text>
                   </View>
@@ -572,7 +581,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                   style={styles.actionBtn}
                   activeOpacity={0.7}
                   onPress={() => navigation.navigate('Chat', {
-                    rider: driverInfo,
+                    rider: isDriver ? (passengerInfo || { id: rideData?.user_id, name: 'Passenger' }) : driverInfo,
                     rideId: type === 'ride' ? rideId : undefined,
                     deliveryId: type === 'delivery' ? rideId : undefined,
                   })}
@@ -586,10 +595,11 @@ export default function TrackingScreen({ route, navigation }: any) {
                   style={styles.actionBtn}
                   activeOpacity={0.7}
                   onPress={() => {
-                    if (driverInfo.phone) {
-                      Linking.openURL(`tel:${driverInfo.phone}`);
+                    const contactPhone = isDriver ? passengerInfo?.phone : driverInfo?.phone;
+                    if (contactPhone) {
+                      Linking.openURL(`tel:${contactPhone}`);
                     } else {
-                      Alert.alert('No Phone', 'Driver phone number is not available. Try chat instead.');
+                      Alert.alert('No Phone', 'Phone number is not available. Try chat instead.');
                     }
                   }}
                 >
