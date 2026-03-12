@@ -40,10 +40,15 @@ interface DriverRequest {
   user?: { name: string };
   User?: { name: string };
   created_at?: string;
+  // Rideshare fields
+  available_seats?: number;
+  total_seats?: number;
+  base_fare?: number;
+  passengers?: string[];
 }
 
 export default function RiderDashboardScreen({ navigation }: any) {
-  const { logout, updateUser, refreshUser } = useAuth();
+  const { logout, refreshUser } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -193,12 +198,28 @@ export default function RiderDashboardScreen({ navigation }: any) {
     fetchData();
   }, [fetchDriverProfile, fetchData]);
 
-  // Poll for new requests when online
+  // Poll for new requests when online AND screen is focused
   useEffect(() => {
     if (!isOnline) return;
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [isOnline, fetchData]);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      fetchData();
+      interval = setInterval(fetchData, 10000);
+    };
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+    };
+    const unsubFocus = navigation.addListener('focus', startPolling);
+    const unsubBlur = navigation.addListener('blur', stopPolling);
+    // Start immediately (focus listener fires on mount but guard against double-start)
+    startPolling();
+    return () => {
+      stopPolling();
+      unsubFocus();
+      unsubBlur();
+    };
+  }, [isOnline, fetchData, navigation]);
 
   // Poll for verification status when pending (every 15s for responsive approval detection)
   useEffect(() => {
@@ -408,10 +429,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
     }
   };
 
-  // Acceptance rate - derive a stable pseudo-value from completed rides count
-  const acceptanceRate = earnings.completed_rides > 0
-    ? Math.min(100, Math.max(85, 100 - (earnings.completed_rides % 8)))
-    : 100;
+  // Acceptance rate from backend, fallback to 100% for new drivers
+  const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? 95 : 100);
 
   if (loading) {
     return (
@@ -441,7 +460,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </View>
         </View>
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(24) }}
+          contentContainerStyle={styles.pendingScrollContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={async () => {
               setRefreshing(true);
@@ -450,52 +469,19 @@ export default function RiderDashboardScreen({ navigation }: any) {
             }} />
           }
         >
-          <View style={{
-            backgroundColor: COLORS.white,
-            borderRadius: RESPONSIVE.borderRadius.large,
-            padding: moderateScale(24),
-            alignItems: 'center',
-            ...SHADOWS.lg,
-          }}>
-            <View style={{
-              width: moderateScale(100),
-              height: moderateScale(100),
-              borderRadius: moderateScale(50),
-              backgroundColor: COLORS.warningBg,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: verticalScale(20),
-            }}>
+          <View style={styles.pendingCard}>
+            <View style={styles.pendingIconCircle}>
               <Ionicons name="hourglass" size={moderateScale(48)} color={COLORS.warning} />
             </View>
-            <Text style={{
-              fontSize: RESPONSIVE.fontSize.xxlarge,
-              fontWeight: 'bold',
-              color: COLORS.gray800,
-              marginBottom: verticalScale(12),
-              textAlign: 'center',
-            }}>
+            <Text style={styles.pendingTitle}>
               Awaiting Admin Approval
             </Text>
-            <Text style={{
-              fontSize: RESPONSIVE.fontSize.medium,
-              color: COLORS.gray500,
-              textAlign: 'center',
-              lineHeight: fontScale(22),
-              marginBottom: verticalScale(24),
-              paddingHorizontal: moderateScale(8),
-            }}>
+            <Text style={styles.pendingDescription}>
               Your rider application has been submitted and is under review. An admin will verify your documents and approve your account.
             </Text>
 
-            <View style={{
-              backgroundColor: COLORS.warningBg,
-              borderRadius: RESPONSIVE.borderRadius.medium,
-              padding: moderateScale(16),
-              width: '100%',
-              marginBottom: verticalScale(20),
-            }}>
-              <Text style={{ fontSize: RESPONSIVE.fontSize.small, fontWeight: '700', color: COLORS.warningDark, marginBottom: verticalScale(10) }}>
+            <View style={styles.pendingStepsCard}>
+              <Text style={styles.pendingStepsHeader}>
                 What happens next?
               </Text>
               {[
@@ -503,19 +489,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 { icon: 'shield-checkmark-outline', text: 'Your account gets verified' },
                 { icon: 'flash-outline', text: 'You can go online and start earning' },
               ].map((step, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
-                  <View style={{
-                    width: moderateScale(28),
-                    height: moderateScale(28),
-                    borderRadius: moderateScale(14),
-                    backgroundColor: 'rgba(245,158,11,0.15)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: moderateScale(12),
-                  }}>
+                <View key={index} style={styles.pendingStepRow}>
+                  <View style={styles.pendingStepIcon}>
                     <Ionicons name={step.icon as any} size={moderateScale(14)} color={COLORS.warningDark} />
                   </View>
-                  <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: COLORS.gray700, flex: 1 }}>
+                  <Text style={styles.pendingStepText}>
                     {step.text}
                   </Text>
                 </View>
@@ -523,16 +501,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
             </View>
 
             <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: COLORS.gray100,
-                borderRadius: RESPONSIVE.borderRadius.medium,
-                paddingVertical: moderateScale(14),
-                paddingHorizontal: moderateScale(24),
-                width: '100%',
-              }}
+              style={styles.checkStatusButton}
               onPress={async () => {
                 setRefreshing(true);
                 try {
@@ -554,34 +523,22 @@ export default function RiderDashboardScreen({ navigation }: any) {
               }}
             >
               <Ionicons name="refresh" size={moderateScale(18)} color={COLORS.gray600} style={{ marginRight: moderateScale(8) }} />
-              <Text style={{ fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: COLORS.gray700 }}>
+              <Text style={styles.checkStatusText}>
                 Check Status
               </Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            style={{
-              marginTop: verticalScale(20),
-              alignItems: 'center',
-              paddingVertical: moderateScale(14),
-            }}
+            style={styles.continueAsUserButton}
             onPress={() => {
-              Alert.alert(
-                'Switch to User Mode',
-                'You can continue using OMJI as a user while waiting for approval.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Switch',
-                    onPress: () => updateUser({ role: 'user' }),
-                  },
-                ]
-              );
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              }
             }}
           >
-            <Text style={{ fontSize: RESPONSIVE.fontSize.small, color: COLORS.accent, fontWeight: '600' }}>
-              Switch to User Mode
+            <Text style={styles.continueAsUserText}>
+              Continue as User
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -701,7 +658,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 style={styles.activeJobCard}
                 onPress={() => {
                   if (job.type === 'rideshare') {
-                    Alert.alert('Ride Share', `Route: ${job.pickup || 'Pickup'} → ${job.dropoff || 'Dropoff'}\nSeats: ${(job as any).available_seats || 0}/${(job as any).total_seats || 0}\nFare: ₱${((job as any).base_fare || 0).toFixed(0)}\nPassengers: ${(job as any).passengers?.join(', ') || 'None yet'}`);
+                    Alert.alert('Ride Share', `Route: ${job.pickup || 'Pickup'} → ${job.dropoff || 'Dropoff'}\nSeats: ${job.available_seats || 0}/${job.total_seats || 0}\nFare: ₱${(job.base_fare || 0).toFixed(0)}\nPassengers: ${job.passengers?.join(', ') || 'None yet'}`);
                   } else {
                     navigation.navigate('Tracking', {
                       type: job.type === 'delivery' ? 'delivery' : 'ride',
@@ -729,7 +686,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 </View>
                 <View style={styles.activeJobRight}>
                   <Text style={[styles.activeJobFare, { color: getJobColor(job) }]}>
-                    ₱{(job.estimated_fare || job.delivery_fee || (job as any).base_fare || 0).toFixed(0)}
+                    ₱{(job.estimated_fare || job.delivery_fee || job.base_fare || 0).toFixed(0)}
                   </Text>
                   <View style={styles.activeJobChevron}>
                     <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
@@ -1699,5 +1656,99 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray100,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Pending approval screen
+  pendingScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingTop: verticalScale(24),
+  },
+  pendingCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(24),
+    alignItems: 'center',
+    ...SHADOWS.lg,
+  },
+  pendingIconCircle: {
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: COLORS.warningBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(20),
+  },
+  pendingTitle: {
+    fontSize: RESPONSIVE.fontSize.xxlarge,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(12),
+    textAlign: 'center',
+  },
+  pendingDescription: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    lineHeight: fontScale(22),
+    marginBottom: verticalScale(24),
+    paddingHorizontal: moderateScale(8),
+  },
+  pendingStepsCard: {
+    backgroundColor: COLORS.warningBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    width: '100%',
+    marginBottom: verticalScale(20),
+  },
+  pendingStepsHeader: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '700',
+    color: COLORS.warningDark,
+    marginBottom: verticalScale(10),
+  },
+  pendingStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(8),
+  },
+  pendingStepIcon: {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(12),
+  },
+  pendingStepText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray700,
+    flex: 1,
+  },
+  checkStatusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.gray100,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(24),
+    width: '100%',
+  },
+  checkStatusText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  continueAsUserButton: {
+    marginTop: verticalScale(20),
+    alignItems: 'center',
+    paddingVertical: moderateScale(14),
+  },
+  continueAsUserText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.accent,
+    fontWeight: '600',
   },
 });

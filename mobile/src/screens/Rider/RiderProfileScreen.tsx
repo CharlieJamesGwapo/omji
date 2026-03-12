@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -16,20 +17,14 @@ import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 
 export default function RiderProfileScreen({ navigation }: any) {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [earningsData, setEarningsData] = useState<any>({});
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchData();
-    });
-    return unsubscribe;
-  }, [navigation]);
 
   const [driverData, setDriverData] = useState<any>({});
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [earningsRes, profileRes] = await Promise.allSettled([
         driverService.getEarnings(),
@@ -46,7 +41,14 @@ export default function RiderProfileScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchData();
+    });
+    return unsubscribe;
+  }, [navigation, fetchData]);
 
   const riderProfile = {
     name: user?.name || 'Rider',
@@ -139,14 +141,6 @@ export default function RiderProfileScreen({ navigation }: any) {
             style={styles.headerSettingsBtn}
             onPress={() => Alert.alert('Settings', 'Rider Settings', [
               { text: 'View Earnings', onPress: () => navigation.navigate('RiderEarnings') },
-              { text: 'Switch to User Mode', onPress: () => {
-                Alert.alert('Switch Mode', 'Switch back to user mode?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Switch', onPress: () => {
-                    updateUser({ role: 'user' });
-                  }},
-                ]);
-              }},
               { text: 'Logout', style: 'destructive', onPress: handleLogout },
               { text: 'Cancel', style: 'cancel' },
             ])}
@@ -186,7 +180,28 @@ export default function RiderProfileScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await fetchData();
+              setRefreshing(false);
+            }}
+            colors={[COLORS.success]}
+            tintColor={COLORS.success}
+          />
+        }
+      >
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.success} />
+          </View>
+        )}
+
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {stats.map((stat) => (
@@ -370,6 +385,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  loadingOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(20),
   },
   headerBg: {
     backgroundColor: COLORS.success,

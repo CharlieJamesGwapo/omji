@@ -239,15 +239,15 @@ export default function RiderRegistrationScreen({ navigation }: any) {
                 </View>
               ))}
             </View>
+            <View style={styles.pendingBadge}>
+              <Ionicons name="hourglass-outline" size={moderateScale(16)} color={COLORS.warning} />
+              <Text style={styles.pendingBadgeText}>Status: Pending Approval</Text>
+            </View>
+            <Text style={styles.pendingNote}>
+              You will stay in user mode until an admin approves your application. Once approved, your account will automatically switch to rider mode.
+            </Text>
             <TouchableOpacity
               style={styles.goToDashboardButton}
-              onPress={() => updateUser({ role: 'driver' })}
-            >
-              <Text style={styles.goToDashboardText}>Go to Rider Dashboard</Text>
-              <Ionicons name="arrow-forward" size={moderateScale(18)} color={COLORS.white} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.stayAsUserButton}
               onPress={() => {
                 if (navigation.canGoBack()) {
                   navigation.goBack();
@@ -256,7 +256,8 @@ export default function RiderRegistrationScreen({ navigation }: any) {
                 }
               }}
             >
-              <Text style={styles.stayAsUserText}>Continue as User</Text>
+              <Text style={styles.goToDashboardText}>Back to Home</Text>
+              <Ionicons name="arrow-forward" size={moderateScale(18)} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -634,6 +635,29 @@ const styles = StyleSheet.create({
     color: COLORS.gray700,
     flex: 1,
   },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warningBg,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(8),
+    borderRadius: moderateScale(20),
+    gap: moderateScale(6),
+    marginBottom: verticalScale(12),
+  },
+  pendingBadgeText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '700',
+    color: COLORS.warningDark,
+  },
+  pendingNote: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    lineHeight: fontScale(20),
+    marginBottom: verticalScale(20),
+    paddingHorizontal: moderateScale(8),
+  },
   goToDashboardButton: {
     flexDirection: 'row',
     backgroundColor: COLORS.success,
@@ -650,13 +674,5 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
     marginRight: moderateScale(8),
-  },
-  stayAsUserButton: {
-    paddingVertical: moderateScale(10),
-  },
-  stayAsUserText: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: COLORS.gray500,
-    fontWeight: '600',
   },
 });

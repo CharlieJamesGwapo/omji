@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService, walletService } from '../../services/api';
@@ -20,6 +21,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [earningsApiData, setEarningsApiData] = useState<any>({});
   const [walletBalance, setWalletBalance] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -28,14 +30,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchEarnings();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const fetchEarnings = async () => {
+  const fetchEarnings = useCallback(async () => {
     try {
       setLoading(true);
       const [earningsRes, walletRes] = await Promise.allSettled([
@@ -53,7 +48,14 @@ export default function RiderEarningsScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchEarnings();
+    });
+    return unsubscribe;
+  }, [navigation, fetchEarnings]);
 
   const balance = walletBalance;
   const minimumWithdraw = 100;
@@ -193,7 +195,29 @@ export default function RiderEarningsScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await fetchEarnings();
+              setRefreshing(false);
+            }}
+            colors={[COLORS.accent]}
+            tintColor={COLORS.accent}
+          />
+        }
+      >
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>Loading earnings...</Text>
+          </View>
+        )}
+
         {/* Balance Card */}
         <View style={styles.balanceCardWrapper}>
           <View style={styles.balanceCard}>
@@ -482,6 +506,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.gray50,
+  },
+  loadingOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(40),
+  },
+  loadingText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
+    marginTop: verticalScale(10),
   },
   // Header
   header: {

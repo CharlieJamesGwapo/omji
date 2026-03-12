@@ -201,14 +201,35 @@ export default function PasabayScreen({ navigation }: any) {
               const response = await rideShareService.joinRideShare(ride.id, paymentMethod);
               const data = response.data?.data;
               fetchAvailableRides();
-              // Navigate to tracking with the created ride
-              if (data?.ride_id) {
+              const joinedRideId = data?.ride_id;
+              const joinedFare = data?.fare || ride.base_fare || 0;
+              const joinedPickup = data?.pickup || ride.pickup_location;
+              const joinedDropoff = data?.dropoff || ride.dropoff_location;
+
+              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+                if (joinedRideId) {
+                  navigation.navigate('Payment', {
+                    type: paymentMethod,
+                    amount: joinedFare,
+                    serviceType: 'ride',
+                    rideId: joinedRideId,
+                    pickup: joinedPickup,
+                    dropoff: joinedDropoff,
+                  });
+                } else {
+                  navigation.navigate('Payment', {
+                    type: paymentMethod,
+                    amount: joinedFare,
+                    serviceType: 'ride',
+                  });
+                }
+              } else if (joinedRideId) {
                 navigation.navigate('Tracking', {
                   type: 'ride',
-                  rideId: data.ride_id,
-                  pickup: data.pickup || ride.pickup_location,
-                  dropoff: data.dropoff || ride.dropoff_location,
-                  fare: data.fare || ride.base_fare,
+                  rideId: joinedRideId,
+                  pickup: joinedPickup,
+                  dropoff: joinedDropoff,
+                  fare: joinedFare,
                 });
               } else {
                 Alert.alert('Joined!', `You joined the ride for ₱${ride.base_fare || 0}.\nThe driver will pick you up along the route.`);
@@ -460,13 +481,24 @@ export default function PasabayScreen({ navigation }: any) {
                 Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
                 return;
               }
-              navigation.navigate('Tracking', {
-                type: 'ride',
-                rideId: rideIdNum,
-                pickup: pickupLocation.address,
-                dropoff: dropoffLocation.address,
-                fare: ride.estimated_fare || totalFare,
-              });
+              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+                navigation.navigate('Payment', {
+                  type: paymentMethod,
+                  amount: ride.estimated_fare || totalFare,
+                  serviceType: 'ride',
+                  rideId: rideIdNum,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
+                });
+              } else {
+                navigation.navigate('Tracking', {
+                  type: 'ride',
+                  rideId: rideIdNum,
+                  pickup: pickupLocation.address,
+                  dropoff: dropoffLocation.address,
+                  fare: ride.estimated_fare || totalFare,
+                });
+              }
             } catch (error: any) {
               const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
               Alert.alert('Booking Failed', msg);
@@ -771,6 +803,7 @@ export default function PasabayScreen({ navigation }: any) {
               <NearbyRiders
                 pickupLatitude={pickupLocation.latitude}
                 pickupLongitude={pickupLocation.longitude}
+                vehicleType={selectedType.vehicleType}
                 accentColor="#8B5CF6"
                 selectedDriverId={selectedDriver?.id || null}
                 onSelectDriver={setSelectedDriver}

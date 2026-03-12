@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { paymentConfigService } from '../../services/api';
@@ -22,16 +23,33 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isGcash = type === 'gcash';
   const brandColor = isGcash ? '#0050DC' : '#16A34A';
   const brandColorLight = isGcash ? '#EFF6FF' : '#ECFDF5';
   const brandName = isGcash ? 'GCash' : 'Maya';
   const brandIcon = isGcash ? 'phone-portrait' : 'card';
+  const displayAmount = Number(amount) || 0;
 
   useEffect(() => {
     fetchConfig();
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
   }, []);
+
+  // Intercept back gesture to prompt payment confirmation
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (e.data.action.type === 'GO_BACK') {
+        e.preventDefault();
+        handleDone();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, serviceType, rideId, displayAmount, pickup, dropoff]);
 
   const fetchConfig = async () => {
     try {
@@ -46,6 +64,17 @@ export default function PaymentScreen({ route, navigation }: any) {
     }
   };
 
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopiedField(field);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // silent
+    }
+  };
+
   const openApp = () => {
     const deepLink = isGcash ? 'gcash://' : 'paymaya://';
     Linking.canOpenURL(deepLink)
@@ -53,7 +82,6 @@ export default function PaymentScreen({ route, navigation }: any) {
         if (supported) {
           Linking.openURL(deepLink);
         } else {
-          // Fallback to app store links
           const storeLink = isGcash
             ? isIOS
               ? 'https://apps.apple.com/ph/app/gcash/id520020791'
@@ -77,17 +105,31 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const handleDone = () => {
-    if (rideId) {
-      navigation.replace('Tracking', {
-        type: serviceType === 'delivery' ? 'delivery' : 'ride',
-        rideId,
-        pickup: pickup || '',
-        dropoff: dropoff || '',
-        fare: amount || 0,
-      });
-    } else {
-      navigation.goBack();
-    }
+    Alert.alert(
+      'Confirm Payment',
+      `Have you completed the ${brandName} payment of \u20B1${displayAmount.toFixed(2)}?`,
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Yes, I Paid',
+          onPress: () => {
+            if (serviceType === 'order') {
+              navigation.navigate('Orders');
+            } else if (rideId) {
+              navigation.replace('Tracking', {
+                type: serviceType === 'delivery' ? 'delivery' : 'ride',
+                rideId,
+                pickup: pickup || '',
+                dropoff: dropoff || '',
+                fare: displayAmount,
+              });
+            } else {
+              navigation.goBack();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const serviceLabel =
@@ -99,7 +141,7 @@ export default function PaymentScreen({ route, navigation }: any) {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: brandColor }]}>
-        <TouchableOpacity onPress={handleDone} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={moderateScale(22)} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -116,7 +158,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         <View style={styles.amountBadge}>
           <Text style={styles.amountBadgeText}>
             {'\u20B1'}
-            {(amount ?? 0).toFixed(0)}
+            {displayAmount.toFixed(0)}
           </Text>
         </View>
       </View>
@@ -140,20 +182,85 @@ export default function PaymentScreen({ route, navigation }: any) {
             <Text style={styles.securityText}>A safer way to pay!</Text>
           </View>
 
-          {/* Instructions */}
-          <Text style={styles.instructionText}>
-            Complete the payment in your {brandName} app by tapping the button
-            below or scanning the QR code.
-          </Text>
+          {/* Step-by-step Instructions */}
+          <View style={styles.stepsContainer}>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepBadge, { backgroundColor: brandColor }]}>
+                <Text style={styles.stepBadgeText}>1</Text>
+              </View>
+              <Text style={styles.stepText}>Copy the amount and account number below</Text>
+            </View>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepBadge, { backgroundColor: brandColor }]}>
+                <Text style={styles.stepBadgeText}>2</Text>
+              </View>
+              <Text style={styles.stepText}>Tap "Open {brandName}" to go to the app</Text>
+            </View>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepBadge, { backgroundColor: brandColor }]}>
+                <Text style={styles.stepBadgeText}>3</Text>
+              </View>
+              <Text style={styles.stepText}>Send the exact amount, then come back and confirm</Text>
+            </View>
+          </View>
 
-          {/* Amount Display */}
+          {/* Amount Display with Copy */}
           <View style={[styles.amountContainer, { backgroundColor: brandColorLight }]}>
             <Text style={styles.amountLabel}>Amount to Pay</Text>
             <Text style={[styles.amountValue, { color: brandColor }]}>
-              {'\u20B1'}
-              {(amount ?? 0).toFixed(2)}
+              {'\u20B1'}{displayAmount.toFixed(2)}
             </Text>
+            <TouchableOpacity
+              style={[styles.copyButton, { borderColor: brandColor }]}
+              onPress={() => copyToClipboard(displayAmount.toFixed(2), 'amount')}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={copiedField === 'amount' ? 'checkmark' : 'copy-outline'}
+                size={moderateScale(14)}
+                color={brandColor}
+              />
+              <Text style={[styles.copyButtonText, { color: brandColor }]}>
+                {copiedField === 'amount' ? 'Copied!' : 'Copy Amount'}
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {/* Account Info with Copy */}
+          {config && (config.account_name || config.account_number) && (
+            <View style={[styles.accountInfoCard, { backgroundColor: brandColorLight }]}>
+              <Ionicons
+                name="person-circle-outline"
+                size={moderateScale(28)}
+                color={brandColor}
+              />
+              <View style={styles.accountInfoText}>
+                <Text style={styles.sendToLabel}>Send to</Text>
+                {!!config.account_name && (
+                  <Text style={styles.accountName}>{config.account_name}</Text>
+                )}
+                {!!config.account_number && (
+                  <View style={styles.accountNumberRow}>
+                    <Text style={styles.accountNumber}>{config.account_number}</Text>
+                    <TouchableOpacity
+                      onPress={() => copyToClipboard(config.account_number, 'account')}
+                      style={[styles.copySmallBtn, { backgroundColor: brandColor }]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={copiedField === 'account' ? 'checkmark' : 'copy-outline'}
+                        size={moderateScale(12)}
+                        color="#ffffff"
+                      />
+                      <Text style={styles.copySmallText}>
+                        {copiedField === 'account' ? 'Copied!' : 'Copy'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Open App Button */}
           <TouchableOpacity
@@ -166,7 +273,8 @@ export default function PaymentScreen({ route, navigation }: any) {
               size={moderateScale(20)}
               color="#ffffff"
             />
-            <Text style={styles.openAppButtonText}>Open in {brandName}</Text>
+            <Text style={styles.openAppButtonText}>Open {brandName}</Text>
+            <Ionicons name="open-outline" size={moderateScale(16)} color="#ffffff" />
           </TouchableOpacity>
 
           {/* Divider with "or" */}
@@ -198,6 +306,9 @@ export default function PaymentScreen({ route, navigation }: any) {
                   onLoadEnd={() => setImageLoading(false)}
                 />
               </View>
+              <Text style={styles.qrHint}>
+                Open {brandName} app {'>'} Scan QR {'>'} Enter exact amount
+              </Text>
             </View>
           ) : (
             <View style={styles.qrPlaceholder}>
@@ -212,26 +323,7 @@ export default function PaymentScreen({ route, navigation }: any) {
             </View>
           )}
 
-          {/* Account Info */}
-          {config && (config.account_name || config.account_number) && (
-            <View style={[styles.accountInfoCard, { backgroundColor: brandColorLight }]}>
-              <Ionicons
-                name="person-circle-outline"
-                size={moderateScale(24)}
-                color={brandColor}
-              />
-              <View style={styles.accountInfoText}>
-                {!!config.account_name && (
-                  <Text style={styles.accountName}>{config.account_name}</Text>
-                )}
-                {!!config.account_number && (
-                  <Text style={styles.accountNumber}>{config.account_number}</Text>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Instructions Note */}
+          {/* Warning Note */}
           <View style={styles.noteCard}>
             <Ionicons
               name="information-circle"
@@ -239,23 +331,22 @@ export default function PaymentScreen({ route, navigation }: any) {
               color={COLORS.warning}
             />
             <Text style={styles.noteText}>
-              After completing the payment in {brandName}, your booking will be
-              processed. Please ensure the correct amount is sent.
+              Please send the exact amount of {'\u20B1'}{displayAmount.toFixed(2)} to avoid payment issues. Your booking will be processed after confirmation.
             </Text>
           </View>
 
           {/* Done Button */}
           <TouchableOpacity
-            style={[styles.doneButton, { borderColor: brandColor }]}
+            style={[styles.doneButton, { backgroundColor: brandColor }]}
             onPress={handleDone}
             activeOpacity={0.8}
           >
             <Ionicons
-              name="checkmark-circle-outline"
-              size={moderateScale(20)}
-              color={brandColor}
+              name="checkmark-circle"
+              size={moderateScale(22)}
+              color="#ffffff"
             />
-            <Text style={[styles.doneButtonText, { color: brandColor }]}>
+            <Text style={styles.doneButtonText}>
               I've Completed Payment
             </Text>
           </TouchableOpacity>
@@ -355,17 +446,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.gray600,
   },
-  instructionText: {
-    fontSize: fontScale(14),
-    color: COLORS.gray500,
-    lineHeight: fontScale(20),
+  stepsContainer: {
     marginBottom: verticalScale(20),
+    gap: verticalScale(10),
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(10),
+  },
+  stepBadge: {
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeText: {
+    fontSize: fontScale(12),
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  stepText: {
+    flex: 1,
+    fontSize: fontScale(13),
+    color: COLORS.gray600,
+    lineHeight: fontScale(18),
   },
   amountContainer: {
     alignItems: 'center',
     paddingVertical: verticalScale(16),
+    paddingHorizontal: moderateScale(16),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    marginBottom: verticalScale(20),
+    marginBottom: verticalScale(16),
   },
   amountLabel: {
     fontSize: fontScale(12),
@@ -375,6 +488,66 @@ const styles = StyleSheet.create({
   amountValue: {
     fontSize: fontScale(32),
     fontWeight: 'bold',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+    marginTop: verticalScale(8),
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(6),
+    borderRadius: moderateScale(16),
+    borderWidth: 1,
+  },
+  copyButtonText: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+  },
+  accountInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: moderateScale(14),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    marginBottom: verticalScale(16),
+  },
+  accountInfoText: {
+    marginLeft: moderateScale(10),
+    flex: 1,
+  },
+  sendToLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+    marginBottom: verticalScale(2),
+  },
+  accountName: {
+    fontSize: fontScale(15),
+    fontWeight: '600',
+    color: COLORS.gray800,
+  },
+  accountNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(4),
+    gap: moderateScale(8),
+  },
+  accountNumber: {
+    fontSize: fontScale(14),
+    color: COLORS.gray600,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+  },
+  copySmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(3),
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(3),
+    borderRadius: moderateScale(10),
+  },
+  copySmallText: {
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    color: '#ffffff',
   },
   openAppButton: {
     flexDirection: 'row',
@@ -433,6 +606,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
+  qrHint: {
+    fontSize: fontScale(12),
+    color: COLORS.gray400,
+    marginTop: verticalScale(8),
+    textAlign: 'center',
+  },
   qrPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -449,27 +628,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: verticalScale(12),
     lineHeight: fontScale(18),
-  },
-  accountInfoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: moderateScale(14),
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    marginBottom: verticalScale(16),
-  },
-  accountInfoText: {
-    marginLeft: moderateScale(10),
-    flex: 1,
-  },
-  accountName: {
-    fontSize: fontScale(15),
-    fontWeight: '600',
-    color: COLORS.gray800,
-  },
-  accountNumber: {
-    fontSize: fontScale(13),
-    color: COLORS.gray500,
-    marginTop: verticalScale(2),
   },
   noteCard: {
     flexDirection: 'row',
@@ -492,11 +650,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: moderateScale(16),
     borderRadius: moderateScale(50),
-    borderWidth: 2,
     gap: moderateScale(8),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   doneButtonText: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
+    color: '#ffffff',
   },
 });

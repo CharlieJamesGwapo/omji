@@ -63,11 +63,19 @@ export default function ProfileScreen({ navigation }: any) {
         }
       }
 
-      // Check driver registration status
+      // Check driver registration status — auto-switch to rider if approved
       if (driverRes.status === 'fulfilled') {
         const driverData = driverRes.value?.data?.data;
         if (driverData) {
-          setDriverStatus(driverData.is_verified ? 'verified' : 'pending');
+          if (driverData.is_verified) {
+            setDriverStatus('verified');
+            // Auto-switch to rider mode when admin has approved
+            if (user?.role === 'user') {
+              updateUser({ role: 'driver' });
+            }
+          } else {
+            setDriverStatus('pending');
+          }
         }
       }
 
@@ -143,22 +151,17 @@ export default function ProfileScreen({ navigation }: any) {
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
         { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
         ...(!user?.role || user.role === 'user' ? (
-          driverStatus === 'verified' ? [
-            { icon: 'swap-horizontal-outline', label: 'Switch to Rider Mode', screen: null, action: () => updateUser({ role: 'driver' }) },
-          ] : driverStatus === 'pending' ? [
+          driverStatus === 'pending' ? [
             { icon: 'hourglass-outline', label: 'Rider Application (Pending)', screen: null, action: () => {
               Alert.alert(
                 'Application Pending',
-                'Your rider application is under review. Go to the Rider Dashboard to check status?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Go to Dashboard', onPress: () => updateUser({ role: 'driver' }) },
-                ]
+                'Your rider application is under review. Once an admin approves it, your account will automatically switch to rider mode.',
+                [{ text: 'OK' }]
               );
             }},
-          ] : [
+          ] : driverStatus === 'none' ? [
             { icon: 'bicycle-outline', label: 'Become a Driver', screen: 'RiderRegistration' },
-          ]
+          ] : []
         ) : []),
       ],
     },

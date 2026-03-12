@@ -141,7 +141,7 @@ export default function CartScreen({ route, navigation }: any) {
           onPress: async () => {
             setCheckingOut(true);
             try {
-              await orderService.createOrder({
+              const orderResponse = await orderService.createOrder({
                 store_id: store?.id,
                 items: cartItems.map((item: any) => ({
                   item_id: item.id,
