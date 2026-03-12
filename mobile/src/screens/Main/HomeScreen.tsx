@@ -110,8 +110,6 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasugo',
       description: 'Delivery Service',
       icon: 'cube-outline',
-      color: COLORS.pasugo,
-      darkColor: COLORS.successDark,
       screen: 'Pasugo',
     },
     {
@@ -119,8 +117,6 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasabay',
       description: 'Ride Sharing',
       icon: 'bicycle-outline',
-      color: COLORS.pasabay,
-      darkColor: '#7C3AED',
       screen: 'Pasabay',
     },
     {
@@ -128,8 +124,6 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasundo',
       description: 'Pick-up Service',
       icon: 'car-outline',
-      color: COLORS.pasundo,
-      darkColor: '#2563EB',
       screen: 'Pasundo',
     },
     {
@@ -137,17 +131,15 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Stores',
       description: 'Shop & Deliver',
       icon: 'storefront-outline',
-      color: COLORS.primary,
-      darkColor: COLORS.primaryDark,
       screen: 'Services',
     },
   ];
 
   const quickActions = [
-    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.accent },
-    { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.info },
-    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!'), color: COLORS.warning },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app'), color: COLORS.success },
+    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
+    { icon: 'time-outline', label: 'History', screen: 'RideHistory' },
+    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!') },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app') },
   ];
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
@@ -201,11 +193,11 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.final_fare || ride.estimated_fare })}
             activeOpacity={0.8}
           >
-            <View style={[styles.activeAccent, { backgroundColor: COLORS.warning }]} />
+            <View style={[styles.activeAccent, { backgroundColor: COLORS.accent }]} />
             <View style={styles.activeCardContent}>
               <View style={styles.activeCardLeft}>
-                <View style={[styles.activeIconWrap, { backgroundColor: COLORS.warningBg }]}>
-                  <Animated.View style={[styles.activeDot, { backgroundColor: COLORS.warning, transform: [{ scale: dotPulse }] }]} />
+                <View style={[styles.activeIconWrap, { backgroundColor: COLORS.accentBg }]}>
+                  <Animated.View style={[styles.activeDot, { backgroundColor: COLORS.accent, transform: [{ scale: dotPulse }] }]} />
                 </View>
                 <View style={styles.activeTextWrap}>
                   <Text style={styles.activeTitle}>Active Ride</Text>
@@ -213,14 +205,14 @@ export default function HomeScreen({ navigation }: any) {
                     {ride.dropoff_location || 'In progress'}
                   </Text>
                   <View style={styles.activeStatusWrap}>
-                    <View style={[styles.activeStatusDot, { backgroundColor: COLORS.warning }]} />
-                    <Text style={[styles.activeStatusText, { color: COLORS.warningDark }]}>
+                    <View style={[styles.activeStatusDot, { backgroundColor: COLORS.accent }]} />
+                    <Text style={[styles.activeStatusText, { color: COLORS.accent }]}>
                       {formatStatus(ride.status || '')}
                     </Text>
                   </View>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.warning} />
+              <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.accent} />
             </View>
           </TouchableOpacity>
         ))}
@@ -278,21 +270,16 @@ export default function HomeScreen({ navigation }: any) {
             {services.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={[styles.serviceCard, { backgroundColor: service.color }, SHADOWS.colored(service.darkColor)]}
+                style={[styles.serviceCard, SHADOWS.md]}
                 onPress={() => navigation.navigate(service.screen)}
                 activeOpacity={0.85}
               >
                 <View style={styles.serviceCardInner}>
                   <View style={styles.serviceIconContainer}>
-                    <View style={styles.serviceIconInner}>
-                      <Ionicons name={service.icon as any} size={moderateScale(28)} color="#ffffff" />
-                    </View>
+                    <Ionicons name={service.icon as any} size={moderateScale(28)} color={COLORS.accent} />
                   </View>
                   <Text style={styles.serviceName}>{service.name}</Text>
                   <Text style={styles.serviceDescription}>{service.description}</Text>
-                  <View style={styles.serviceArrow}>
-                    <Ionicons name="arrow-forward" size={moderateScale(14)} color="rgba(255,255,255,0.7)" />
-                  </View>
                 </View>
               </TouchableOpacity>
             ))}
@@ -312,8 +299,8 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
                 activeOpacity={0.7}
               >
-                <View style={[styles.quickActionIcon, { backgroundColor: action.color + '14' }]}>
-                  <Ionicons name={action.icon as any} size={moderateScale(24)} color={action.color} />
+                <View style={styles.quickActionIcon}>
+                  <Ionicons name={action.icon as any} size={moderateScale(24)} color={COLORS.accent} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -576,7 +563,9 @@ const styles = StyleSheet.create({
     width: getCardWidth(isTablet() ? 4 : 2, RESPONSIVE.paddingHorizontal, moderateScale(12)),
     borderRadius: RESPONSIVE.borderRadius.xlarge,
     marginBottom: RESPONSIVE.marginVertical,
-    overflow: 'hidden',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
   },
   serviceCardInner: {
     padding: moderateScale(16),
@@ -587,35 +576,22 @@ const styles = StyleSheet.create({
     width: moderateScale(isTablet() ? 64 : 52),
     height: moderateScale(isTablet() ? 64 : 52),
     borderRadius: moderateScale(isTablet() ? 20 : 16),
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: COLORS.accentBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(14),
   },
-  serviceIconInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   serviceName: {
     fontSize: RESPONSIVE.fontSize.large,
     fontWeight: '700',
-    color: COLORS.white,
+    color: COLORS.gray900,
     marginBottom: verticalScale(3),
     letterSpacing: 0.2,
   },
   serviceDescription: {
     fontSize: RESPONSIVE.fontSize.small,
-    color: 'rgba(255, 255, 255, 0.75)',
-    marginBottom: verticalScale(10),
-  },
-  serviceArrow: {
-    alignSelf: 'flex-end',
-    width: moderateScale(24),
-    height: moderateScale(24),
-    borderRadius: moderateScale(12),
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: COLORS.gray500,
+    marginBottom: verticalScale(4),
   },
 
   // --- Quick Actions ---
@@ -633,6 +609,7 @@ const styles = StyleSheet.create({
     width: moderateScale(isTablet() ? 64 : 56),
     height: moderateScale(isTablet() ? 64 : 56),
     borderRadius: moderateScale(isTablet() ? 20 : 16),
+    backgroundColor: COLORS.accentBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(8),
@@ -649,7 +626,7 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.xlarge,
     marginBottom: RESPONSIVE.marginVertical * 1.5,
     overflow: 'hidden',
-    backgroundColor: '#F97316',
+    backgroundColor: COLORS.primary,
     ...SHADOWS.lg,
   },
   promoGlow: {

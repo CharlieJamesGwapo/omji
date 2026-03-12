@@ -232,6 +232,19 @@ export default function RegisterScreen({ navigation }: any) {
 
             {renderInput('lock-closed-outline', 'Confirm Password', confirmPassword, setConfirmPassword, 'confirmPassword', { secure: true })}
 
+            {confirmPassword.length > 0 && password !== confirmPassword && (
+              <View style={styles.mismatchRow}>
+                <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                <Text style={styles.mismatchText}>Passwords do not match</Text>
+              </View>
+            )}
+            {confirmPassword.length > 0 && password === confirmPassword && (
+              <View style={styles.matchRow}>
+                <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                <Text style={styles.matchText}>Passwords match</Text>
+              </View>
+            )}
+
             {/* Terms & Privacy Checkbox */}
             <TouchableOpacity
               style={styles.termsRow}
@@ -276,9 +289,9 @@ export default function RegisterScreen({ navigation }: any) {
 
             {/* Register Button */}
             <TouchableOpacity
-              style={[styles.registerButton, (loading || !agreedToTerms) && styles.registerButtonDisabled]}
+              style={[styles.registerButton, (loading || !agreedToTerms || (confirmPassword.length > 0 && password !== confirmPassword)) && styles.registerButtonDisabled]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || (confirmPassword.length > 0 && password !== confirmPassword)}
             >
               {loading ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -421,6 +434,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: fontScale(20),
     paddingHorizontal: moderateScale(16),
+  },
+
+  mismatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(-8),
+    marginBottom: verticalScale(8),
+    paddingHorizontal: moderateScale(4),
+  },
+  mismatchText: {
+    fontSize: fontScale(12),
+    color: COLORS.error,
+    marginLeft: moderateScale(4),
+  },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(-8),
+    marginBottom: verticalScale(8),
+    paddingHorizontal: moderateScale(4),
+  },
+  matchText: {
+    fontSize: fontScale(12),
+    color: COLORS.success,
+    marginLeft: moderateScale(4),
   },
 
   registerButton: {
