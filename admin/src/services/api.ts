@@ -52,18 +52,18 @@ API.interceptors.response.use(
     // Invalidate related caches on mutations
     const method = response.config.method?.toLowerCase();
     if (method && ['post', 'put', 'delete', 'patch'].includes(method)) {
-      // Extract the resource path (e.g., /admin/users from /admin/users/5)
       const url = response.config.url || '';
       const parts = url.split('/').filter(Boolean);
-      // Invalidate the collection endpoint
+      // Invalidate the collection endpoint for the mutated resource
       if (parts.length >= 2) {
         const resource = parts.slice(0, 3).join('/');
         invalidateCache(resource);
       }
-      // Also invalidate analytics/dashboard caches on any mutation
-      invalidateCache('/admin/analytics');
-      invalidateCache('/admin/users');
-      invalidateCache('/admin/drivers');
+      // Only invalidate analytics when the mutation affects data they aggregate
+      const analyticsAffecting = ['/admin/rides', '/admin/deliveries', '/admin/orders', '/admin/stores'];
+      if (analyticsAffecting.some(prefix => url.includes(prefix))) {
+        invalidateCache('/admin/analytics');
+      }
     }
     return response;
   },
@@ -169,10 +169,14 @@ export const adminService = {
   refreshDeliveries: () => freshGet('/admin/deliveries'),
   refreshOrders: () => freshGet('/admin/orders'),
   refreshDashboard: () => {
-    invalidateCache('/admin/analytics');
-    invalidateCache('/admin/users');
-    invalidateCache('/admin/drivers');
-    return Promise.resolve();
+    // Actually fetch fresh data for all dashboard endpoints
+    return Promise.all([
+      freshGet('/admin/users'),
+      freshGet('/admin/drivers'),
+      freshGet('/admin/analytics/rides'),
+      freshGet('/admin/analytics/earnings'),
+      freshGet('/admin/analytics/monthly-revenue'),
+    ]);
   },
 
   // Promos

@@ -377,7 +377,9 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", input.DriverID, true, true).First(&driver).Error; err == nil {
 				ride.DriverID = &driver.ID
 				ride.Status = "accepted"
-				db.Model(&driver).Update("is_available", false)
+				if err := db.Model(&driver).Update("is_available", false).Error; err != nil {
+					log.Printf("Failed to update driver availability on ride creation: %v", err)
+				}
 			}
 		}
 		if err := db.Create(&ride).Error; err != nil {
@@ -597,7 +599,9 @@ func RateRide(db *gorm.DB) gin.HandlerFunc {
 				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *ride.DriverID).Error == nil {
 					newTotal := driver.TotalRatings + 1
 					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-					tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+					if err := tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal}).Error; err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -677,7 +681,9 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 		var input struct {
 			PaymentMethod string `json:"payment_method"`
 		}
-		c.ShouldBindJSON(&input)
+		if err := c.ShouldBindJSON(&input); err != nil {
+			log.Printf("Failed to bind JoinRideShare input: %v", err)
+		}
 		if input.PaymentMethod == "" {
 			input.PaymentMethod = "cash"
 		}
@@ -876,7 +882,9 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", driverID, true, true).First(&driver).Error; err == nil {
 				delivery.DriverID = &driver.ID
 				delivery.Status = "accepted"
-				db.Model(&driver).Update("is_available", false)
+				if err := db.Model(&driver).Update("is_available", false).Error; err != nil {
+					log.Printf("Failed to update driver availability on delivery creation: %v", err)
+				}
 			}
 		}
 		if err := db.Create(&delivery).Error; err != nil {
@@ -978,7 +986,9 @@ func RateDelivery(db *gorm.DB) gin.HandlerFunc {
 				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *d.DriverID).Error == nil {
 					newTotal := driver.TotalRatings + 1
 					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-					tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+					if err := tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal}).Error; err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -1155,7 +1165,9 @@ func RateOrder(db *gorm.DB) gin.HandlerFunc {
 			if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&store, order.StoreID).Error == nil {
 				newTotal := store.TotalRatings + 1
 				newRating := ((store.Rating * float64(store.TotalRatings)) + input.Rating) / float64(newTotal)
-				tx.Model(&store).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal})
+				if err := tx.Model(&store).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal}).Error; err != nil {
+					return err
+				}
 			}
 			return nil
 		})
@@ -1662,7 +1674,9 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject ride"})
 				return
 			}
-			db.Model(&driver).Update("is_available", true)
+			if err := db.Model(&driver).Update("is_available", true).Error; err != nil {
+				log.Printf("Failed to update driver availability on ride rejection: %v", err)
+			}
 			if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"}).Error; err != nil {
 				log.Printf("Failed to create ride reassign notification: %v", err)
 			}
@@ -1678,7 +1692,9 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject delivery"})
 				return
 			}
-			db.Model(&driver).Update("is_available", true)
+			if err := db.Model(&driver).Update("is_available", true).Error; err != nil {
+				log.Printf("Failed to update driver availability on delivery rejection: %v", err)
+			}
 			if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"}).Error; err != nil {
 				log.Printf("Failed to create delivery reassign notification: %v", err)
 			}
@@ -1711,13 +1727,15 @@ func GetDriverEarnings(db *gorm.DB) gin.HandlerFunc {
 			WeekCount     int64
 			WeekEarnings  float64
 		}
-		db.Model(&models.Ride{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
+		if err := db.Model(&models.Ride{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
 			Select("COUNT(*) as total_count, COALESCE(SUM(final_fare), 0) as total_earnings, "+
 				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as today_count, "+
 				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN final_fare ELSE 0 END), 0) as today_earnings, "+
 				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as week_count, "+
 				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN final_fare ELSE 0 END), 0) as week_earnings", today, today, weekStart, weekStart).
-			Row().Scan(&rideStats.TotalCount, &rideStats.TotalEarnings, &rideStats.TodayCount, &rideStats.TodayEarnings, &rideStats.WeekCount, &rideStats.WeekEarnings)
+			Row().Scan(&rideStats.TotalCount, &rideStats.TotalEarnings, &rideStats.TodayCount, &rideStats.TodayEarnings, &rideStats.WeekCount, &rideStats.WeekEarnings); err != nil {
+			log.Printf("Failed to scan driver ride earnings: %v", err)
+		}
 
 		// Single query for all delivery stats (total + today + week)
 		var deliveryStats struct {
@@ -1728,13 +1746,15 @@ func GetDriverEarnings(db *gorm.DB) gin.HandlerFunc {
 			WeekCount     int64
 			WeekEarnings  float64
 		}
-		db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
+		if err := db.Model(&models.Delivery{}).Where("driver_id = ? AND status = ?", driver.ID, "completed").
 			Select("COUNT(*) as total_count, COALESCE(SUM(delivery_fee), 0) as total_earnings, "+
 				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as today_count, "+
 				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN delivery_fee ELSE 0 END), 0) as today_earnings, "+
 				"COUNT(CASE WHEN completed_at >= ? THEN 1 END) as week_count, "+
 				"COALESCE(SUM(CASE WHEN completed_at >= ? THEN delivery_fee ELSE 0 END), 0) as week_earnings", today, today, weekStart, weekStart).
-			Row().Scan(&deliveryStats.TotalCount, &deliveryStats.TotalEarnings, &deliveryStats.TodayCount, &deliveryStats.TodayEarnings, &deliveryStats.WeekCount, &deliveryStats.WeekEarnings)
+			Row().Scan(&deliveryStats.TotalCount, &deliveryStats.TotalEarnings, &deliveryStats.TodayCount, &deliveryStats.TodayEarnings, &deliveryStats.WeekCount, &deliveryStats.WeekEarnings); err != nil {
+			log.Printf("Failed to scan driver delivery earnings: %v", err)
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -2295,13 +2315,15 @@ func GetRidesAnalytics(db *gorm.DB) gin.HandlerFunc {
 			Active       int64
 			TotalRevenue float64
 		}
-		db.Model(&models.Ride{}).Select(
+		if err := db.Model(&models.Ride{}).Select(
 			"COUNT(*) as total, "+
 				"COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed, "+
 				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
 				"COUNT(CASE WHEN status IN ('pending','accepted','in_progress') THEN 1 END) as active, "+
 				"COALESCE(SUM(CASE WHEN status = 'completed' THEN final_fare ELSE 0 END), 0) as total_revenue").
-			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.Active, &stats.TotalRevenue)
+			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.Active, &stats.TotalRevenue); err != nil {
+			log.Printf("Failed to scan rides analytics: %v", err)
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "completed": stats.Completed, "cancelled": stats.Cancelled, "active": stats.Active, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
@@ -2314,12 +2336,14 @@ func GetDeliveriesAnalytics(db *gorm.DB) gin.HandlerFunc {
 			Cancelled    int64
 			TotalRevenue float64
 		}
-		db.Model(&models.Delivery{}).Select(
+		if err := db.Model(&models.Delivery{}).Select(
 			"COUNT(*) as total, "+
 				"COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed, "+
 				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
 				"COALESCE(SUM(CASE WHEN status = 'completed' THEN delivery_fee ELSE 0 END), 0) as total_revenue").
-			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.TotalRevenue)
+			Row().Scan(&stats.Total, &stats.Completed, &stats.Cancelled, &stats.TotalRevenue); err != nil {
+			log.Printf("Failed to scan deliveries analytics: %v", err)
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "completed": stats.Completed, "cancelled": stats.Cancelled, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
@@ -2332,12 +2356,14 @@ func GetOrdersAnalytics(db *gorm.DB) gin.HandlerFunc {
 			Cancelled    int64
 			TotalRevenue float64
 		}
-		db.Model(&models.Order{}).Select(
+		if err := db.Model(&models.Order{}).Select(
 			"COUNT(*) as total, "+
 				"COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered, "+
 				"COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled, "+
 				"COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END), 0) as total_revenue").
-			Row().Scan(&stats.Total, &stats.Delivered, &stats.Cancelled, &stats.TotalRevenue)
+			Row().Scan(&stats.Total, &stats.Delivered, &stats.Cancelled, &stats.TotalRevenue); err != nil {
+			log.Printf("Failed to scan orders analytics: %v", err)
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"total": stats.Total, "delivered": stats.Delivered, "cancelled": stats.Cancelled, "total_revenue": stats.TotalRevenue}, "timestamp": time.Now()})
 	}
 }
@@ -2345,9 +2371,15 @@ func GetOrdersAnalytics(db *gorm.DB) gin.HandlerFunc {
 func GetEarningsAnalytics(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var rideRevenue, deliveryRevenue, orderRevenue float64
-		db.Model(&models.Ride{}).Where("status = ?", "completed").Select("COALESCE(SUM(final_fare), 0)").Row().Scan(&rideRevenue)
-		db.Model(&models.Delivery{}).Where("status = ?", "completed").Select("COALESCE(SUM(delivery_fee), 0)").Row().Scan(&deliveryRevenue)
-		db.Model(&models.Order{}).Where("status = ?", "delivered").Select("COALESCE(SUM(total_amount), 0)").Row().Scan(&orderRevenue)
+		if err := db.Model(&models.Ride{}).Where("status = ?", "completed").Select("COALESCE(SUM(final_fare), 0)").Row().Scan(&rideRevenue); err != nil {
+			log.Printf("Failed to scan ride revenue: %v", err)
+		}
+		if err := db.Model(&models.Delivery{}).Where("status = ?", "completed").Select("COALESCE(SUM(delivery_fee), 0)").Row().Scan(&deliveryRevenue); err != nil {
+			log.Printf("Failed to scan delivery revenue: %v", err)
+		}
+		if err := db.Model(&models.Order{}).Where("status = ?", "delivered").Select("COALESCE(SUM(total_amount), 0)").Row().Scan(&orderRevenue); err != nil {
+			log.Printf("Failed to scan order revenue: %v", err)
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"ride_revenue": rideRevenue, "delivery_revenue": deliveryRevenue, "order_revenue": orderRevenue, "total_revenue": rideRevenue + deliveryRevenue + orderRevenue}, "timestamp": time.Now()})
 	}
 }
@@ -2371,25 +2403,31 @@ func GetMonthlyRevenue(db *gorm.DB) gin.HandlerFunc {
 		revenueMap := make(map[string]float64)
 
 		var rideRows []monthRow
-		db.Model(&models.Ride{}).Where("status = ? AND created_at >= ?", "completed", startDate).
+		if err := db.Model(&models.Ride{}).Where("status = ? AND created_at >= ?", "completed", startDate).
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(final_fare), 0) as revenue").
-			Group("m").Scan(&rideRows)
+			Group("m").Scan(&rideRows).Error; err != nil {
+			log.Printf("Failed to scan monthly ride revenue: %v", err)
+		}
 		for _, r := range rideRows {
 			revenueMap[r.M] += r.Revenue
 		}
 
 		var delRows []monthRow
-		db.Model(&models.Delivery{}).Where("status = ? AND created_at >= ?", "completed", startDate).
+		if err := db.Model(&models.Delivery{}).Where("status = ? AND created_at >= ?", "completed", startDate).
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(delivery_fee), 0) as revenue").
-			Group("m").Scan(&delRows)
+			Group("m").Scan(&delRows).Error; err != nil {
+			log.Printf("Failed to scan monthly delivery revenue: %v", err)
+		}
 		for _, r := range delRows {
 			revenueMap[r.M] += r.Revenue
 		}
 
 		var ordRows []monthRow
-		db.Model(&models.Order{}).Where("status = ? AND created_at >= ?", "delivered", startDate).
+		if err := db.Model(&models.Order{}).Where("status = ? AND created_at >= ?", "delivered", startDate).
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COALESCE(SUM(total_amount), 0) as revenue").
-			Group("m").Scan(&ordRows)
+			Group("m").Scan(&ordRows).Error; err != nil {
+			log.Printf("Failed to scan monthly order revenue: %v", err)
+		}
 		for _, r := range ordRows {
 			revenueMap[r.M] += r.Revenue
 		}
@@ -2434,27 +2472,33 @@ func GetGrowthAnalytics(db *gorm.DB) gin.HandlerFunc {
 		// One query per table, grouped by month
 		userMap := make(map[string]int64)
 		var userRows []monthCount
-		db.Model(&models.User{}).Where("created_at >= ? AND role = ?", startDate, "user").
+		if err := db.Model(&models.User{}).Where("created_at >= ? AND role = ?", startDate, "user").
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
-			Group("m").Scan(&userRows)
+			Group("m").Scan(&userRows).Error; err != nil {
+			log.Printf("Failed to scan user growth analytics: %v", err)
+		}
 		for _, r := range userRows {
 			userMap[r.M] = r.Count
 		}
 
 		driverMap := make(map[string]int64)
 		var driverRows []monthCount
-		db.Model(&models.Driver{}).Where("created_at >= ?", startDate).
+		if err := db.Model(&models.Driver{}).Where("created_at >= ?", startDate).
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
-			Group("m").Scan(&driverRows)
+			Group("m").Scan(&driverRows).Error; err != nil {
+			log.Printf("Failed to scan driver growth analytics: %v", err)
+		}
 		for _, r := range driverRows {
 			driverMap[r.M] = r.Count
 		}
 
 		orderMap := make(map[string]int64)
 		var orderRows []monthCount
-		db.Model(&models.Order{}).Where("created_at >= ?", startDate).
+		if err := db.Model(&models.Order{}).Where("created_at >= ?", startDate).
 			Select("TO_CHAR(created_at, 'YYYY-MM') as m, COUNT(*) as count").
-			Group("m").Scan(&orderRows)
+			Group("m").Scan(&orderRows).Error; err != nil {
+			log.Printf("Failed to scan order growth analytics: %v", err)
+		}
 		for _, r := range orderRows {
 			orderMap[r.M] = r.Count
 		}
@@ -2793,11 +2837,17 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 		var userIDs []uint
 		switch input.TargetType {
 		case "drivers":
-			db.Model(&models.Driver{}).Pluck("user_id", &userIDs)
+			if err := db.Model(&models.Driver{}).Pluck("user_id", &userIDs).Error; err != nil {
+				log.Printf("Failed to pluck driver user IDs: %v", err)
+			}
 		case "users":
-			db.Model(&models.User{}).Where("role = ?", "user").Pluck("id", &userIDs)
+			if err := db.Model(&models.User{}).Where("role = ?", "user").Pluck("id", &userIDs).Error; err != nil {
+				log.Printf("Failed to pluck user IDs: %v", err)
+			}
 		default: // all
-			db.Model(&models.User{}).Pluck("id", &userIDs)
+			if err := db.Model(&models.User{}).Pluck("id", &userIDs).Error; err != nil {
+				log.Printf("Failed to pluck all user IDs: %v", err)
+			}
 		}
 
 		notifications := make([]models.Notification, len(userIDs))
@@ -3163,10 +3213,14 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 						updates["completed_at"] = now
 						updates["final_fare"] = ride.EstimatedFare
 						if ride.DriverID != nil {
-							db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true})
+							if err := db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true}).Error; err != nil {
+								log.Printf("Failed to update driver stats on ride completion: %v", err)
+							}
 						}
 					}
-					db.Model(&ride).Updates(updates)
+					if err := db.Model(&ride).Updates(updates).Error; err != nil {
+						log.Printf("Failed to update ride status: %v", err)
+					}
 					tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
 				} else {
 					// Try delivery
@@ -3183,10 +3237,14 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 						if msg.Status == "completed" {
 							updates["completed_at"] = now
 							if delivery.DriverID != nil {
-								db.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true})
+								if err := db.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true}).Error; err != nil {
+									log.Printf("Failed to update driver stats on delivery completion: %v", err)
+								}
 							}
 						}
-						db.Model(&delivery).Updates(updates)
+						if err := db.Model(&delivery).Updates(updates).Error; err != nil {
+							log.Printf("Failed to update delivery status: %v", err)
+						}
 						tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
 					}
 				}
@@ -3217,7 +3275,9 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 				continue
 			}
 			if msg.Type == "location_update" {
-				db.Model(&models.Driver{}).Where("id = ?", driverID).Updates(map[string]interface{}{"current_latitude": msg.Latitude, "current_longitude": msg.Longitude})
+				if err := db.Model(&models.Driver{}).Where("id = ?", driverID).Updates(map[string]interface{}{"current_latitude": msg.Latitude, "current_longitude": msg.Longitude}).Error; err != nil {
+					log.Printf("Failed to update driver location: %v", err)
+				}
 			}
 		}
 	}
@@ -3435,7 +3495,10 @@ func AdminGetMenuItems(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		var items []models.MenuItem
-		db.Where("store_id = ?", storeId).Order("category, name").Find(&items)
+		if err := db.Where("store_id = ?", storeId).Order("category, name").Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch menu items"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "count": len(items), "timestamp": time.Now()})
 	}
 }

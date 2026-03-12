@@ -48,8 +48,29 @@ export default function ChatScreen({ route, navigation }: any) {
   useEffect(() => {
     if (!chatId) { setLoading(false); return; }
     let interval: ReturnType<typeof setInterval> | null = null;
+    let mounted = true;
     const stopPolling = () => {
       if (interval) { clearInterval(interval); interval = null; }
+    };
+    const fetchMessages = async () => {
+      try {
+        const response = await chatService.getMessages(chatId);
+        if (!mounted) return;
+        const raw = response.data?.data;
+        const msgs = Array.isArray(raw) ? raw : [];
+        setMessages(msgs.map((m: any, i: number) => ({
+          id: m.id?.toString() || `msg-${i}`,
+          text: m.message || m.text || '',
+          sender: m.sender_id === receiverId ? 'rider' : 'user',
+          time: m.created_at
+            ? new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            : '',
+        })));
+      } catch {
+        // Silent fail for polling
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
     const startPolling = () => {
       stopPolling();
@@ -59,28 +80,8 @@ export default function ChatScreen({ route, navigation }: any) {
     startPolling();
     const unsubBlur = navigation.addListener('blur', stopPolling);
     const unsubFocus = navigation.addListener('focus', startPolling);
-    return () => { stopPolling(); unsubBlur(); unsubFocus(); };
-  }, [chatId, navigation]);
-
-  const fetchMessages = async () => {
-    try {
-      const response = await chatService.getMessages(chatId);
-      const raw = response.data?.data;
-      const msgs = Array.isArray(raw) ? raw : [];
-      setMessages(msgs.map((m: any) => ({
-        id: m.id?.toString() || Date.now().toString(),
-        text: m.message || m.text || '',
-        sender: m.sender_id === receiverId ? 'rider' : 'user',
-        time: m.created_at
-          ? new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-          : '',
-      })));
-    } catch {
-      // Silent fail for polling
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => { mounted = false; stopPolling(); unsubBlur(); unsubFocus(); };
+  }, [chatId, receiverId, navigation]);
 
   const sendMessage = async (text?: string) => {
     const messageText = text || message.trim();
@@ -222,7 +223,7 @@ export default function ChatScreen({ route, navigation }: any) {
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.id || `temp-${index}`}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => {
             // Only auto-scroll when new messages arrive, not on every poll
