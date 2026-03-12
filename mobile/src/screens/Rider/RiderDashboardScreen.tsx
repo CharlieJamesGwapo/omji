@@ -847,7 +847,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                               {(request.distance_km || request.distance || 0).toFixed(1)} km
                             </Text>
                           </View>
-                          {request.payment_method && (
+                          {!!request.payment_method && (
                             <View style={[styles.jobMetricChip, { marginLeft: moderateScale(6) }]}>
                               <Ionicons name="card-outline" size={fontScale(11)} color={COLORS.gray500} />
                               <Text style={styles.jobMetric}>{request.payment_method.toUpperCase()}</Text>

@@ -267,7 +267,7 @@ export default function RegisterScreen({ navigation }: any) {
                 </Text>
               </Text>
             </TouchableOpacity>
-            {fieldErrors.terms && (
+            {!!fieldErrors.terms && (
               <View style={[styles.errorRow, { marginTop: verticalScale(-4), marginBottom: verticalScale(8) }]}>
                 <Ionicons name="alert-circle" size={14} color={COLORS.error} />
                 <Text style={styles.errorText}>{fieldErrors.terms}</Text>

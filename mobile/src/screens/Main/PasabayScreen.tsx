@@ -799,7 +799,7 @@ export default function PasabayScreen({ navigation }: any) {
             </View>
 
             {/* Nearby Riders */}
-            {pickupLocation.latitude && pickupLocation.longitude && !isDriver && (
+            {pickupLocation.latitude > 0 && pickupLocation.longitude !== 0 && !isDriver && (
               <NearbyRiders
                 pickupLatitude={pickupLocation.latitude}
                 pickupLongitude={pickupLocation.longitude}

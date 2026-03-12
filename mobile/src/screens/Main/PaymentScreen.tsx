@@ -227,7 +227,7 @@ export default function PaymentScreen({ route, navigation }: any) {
           </View>
 
           {/* Account Info with Copy */}
-          {config && (config.account_name || config.account_number) && (
+          {!!(config && (config.account_name || config.account_number)) && (
             <View style={[styles.accountInfoCard, { backgroundColor: brandColorLight }]}>
               <Ionicons
                 name="person-circle-outline"

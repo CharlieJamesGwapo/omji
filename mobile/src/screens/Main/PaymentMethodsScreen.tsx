@@ -137,7 +137,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
         </View>
         <View style={styles.methodInfo}>
           <Text style={styles.methodName}>{config.label}</Text>
-          {item.is_default && (
+          {!!item.is_default && (
             <View style={styles.defaultBadge}>
               <Text style={styles.defaultBadgeText}>Default</Text>
             </View>

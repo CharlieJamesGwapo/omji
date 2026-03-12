@@ -398,7 +398,7 @@ export default function StoresScreen({ navigation }: any) {
                   <View style={styles.storeHeader}>
                     <View style={styles.storeNameRow}>
                       <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
-                      {store.is_verified && (
+                      {!!store.is_verified && (
                         <View style={styles.verifiedBadge}>
                           <Ionicons name="shield-checkmark" size={moderateScale(14)} color={COLORS.accent} />
                         </View>
@@ -424,7 +424,7 @@ export default function StoresScreen({ navigation }: any) {
                         {store.category}
                       </Text>
                     </View>
-                    {store.is_verified && (
+                    {!!store.is_verified && (
                       <View style={[styles.categoryTag, { backgroundColor: COLORS.successBg }]}>
                         <Ionicons name="checkmark-circle" size={moderateScale(12)} color={COLORS.successDark} />
                         <Text style={[styles.categoryTagText, { color: COLORS.successDark }]}>Verified</Text>
