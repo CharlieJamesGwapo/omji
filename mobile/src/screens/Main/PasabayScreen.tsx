@@ -463,7 +463,7 @@ export default function PasabayScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: totalFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
-                ...(selectedDriver?.id ? { driver_id: selectedDriver.id } : {}),
+                // driver_id intentionally not sent — rider must accept from their app
               });
               const ride = response.data?.data || {};
               const rideIdNum = Number(ride.id);
@@ -788,38 +788,16 @@ export default function PasabayScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* Nearby Riders */}
+            {/* Nearby Riders (informational — shows available riders near pickup) */}
             {pickupLocation.latitude > 0 && pickupLocation.longitude !== 0 && !isDriver && (
               <NearbyRiders
                 pickupLatitude={pickupLocation.latitude}
                 pickupLongitude={pickupLocation.longitude}
                 vehicleType={selectedType.vehicleType}
                 accentColor="#8B5CF6"
-                selectedDriverId={selectedDriver?.id || null}
-                onSelectDriver={setSelectedDriver}
+                selectedDriverId={null}
+                onSelectDriver={() => {}}
               />
-            )}
-
-            {selectedDriver && (
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#F5F3FF',
-                borderRadius: moderateScale(10),
-                padding: moderateScale(10),
-                marginHorizontal: RESPONSIVE.marginHorizontal,
-                marginTop: verticalScale(8),
-                borderWidth: 1,
-                borderColor: '#8B5CF6',
-              }}>
-                <Ionicons name="person-circle" size={20} color="#8B5CF6" />
-                <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: fontScale(13), color: '#374151', fontWeight: '600' }}>
-                  {selectedDriver.name} · {selectedDriver.eta}
-                </Text>
-                <TouchableOpacity onPress={() => setSelectedDriver(null)}>
-                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
             )}
 
             {/* Book */}

@@ -331,7 +331,7 @@ export default function PasundoScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: estimatedFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
-                ...(selectedDriver?.id ? { driver_id: selectedDriver.id } : {}),
+                // driver_id intentionally not sent — rider must accept from their app
               });
               const ride = response.data?.data || {};
               const rideIdNum = Number(ride.id);
@@ -579,38 +579,23 @@ export default function PasundoScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Nearby Riders */}
+        {/* Nearby Riders (informational — shows available riders near pickup) */}
         {pickupLocation.latitude > 0 && (
           <NearbyRiders
             pickupLatitude={pickupLocation.latitude}
             pickupLongitude={pickupLocation.longitude}
             vehicleType={vehicleType}
             accentColor="#3B82F6"
-            selectedDriverId={selectedDriver?.id || null}
-            onSelectDriver={setSelectedDriver}
+            selectedDriverId={null}
+            onSelectDriver={() => {}}
           />
-        )}
-
-        {/* Selected Rider Info */}
-        {selectedDriver && (
-          <View style={{ marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(8) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(12), borderWidth: 1, borderColor: '#BFDBFE' }}>
-              <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
-              <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: RESPONSIVE.fontSize.small, color: '#1E40AF', fontWeight: '600' }}>
-                {selectedDriver.name} selected · {selectedDriver.eta} away
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedDriver(null)}>
-                <Ionicons name="close-circle" size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
         )}
 
         {/* Info */}
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#3B82F6" />
           <Text style={styles.infoText}>
-            {selectedDriver ? `${selectedDriver.name} will be assigned to your ride` : 'Select a rider above or we\'ll find one for you'}
+            Nearby riders will be notified and can accept your request
           </Text>
         </View>
 

@@ -325,7 +325,6 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			PromoCode        string  `json:"promo_code"`
 			PaymentMethod    string  `json:"payment_method"`
 			EstimatedFare    float64 `json:"estimated_fare"`
-			DriverID         uint    `json:"driver_id"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -371,17 +370,6 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			UserID: userID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: "pending", PromoID: promoID, PaymentMethod: input.PaymentMethod,
-		}
-		// If user selected a specific driver, assign them directly
-		if input.DriverID > 0 {
-			var driver models.Driver
-			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", input.DriverID, true, true).First(&driver).Error; err == nil {
-				ride.DriverID = &driver.ID
-				ride.Status = "accepted"
-				if err := db.Model(&driver).Update("is_available", false).Error; err != nil {
-					log.Printf("Failed to update driver availability on ride creation: %v", err)
-				}
-			}
 		}
 		if err := db.Create(&ride).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride"})
@@ -765,7 +753,6 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 
 		var pickupLocation, dropoffLocation, itemDescription, itemPhoto, notes, paymentMethod, promoCode string
 		var pickupLat, pickupLng, dropoffLat, dropoffLng, weight float64
-		var driverID uint
 
 		contentType := c.ContentType()
 		isMultipart := len(contentType) >= 9 && contentType[:9] == "multipart"
@@ -782,8 +769,6 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			dropoffLat, _ = strconv.ParseFloat(c.PostForm("dropoff_latitude"), 64)
 			dropoffLng, _ = strconv.ParseFloat(c.PostForm("dropoff_longitude"), 64)
 			weight, _ = strconv.ParseFloat(c.PostForm("weight"), 64)
-			did, _ := strconv.ParseUint(c.PostForm("driver_id"), 10, 64)
-			driverID = uint(did)
 
 			// Handle file upload
 			file, err := c.FormFile("item_photo")
@@ -818,7 +803,6 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 				Weight           float64 `json:"weight"`
 				PaymentMethod    string  `json:"payment_method"`
 				PromoCode        string  `json:"promo_code"`
-				DriverID         uint    `json:"driver_id"`
 			}
 			if err := c.ShouldBindJSON(&input); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -836,7 +820,6 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			weight = input.Weight
 			paymentMethod = input.PaymentMethod
 			promoCode = input.PromoCode
-			driverID = input.DriverID
 		}
 
 		if paymentMethod == "" {
@@ -876,17 +859,6 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
 			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(), PromoID: promoID,
-		}
-		// If user selected a specific driver, assign them directly
-		if driverID > 0 {
-			var driver models.Driver
-			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", driverID, true, true).First(&driver).Error; err == nil {
-				delivery.DriverID = &driver.ID
-				delivery.Status = "accepted"
-				if err := db.Model(&driver).Update("is_available", false).Error; err != nil {
-					log.Printf("Failed to update driver availability on delivery creation: %v", err)
-				}
-			}
 		}
 		if err := db.Create(&delivery).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})

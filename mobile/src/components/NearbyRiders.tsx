@@ -93,26 +93,14 @@ export default function NearbyRiders({
   };
 
   const renderDriver = ({ item }: { item: NearbyDriver }) => {
-    const isSelected = selectedDriverId === item.id;
     return (
-      <TouchableOpacity
-        style={[
-          styles.driverCard,
-          isSelected && { borderColor: accentColor, borderWidth: 2, backgroundColor: `${accentColor}08` },
-        ]}
-        onPress={() => onSelectDriver(isSelected ? null : item)}
-        activeOpacity={0.7}
-      >
+      <View style={styles.driverCard}>
         <View style={styles.driverRow}>
           <Image source={{ uri: getAvatarUri(item) }} style={styles.avatar} />
           <View style={styles.driverInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.driverName} numberOfLines={1}>{item.name || 'Rider'}</Text>
-              {isSelected && (
-                <View style={[styles.selectedBadge, { backgroundColor: accentColor }]}>
-                  <Ionicons name="checkmark" size={12} color="#fff" />
-                </View>
-              )}
+              <View style={[styles.onlineDot, { backgroundColor: '#10B981' }]} />
             </View>
             <View style={styles.detailsRow}>
               <View style={styles.ratingBadge}>
@@ -136,7 +124,7 @@ export default function NearbyRiders({
             <Text style={styles.distanceText}>{(item.distance ?? 0).toFixed(1)} km</Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -174,8 +162,7 @@ export default function NearbyRiders({
       ) : (
         <>
           <Text style={styles.countText}>
-            {drivers.length} rider{drivers.length !== 1 ? 's' : ''} nearby
-            {selectedDriverId != null ? ' · 1 selected' : ' · Tap to select'}
+            {drivers.length} rider{drivers.length !== 1 ? 's' : ''} online nearby
           </Text>
           <FlatList
             data={drivers}
@@ -262,12 +249,10 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     flex: 1,
   },
-  selectedBadge: {
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(10),
-    alignItems: 'center',
-    justifyContent: 'center',
+  onlineDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
   },
   detailsRow: {
     flexDirection: 'row',

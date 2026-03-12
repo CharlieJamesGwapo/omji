@@ -333,9 +333,7 @@ export default function PasugoScreen({ navigation }: any) {
               if (promoApplied && promoCode.trim()) {
                 deliveryData.promo_code = promoCode.trim();
               }
-              if (selectedDriver?.id) {
-                deliveryData.driver_id = selectedDriver.id;
-              }
+              // driver_id intentionally not sent — rider must accept from their app
               const response = itemPhoto
                 ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
                 : await deliveryService.createDelivery(deliveryData);
@@ -585,30 +583,15 @@ export default function PasugoScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Nearby Riders */}
+        {/* Nearby Riders (informational — shows available riders near pickup) */}
         {pickupLocation.latitude > 0 && (
           <NearbyRiders
             pickupLatitude={pickupLocation.latitude}
             pickupLongitude={pickupLocation.longitude}
             accentColor="#10B981"
-            selectedDriverId={selectedDriver?.id || null}
-            onSelectDriver={setSelectedDriver}
+            selectedDriverId={null}
+            onSelectDriver={() => {}}
           />
-        )}
-
-        {/* Selected Rider Info */}
-        {selectedDriver && (
-          <View style={{ marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(8) }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(12), borderWidth: 1, borderColor: '#A7F3D0' }}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={{ flex: 1, marginLeft: moderateScale(8), fontSize: RESPONSIVE.fontSize.small, color: '#065F46', fontWeight: '600' }}>
-                {selectedDriver.name} selected · {selectedDriver.eta} away
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedDriver(null)}>
-                <Ionicons name="close-circle" size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
         )}
 
         {/* Book Button */}
