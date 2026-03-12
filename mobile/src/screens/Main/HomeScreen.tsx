@@ -7,13 +7,19 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
-import { rideService, deliveryService, notificationService } from '../../services/api';
+import { rideService, deliveryService, notificationService, storeService } from '../../services/api';
 import Toast, { ToastType } from '../../components/Toast';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Dynamic greeting based on time of day
 const getGreeting = (): string => {
@@ -30,6 +36,10 @@ export default function HomeScreen({ navigation }: any) {
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [featuredStores, setFeaturedStores] = useState<any[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const carouselScrollRef = useRef<FlatList>(null);
+  const carouselIndex = useRef(0);
   const lastFetchRef = useRef<number>(0);
   const dotPulse = useRef(new Animated.Value(1)).current;
   const headerFade = useRef(new Animated.Value(0)).current;
@@ -98,6 +108,21 @@ export default function HomeScreen({ navigation }: any) {
         }
       })();
       fetchUnreadCount();
+      // Fetch featured stores
+      (async () => {
+        try {
+          setStoresLoading(true);
+          const res = await storeService.getStores();
+          const data = res?.data?.data;
+          if (Array.isArray(data)) {
+            setFeaturedStores(data.slice(0, 10));
+          }
+        } catch {
+          // Non-critical
+        } finally {
+          setStoresLoading(false);
+        }
+      })();
     });
     return unsubscribe;
   }, [navigation, fetchUnreadCount]);
@@ -110,6 +135,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasugo',
       description: 'Delivery Service',
       icon: 'cube-outline',
+      color: COLORS.pasugo,
+      bg: COLORS.pasugoBg,
       screen: 'Pasugo',
     },
     {
@@ -117,6 +144,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasabay',
       description: 'Ride Sharing',
       icon: 'bicycle-outline',
+      color: COLORS.pasabay,
+      bg: COLORS.pasabayBg,
       screen: 'Pasabay',
     },
     {
@@ -124,6 +153,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasundo',
       description: 'Pick-up Service',
       icon: 'car-outline',
+      color: COLORS.accent,
+      bg: COLORS.accentBg,
       screen: 'Pasundo',
     },
     {
@@ -131,16 +162,23 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Stores',
       description: 'Shop & Deliver',
       icon: 'storefront-outline',
+      color: COLORS.primary,
+      bg: COLORS.primaryBg,
       screen: 'Services',
     },
   ];
 
   const quickActions = [
-    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
-    { icon: 'time-outline', label: 'History', screen: 'RideHistory' },
-    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!') },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app') },
+    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.accent, bg: COLORS.accentBg },
+    { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.pasabay, bg: COLORS.pasabayBg },
+    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!'), color: COLORS.primary, bg: COLORS.primaryBg },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app'), color: COLORS.pasugo, bg: COLORS.pasugoBg },
   ];
+
+  const getStoreImage = (store: any) => {
+    if (store.image || store.logo) return store.image || store.logo;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name || 'Store')}&background=3B82F6&color=fff&size=200`;
+  };
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
 
@@ -247,6 +285,59 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         ))}
 
+        {/* Featured Stores Carousel */}
+        {featuredStores.length > 0 && (
+          <View style={styles.carouselSection}>
+            <View style={styles.carouselHeader}>
+              <Text style={styles.carouselTitle}>Popular Stores</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Services')} activeOpacity={0.7}>
+                <Text style={styles.carouselSeeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              ref={carouselScrollRef}
+              data={featuredStores}
+              horizontal
+              pagingEnabled={false}
+              snapToInterval={SCREEN_WIDTH * 0.7 + moderateScale(12)}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselList}
+              keyExtractor={(item) => String(item.id || item.ID)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.storeCard}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('StoreDetail', { storeId: item.id || item.ID })}
+                >
+                  <Image
+                    source={{ uri: getStoreImage(item) }}
+                    style={styles.storeImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.storeOverlay}>
+                    <View style={styles.storeRatingBadge}>
+                      <Ionicons name="star" size={12} color="#F59E0B" />
+                      <Text style={styles.storeRatingText}>{Number(item.rating || 4.5).toFixed(1)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.storeInfo}>
+                    <Text style={styles.storeName} numberOfLines={1}>{item.name || 'Store'}</Text>
+                    <Text style={styles.storeCategory} numberOfLines={1}>
+                      {item.category || item.description || 'Restaurant'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+        {storesLoading && featuredStores.length === 0 && (
+          <View style={styles.carouselLoading}>
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          </View>
+        )}
+
         {/* Destination Search Bar */}
         <TouchableOpacity
           style={styles.destinationBar}
@@ -275,8 +366,8 @@ export default function HomeScreen({ navigation }: any) {
                 activeOpacity={0.85}
               >
                 <View style={styles.serviceCardInner}>
-                  <View style={styles.serviceIconContainer}>
-                    <Ionicons name={service.icon as any} size={moderateScale(28)} color={COLORS.accent} />
+                  <View style={[styles.serviceIconContainer, { backgroundColor: service.bg }]}>
+                    <Ionicons name={service.icon as any} size={moderateScale(28)} color={service.color} />
                   </View>
                   <Text style={styles.serviceName}>{service.name}</Text>
                   <Text style={styles.serviceDescription}>{service.description}</Text>
@@ -299,8 +390,8 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
                 activeOpacity={0.7}
               >
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name={action.icon as any} size={moderateScale(24)} color={COLORS.accent} />
+                <View style={[styles.quickActionIcon, { backgroundColor: action.bg }]}>
+                  <Ionicons name={action.icon as any} size={moderateScale(24)} color={action.color} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -576,7 +667,6 @@ const styles = StyleSheet.create({
     width: moderateScale(isTablet() ? 64 : 52),
     height: moderateScale(isTablet() ? 64 : 52),
     borderRadius: moderateScale(isTablet() ? 20 : 16),
-    backgroundColor: COLORS.accentBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(14),
@@ -681,6 +771,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: moderateScale(8),
+  },
+
+  // --- Featured Stores Carousel ---
+  carouselSection: {
+    marginBottom: RESPONSIVE.marginVertical * 1.5,
+  },
+  carouselHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(10),
+  },
+  carouselTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    letterSpacing: -0.3,
+  },
+  carouselSeeAll: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  carouselList: {
+    paddingRight: RESPONSIVE.paddingHorizontal,
+  },
+  carouselLoading: {
+    height: verticalScale(120),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: RESPONSIVE.marginVertical,
+  },
+  storeCard: {
+    width: SCREEN_WIDTH * 0.7,
+    marginRight: moderateScale(12),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    backgroundColor: COLORS.white,
+    overflow: 'hidden',
+    ...SHADOWS.md,
+  },
+  storeImage: {
+    width: '100%',
+    height: verticalScale(120),
+    backgroundColor: COLORS.gray200,
+  },
+  storeOverlay: {
+    position: 'absolute',
+    top: moderateScale(8),
+    right: moderateScale(8),
+  },
+  storeRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(8),
+    paddingHorizontal: moderateScale(6),
+    paddingVertical: moderateScale(3),
+    gap: moderateScale(3),
+    ...SHADOWS.sm,
+  },
+  storeRatingText: {
+    fontSize: RESPONSIVE.fontSize.small - 1,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  storeInfo: {
+    padding: moderateScale(10),
+  },
+  storeName: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
+  },
+  storeCategory: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
   },
 
   // --- Location Tag ---
