@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { driverService, walletService } from '../../services/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 export default function RiderEarningsScreen({ navigation }: any) {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
@@ -25,6 +26,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [earningsApiData, setEarningsApiData] = useState<any>({});
   const [walletBalance, setWalletBalance] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
@@ -45,6 +49,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
       }
     } catch (error) {
       console.log('Earnings fetch failed:', (error as any).response?.status || (error as any).message);
+      showToast('Could not load earnings data. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -498,6 +503,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </Animated.View>
   );
 }

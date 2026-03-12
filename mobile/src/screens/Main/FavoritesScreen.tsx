@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { favoritesService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface FavoriteItem {
   id: number;
@@ -34,6 +35,9 @@ export default function FavoritesScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchFavorites = useCallback(async () => {
     try {
@@ -44,6 +48,7 @@ export default function FavoritesScreen({ navigation }: any) {
     } catch (error) {
       console.error('Error fetching favorites:', error);
       setFavorites([]);
+      showToast('Could not load favorites. Pull down to retry.', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,7 +80,7 @@ export default function FavoritesScreen({ navigation }: any) {
               setFavorites((prev) => prev.filter((f) => f.id !== item.id));
             } catch (error) {
               console.error('Error removing favorite:', error);
-              Alert.alert('Error', 'Failed to remove favorite. Please try again.');
+              showToast('Failed to remove favorite. Please try again.', 'error');
             }
           },
         },
@@ -222,6 +227,7 @@ export default function FavoritesScreen({ navigation }: any) {
           }
         />
       )}
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

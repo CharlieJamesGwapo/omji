@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { driverService } from '../../services/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 export default function RiderProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -23,6 +24,9 @@ export default function RiderProfileScreen({ navigation }: any) {
   const [earningsData, setEarningsData] = useState<any>({});
 
   const [driverData, setDriverData] = useState<any>({});
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchData = useCallback(async () => {
     try {
@@ -38,6 +42,7 @@ export default function RiderProfileScreen({ navigation }: any) {
       }
     } catch (error) {
       console.log('Rider data fetch failed:', (error as any).response?.status || (error as any).message);
+      showToast('Could not load profile data. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -377,6 +382,7 @@ export default function RiderProfileScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

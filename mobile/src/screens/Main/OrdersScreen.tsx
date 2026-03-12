@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
 import { COLORS, STATUS_CONFIG, formatStatus, getStatusColor, getStatusBg, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface OrderItem {
   id: number;
@@ -62,6 +63,9 @@ export default function OrdersScreen({ navigation }: any) {
 
   const lastFetchRef = useRef<number>(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   // Subtle pulse animation for ongoing status indicators
   useEffect(() => {
@@ -228,6 +232,7 @@ export default function OrdersScreen({ navigation }: any) {
       setOrders(allOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
+      showToast('Could not load orders. Pull down to refresh.', 'error');
     } finally {
       setLoading(false);
     }
@@ -551,6 +556,7 @@ export default function OrdersScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

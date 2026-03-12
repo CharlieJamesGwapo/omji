@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { rideService, deliveryService, orderService } from '../../services/api';
 import { COLORS, SHADOWS, STATUS_CONFIG, formatStatus, getStatusColor, getStatusBg } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface RideItem {
   id: number;
@@ -44,6 +45,9 @@ export default function RideHistoryScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [rides, setRides] = useState<RideItem[]>([]);
   const [filterType, setFilterType] = useState('all');
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchRides = useCallback(async () => {
     try {
@@ -81,6 +85,7 @@ export default function RideHistoryScreen({ navigation }: any) {
     } catch (error) {
       console.error('Error fetching rides:', error);
       setRides([]);
+      showToast('Could not load history. Pull down to retry.', 'error');
     } finally {
       setLoading(false);
     }
@@ -343,6 +348,7 @@ export default function RideHistoryScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(90) }} />
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

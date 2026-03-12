@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../services/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface Notification {
   id: number;
@@ -31,6 +32,9 @@ export default function NotificationsScreen({ navigation }: any) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -39,6 +43,7 @@ export default function NotificationsScreen({ navigation }: any) {
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       console.log('Error fetching notifications:', error);
+      showToast('Could not load notifications. Pull down to retry.', 'error');
     } finally {
       setLoading(false);
     }
@@ -250,6 +255,7 @@ export default function NotificationsScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.accent]} tintColor={COLORS.accent} />
         }
       />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

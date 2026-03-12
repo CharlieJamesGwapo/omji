@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { rideService, deliveryService, notificationService } from '../../services/api';
+import Toast, { ToastType } from '../../components/Toast';
 
 // Dynamic greeting based on time of day
 const getGreeting = (): string => {
@@ -32,6 +33,9 @@ export default function HomeScreen({ navigation }: any) {
   const lastFetchRef = useRef<number>(0);
   const dotPulse = useRef(new Animated.Value(1)).current;
   const headerFade = useRef(new Animated.Value(0)).current;
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   // Header fade-in on mount
   useEffect(() => {
@@ -90,6 +94,7 @@ export default function HomeScreen({ navigation }: any) {
           }
         } catch (error) {
           console.error('Error fetching active orders:', error);
+          showToast('Could not load active orders. Please check your connection.', 'error');
         }
       })();
       fetchUnreadCount();
@@ -344,6 +349,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.locationTagText}>Balingasag, Misamis Oriental</Text>
         </View>
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }

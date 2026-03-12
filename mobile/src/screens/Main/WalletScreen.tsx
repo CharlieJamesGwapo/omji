@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { walletService } from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
+import Toast, { ToastType } from '../../components/Toast';
 
 export default function WalletScreen({ navigation }: any) {
   const [balance, setBalance] = useState(0);
@@ -30,6 +31,9 @@ export default function WalletScreen({ navigation }: any) {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const [fetchError, setFetchError] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
+  const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
   const fetchWallet = useCallback(async () => {
     try {
@@ -41,6 +45,7 @@ export default function WalletScreen({ navigation }: any) {
     } catch (error: any) {
       if (error.response?.status !== 401) {
         console.warn('Wallet: Could not load balance');
+        showToast('Could not load wallet. Please check your connection.', 'error');
       }
       setFetchError(true);
     } finally {
@@ -559,6 +564,7 @@ export default function WalletScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );
 }
