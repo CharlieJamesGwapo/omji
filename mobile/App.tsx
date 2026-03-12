@@ -3,7 +3,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { View, ActivityIndicator, LogBox, Text, TouchableOpacity } from 'react-native';
+import { View, ActivityIndicator, LogBox, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 // Context
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -83,13 +83,51 @@ const RootNavigator = () => {
   );
 };
 
+// Error Boundary to catch "Text strings must be rendered within <Text>" and show component stack
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('🔴 ErrorBoundary caught:', error.message);
+    console.error('🔴 Component stack:', errorInfo.componentStack);
+    this.setState({ errorInfo });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#FEF2F2' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#DC2626', marginBottom: 10 }}>Something went wrong</Text>
+          <Text style={{ fontSize: 14, color: '#991B1B', marginBottom: 10, textAlign: 'center' }}>{this.state.error?.message}</Text>
+          <ScrollView style={{ maxHeight: 300, backgroundColor: '#ffffff', borderRadius: 8, padding: 10, width: '100%' }}>
+            <Text style={{ fontSize: 11, color: '#6B7280', fontFamily: 'monospace' }}>{this.state.errorInfo?.componentStack || 'No stack available'}</Text>
+          </ScrollView>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+            style={{ marginTop: 20, backgroundColor: '#3B82F6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 }}
+          >
+            <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Main App
 export default function App() {
   return (
-    <NetworkProvider>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
-    </NetworkProvider>
+    <ErrorBoundary>
+      <NetworkProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </NetworkProvider>
+    </ErrorBoundary>
   );
 }

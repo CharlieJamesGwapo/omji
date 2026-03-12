@@ -73,8 +73,8 @@ export default function RiderProfileScreen({ navigation }: any) {
   const stats = [
     { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: COLORS.accent, bg: COLORS.accentBg },
     { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
-    { label: 'Acceptance', value: earningsData.acceptance_rate ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
-    { label: 'Completion', value: earningsData.completion_rate ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
+    { label: 'Acceptance', value: earningsData.acceptance_rate != null ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
+    { label: 'Completion', value: earningsData.completion_rate != null ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
   ];
 
   const achievements = [

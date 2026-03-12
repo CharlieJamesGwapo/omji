@@ -120,7 +120,7 @@ export default function NearbyRiders({
                 <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '5.0'}</Text>
               </View>
               <Text style={styles.dotSep}>·</Text>
-              <Text style={styles.ridesText}>{item.completed_rides} rides</Text>
+              <Text style={styles.ridesText}>{item.completed_rides ?? 0} rides</Text>
             </View>
             <View style={styles.vehicleRow}>
               <Ionicons name={getVehicleIcon(item.vehicle_type) as any} size={14} color="#6B7280" />
@@ -133,7 +133,7 @@ export default function NearbyRiders({
             <View style={[styles.etaBadge, { backgroundColor: `${accentColor}15` }]}>
               <Text style={[styles.etaText, { color: accentColor }]}>{item.eta}</Text>
             </View>
-            <Text style={styles.distanceText}>{item.distance.toFixed(1)} km</Text>
+            <Text style={styles.distanceText}>{(item.distance ?? 0).toFixed(1)} km</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -175,7 +175,7 @@ export default function NearbyRiders({
         <>
           <Text style={styles.countText}>
             {drivers.length} rider{drivers.length !== 1 ? 's' : ''} nearby
-            {selectedDriverId ? ' · 1 selected' : ' · Tap to select'}
+            {selectedDriverId != null ? ' · 1 selected' : ' · Tap to select'}
           </Text>
           <FlatList
             data={drivers}

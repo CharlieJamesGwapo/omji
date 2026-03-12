@@ -19,7 +19,7 @@ interface Notification {
   title: string;
   body: string;
   type: string;
-  read: boolean;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -64,7 +64,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   const handleMarkRead = async (id: number) => {
     const prev = [...notifications];
-    setNotifications(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(ns => ns.map(n => n.id === id ? { ...n, is_read: true } : n));
     try {
       await notificationService.markAsRead(id);
     } catch {
@@ -73,10 +73,10 @@ export default function NotificationsScreen({ navigation }: any) {
   };
 
   const handleMarkAllRead = async () => {
-    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
     if (unreadIds.length === 0) return;
     const prev = [...notifications];
-    setNotifications(ns => ns.map(n => ({ ...n, read: true })));
+    setNotifications(ns => ns.map(n => ({ ...n, is_read: true })));
     try {
       await Promise.allSettled(unreadIds.map(id => notificationService.markAsRead(id)));
     } catch {
@@ -84,7 +84,7 @@ export default function NotificationsScreen({ navigation }: any) {
     }
   };
 
-  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+  const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications]);
 
   const getNotificationConfig = (type: string) => {
     switch (type) {
@@ -148,7 +148,7 @@ export default function NotificationsScreen({ navigation }: any) {
         key={item.id}
         style={[
           styles.notificationCard,
-          !item.read && { borderLeftWidth: moderateScale(3), borderLeftColor: config.borderColor },
+          !item.is_read && { borderLeftWidth: moderateScale(3), borderLeftColor: config.borderColor },
         ]}
         onPress={() => handleMarkRead(item.id)}
         activeOpacity={0.7}
@@ -158,14 +158,14 @@ export default function NotificationsScreen({ navigation }: any) {
         </View>
         <View style={styles.contentContainer}>
           <View style={styles.titleRow}>
-            <Text style={[styles.title, !item.read && styles.unreadTitle]} numberOfLines={1}>
+            <Text style={[styles.title, !item.is_read && styles.unreadTitle]} numberOfLines={1}>
               {item.title}
             </Text>
-            {!item.read && (
+            {!item.is_read && (
               <View style={[styles.unreadDot, { backgroundColor: config.color }]} />
             )}
           </View>
-          <Text style={[styles.message, !item.read && styles.unreadMessage]} numberOfLines={2}>{item.body}</Text>
+          <Text style={[styles.message, !item.is_read && styles.unreadMessage]} numberOfLines={2}>{item.body}</Text>
           <View style={styles.timeRow}>
             <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.gray400} />
             <Text style={styles.time}>{formatTime(item.created_at)}</Text>

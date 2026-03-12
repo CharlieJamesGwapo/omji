@@ -605,12 +605,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
           styles.toggleCard,
           isOnline && styles.toggleCardOnline,
         ]}>
-          <TouchableOpacity
-            style={styles.toggleTouchArea}
-            onPress={handleToggleOnline}
-            activeOpacity={0.7}
-          >
-            <View style={styles.toggleLeft}>
+          <View style={styles.toggleTouchArea}>
+            <TouchableOpacity
+              style={styles.toggleLeft}
+              onPress={handleToggleOnline}
+              activeOpacity={0.7}
+            >
               <View style={[
                 styles.toggleIconContainer,
                 isOnline ? styles.toggleIconOnline : styles.toggleIconOffline,
@@ -631,7 +631,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     : 'Tap to start accepting requests'}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
             <Switch
               value={isOnline}
               onValueChange={handleToggleOnline}
@@ -639,7 +639,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               thumbColor={isOnline ? COLORS.success : COLORS.gray100}
               style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] }}
             />
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Active Jobs Banner */}

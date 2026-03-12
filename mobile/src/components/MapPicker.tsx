@@ -38,15 +38,15 @@ export default function MapPicker({
   const mapRef = useRef<MapView>(null);
 
   const [region, setRegion] = useState({
-    latitude: initialLocation?.latitude || 8.4343,
-    longitude: initialLocation?.longitude || 124.7762,
+    latitude: initialLocation?.latitude ?? 8.4343,
+    longitude: initialLocation?.longitude ?? 124.7762,
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   });
 
   const [centerCoord, setCenterCoord] = useState({
-    latitude: initialLocation?.latitude || 8.4343,
-    longitude: initialLocation?.longitude || 124.7762,
+    latitude: initialLocation?.latitude ?? 8.4343,
+    longitude: initialLocation?.longitude ?? 124.7762,
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,7 +224,7 @@ export default function MapPicker({
 
   const confirmLocation = async () => {
     let finalAddress = address;
-    if (!finalAddress || finalAddress === 'Selected location') {
+    if (!finalAddress || finalAddress === 'Selected location' || finalAddress === 'Move the map to select location') {
       // Resolve address before confirming
       try {
         const result = await Location.reverseGeocodeAsync({
@@ -336,9 +336,9 @@ export default function MapPicker({
 
         {/* Confirm Button */}
         <TouchableOpacity
-          style={[styles.confirmButton, (!address || resolving) && styles.confirmButtonDisabled]}
+          style={[styles.confirmButton, (!address || address === 'Move the map to select location' || resolving) && styles.confirmButtonDisabled]}
           onPress={confirmLocation}
-          disabled={!address || resolving}
+          disabled={!address || address === 'Move the map to select location' || resolving}
           activeOpacity={0.8}
         >
           <Text style={styles.confirmButtonText}>Confirm Location</Text>
