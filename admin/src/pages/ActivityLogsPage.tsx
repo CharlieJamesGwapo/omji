@@ -152,7 +152,7 @@ const ActivityLogsPage: React.FC = () => {
   });
 
   // Pagination
-  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
   const paginated = filteredLogs.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
