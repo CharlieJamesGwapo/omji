@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -1851,165 +1852,176 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			"in_progress":    {"completed"},
 		}
 		rideID := c.Param("id")
-		// Try ride first
+		// Try ride first (within transaction + row lock to prevent race conditions)
 		var ride models.Ride
 		if err := db.Where("id = ? AND driver_id = ?", rideID, driver.ID).First(&ride).Error; err == nil {
-			// Validate ride status transition
-			allowed := rideTransitions[ride.Status]
-			validTransition := false
-			for _, s := range allowed {
-				if s == input.Status {
-					validTransition = true
-					break
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				// Re-fetch with row lock inside transaction
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", ride.ID).First(&ride).Error; err != nil {
+					return err
 				}
-			}
-			if !validTransition {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status transition from " + ride.Status + " to " + input.Status})
-				return
-			}
-			updates := map[string]interface{}{"status": input.Status}
-			if input.Status == "in_progress" {
-				now := time.Now()
-				updates["started_at"] = &now
-			}
-			if input.Status == "completed" {
-				now := time.Now()
-				updates["completed_at"] = &now
-				if ride.FinalFare == 0 {
-					updates["final_fare"] = ride.EstimatedFare
-				}
-				if err := db.Model(&driver).Updates(map[string]interface{}{
-					"completed_rides": gorm.Expr("completed_rides + 1"),
-					"total_earnings":  gorm.Expr("total_earnings + ?", ride.EstimatedFare),
-					"is_available":    true,
-				}).Error; err != nil {
-					log.Printf("Failed to update driver stats for ride %d: %v", ride.ID, err)
-				}
-				// Process wallet payment
-				if ride.PaymentMethod == "wallet" {
-					walletTx := db.Begin()
-					var wallet models.Wallet
-					if err := walletTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", ride.UserID).First(&wallet).Error; err == nil {
-						fare := ride.FinalFare
-						if fare == 0 {
-							fare = ride.EstimatedFare
-						}
-						if wallet.Balance >= fare {
-							wallet.Balance -= fare
-							if err := walletTx.Save(&wallet).Error; err != nil {
-								walletTx.Rollback()
-								log.Printf("Failed to save wallet for ride %d: %v", ride.ID, err)
-								updates["payment_method"] = "cash"
-							} else if err := walletTx.Create(&models.WalletTransaction{
-								WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
-								Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
-								Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
-							}).Error; err != nil {
-								walletTx.Rollback()
-								log.Printf("Failed to create wallet tx for ride %d: %v", ride.ID, err)
-								updates["payment_method"] = "cash"
-							} else {
-								walletTx.Commit()
-							}
-						} else {
-							walletTx.Rollback()
-							// Fall back to cash payment
-							updates["payment_method"] = "cash"
-						}
-					} else {
-						walletTx.Rollback()
-						updates["payment_method"] = "cash"
+				// Validate ride status transition
+				allowed := rideTransitions[ride.Status]
+				validTransition := false
+				for _, s := range allowed {
+					if s == input.Status {
+						validTransition = true
+						break
 					}
 				}
-			}
-			if err := db.Model(&ride).Updates(updates).Error; err != nil {
+				if !validTransition {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status transition from " + ride.Status + " to " + input.Status})
+					return fmt.Errorf("HANDLED")
+				}
+				updates := map[string]interface{}{"status": input.Status}
+				if input.Status == "in_progress" {
+					now := time.Now()
+					updates["started_at"] = &now
+				}
+				if input.Status == "completed" {
+					now := time.Now()
+					updates["completed_at"] = &now
+					if ride.FinalFare == 0 {
+						updates["final_fare"] = ride.EstimatedFare
+					}
+					if err := tx.Model(&driver).Updates(map[string]interface{}{
+						"completed_rides": gorm.Expr("completed_rides + 1"),
+						"total_earnings":  gorm.Expr("total_earnings + ?", ride.EstimatedFare),
+						"is_available":    true,
+					}).Error; err != nil {
+						log.Printf("Failed to update driver stats for ride %d: %v", ride.ID, err)
+					}
+					// Process wallet payment inside same transaction
+					if ride.PaymentMethod == "wallet" {
+						var wallet models.Wallet
+						if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", ride.UserID).First(&wallet).Error; err == nil {
+							fare := ride.FinalFare
+							if fare == 0 {
+								fare = ride.EstimatedFare
+							}
+							if wallet.Balance >= fare {
+								wallet.Balance -= fare
+								if err := tx.Save(&wallet).Error; err != nil {
+									log.Printf("Failed to save wallet for ride %d: %v", ride.ID, err)
+									updates["payment_method"] = "cash"
+								} else if err := tx.Create(&models.WalletTransaction{
+									WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
+									Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
+									Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
+								}).Error; err != nil {
+									log.Printf("Failed to create wallet tx for ride %d: %v", ride.ID, err)
+									updates["payment_method"] = "cash"
+								}
+							} else {
+								updates["payment_method"] = "cash"
+							}
+						} else {
+							updates["payment_method"] = "cash"
+						}
+					}
+				}
+				if err := tx.Model(&ride).Updates(updates).Error; err != nil {
+					return err
+				}
+				if input.Status == "completed" {
+					finalFare := ride.FinalFare
+					if finalFare == 0 {
+						finalFare = ride.EstimatedFare
+					}
+					if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Completed", Body: "Your ride has been completed. Fare: ₱" + strconv.FormatFloat(finalFare, 'f', 0, 64), Type: "ride"}).Error; err != nil {
+						log.Printf("Failed to create ride completed notification: %v", err)
+					}
+				}
+				return nil
+			})
+			if txErr != nil {
+				if txErr.Error() == "HANDLED" {
+					return
+				}
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update ride status"})
 				return
-			}
-			if input.Status == "completed" {
-				finalFare := ride.FinalFare
-				if finalFare == 0 {
-					finalFare = ride.EstimatedFare
-				}
-				if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Completed", Body: "Your ride has been completed. Fare: ₱" + strconv.FormatFloat(finalFare, 'f', 0, 64), Type: "ride"}).Error; err != nil {
-					log.Printf("Failed to create ride completed notification: %v", err)
-				}
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Status updated", "status": input.Status, "id": ride.ID, "type": "ride"}, "timestamp": time.Now()})
 			return
 		}
-		// Try delivery
+		// Try delivery (within transaction + row lock to prevent race conditions)
 		var delivery models.Delivery
 		if err := db.Where("id = ? AND driver_id = ?", rideID, driver.ID).First(&delivery).Error; err == nil {
-			// Validate delivery status transition
-			allowed := deliveryTransitions[delivery.Status]
-			validTransition := false
-			for _, s := range allowed {
-				if s == input.Status {
-					validTransition = true
-					break
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				// Re-fetch with row lock inside transaction
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", delivery.ID).First(&delivery).Error; err != nil {
+					return err
 				}
-			}
-			if !validTransition {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status transition from " + delivery.Status + " to " + input.Status})
-				return
-			}
-			updates := map[string]interface{}{"status": input.Status}
-			if input.Status == "in_progress" {
-				now := time.Now()
-				updates["started_at"] = &now
-			}
-			if input.Status == "completed" {
-				now := time.Now()
-				updates["completed_at"] = &now
-				if err := db.Model(&driver).Updates(map[string]interface{}{
-					"completed_rides": gorm.Expr("completed_rides + 1"),
-					"total_earnings":  gorm.Expr("total_earnings + ?", delivery.DeliveryFee),
-					"is_available":    true,
-				}).Error; err != nil {
-					log.Printf("Failed to update driver stats for delivery %d: %v", delivery.ID, err)
-				}
-				// Process wallet payment for delivery
-				if delivery.PaymentMethod == "wallet" {
-					walletTx := db.Begin()
-					var wallet models.Wallet
-					if err := walletTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", delivery.UserID).First(&wallet).Error; err == nil {
-						fee := delivery.DeliveryFee
-						if wallet.Balance >= fee {
-							wallet.Balance -= fee
-							if err := walletTx.Save(&wallet).Error; err != nil {
-								walletTx.Rollback()
-								log.Printf("Failed to save wallet for delivery %d: %v", delivery.ID, err)
-								updates["payment_method"] = "cash"
-							} else if err := walletTx.Create(&models.WalletTransaction{
-								WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
-								Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
-								Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
-							}).Error; err != nil {
-								walletTx.Rollback()
-								log.Printf("Failed to create wallet tx for delivery %d: %v", delivery.ID, err)
-								updates["payment_method"] = "cash"
-							} else {
-								walletTx.Commit()
-							}
-						} else {
-							walletTx.Rollback()
-							updates["payment_method"] = "cash"
-						}
-					} else {
-						walletTx.Rollback()
-						updates["payment_method"] = "cash"
+				// Validate delivery status transition
+				allowed := deliveryTransitions[delivery.Status]
+				validTransition := false
+				for _, s := range allowed {
+					if s == input.Status {
+						validTransition = true
+						break
 					}
 				}
-			}
-			if err := db.Model(&delivery).Updates(updates).Error; err != nil {
+				if !validTransition {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status transition from " + delivery.Status + " to " + input.Status})
+					return fmt.Errorf("HANDLED")
+				}
+				updates := map[string]interface{}{"status": input.Status}
+				if input.Status == "in_progress" {
+					now := time.Now()
+					updates["started_at"] = &now
+				}
+				if input.Status == "completed" {
+					now := time.Now()
+					updates["completed_at"] = &now
+					if err := tx.Model(&driver).Updates(map[string]interface{}{
+						"completed_rides": gorm.Expr("completed_rides + 1"),
+						"total_earnings":  gorm.Expr("total_earnings + ?", delivery.DeliveryFee),
+						"is_available":    true,
+					}).Error; err != nil {
+						log.Printf("Failed to update driver stats for delivery %d: %v", delivery.ID, err)
+					}
+					// Process wallet payment inside same transaction
+					if delivery.PaymentMethod == "wallet" {
+						var wallet models.Wallet
+						if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", delivery.UserID).First(&wallet).Error; err == nil {
+							fee := delivery.DeliveryFee
+							if wallet.Balance >= fee {
+								wallet.Balance -= fee
+								if err := tx.Save(&wallet).Error; err != nil {
+									log.Printf("Failed to save wallet for delivery %d: %v", delivery.ID, err)
+									updates["payment_method"] = "cash"
+								} else if err := tx.Create(&models.WalletTransaction{
+									WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
+									Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
+									Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
+								}).Error; err != nil {
+									log.Printf("Failed to create wallet tx for delivery %d: %v", delivery.ID, err)
+									updates["payment_method"] = "cash"
+								}
+							} else {
+								updates["payment_method"] = "cash"
+							}
+						} else {
+							updates["payment_method"] = "cash"
+						}
+					}
+				}
+				if err := tx.Model(&delivery).Updates(updates).Error; err != nil {
+					return err
+				}
+				if input.Status == "completed" {
+					if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Completed", Body: "Your delivery has been completed. Fee: ₱" + strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), Type: "delivery"}).Error; err != nil {
+						log.Printf("Failed to create delivery completed notification: %v", err)
+					}
+				}
+				return nil
+			})
+			if txErr != nil {
+				if txErr.Error() == "HANDLED" {
+					return
+				}
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update delivery status"})
 				return
-			}
-			if input.Status == "completed" {
-				if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Completed", Body: "Your delivery has been completed. Fee: ₱" + strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), Type: "delivery"}).Error; err != nil {
-					log.Printf("Failed to create delivery completed notification: %v", err)
-				}
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Status updated", "status": input.Status, "id": delivery.ID, "type": "delivery"}, "timestamp": time.Now()})
 			return
@@ -3198,36 +3210,15 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 					}
 					return false
 				}
-				// Try ride first
+				// Try ride first (with transaction + row lock)
 				var ride models.Ride
 				if db.First(&ride, "id = ?", rideID).Error == nil {
-					if !isValid(ride.Status, msg.Status, rideTransitions) {
-						continue
-					}
-					updates := map[string]interface{}{"status": msg.Status}
-					now := time.Now()
-					if msg.Status == "in_progress" {
-						updates["started_at"] = now
-					}
-					if msg.Status == "completed" {
-						updates["completed_at"] = now
-						updates["final_fare"] = ride.EstimatedFare
-						if ride.DriverID != nil {
-							if err := db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true}).Error; err != nil {
-								log.Printf("Failed to update driver stats on ride completion: %v", err)
-							}
+					if err := db.Transaction(func(tx *gorm.DB) error {
+						if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ride, "id = ?", rideID).Error; err != nil {
+							return err
 						}
-					}
-					if err := db.Model(&ride).Updates(updates).Error; err != nil {
-						log.Printf("Failed to update ride status: %v", err)
-					}
-					tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
-				} else {
-					// Try delivery
-					var delivery models.Delivery
-					if db.First(&delivery, "id = ?", rideID).Error == nil {
-						if !isValid(delivery.Status, msg.Status, deliveryTransitions) {
-							continue
+						if !isValid(ride.Status, msg.Status, rideTransitions) {
+							return fmt.Errorf("invalid transition")
 						}
 						updates := map[string]interface{}{"status": msg.Status}
 						now := time.Now()
@@ -3236,16 +3227,49 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 						}
 						if msg.Status == "completed" {
 							updates["completed_at"] = now
-							if delivery.DriverID != nil {
-								if err := db.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true}).Error; err != nil {
-									log.Printf("Failed to update driver stats on delivery completion: %v", err)
+							updates["final_fare"] = ride.EstimatedFare
+							if ride.DriverID != nil {
+								if err := tx.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true}).Error; err != nil {
+									log.Printf("Failed to update driver stats on ride completion: %v", err)
 								}
 							}
 						}
-						if err := db.Model(&delivery).Updates(updates).Error; err != nil {
-							log.Printf("Failed to update delivery status: %v", err)
-						}
+						return tx.Model(&ride).Updates(updates).Error
+					}); err != nil {
+						log.Printf("Failed to update ride status via WS: %v", err)
+					} else {
 						tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
+					}
+				} else {
+					// Try delivery (with transaction + row lock)
+					var delivery models.Delivery
+					if db.First(&delivery, "id = ?", rideID).Error == nil {
+						if err := db.Transaction(func(tx *gorm.DB) error {
+							if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&delivery, "id = ?", rideID).Error; err != nil {
+								return err
+							}
+							if !isValid(delivery.Status, msg.Status, deliveryTransitions) {
+								return fmt.Errorf("invalid transition")
+							}
+							updates := map[string]interface{}{"status": msg.Status}
+							now := time.Now()
+							if msg.Status == "in_progress" {
+								updates["started_at"] = now
+							}
+							if msg.Status == "completed" {
+								updates["completed_at"] = now
+								if delivery.DriverID != nil {
+									if err := tx.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true}).Error; err != nil {
+										log.Printf("Failed to update driver stats on delivery completion: %v", err)
+									}
+								}
+							}
+							return tx.Model(&delivery).Updates(updates).Error
+						}); err != nil {
+							log.Printf("Failed to update delivery status via WS: %v", err)
+						} else {
+							tracker.Broadcast(rideID, gin.H{"type": "status_update", "status": msg.Status, "timestamp": time.Now()})
+						}
 					}
 				}
 			}

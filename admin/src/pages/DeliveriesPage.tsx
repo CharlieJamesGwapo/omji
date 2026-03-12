@@ -238,7 +238,7 @@ const DeliveriesPage: React.FC = () => {
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Cancelled</div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 sm:col-span-1">
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900">P{stats.revenue.toLocaleString()}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">₱{stats.revenue.toLocaleString()}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Revenue</div>
         </div>
       </div>
