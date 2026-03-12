@@ -97,7 +97,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Performance',
       items: [
-        { icon: 'stats-chart', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Earnings & Statistics', subtitle: 'View detailed breakdown', action: () => navigation.navigate('RiderEarnings') },
+        { icon: 'stats-chart', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Earnings & Statistics', subtitle: 'View detailed breakdown', action: () => navigation.navigate('Earnings') },
         { icon: 'star', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Ratings & Reviews', subtitle: `${riderProfile.rating.toFixed(1)} average rating`, action: () => Alert.alert('Ratings', `Your Rating: ${riderProfile.rating.toFixed(1)} / 5.0\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!`) },
       ],
     },
@@ -135,17 +135,10 @@ export default function RiderProfileScreen({ navigation }: any) {
       {/* Header with colored background */}
       <View style={styles.headerBg}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.headerBackBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.white} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
           <TouchableOpacity
             style={styles.headerSettingsBtn}
             onPress={() => Alert.alert('Settings', 'Rider Settings', [
-              { text: 'View Earnings', onPress: () => navigation.navigate('RiderEarnings') },
               { text: 'Logout', style: 'destructive', onPress: handleLogout },
               { text: 'Cancel', style: 'cancel' },
             ])}
@@ -408,14 +401,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: isIOS ? verticalScale(50) : verticalScale(35),
     paddingBottom: verticalScale(16),
-  },
-  headerBackBtn: {
-    width: moderateScale(36),
-    height: moderateScale(36),
-    borderRadius: moderateScale(18),
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: RESPONSIVE.fontSize.xlarge,
