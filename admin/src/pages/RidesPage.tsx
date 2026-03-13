@@ -95,8 +95,8 @@ const RidesPage: React.FC = () => {
       setRides(prev => prev.map((r) => (r.id === id ? { ...r, status } : r)));
       setSelectedRide(prev => prev && prev.id === id ? { ...prev, status } : prev);
       toast.success(`Ride #${id} updated to ${status.replace(/_/g, ' ')}`);
-    } catch {
-      toast.error('Failed to update ride status');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update ride status');
     } finally {
       setUpdatingId(null);
     }

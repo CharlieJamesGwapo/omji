@@ -109,8 +109,8 @@ const PaymentConfigsPage: React.FC = () => {
       await adminService.deletePaymentConfig(id);
       toast.success('Payment config deleted');
       await loadConfigs();
-    } catch {
-      toast.error('Failed to delete');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete');
     }
   };
 

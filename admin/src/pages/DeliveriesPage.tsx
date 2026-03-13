@@ -90,8 +90,8 @@ const DeliveriesPage: React.FC = () => {
       setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status } : d));
       setSelectedDelivery(prev => prev && prev.id === id ? { ...prev, status } : prev);
       toast.success(`Delivery #${id} updated to ${status.replace(/_/g, ' ')}`);
-    } catch {
-      toast.error('Failed to update delivery status');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update delivery status');
     }
     setUpdatingId(null);
   }, []);

@@ -1244,6 +1244,10 @@ func DeletePaymentMethod(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		result := db.Where("id = ? AND user_id = ?", c.Param("id"), userID).Delete(&models.PaymentMethod{})
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete payment method"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment method not found"})
 			return
@@ -1343,6 +1347,10 @@ func DeleteFavorite(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		result := db.Where("id = ? AND user_id = ?", c.Param("id"), userID).Delete(&models.Favorite{})
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to remove favorite"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Favorite not found"})
 			return
@@ -1419,6 +1427,10 @@ func ApplyPromo(db *gorm.DB) gin.HandlerFunc {
 		}
 		// Atomically increment usage_count to prevent race conditions
 		result := db.Model(&models.Promo{}).Where("id = ? AND (usage_limit = 0 OR usage_count < usage_limit)", promo.ID).Update("usage_count", gorm.Expr("usage_count + 1"))
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to apply promo"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code usage limit reached"})
 			return
@@ -1825,8 +1837,12 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 			updates["current_longitude"] = input.Longitude
 		}
 		result := db.Model(&driver).Updates(updates)
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update availability"})
+			return
+		}
 		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Failed to update availability"})
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No changes to availability"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"available": input.Available, "message": "Availability updated"}, "timestamp": time.Now()})
@@ -2178,6 +2194,10 @@ func MarkNotificationRead(db *gorm.DB) gin.HandlerFunc {
 		userID := c.MustGet("userID").(uint)
 		id := c.Param("id")
 		result := db.Model(&models.Notification{}).Where("id = ? AND user_id = ?", id, userID).Update("read", true)
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to mark notification as read"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Notification not found"})
 			return

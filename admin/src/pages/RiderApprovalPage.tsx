@@ -79,8 +79,8 @@ const RiderApprovalPage: React.FC = () => {
       toast.success('Rider approved successfully! Their account is now active.');
       loadRiders();
       setSelectedRider(null);
-    } catch (error) {
-      toast.error('Failed to approve rider');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to approve rider');
       console.error(error);
     } finally {
       setActionLoading(false);
@@ -96,8 +96,8 @@ const RiderApprovalPage: React.FC = () => {
       toast.success('Rider application rejected');
       loadRiders();
       setSelectedRider(null);
-    } catch (error) {
-      toast.error('Failed to reject rider');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to reject rider');
       console.error(error);
     } finally {
       setActionLoading(false);

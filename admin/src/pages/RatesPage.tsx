@@ -146,8 +146,8 @@ export default function RatesPage() {
       await adminService.updateRate(rate.id, { is_active: !rate.is_active });
       toast.success(rate.is_active ? 'Rate deactivated' : 'Rate activated');
       fetchRates();
-    } catch {
-      toast.error('Failed to update rate');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update rate');
     }
   };
 
