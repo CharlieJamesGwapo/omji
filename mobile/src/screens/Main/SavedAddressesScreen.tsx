@@ -49,8 +49,9 @@ export default function SavedAddressesScreen({ navigation }: any) {
   const fetchAddresses = useCallback(async () => {
     try {
       const response = await userService.getSavedAddresses();
-      if (response.data?.success && Array.isArray(response.data.data)) {
-        setAddresses(response.data.data);
+      const data = response.data?.data;
+      if (Array.isArray(data)) {
+        setAddresses(data);
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {

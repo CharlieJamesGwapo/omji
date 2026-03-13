@@ -121,7 +121,7 @@ export default function RatesPage() {
       setShowModal(false);
       fetchRates();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to save rate');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save rate');
     } finally {
       setSaving(false);
     }

@@ -2214,7 +2214,12 @@ func GetUserByID(db *gorm.DB) gin.HandlerFunc {
 
 func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result := db.Delete(&models.User{}, c.Param("id"))
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
+			return
+		}
+		result := db.Delete(&models.User{}, id)
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
 			return
@@ -2270,7 +2275,12 @@ func VerifyDriver(db *gorm.DB) gin.HandlerFunc {
 
 func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result := db.Delete(&models.Driver{}, c.Param("id"))
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
+			return
+		}
+		result := db.Delete(&models.Driver{}, id)
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete driver"})
 			return
@@ -2342,7 +2352,12 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 
 func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result := db.Delete(&models.Store{}, c.Param("id"))
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
+			return
+		}
+		result := db.Delete(&models.Store{}, id)
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete store"})
 			return
@@ -2633,7 +2648,12 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 
 func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result := db.Delete(&models.Promo{}, c.Param("id"))
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
+			return
+		}
+		result := db.Delete(&models.Promo{}, id)
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete promo"})
 			return
@@ -2912,9 +2932,12 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 		}
 		sentCount := 0
 		if len(notifications) > 0 {
-			if err := db.CreateInBatches(&notifications, 100).Error; err == nil {
-				sentCount = len(notifications)
+			if err := db.CreateInBatches(&notifications, 100).Error; err != nil {
+				log.Printf("Failed to send notifications: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send notifications"})
+				return
 			}
+			sentCount = len(notifications)
 		}
 
 		c.JSON(http.StatusCreated, gin.H{
@@ -3225,9 +3248,15 @@ func (t *RideTracker) Remove(rideID string, conn *websocket.Conn) {
 func (t *RideTracker) Broadcast(rideID string, msg interface{}) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	data, _ := json.Marshal(msg)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("WebSocket broadcast marshal error for ride #%s: %v", rideID, err)
+		return
+	}
 	for _, conn := range t.rides[rideID] {
-		conn.WriteMessage(websocket.TextMessage, data)
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			log.Printf("WebSocket write error for ride #%s: %v", rideID, err)
+		}
 	}
 }
 
@@ -3427,7 +3456,10 @@ func AdminUpdateRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update rate config"})
 			return
 		}
-		db.First(&rate, id)
+		if err := db.First(&rate, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": rate})
 	}
 }
@@ -3509,7 +3541,10 @@ func AdminUpdateUser(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update user"})
 			return
 		}
-		db.First(&user, id)
+		if err := db.First(&user, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": user, "timestamp": time.Now()})
 	}
 }
@@ -3573,7 +3608,10 @@ func AdminUpdateDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update driver"})
 			return
 		}
-		db.Preload("User").First(&driver, id)
+		if err := db.Preload("User").First(&driver, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": driver, "timestamp": time.Now()})
 	}
 }
@@ -3672,7 +3710,10 @@ func AdminUpdateMenuItem(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update menu item"})
 			return
 		}
-		db.First(&item, itemId)
+		if err := db.First(&item, itemId).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": item, "timestamp": time.Now()})
 	}
 }
@@ -3700,7 +3741,7 @@ func AdminGetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
 		db.Order("type").Find(&configs)
-		c.JSON(200, gin.H{"success": true, "data": configs, "count": len(configs)})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": configs, "count": len(configs)})
 	}
 }
 
@@ -3708,23 +3749,23 @@ func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var config models.PaymentConfig
 		if err := c.ShouldBindJSON(&config); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		if config.Type == "" {
-			c.JSON(400, gin.H{"error": "Payment type is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Payment type is required"})
 			return
 		}
 		validTypes := map[string]bool{"gcash": true, "maya": true}
 		if !validTypes[config.Type] {
-			c.JSON(400, gin.H{"error": "Invalid type. Must be gcash or maya"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type. Must be gcash or maya"})
 			return
 		}
 		if err := db.Create(&config).Error; err != nil {
-			c.JSON(500, gin.H{"error": "Failed to create payment config. Type may already exist."})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment config. Type may already exist."})
 			return
 		}
-		c.JSON(201, gin.H{"success": true, "data": config})
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": config})
 	}
 }
 
@@ -3733,7 +3774,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var config models.PaymentConfig
 		if err := db.First(&config, id).Error; err != nil {
-			c.JSON(404, gin.H{"error": "Payment config not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Payment config not found"})
 			return
 		}
 		var input struct {
@@ -3743,7 +3784,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			IsActive      *bool   `json:"is_active"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		updates := map[string]interface{}{}
@@ -3760,15 +3801,18 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			updates["is_active"] = *input.IsActive
 		}
 		if len(updates) == 0 {
-			c.JSON(400, gin.H{"error": "No fields to update"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
 			return
 		}
 		if err := db.Model(&config).Updates(updates).Error; err != nil {
-			c.JSON(500, gin.H{"error": "Failed to update payment config"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment config"})
 			return
 		}
-		db.First(&config, id)
-		c.JSON(200, gin.H{"success": true, "data": config})
+		if err := db.First(&config, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": config})
 	}
 }
 
@@ -3777,14 +3821,14 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var config models.PaymentConfig
 		if err := db.First(&config, id).Error; err != nil {
-			c.JSON(404, gin.H{"error": "Payment config not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Payment config not found"})
 			return
 		}
 		if err := db.Delete(&config).Error; err != nil {
-			c.JSON(500, gin.H{"error": "Failed to delete payment config"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment config"})
 			return
 		}
-		c.JSON(200, gin.H{"success": true, "message": "Payment config deleted"})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment config deleted"})
 	}
 }
 
@@ -3793,6 +3837,6 @@ func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
 		db.Where("is_active = ?", true).Find(&configs)
-		c.JSON(200, gin.H{"data": configs})
+		c.JSON(http.StatusOK, gin.H{"data": configs})
 	}
 }

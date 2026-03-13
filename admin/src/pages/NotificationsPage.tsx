@@ -60,7 +60,6 @@ const NotificationsPage: React.FC = () => {
       await adminService.sendNotification({
         title: formData.title,
         message: formData.message,
-        type: formData.target_type,
         target_type: formData.target_type,
       });
       toast.success('Notification sent successfully!');
@@ -68,7 +67,7 @@ const NotificationsPage: React.FC = () => {
       setFormData({ title: '', message: '', target_type: 'all' });
       await loadNotifications();
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Failed to send notification. Please try again.';
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to send notification. Please try again.';
       toast.error(msg);
     } finally {
       setSending(false);

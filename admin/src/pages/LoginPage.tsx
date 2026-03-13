@@ -63,7 +63,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       const response = await authService.login(loginData);
       const data = response.data?.data;
-      if (!data?.token || !data?.user) {
+      if (!data || !data.token || !data.user) {
         setError('Unexpected server response. Please try again.');
         return false;
       }
@@ -97,7 +97,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           return false;
         }
       } else {
-        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        setError(err.response?.data?.error || err.response?.data?.message || 'Login failed. Please check your credentials.');
         return false;
       }
     }

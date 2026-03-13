@@ -98,7 +98,7 @@ const PaymentConfigsPage: React.FC = () => {
       setModalOpen(false);
       await loadConfigs();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to save');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save');
     }
     setSaving(false);
   };

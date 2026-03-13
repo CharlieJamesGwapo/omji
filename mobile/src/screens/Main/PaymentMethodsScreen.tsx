@@ -54,8 +54,9 @@ export default function PaymentMethodsScreen({ navigation }: any) {
   const fetchMethods = useCallback(async () => {
     try {
       const response = await paymentService.getPaymentMethods();
-      if (response.data?.success && Array.isArray(response.data.data)) {
-        setMethods(response.data.data);
+      const data = response.data?.data;
+      if (Array.isArray(data)) {
+        setMethods(data);
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {

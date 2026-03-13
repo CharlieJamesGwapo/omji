@@ -121,7 +121,7 @@ const DriversPage: React.FC = () => {
       }
       toast.success('Driver deleted successfully!');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete driver');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete driver');
     }
   };
 
@@ -160,7 +160,7 @@ const DriversPage: React.FC = () => {
       setEditDriver(null);
       toast.success('Driver updated successfully!');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update driver');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update driver');
     } finally {
       setSaving(false);
     }
@@ -860,7 +860,14 @@ const DriversPage: React.FC = () => {
                                 alt={DOC_LABELS[docKey]}
                                 className="w-full h-40 object-cover"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="h-40 flex items-center justify-center text-gray-400 text-sm">Failed to load image</div>';
+                                  const img = e.target as HTMLImageElement;
+                                  const parent = img.parentElement;
+                                  if (parent) {
+                                    const fallback = document.createElement('div');
+                                    fallback.className = 'h-40 flex items-center justify-center text-gray-400 text-sm';
+                                    fallback.textContent = 'Failed to load image';
+                                    parent.replaceChildren(fallback);
+                                  }
                                 }}
                               />
                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">

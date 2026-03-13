@@ -111,7 +111,7 @@ const UsersPage: React.FC = () => {
       setEditingUser(null);
       loadUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update user');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update user');
     } finally {
       setSaving(false);
     }
@@ -124,7 +124,7 @@ const UsersPage: React.FC = () => {
       setUsers(users.filter((u) => u.id !== id));
       toast.success('User deleted successfully');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete user');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete user');
     }
   };
 
