@@ -301,6 +301,10 @@ func DeleteSavedAddress(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		result := db.Where("id = ? AND user_id = ?", c.Param("id"), userID).Delete(&models.SavedAddress{})
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete address"})
+			return
+		}
 		if result.RowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Address not found"})
 			return
@@ -728,7 +732,11 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to join ride share"})
 			return
 		}
-		tx.Model(&rs).Update("available_seats", gorm.Expr("available_seats - 1"))
+		if err := tx.Model(&rs).Update("available_seats", gorm.Expr("available_seats - 1")).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update seats"})
+			return
+		}
 		// Create a trackable ride for this passenger
 		ride := models.Ride{
 			UserID:           userID,

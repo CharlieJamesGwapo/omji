@@ -140,8 +140,8 @@ const OrdersPage: React.FC = () => {
       );
       setSelectedOrder(prev => prev && prev.id === id ? { ...prev, status: newStatus } : prev);
       toast.success(`Order #${id} updated to ${newStatus.replace(/_/g, ' ')}`);
-    } catch {
-      toast.error('Failed to update order status');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update order status');
     }
     setUpdatingId(null);
   }, []);

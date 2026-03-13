@@ -70,8 +70,8 @@ const PromosPage: React.FC = () => {
       if (newPromo) setPromos([newPromo, ...promos]);
       toast.success('Promo created successfully!');
       resetForm();
-    } catch {
-      toast.error('Failed to create promo');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to create promo');
     } finally {
       setSaving(false);
     }
@@ -96,8 +96,8 @@ const PromosPage: React.FC = () => {
       if (updated) setPromos(promos.map(p => p.id === updated.id ? updated : p));
       toast.success('Promo updated successfully!');
       resetForm();
-    } catch {
-      toast.error('Failed to update promo');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update promo');
     } finally {
       setSaving(false);
     }
@@ -127,8 +127,8 @@ const PromosPage: React.FC = () => {
       const updated = res.data.data;
       if (updated) setPromos(promos.map(p => p.id === promo.id ? updated : p));
       toast.success(promo.is_active ? 'Promo deactivated' : 'Promo activated');
-    } catch {
-      toast.error('Failed to update promo status');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update promo status');
     }
   };
 
@@ -138,8 +138,8 @@ const PromosPage: React.FC = () => {
       await adminService.deletePromo(id);
       setPromos(promos.filter(p => p.id !== id));
       toast.success('Promo deleted');
-    } catch {
-      toast.error('Failed to delete promo');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete promo');
     }
   };
 
