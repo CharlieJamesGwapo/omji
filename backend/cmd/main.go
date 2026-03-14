@@ -102,6 +102,7 @@ func main() {
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
+		protected.PUT("/driver/deliveries/:id/status", handlers.UpdateRideStatus(database))
 
 		// Wallet routes
 		protected.GET("/wallet/balance", handlers.GetWalletBalance(database))

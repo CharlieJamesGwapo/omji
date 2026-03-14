@@ -82,12 +82,25 @@ export default function TrackingScreen({ route, navigation }: any) {
     }
   }, [status, pulseAnim]);
 
-  // Search elapsed timer for pending status
+  // Search elapsed timer for pending status with auto-cancel suggestion
   useEffect(() => {
     if (status === 'pending') {
       setSearchElapsed(0);
       const timer = setInterval(() => {
-        setSearchElapsed(prev => prev + 1);
+        setSearchElapsed(prev => {
+          const next = prev + 1;
+          if (next === 300) { // 5 minutes
+            Alert.alert(
+              'No Riders Found',
+              'No riders are available right now. Would you like to keep waiting or cancel?',
+              [
+                { text: 'Keep Waiting', style: 'cancel' },
+                { text: 'Cancel Ride', style: 'destructive', onPress: () => handleCancel() },
+              ]
+            );
+          }
+          return next;
+        });
       }, 1000);
       return () => clearInterval(timer);
     }

@@ -163,7 +163,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
         }
         previousRequestCount.current = newRequests.length;
         setRequests(newRequests);
-        const activeData = requestsRes.value?.data?.data?.active || requestsRes.value?.data?.active;
+        const activeData = requestsRes.value?.data?.active || requestsRes.value?.data?.data?.active;
         setActiveJobs(Array.isArray(activeData) ? activeData : []);
       }
     } catch (error: any) {
@@ -271,8 +271,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
         onPress: async () => {
           try {
             await driverService.acceptRequest(request.id);
-            await fetchData();
             showToast(`${jobLabel} accepted!`, 'success');
+            fetchData();
             navigation.navigate('Tracking', {
               type: isDelivery ? 'delivery' : 'ride',
               rideId: request.id,
