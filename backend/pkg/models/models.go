@@ -19,7 +19,7 @@ type User struct {
 	OTPExpiry          time.Time `json:"-"`
 	IsVerified         bool      `gorm:"default:false" json:"is_verified"`
 	Role               string    `gorm:"default:'user'" json:"role"` // user, driver, admin
-	Rating             float64   `gorm:"default:5" json:"rating"`
+	Rating             float64   `gorm:"default:0" json:"rating"`
 	TotalRatings       int       `gorm:"default:0" json:"total_ratings"`
 	SavedAddresses     []SavedAddress
 	PaymentMethods     []PaymentMethod
@@ -66,7 +66,7 @@ type Driver struct {
 	CurrentLongitude float64  `json:"current_longitude"`
 	TotalEarnings   float64   `gorm:"default:0" json:"total_earnings"`
 	CompletedRides  int       `gorm:"default:0" json:"completed_rides"`
-	Rating          float64   `gorm:"default:5" json:"rating"`
+	Rating          float64   `gorm:"default:0" json:"rating"`
 	TotalRatings    int       `gorm:"default:0" json:"total_ratings"`
 	Documents       datatypes.JSON `json:"documents"`
 	CreatedAt       time.Time `json:"created_at"`

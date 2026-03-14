@@ -60,7 +60,8 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: Number(user?.rating ?? earningsData.rating ?? 0),
+    rating: (user?.total_ratings || earningsData.total_ratings) ? Number(user?.rating ?? earningsData.rating ?? 0) : 0,
+    hasRatings: !!(user?.total_ratings || earningsData.total_ratings),
     totalRides: earningsData.completed_rides || 0,
     vehicleType: driverData.vehicle_type || 'Motorcycle',
     plateNumber: driverData.vehicle_plate || '-',
@@ -72,14 +73,14 @@ export default function RiderProfileScreen({ navigation }: any) {
 
   const stats = [
     { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: COLORS.accent, bg: COLORS.accentBg },
-    { label: 'Rating', value: `${riderProfile.rating.toFixed(1)}`, icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
+    { label: 'Rating', value: riderProfile.hasRatings ? `${riderProfile.rating.toFixed(1)}` : 'N/A', icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
     { label: 'Acceptance', value: earningsData.acceptance_rate != null ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
     { label: 'Completion', value: earningsData.completion_rate != null ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
   ];
 
   const achievements = [
     { title: 'First Ride', icon: 'trophy', color: COLORS.warning, target: 1, current: totalRides, earned: totalRides >= 1 },
-    { title: '5-Star Rider', icon: 'star', color: COLORS.warning, target: 4.5, current: riderProfile.rating, earned: riderProfile.rating >= 4.5, unit: '' },
+    { title: '5-Star Rider', icon: 'star', color: COLORS.warning, target: 4.5, current: riderProfile.rating, earned: riderProfile.hasRatings && riderProfile.rating >= 4.5, unit: '' },
     { title: '10 Rides', icon: 'sunny', color: COLORS.store, target: 10, current: totalRides, earned: totalRides >= 10 },
     { title: '50 Rides', icon: 'trophy', color: COLORS.accent, target: 50, current: totalRides, earned: totalRides >= 50 },
     { title: '100 Rides', icon: 'moon', color: COLORS.info, target: 100, current: totalRides, earned: totalRides >= 100 },
@@ -98,7 +99,7 @@ export default function RiderProfileScreen({ navigation }: any) {
       title: 'Performance',
       items: [
         { icon: 'stats-chart', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Earnings & Statistics', subtitle: 'View detailed breakdown', action: () => navigation.navigate('Earnings') },
-        { icon: 'star', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Ratings & Reviews', subtitle: `${riderProfile.rating.toFixed(1)} average rating`, action: () => Alert.alert('Ratings', `Your Rating: ${riderProfile.rating.toFixed(1)} / 5.0\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!`) },
+        { icon: 'star', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Ratings & Reviews', subtitle: riderProfile.hasRatings ? `${riderProfile.rating.toFixed(1)} average rating` : 'No ratings yet', action: () => Alert.alert('Ratings', riderProfile.hasRatings ? `Your Rating: ${riderProfile.rating.toFixed(1)} / 5.0\nTotal Ratings: ${user?.total_ratings || 0}\nTotal Rides: ${totalRides}\n\nKeep providing great service!` : `No ratings yet.\nComplete rides and provide great service to earn ratings!`) },
       ],
     },
     {
@@ -217,29 +218,29 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={styles.verificationCard}>
           <View style={styles.verificationHeader}>
             <View style={[styles.verificationIconWrap, {
-              backgroundColor: driverData.status === 'approved' ? COLORS.successBg : COLORS.warningBg,
+              backgroundColor: driverData.is_verified ? COLORS.successBg : COLORS.warningBg,
             }]}>
               <Ionicons
-                name={driverData.status === 'approved' ? 'shield-checkmark' : 'shield-outline'}
+                name={driverData.is_verified ? 'shield-checkmark' : 'shield-outline'}
                 size={moderateScale(22)}
-                color={driverData.status === 'approved' ? COLORS.success : COLORS.warning}
+                color={driverData.is_verified ? COLORS.success : COLORS.warning}
               />
             </View>
             <View style={styles.verificationInfo}>
               <Text style={styles.verificationTitle}>Verification Status</Text>
               <Text style={[styles.verificationSubtitle, {
-                color: driverData.status === 'approved' ? COLORS.success : COLORS.warning,
+                color: driverData.is_verified ? COLORS.success : COLORS.warning,
               }]}>
-                {driverData.status === 'approved' ? 'All documents verified' : 'Verification in progress'}
+                {driverData.is_verified ? 'All documents verified' : 'Verification in progress'}
               </Text>
             </View>
             <View style={[styles.verificationBadge, {
-              backgroundColor: driverData.status === 'approved' ? COLORS.successBg : COLORS.warningBg,
+              backgroundColor: driverData.is_verified ? COLORS.successBg : COLORS.warningBg,
             }]}>
               <Text style={[styles.verificationBadgeText, {
-                color: driverData.status === 'approved' ? COLORS.success : COLORS.warning,
+                color: driverData.is_verified ? COLORS.success : COLORS.warning,
               }]}>
-                {driverData.status === 'approved' ? 'Verified' : 'Pending'}
+                {driverData.is_verified ? 'Verified' : 'Pending'}
               </Text>
             </View>
           </View>

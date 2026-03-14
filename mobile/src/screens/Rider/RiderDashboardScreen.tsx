@@ -636,7 +636,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
             <View style={styles.statDivider} />
             <View style={styles.statChip}>
               <Ionicons name="star" size={moderateScale(16)} color={COLORS.warning} />
-              <Text style={styles.statChipValue}>{Number(earnings.rating || 5.0).toFixed(1)}</Text>
+              <Text style={styles.statChipValue}>{(earnings.total_ratings || 0) > 0 ? Number(earnings.rating || 0).toFixed(1) : 'N/A'}</Text>
               <Text style={styles.statChipLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />

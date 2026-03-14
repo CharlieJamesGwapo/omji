@@ -1600,9 +1600,10 @@ func GetDriverRequests(db *gorm.DB) gin.HandlerFunc {
 		for _, d := range activeDeliveries {
 			active = append(active, gin.H{"id": d.ID, "type": "delivery", "status": d.Status, "pickup": d.PickupLocation, "pickup_lat": d.PickupLatitude, "pickup_lng": d.PickupLongitude, "dropoff": d.DropoffLocation, "dropoff_lat": d.DropoffLatitude, "dropoff_lng": d.DropoffLongitude, "distance_km": d.Distance, "delivery_fee": d.DeliveryFee, "item_description": d.ItemDescription, "passenger_name": d.User.Name, "passenger_phone": d.User.Phone, "payment_method": d.PaymentMethod, "created_at": d.CreatedAt})
 		}
-		// Get pending rides
+		// Get pending rides (only recent - within last 2 hours)
+		staleThreshold := time.Now().Add(-2 * time.Hour)
 		var rides []models.Ride
-		if err := db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&rides).Error; err != nil {
+		if err := db.Where("status = ? AND driver_id IS NULL AND created_at > ?", "pending", staleThreshold).Preload("User").Order("created_at DESC").Limit(20).Find(&rides).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch pending rides"})
 			return
 		}
@@ -1610,9 +1611,9 @@ func GetDriverRequests(db *gorm.DB) gin.HandlerFunc {
 		for _, r := range rides {
 			results = append(results, gin.H{"id": r.ID, "type": "ride", "status": "pending", "pickup": r.PickupLocation, "pickup_lat": r.PickupLatitude, "pickup_lng": r.PickupLongitude, "dropoff": r.DropoffLocation, "dropoff_lat": r.DropoffLatitude, "dropoff_lng": r.DropoffLongitude, "distance_km": r.Distance, "estimated_fare": r.EstimatedFare, "vehicle_type": r.VehicleType, "passenger_name": r.User.Name, "passenger_phone": r.User.Phone, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt})
 		}
-		// Get pending deliveries
+		// Get pending deliveries (only recent - within last 2 hours)
 		var deliveries []models.Delivery
-		if err := db.Where("status = ? AND driver_id IS NULL", "pending").Preload("User").Order("created_at DESC").Limit(20).Find(&deliveries).Error; err != nil {
+		if err := db.Where("status = ? AND driver_id IS NULL AND created_at > ?", "pending", staleThreshold).Preload("User").Order("created_at DESC").Limit(20).Find(&deliveries).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch pending deliveries"})
 			return
 		}
