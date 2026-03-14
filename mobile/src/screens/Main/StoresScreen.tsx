@@ -36,10 +36,10 @@ const CATEGORY_STYLES: Record<string, { gradient: string; icon: string; emoji: s
   retail: { gradient: COLORS.pasabay, icon: 'bag', emoji: '' },
 };
 
-// Simulate store open/closed based on current hour (9am-9pm open)
+// Check store open/closed based on current hour (6am-11pm operating hours)
 const isStoreOpen = (): boolean => {
   const hour = new Date().getHours();
-  return hour >= 7 && hour < 22;
+  return hour >= 6 && hour < 23;
 };
 
 export default function StoresScreen({ navigation }: any) {
@@ -87,8 +87,7 @@ export default function StoresScreen({ navigation }: any) {
   const fetchStores = useCallback(async () => {
     try {
       setFetchError(false);
-      const category = selectedCategory === 'all' ? undefined : selectedCategory;
-      const response = await storeService.getStores(category);
+      const response = await storeService.getStores();
       const data = response.data?.data;
       setStores(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -99,7 +98,7 @@ export default function StoresScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory]);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -107,17 +106,18 @@ export default function StoresScreen({ navigation }: any) {
   };
 
   useEffect(() => {
-    setLoading(true);
     fetchStores();
   }, [fetchStores]);
 
   const filteredStores = (stores || []).filter((store) => {
-    const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesCategory = selectedCategory === 'all' || store.category === selectedCategory;
+    const matchesSearch = searchQuery === '' ||
+      store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (store.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    return matchesCategory && matchesSearch;
   });
 
-  const featuredStores = (stores || []).filter(store => store.is_verified);
+  const featuredStores = filteredStores.filter(store => store.is_verified);
   const storeOpen = isStoreOpen();
 
   const getCategoryColor = (categoryId: string): string => {
@@ -249,7 +249,7 @@ export default function StoresScreen({ navigation }: any) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         {/* Featured Stores */}
-        {selectedCategory === 'all' && searchQuery === '' && featuredStores.length > 0 && (
+        {searchQuery === '' && featuredStores.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
@@ -468,8 +468,22 @@ export default function StoresScreen({ navigation }: any) {
               <View style={styles.emptyIconContainer}>
                 <Ionicons name="storefront-outline" size={moderateScale(40)} color={COLORS.gray300} />
               </View>
-              <Text style={styles.emptyText}>No stores found</Text>
-              <Text style={styles.emptySubtext}>Try adjusting your search or category filter</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery ? 'No matching stores' : selectedCategory !== 'all' ? `No ${categories.find(c => c.id === selectedCategory)?.name || ''} stores yet` : 'No stores available'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery ? 'Try a different search term' : selectedCategory !== 'all' ? 'Try selecting a different category or check back later' : 'Pull down to refresh or check back later'}
+              </Text>
+              {selectedCategory !== 'all' && (
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: COLORS.accent }]}
+                  onPress={() => setSelectedCategory('all')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="grid" size={moderateScale(16)} color={COLORS.white} />
+                  <Text style={styles.retryButtonText}>View All Stores</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -550,7 +564,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   categoriesContent: {
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    paddingLeft: RESPONSIVE.paddingHorizontal,
+    paddingRight: RESPONSIVE.paddingHorizontal + moderateScale(16),
     paddingVertical: verticalScale(12),
     gap: moderateScale(8),
   },

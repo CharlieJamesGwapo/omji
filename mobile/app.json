@@ -59,9 +59,8 @@
       ]
     ],
     "updates": {
-      "fallbackToCacheTimeout": 0
+      "enabled": false
     },
-    "runtimeVersion": "1.0.0",
     "owner": "bboydevzxc",
     "extra": {
       "eas": {

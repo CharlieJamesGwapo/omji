@@ -424,7 +424,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* Location Info */}
         <View style={styles.locationTag}>
           <Ionicons name="location" size={moderateScale(14)} color={COLORS.accent} />
-          <Text style={styles.locationTagText}>Balingasag, Misamis Oriental</Text>
+          <Text style={styles.locationTagText}>Misamis Oriental, Philippines</Text>
         </View>
       </ScrollView>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />

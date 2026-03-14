@@ -363,6 +363,9 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 						discount = promo.DiscountValue
 					}
 					fare -= discount
+					if fare < 0 {
+						fare = 0
+					}
 					promoID = &promo.ID
 					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
 						log.Printf("Failed to update promo usage count: %v", err)
@@ -394,14 +397,14 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 // GetNearbyDrivers returns available, verified drivers sorted by distance from a given location
 func GetNearbyDrivers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		lat, _ := strconv.ParseFloat(c.Query("latitude"), 64)
-		lng, _ := strconv.ParseFloat(c.Query("longitude"), 64)
+		lat, errLat := strconv.ParseFloat(c.Query("latitude"), 64)
+		lng, errLng := strconv.ParseFloat(c.Query("longitude"), 64)
 		vehicleType := c.Query("vehicle_type")
 		maxDistStr := c.DefaultQuery("max_distance", "10") // default 10km radius
 		maxDist, _ := strconv.ParseFloat(maxDistStr, 64)
 
-		if lat == 0 || lng == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "latitude and longitude are required"})
+		if errLat != nil || errLng != nil || lat == 0 || lng == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Valid latitude and longitude are required"})
 			return
 		}
 
@@ -854,6 +857,10 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 		if distance < 0.1 {
 			distance = 1.0
 		}
+		if distance > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Delivery distance exceeds maximum limit of 100km"})
+			return
+		}
 		fee := CalculateDeliveryFeeFromDB(db, distance)
 		var promoID *uint
 		if promoCode != "" {
@@ -872,6 +879,9 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 						discount = promo.DiscountValue
 					}
 					fee -= discount
+					if fee < 0 {
+						fee = 0
+					}
 					promoID = &promo.ID
 					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
 						log.Printf("Failed to update promo usage count: %v", err)
@@ -1173,7 +1183,7 @@ func RateOrder(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		txErr := db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&order).Update("store_rating", input.Rating).Error; err != nil {
+			if err := tx.Model(&order).Updates(map[string]interface{}{"user_rating": input.Rating, "store_rating": input.Rating}).Error; err != nil {
 				return err
 			}
 			var store models.Store
@@ -1363,10 +1373,15 @@ func CheckFavorite(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		itemType := c.Query("type")
-		itemID := c.Query("item_id")
+		itemIDStr := c.Query("item_id")
+		itemID, err := strconv.ParseUint(itemIDStr, 10, 64)
+		if err != nil || itemID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Valid item_id is required"})
+			return
+		}
 		var fav models.Favorite
-		err := db.Where("user_id = ? AND type = ? AND item_id = ?", userID, itemType, itemID).First(&fav).Error
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"is_favorite": err == nil}, "timestamp": time.Now()})
+		dbErr := db.Where("user_id = ? AND type = ? AND item_id = ?", userID, itemType, uint(itemID)).First(&fav).Error
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"is_favorite": dbErr == nil}, "timestamp": time.Now()})
 	}
 }
 
@@ -1692,38 +1707,42 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		requestID := c.Param("id")
-		// Try to reject ride
+		// Try to reject ride (with transaction for atomicity)
 		var ride models.Ride
 		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&ride).Error; err == nil {
-			ride.DriverID = nil
-			ride.Status = "pending"
-			if err := db.Save(&ride).Error; err != nil {
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&ride).Updates(map[string]interface{}{"driver_id": nil, "status": "pending"}).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
+					return err
+				}
+				tx.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"})
+				return nil
+			})
+			if txErr != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject ride"})
 				return
-			}
-			if err := db.Model(&driver).Update("is_available", true).Error; err != nil {
-				log.Printf("Failed to update driver availability on ride rejection: %v", err)
-			}
-			if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"}).Error; err != nil {
-				log.Printf("Failed to create ride reassign notification: %v", err)
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride rejected and returned to pending", "id": ride.ID, "type": "ride"}, "timestamp": time.Now()})
 			return
 		}
-		// Try to reject delivery
+		// Try to reject delivery (with transaction for atomicity)
 		var delivery models.Delivery
 		if err := db.Where("id = ? AND driver_id = ? AND status = ?", requestID, driver.ID, "accepted").First(&delivery).Error; err == nil {
-			delivery.DriverID = nil
-			delivery.Status = "pending"
-			if err := db.Save(&delivery).Error; err != nil {
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&delivery).Updates(map[string]interface{}{"driver_id": nil, "status": "pending"}).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
+					return err
+				}
+				tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"})
+				return nil
+			})
+			if txErr != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject delivery"})
 				return
-			}
-			if err := db.Model(&driver).Update("is_available", true).Error; err != nil {
-				log.Printf("Failed to update driver availability on delivery rejection: %v", err)
-			}
-			if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"}).Error; err != nil {
-				log.Printf("Failed to create delivery reassign notification: %v", err)
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery rejected and returned to pending", "id": delivery.ID, "type": "delivery"}, "timestamp": time.Now()})
 			return
@@ -1832,7 +1851,11 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		updates := map[string]interface{}{"is_available": input.Available}
-		if input.Latitude != 0 {
+		if input.Latitude != 0 && input.Longitude != 0 {
+			if input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid coordinates"})
+				return
+			}
 			updates["current_latitude"] = input.Latitude
 			updates["current_longitude"] = input.Longitude
 		}
@@ -3350,14 +3373,47 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 						}
 						if msg.Status == "completed" {
 							updates["completed_at"] = now
-							updates["final_fare"] = ride.EstimatedFare
+							if ride.FinalFare == 0 {
+								updates["final_fare"] = ride.EstimatedFare
+							}
 							if ride.DriverID != nil {
 								if err := tx.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true}).Error; err != nil {
 									log.Printf("Failed to update driver stats on ride completion: %v", err)
 								}
 							}
+							// Process wallet payment via WebSocket
+							if ride.PaymentMethod == "wallet" {
+								var wallet models.Wallet
+								if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", ride.UserID).First(&wallet).Error; err == nil {
+									fare := ride.EstimatedFare
+									if wallet.Balance >= fare {
+										wallet.Balance -= fare
+										if err := tx.Save(&wallet).Error; err == nil {
+											tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"})
+										}
+									} else {
+										updates["payment_method"] = "cash"
+									}
+								}
+							}
 						}
-						return tx.Model(&ride).Updates(updates).Error
+						if err := tx.Model(&ride).Updates(updates).Error; err != nil {
+							return err
+						}
+						// Send user notification
+						var nTitle, nBody string
+						switch msg.Status {
+						case "driver_arrived":
+							nTitle, nBody = "Rider Arrived", "Your rider has arrived at the pickup location."
+						case "in_progress":
+							nTitle, nBody = "Trip Started", "Your ride is now in progress!"
+						case "completed":
+							nTitle, nBody = "Ride Completed", "Your ride has been completed."
+						}
+						if nTitle != "" {
+							tx.Create(&models.Notification{UserID: ride.UserID, Title: nTitle, Body: nBody, Type: "ride_update"})
+						}
+						return nil
 					}); err != nil {
 						log.Printf("Failed to update ride status via WS: %v", err)
 					} else {
@@ -3386,8 +3442,40 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 										log.Printf("Failed to update driver stats on delivery completion: %v", err)
 									}
 								}
+								// Process wallet payment via WebSocket
+								if delivery.PaymentMethod == "wallet" {
+									var wallet models.Wallet
+									if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", delivery.UserID).First(&wallet).Error; err == nil {
+										if wallet.Balance >= delivery.DeliveryFee {
+											wallet.Balance -= delivery.DeliveryFee
+											if err := tx.Save(&wallet).Error; err == nil {
+												tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"})
+											}
+										} else {
+											updates["payment_method"] = "cash"
+										}
+									}
+								}
 							}
-							return tx.Model(&delivery).Updates(updates).Error
+							if err := tx.Model(&delivery).Updates(updates).Error; err != nil {
+								return err
+							}
+							// Send user notification
+							var dTitle, dBody string
+							switch msg.Status {
+							case "driver_arrived":
+								dTitle, dBody = "Rider Arrived", "Your rider has arrived at the pickup location."
+							case "picked_up":
+								dTitle, dBody = "Item Picked Up", "Your item has been picked up and is on its way!"
+							case "in_progress":
+								dTitle, dBody = "Delivery In Progress", "Your delivery is on the way!"
+							case "completed":
+								dTitle, dBody = "Delivery Completed", "Your delivery has been completed."
+							}
+							if dTitle != "" {
+								tx.Create(&models.Notification{UserID: delivery.UserID, Title: dTitle, Body: dBody, Type: "delivery_update"})
+							}
+							return nil
 						}); err != nil {
 							log.Printf("Failed to update delivery status via WS: %v", err)
 						} else {
@@ -3403,6 +3491,12 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		driverID := c.Param("driverId")
+		// Validate driver exists
+		var driver models.Driver
+		if err := db.First(&driver, driverID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
 		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
@@ -3422,6 +3516,10 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 				continue
 			}
 			if msg.Type == "location_update" {
+				// Validate coordinates
+				if msg.Latitude < -90 || msg.Latitude > 90 || msg.Longitude < -180 || msg.Longitude > 180 {
+					continue
+				}
 				if err := db.Model(&models.Driver{}).Where("id = ?", driverID).Updates(map[string]interface{}{"current_latitude": msg.Latitude, "current_longitude": msg.Longitude}).Error; err != nil {
 					log.Printf("Failed to update driver location: %v", err)
 				}
@@ -3768,7 +3866,10 @@ func AdminDeleteMenuItem(db *gorm.DB) gin.HandlerFunc {
 func AdminGetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
-		db.Order("type").Find(&configs)
+		if err := db.Order("type").Find(&configs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment configs"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": configs, "count": len(configs)})
 	}
 }
@@ -3777,20 +3878,20 @@ func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var config models.PaymentConfig
 		if err := c.ShouldBindJSON(&config); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
 		if config.Type == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Payment type is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Payment type is required"})
 			return
 		}
 		validTypes := map[string]bool{"gcash": true, "maya": true}
 		if !validTypes[config.Type] {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type. Must be gcash or maya"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid type. Must be gcash or maya"})
 			return
 		}
 		if err := db.Create(&config).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment config. Type may already exist."})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create payment config. Type may already exist."})
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": config})
@@ -3802,7 +3903,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var config models.PaymentConfig
 		if err := db.First(&config, id).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Payment config not found"})
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment config not found"})
 			return
 		}
 		var input struct {
@@ -3812,7 +3913,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			IsActive      *bool   `json:"is_active"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
 		updates := map[string]interface{}{}
@@ -3829,11 +3930,11 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			updates["is_active"] = *input.IsActive
 		}
 		if len(updates) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
 			return
 		}
 		if err := db.Model(&config).Updates(updates).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment config"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update payment config"})
 			return
 		}
 		if err := db.First(&config, id).Error; err != nil {
@@ -3849,11 +3950,11 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var config models.PaymentConfig
 		if err := db.First(&config, id).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Payment config not found"})
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment config not found"})
 			return
 		}
 		if err := db.Delete(&config).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment config"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete payment config"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment config deleted"})
@@ -3864,7 +3965,10 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
-		db.Where("is_active = ?", true).Find(&configs)
-		c.JSON(http.StatusOK, gin.H{"data": configs})
+		if err := db.Where("is_active = ?", true).Find(&configs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment configs"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": configs})
 	}
 }

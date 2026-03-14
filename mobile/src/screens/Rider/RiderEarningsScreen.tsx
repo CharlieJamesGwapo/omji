@@ -175,7 +175,10 @@ export default function RiderEarningsScreen({ navigation }: any) {
       Alert.alert('Success', `Withdrawal of ₱${amount} via ${method.toUpperCase()} submitted! Processing within 1-3 business days.`);
       fetchEarnings();
     } catch (error: any) {
-      Alert.alert('Withdrawal Failed', error.response?.data?.error || 'Failed to process withdrawal. Please try again.');
+      const msg = error.code === 'ECONNABORTED'
+        ? 'Request timed out. Please check your connection and try again.'
+        : error.response?.data?.error || 'Failed to process withdrawal. Please try again.';
+      Alert.alert('Withdrawal Failed', msg);
     } finally {
       setWithdrawLoading(false);
     }
@@ -240,8 +243,10 @@ export default function RiderEarningsScreen({ navigation }: any) {
                   style={[
                     styles.quickAmountButton,
                     withdrawAmount === String(amt) && styles.quickAmountButtonActive,
+                    amt > balance && { opacity: 0.4 },
                   ]}
-                  onPress={() => setWithdrawAmount(String(amt))}
+                  onPress={() => amt <= balance && setWithdrawAmount(String(amt))}
+                  disabled={amt > balance}
                   activeOpacity={0.7}
                 >
                   <Text style={[

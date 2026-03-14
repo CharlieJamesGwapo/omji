@@ -225,7 +225,7 @@ export default function CartScreen({ route, navigation }: any) {
             </View>
             <View style={styles.storeDeliveryBadge}>
               <Ionicons name="bicycle-outline" size={moderateScale(14)} color={COLORS.success} />
-              <Text style={styles.storeDeliveryText}>30-45 min</Text>
+              <Text style={styles.storeDeliveryText}>25-45 min</Text>
             </View>
           </View>
         )}

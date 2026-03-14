@@ -84,11 +84,11 @@ export default function ProfileScreen({ navigation }: any) {
       }
 
       const rides = ridesHistRes.status === 'fulfilled' && Array.isArray(ridesHistRes.value?.data?.data)
-        ? ridesHistRes.value.data.data : [];
+        ? ridesHistRes.value?.data?.data : [];
       const orders = ordersHistRes.status === 'fulfilled' && Array.isArray(ordersHistRes.value?.data?.data)
-        ? ordersHistRes.value.data.data : [];
+        ? ordersHistRes.value?.data?.data : [];
       const deliveries = deliveriesHistRes.status === 'fulfilled' && Array.isArray(deliveriesHistRes.value?.data?.data)
-        ? deliveriesHistRes.value.data.data : [];
+        ? deliveriesHistRes.value?.data?.data : [];
 
       const completedRides = rides.filter((r: any) => r.status === 'completed').length;
       const completedDeliveries = deliveries.filter((d: any) => d.status === 'completed').length;

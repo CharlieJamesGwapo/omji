@@ -143,7 +143,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Ionicons name="time-outline" size={moderateScale(16)} color={COLORS.gray500} />
-              <Text style={styles.metricText}>20-30 min</Text>
+              <Text style={styles.metricText}>25-40 min</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>

@@ -304,12 +304,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            if (request.status === 'pending') {
-              dismissedRequestIds.current.add(request.id);
-              setRequests(prev => prev.filter(r => r.id !== request.id));
-            } else {
+            dismissedRequestIds.current.add(request.id);
+            setRequests(prev => prev.filter(r => r.id !== request.id));
+            try {
               await driverService.rejectRequest(request.id);
-              fetchData();
+            } catch {
+              // Request may already be taken - dismissal still valid locally
             }
             showToast(`${jobLabel} declined.`, 'info');
           } catch (error: any) {
@@ -376,7 +376,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
     } catch { return { bg: COLORS.gray100, text: COLORS.gray500 }; }
   };
 
-  const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? 95 : 100);
+  const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? Math.round((earnings.completed_rides / Math.max(earnings.completed_rides + (earnings.cancelled_rides || 0), 1)) * 100) : 100);
   const riderName = user?.name?.split(' ')[0] || 'Rider';
   const avatarUri = user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=100`;
 

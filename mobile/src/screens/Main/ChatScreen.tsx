@@ -75,7 +75,7 @@ export default function ChatScreen({ route, navigation }: any) {
     const startPolling = () => {
       stopPolling();
       fetchMessages();
-      interval = setInterval(fetchMessages, 5000);
+      interval = setInterval(fetchMessages, 3000);
     };
     startPolling();
     const unsubBlur = navigation.addListener('blur', stopPolling);

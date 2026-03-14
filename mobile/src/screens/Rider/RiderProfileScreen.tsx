@@ -91,7 +91,7 @@ export default function RiderProfileScreen({ navigation }: any) {
       title: 'Vehicle',
       items: [
         { icon: 'bicycle', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Vehicle Details', subtitle: `${riderProfile.vehicleType} - ${riderProfile.plateNumber}`, action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${driverData.vehicle_model || '-'}\nLicense: ${riderProfile.licenseNumber}`) },
-        { icon: 'document-text', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Documents', subtitle: 'Verified & on file', action: () => Alert.alert('Documents', 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.') },
+        { icon: 'document-text', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Documents', subtitle: driverData.is_verified ? 'Verified & on file' : 'Pending verification', action: () => Alert.alert('Documents', driverData.is_verified ? 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.' : 'Your documents are being reviewed.\n\nPlease wait for admin verification.') },
       ],
     },
     {
@@ -249,7 +249,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         <View style={styles.vehicleCard}>
           <View style={styles.vehicleHeader}>
             <View style={[styles.vehicleIconWrap, { backgroundColor: COLORS.accentBg }]}>
-              <Ionicons name={(driverData.vehicle_type === 'car' ? 'car' : 'navigate-circle') as any} size={moderateScale(22)} color={COLORS.accent} />
+              <Ionicons name={(driverData.vehicle_type === 'car' ? 'car' : driverData.vehicle_type === 'motorcycle' ? 'bicycle' : 'navigate-circle') as any} size={moderateScale(22)} color={COLORS.accent} />
             </View>
             <Text style={styles.vehicleTitle}>Vehicle Information</Text>
           </View>
@@ -285,7 +285,7 @@ export default function RiderProfileScreen({ navigation }: any) {
                     <Ionicons name="id-card-outline" size={moderateScale(16)} color={COLORS.gray500} />
                     <Text style={styles.vehicleLabel}>License</Text>
                   </View>
-                  <Text style={styles.vehicleValue}>{driverData.license_number}</Text>
+                  <Text style={styles.vehicleValue}>{driverData.license_number ? `****${driverData.license_number.slice(-4)}` : '-'}</Text>
                 </View>
               </>
             )}
@@ -297,7 +297,7 @@ export default function RiderProfileScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>Achievements</Text>
           <View style={styles.achievementsGrid}>
             {achievements.map((achievement) => {
-              const progress = achievement.earned ? 1 : Math.min(achievement.current / achievement.target, 0.99);
+              const progress = achievement.earned ? 1 : Math.min(achievement.current / achievement.target, 1);
               return (
                 <View
                   key={achievement.title}
@@ -371,7 +371,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         </TouchableOpacity>
 
         {/* Version */}
-        <Text style={styles.versionText}>Rider App Version 1.0.0</Text>
+        <Text style={styles.versionText}>Rider App Version 1.0.1</Text>
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
