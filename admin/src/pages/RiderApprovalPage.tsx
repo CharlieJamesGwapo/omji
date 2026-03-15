@@ -368,7 +368,7 @@ const RiderApprovalPage: React.FC = () => {
                   {(() => {
                     const docs = getDocuments(selectedRider);
                     return docs.profile_photo ? (
-                      <img src={docs.profile_photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" />
+                      <img src={docs.profile_photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                         <span className="text-gray-500 font-bold">{selectedRider.User?.name?.charAt(0) || '?'}</span>

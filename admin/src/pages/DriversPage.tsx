@@ -519,7 +519,7 @@ const DriversPage: React.FC = () => {
                       {(() => {
                         const docs = getDocuments(driver);
                         return docs.profile_photo ? (
-                          <img src={docs.profile_photo} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                          <img src={docs.profile_photo} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.insertAdjacentHTML('afterbegin', '<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs font-bold">' + (driver.User?.name?.[0] || 'D') + '</div>'); }} />
                         ) : (
                           <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                             {(driver.User?.name || 'D').charAt(0).toUpperCase()}
@@ -725,7 +725,7 @@ const DriversPage: React.FC = () => {
                   {(() => {
                     const docs = getDocuments(selectedDriver);
                     return docs.profile_photo ? (
-                      <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" />
+                      <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
                         {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}

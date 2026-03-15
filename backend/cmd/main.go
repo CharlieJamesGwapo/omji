@@ -25,7 +25,10 @@ func main() {
 	// Add CORS middleware
 	router.Use(middleware.CORSMiddleware())
 
-	// Serve uploaded files
+	// Ensure uploads directory exists (Render has ephemeral filesystem)
+	os.MkdirAll("./uploads", 0755)
+
+	// Serve uploaded files with fallback for missing files
 	router.Static("/uploads", "./uploads")
 
 	// Health check endpoint
