@@ -1,9 +1,10 @@
 import React from 'react';
+import { View, Platform } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
-import { verticalScale, fontScale } from '../utils/responsive';
+import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
 
 import RiderDashboardScreen from '../screens/Rider/RiderDashboardScreen';
 import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
@@ -18,30 +19,42 @@ function RiderTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           let iconName: any;
           if (route.name === 'Dashboard') {
             iconName = focused ? 'speedometer' : 'speedometer-outline';
           } else if (route.name === 'Earnings') {
             iconName = focused ? 'wallet' : 'wallet-outline';
           } else if (route.name === 'RiderProfileTab') {
-            iconName = focused ? 'person' : 'person-outline';
+            iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              {focused && (
+                <View style={{ position: 'absolute', top: -verticalScale(8), width: moderateScale(32), height: 3, borderRadius: 2, backgroundColor: COLORS.success }} />
+              )}
+              <Ionicons name={iconName} size={moderateScale(22)} color={color} />
+            </View>
+          );
         },
         tabBarActiveTintColor: COLORS.success,
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarInactiveTintColor: '#B0B7C3',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          paddingBottom: verticalScale(5),
-          paddingTop: verticalScale(5),
-          height: verticalScale(60),
+          borderTopWidth: 0,
+          elevation: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          paddingBottom: Platform.OS === 'ios' ? verticalScale(20) : verticalScale(8),
+          paddingTop: verticalScale(8),
+          height: Platform.OS === 'ios' ? verticalScale(80) : verticalScale(64),
         },
         tabBarLabelStyle: {
-          fontSize: fontScale(12),
-          fontWeight: 'bold' as const,
+          fontSize: fontScale(11),
+          fontWeight: '600' as const,
+          marginTop: verticalScale(2),
         },
         headerShown: false,
       })}
