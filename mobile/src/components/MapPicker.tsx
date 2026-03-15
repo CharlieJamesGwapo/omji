@@ -9,11 +9,22 @@ import {
   Alert,
   Dimensions,
   Keyboard,
+  ScrollView,
 } from 'react-native';
-import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../utils/responsive';
+
+// Lazy import MapView to catch crashes on devices without Google Maps
+let MapView: any = null;
+let PROVIDER_DEFAULT: any = null;
+try {
+  const maps = require('react-native-maps');
+  MapView = maps.default;
+  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
+} catch {
+  // Maps not available
+}
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,7 +46,7 @@ export default function MapPicker({
   initialLocation,
   title = 'Select Location',
 }: MapPickerProps) {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   const [region, setRegion] = useState({
     latitude: initialLocation?.latitude ?? 8.4343,
@@ -55,6 +66,7 @@ export default function MapPicker({
   const [loading, setLoading] = useState(!initialLocation);
   const [locationPermission, setLocationPermission] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [mapError, setMapError] = useState(!MapView);
 
   const resolveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -251,6 +263,74 @@ export default function MapPicker({
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
         <Text style={styles.loadingText}>Getting your location...</Text>
+      </View>
+    );
+  }
+
+  // Fallback: text-based location picker when MapView is unavailable
+  if (mapError) {
+    return (
+      <View style={styles.container}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(16) }}>
+          <View style={{ backgroundColor: '#FEF3C7', borderRadius: moderateScale(12), padding: moderateScale(14), marginBottom: verticalScale(16), flexDirection: 'row', alignItems: 'center', gap: moderateScale(10) }}>
+            <Ionicons name="information-circle" size={22} color="#D97706" />
+            <Text style={{ flex: 1, fontSize: fontScale(13), color: '#92400E' }}>Map is not available. Search for your location by name below.</Text>
+          </View>
+
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Type address or place name..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={searchLocation}
+              returnKeyType="search"
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity style={styles.searchGo} onPress={searchLocation}>
+                <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {resolving && (
+            <View style={{ alignItems: 'center', marginTop: verticalScale(24) }}>
+              <ActivityIndicator size="large" color="#3B82F6" />
+              <Text style={{ marginTop: verticalScale(8), color: '#6B7280' }}>Searching...</Text>
+            </View>
+          )}
+
+          {!resolving && address && address !== 'Move the map to select location' && (
+            <View style={{ marginTop: verticalScale(20), backgroundColor: '#fff', borderRadius: moderateScale(12), padding: moderateScale(16), shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(10), marginBottom: verticalScale(12) }}>
+                <View style={{ width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#EF4444' }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: fontScale(12), color: '#9CA3AF' }}>Selected Location</Text>
+                  <Text style={{ fontSize: fontScale(15), fontWeight: '600', color: '#1F2937' }}>{address}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmLocation}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmButtonText}>Confirm Location</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity
+            onPress={goToCurrentLocation}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(20), padding: moderateScale(14), backgroundColor: '#EFF6FF', borderRadius: moderateScale(12), gap: moderateScale(8) }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="locate" size={20} color="#3B82F6" />
+            <Text style={{ fontSize: fontScale(14), fontWeight: '600', color: '#3B82F6' }}>Use My Current Location</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     );
   }
