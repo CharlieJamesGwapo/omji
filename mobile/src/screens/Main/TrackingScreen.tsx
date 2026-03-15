@@ -16,7 +16,22 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+// Conditionally import maps - crashes in Expo Go
+let MapView: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+let PROVIDER_DEFAULT: any = null;
+let mapsAvailable = false;
+try {
+  const maps = require('react-native-maps');
+  MapView = maps.default;
+  Marker = maps.Marker;
+  Polyline = maps.Polyline;
+  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
+  mapsAvailable = true;
+} catch {
+  // Maps not available in Expo Go
+}
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
@@ -48,7 +63,7 @@ export default function TrackingScreen({ route, navigation }: any) {
   const { rideId, pickup, dropoff, fare, type = 'ride' } = route.params || {};
   const { user } = useAuth();
   const isDriver = user?.role === 'rider' || user?.role === 'driver';
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
   const [status, setStatus] = useState('pending');
   const [rideData, setRideData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -353,63 +368,76 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_DEFAULT}
-        style={styles.map}
-        initialRegion={{
-          latitude: (mapPickupLat + mapDropoffLat) / 2,
-          longitude: (mapPickupLng + mapDropoffLng) / 2,
-          latitudeDelta: Math.abs(mapPickupLat - mapDropoffLat) * 2.5 + 0.01,
-          longitudeDelta: Math.abs(mapPickupLng - mapDropoffLng) * 2.5 + 0.01,
-        }}
-        showsUserLocation
-        showsMyLocationButton={false}
-        onLayout={() => {
-          const coords = [
-            { latitude: mapPickupLat, longitude: mapPickupLng },
-            { latitude: mapDropoffLat, longitude: mapDropoffLng },
-          ];
-          mapRef.current?.fitToCoordinates(coords, {
-            edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) },
-            animated: false,
-          });
-        }}
-      >
-        <Polyline
-          coordinates={[
-            { latitude: mapPickupLat, longitude: mapPickupLng },
-            { latitude: mapDropoffLat, longitude: mapDropoffLng },
-          ]}
-          strokeColor={COLORS.accent}
-          strokeWidth={4}
-          lineDashPattern={[0]}
-        />
-        <Marker coordinate={{ latitude: mapPickupLat, longitude: mapPickupLng }} title={pickupLabel}>
-          <View style={styles.markerPickup}>
-            <Ionicons name="radio-button-on" size={14} color={COLORS.white} />
-          </View>
-        </Marker>
-        <Marker coordinate={{ latitude: mapDropoffLat, longitude: mapDropoffLng }} title={dropoffLabel}>
-          <View style={styles.markerDropoff}>
-            <Ionicons name="flag" size={14} color={COLORS.white} />
-          </View>
-        </Marker>
-        {!!driverInfo && status !== 'pending' && (
-          <Marker
-            coordinate={{
-              latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || mapPickupLat,
-              longitude: driverVehicle?.current_longitude || driverVehicle?.longitude || mapPickupLng,
-            }}
-            title={driverInfo.name || 'Rider'}
-          >
-            <View style={styles.markerRider}>
-              <Ionicons name="bicycle" size={16} color={COLORS.white} />
-            </View>
-          </Marker>
-        )}
-      </MapView>
+      {/* Map or Fallback */}
+      {mapsAvailable && MapView ? (
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_DEFAULT}
+          style={styles.map}
+          initialRegion={{
+            latitude: (mapPickupLat + mapDropoffLat) / 2,
+            longitude: (mapPickupLng + mapDropoffLng) / 2,
+            latitudeDelta: Math.abs(mapPickupLat - mapDropoffLat) * 2.5 + 0.01,
+            longitudeDelta: Math.abs(mapPickupLng - mapDropoffLng) * 2.5 + 0.01,
+          }}
+          showsUserLocation
+          showsMyLocationButton={false}
+          onLayout={() => {
+            const coords = [
+              { latitude: mapPickupLat, longitude: mapPickupLng },
+              { latitude: mapDropoffLat, longitude: mapDropoffLng },
+            ];
+            mapRef.current?.fitToCoordinates(coords, {
+              edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) },
+              animated: false,
+            });
+          }}
+        >
+          {Polyline && (
+            <Polyline
+              coordinates={[
+                { latitude: mapPickupLat, longitude: mapPickupLng },
+                { latitude: mapDropoffLat, longitude: mapDropoffLng },
+              ]}
+              strokeColor={COLORS.accent}
+              strokeWidth={4}
+              lineDashPattern={[0]}
+            />
+          )}
+          {Marker && (
+            <>
+              <Marker coordinate={{ latitude: mapPickupLat, longitude: mapPickupLng }} title={pickupLabel}>
+                <View style={styles.markerPickup}>
+                  <Ionicons name="radio-button-on" size={14} color={COLORS.white} />
+                </View>
+              </Marker>
+              <Marker coordinate={{ latitude: mapDropoffLat, longitude: mapDropoffLng }} title={dropoffLabel}>
+                <View style={styles.markerDropoff}>
+                  <Ionicons name="flag" size={14} color={COLORS.white} />
+                </View>
+              </Marker>
+              {!!driverInfo && status !== 'pending' && (
+                <Marker
+                  coordinate={{
+                    latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || mapPickupLat,
+                    longitude: driverVehicle?.current_longitude || driverVehicle?.longitude || mapPickupLng,
+                  }}
+                  title={driverInfo.name || 'Rider'}
+                >
+                  <View style={styles.markerRider}>
+                    <Ionicons name="bicycle" size={16} color={COLORS.white} />
+                  </View>
+                </Marker>
+              )}
+            </>
+          )}
+        </MapView>
+      ) : (
+        <View style={[styles.map, { backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name="map-outline" size={48} color={COLORS.gray300} />
+          <Text style={{ color: COLORS.gray400, marginTop: 8, fontSize: fontScale(13) }}>Map not available</Text>
+        </View>
+      )}
 
       {/* Top Bar Buttons */}
       <View style={styles.topBar}>
