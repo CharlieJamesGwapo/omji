@@ -10,12 +10,13 @@ import {
   Dimensions,
   Keyboard,
   ScrollView,
+  Platform,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../utils/responsive';
 
-// Lazy import MapView to catch crashes on devices without Google Maps
+// Import MapView - may crash on Android without Google Maps API key
 let MapView: any = null;
 let PROVIDER_DEFAULT: any = null;
 try {
@@ -24,6 +25,27 @@ try {
   PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
 } catch {
   // Maps not available
+}
+
+// Error boundary to catch MapView render crashes
+class MapErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
 }
 
 const { width, height } = Dimensions.get('window');
@@ -366,16 +388,18 @@ export default function MapPicker({
       </View>
 
       {/* Map */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={region}
-        onRegionChangeComplete={handleRegionChange}
-        showsUserLocation={locationPermission}
-        showsMyLocationButton={false}
-        showsCompass={false}
-      />
+      <MapErrorBoundary onError={() => setMapError(true)}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={PROVIDER_DEFAULT}
+          initialRegion={region}
+          onRegionChangeComplete={handleRegionChange}
+          showsUserLocation={locationPermission}
+          showsMyLocationButton={false}
+          showsCompass={false}
+        />
+      </MapErrorBoundary>
 
       {/* Center Pin - Fixed in the middle of the map */}
       <View style={styles.centerPinContainer} pointerEvents="none">

@@ -222,39 +222,26 @@ export default function EditProfileScreen({ navigation }: any) {
     try {
       setSaving(true);
 
-      // Build form data if we have a new image
+      const payload: any = {
+        name: name.trim(),
+        phone: phone.trim(),
+      };
+      if (newImageUri === 'remove') {
+        payload.profile_image = '';
+      }
+
+      const response = await userService.updateProfile(payload);
+      const updatedData = response.data?.data || response.data;
+
       if (newImageUri && newImageUri !== 'remove') {
-        const formData = new FormData();
-        formData.append('name', name.trim());
-        formData.append('phone', phone.trim());
-
-        const filename = newImageUri.split('/').pop() || 'profile.jpg';
-        const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
-        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-        formData.append('profile_image', {
-          uri: newImageUri,
-          name: filename,
-          type: mimeType,
-        } as any);
-
-        const response = await userService.updateProfile(formData);
-        const updatedData = response.data?.data || response.data;
+        // Image selected but profile photo upload requires server-side file handling
+        // For now, save name/phone and keep the local image preview
         updateUser({
           name: updatedData?.name || name.trim(),
           phone: updatedData?.phone || phone.trim(),
-          profile_image: updatedData?.profile_image || newImageUri,
+          profile_image: updatedData?.profile_image || user?.profile_image,
         });
       } else {
-        const payload: any = {
-          name: name.trim(),
-          phone: phone.trim(),
-        };
-        if (newImageUri === 'remove') {
-          payload.profile_image = '';
-        }
-
-        const response = await userService.updateProfile(payload);
-        const updatedData = response.data?.data || response.data;
         updateUser({
           name: updatedData?.name || name.trim(),
           phone: updatedData?.phone || phone.trim(),
