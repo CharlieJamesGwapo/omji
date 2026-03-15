@@ -8,14 +8,13 @@ import {
   Alert,
   Animated,
   FlatList,
-  Image,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
-import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 import { rideService, deliveryService, notificationService, storeService } from '../../services/api';
 import Toast, { ToastType } from '../../components/Toast';
 
@@ -175,9 +174,11 @@ export default function HomeScreen({ navigation }: any) {
     { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app'), color: COLORS.pasugo, bg: COLORS.pasugoBg },
   ];
 
-  const getStoreImage = (store: any) => {
-    if (store.image || store.logo) return store.image || store.logo;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name || 'Store')}&background=3B82F6&color=fff&size=200`;
+  const STORE_CATEGORY_CONFIG: Record<string, { color: string; icon: string }> = {
+    restaurant: { color: COLORS.primary, icon: 'fast-food' },
+    grocery: { color: COLORS.success, icon: 'cart' },
+    pharmacy: { color: COLORS.accent, icon: 'medical' },
+    retail: { color: '#8B5CF6', icon: 'bag' },
   };
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
@@ -299,36 +300,37 @@ export default function HomeScreen({ navigation }: any) {
               data={featuredStores}
               horizontal
               pagingEnabled={false}
-              snapToInterval={SCREEN_WIDTH * 0.7 + moderateScale(12)}
+              snapToInterval={moderateScale(160) + moderateScale(12)}
               decelerationRate="fast"
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.carouselList}
               keyExtractor={(item) => String(item.id || item.ID)}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.storeCard}
-                  activeOpacity={0.85}
-                  onPress={() => navigation.navigate('StoreDetail', { storeId: item.id || item.ID })}
-                >
-                  <Image
-                    source={{ uri: getStoreImage(item) }}
-                    style={styles.storeImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.storeOverlay}>
-                    <View style={styles.storeRatingBadge}>
-                      <Ionicons name="star" size={12} color="#F59E0B" />
-                      <Text style={styles.storeRatingText}>{Number(item.rating || 4.5).toFixed(1)}</Text>
+              renderItem={({ item }) => {
+                const catCfg = STORE_CATEGORY_CONFIG[item.category] || { color: COLORS.accent, icon: 'storefront' };
+                return (
+                  <TouchableOpacity
+                    style={styles.storeCard}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('StoreDetail', { store: item })}
+                  >
+                    <View style={[styles.storeIconArea, { backgroundColor: `${catCfg.color}15` }]}>
+                      <View style={[styles.storeIconCircle, { backgroundColor: catCfg.color }]}>
+                        <Ionicons name={catCfg.icon as any} size={moderateScale(22)} color={COLORS.white} />
+                      </View>
+                      <View style={styles.storeRatingBadge}>
+                        <Ionicons name="star" size={moderateScale(10)} color="#F59E0B" />
+                        <Text style={styles.storeRatingText}>{Number(item.rating || 0).toFixed(1)}</Text>
+                      </View>
                     </View>
-                  </View>
-                  <View style={styles.storeInfo}>
-                    <Text style={styles.storeName} numberOfLines={1}>{item.name || 'Store'}</Text>
-                    <Text style={styles.storeCategory} numberOfLines={1}>
-                      {item.category || item.description || 'Restaurant'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+                    <View style={styles.storeInfo}>
+                      <Text style={styles.storeName} numberOfLines={1}>{item.name || 'Store'}</Text>
+                      <Text style={styles.storeCategory} numberOfLines={1}>
+                        {item.category || 'Store'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         )}
@@ -804,35 +806,43 @@ const styles = StyleSheet.create({
     marginBottom: RESPONSIVE.marginVertical,
   },
   storeCard: {
-    width: SCREEN_WIDTH * 0.7,
+    width: moderateScale(160),
     marginRight: moderateScale(12),
-    borderRadius: RESPONSIVE.borderRadius.large,
+    borderRadius: RESPONSIVE.borderRadius.medium,
     backgroundColor: COLORS.white,
     overflow: 'hidden',
+    ...SHADOWS.sm,
+  },
+  storeIconArea: {
+    width: '100%',
+    height: verticalScale(90),
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  storeIconCircle: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
     ...SHADOWS.md,
   },
-  storeImage: {
-    width: '100%',
-    height: verticalScale(120),
-    backgroundColor: COLORS.gray200,
-  },
-  storeOverlay: {
-    position: 'absolute',
-    top: moderateScale(8),
-    right: moderateScale(8),
-  },
   storeRatingBadge: {
+    position: 'absolute',
+    top: moderateScale(6),
+    right: moderateScale(6),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(8),
-    paddingHorizontal: moderateScale(6),
-    paddingVertical: moderateScale(3),
-    gap: moderateScale(3),
+    paddingHorizontal: moderateScale(5),
+    paddingVertical: moderateScale(2),
+    gap: moderateScale(2),
     ...SHADOWS.sm,
   },
   storeRatingText: {
-    fontSize: RESPONSIVE.fontSize.small - 1,
+    fontSize: fontScale(10),
     fontWeight: '700',
     color: COLORS.gray800,
   },
@@ -840,14 +850,15 @@ const styles = StyleSheet.create({
     padding: moderateScale(10),
   },
   storeName: {
-    fontSize: RESPONSIVE.fontSize.medium,
+    fontSize: fontScale(13),
     fontWeight: '700',
     color: COLORS.gray900,
     marginBottom: verticalScale(2),
   },
   storeCategory: {
-    fontSize: RESPONSIVE.fontSize.small,
+    fontSize: fontScale(11),
     color: COLORS.gray500,
+    textTransform: 'capitalize',
   },
 
   // --- Location Tag ---
