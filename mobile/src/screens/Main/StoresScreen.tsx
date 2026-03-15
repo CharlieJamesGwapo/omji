@@ -292,7 +292,7 @@ export default function StoresScreen({ navigation }: any) {
                         styles.openBadgeFeatured,
                         { backgroundColor: storeOpen ? COLORS.success : COLORS.error },
                       ]}>
-                        <View style={[styles.openDot, { backgroundColor: COLORS.white }]} />
+                        <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.white }} />
                         <Text style={styles.openBadgeFeaturedText}>
                           {storeOpen ? 'Open' : 'Closed'}
                         </Text>
@@ -338,11 +338,11 @@ export default function StoresScreen({ navigation }: any) {
             <View style={styles.loadingContainer}>
               {[1, 2, 3].map((i) => (
                 <View key={`skeleton-${i}`} style={[styles.storeCard, { opacity: 0.5 }]}>
-                  <View style={[styles.storeImagePlaceholder, { backgroundColor: COLORS.gray100 }]} />
-                  <View style={styles.storeContent}>
-                    <View style={{ backgroundColor: COLORS.gray200, height: verticalScale(16), width: '60%', borderRadius: moderateScale(4), marginBottom: verticalScale(8) }} />
-                    <View style={{ backgroundColor: COLORS.gray100, height: verticalScale(12), width: '40%', borderRadius: moderateScale(4), marginBottom: verticalScale(8) }} />
-                    <View style={{ backgroundColor: COLORS.gray100, height: verticalScale(12), width: '80%', borderRadius: moderateScale(4) }} />
+                  <View style={[styles.storeIconArea, { backgroundColor: COLORS.gray100 }]} />
+                  <View style={[styles.storeContent, { marginLeft: moderateScale(12) }]}>
+                    <View style={{ backgroundColor: COLORS.gray200, height: verticalScale(14), width: '60%', borderRadius: moderateScale(4), marginBottom: verticalScale(6) }} />
+                    <View style={{ backgroundColor: COLORS.gray100, height: verticalScale(12), width: '40%', borderRadius: moderateScale(4), marginBottom: verticalScale(6) }} />
+                    <View style={{ backgroundColor: COLORS.gray100, height: verticalScale(10), width: '50%', borderRadius: moderateScale(4) }} />
                   </View>
                 </View>
               ))}
@@ -356,95 +356,57 @@ export default function StoresScreen({ navigation }: any) {
                 onPress={() => navigation.navigate('StoreDetail', { store })}
                 activeOpacity={0.7}
               >
-                {/* Store Image Area */}
-                <View style={styles.storeImageSection}>
-                  <View style={[
-                    styles.storeImagePlaceholder,
-                    { backgroundColor: catStyle ? `${catStyle.gradient}08` : COLORS.gray50 },
-                  ]}>
-                    {/* Decorative pattern */}
-                    <View style={styles.imagePlaceholderPattern}>
-                      <View style={[styles.patternCircle, styles.patternCircle1, { backgroundColor: catStyle ? `${catStyle.gradient}10` : COLORS.gray100 }]} />
-                      <View style={[styles.patternCircle, styles.patternCircle2, { backgroundColor: catStyle ? `${catStyle.gradient}08` : COLORS.gray100 }]} />
-                    </View>
-                    <View style={[styles.storeIconCircle, { backgroundColor: catStyle?.gradient || COLORS.accent }]}>
-                      <Ionicons
-                        name={(catStyle?.icon || 'storefront') as any}
-                        size={moderateScale(32)}
-                        color={COLORS.white}
-                      />
-                    </View>
+                {/* Store Icon */}
+                <View style={[styles.storeIconArea, { backgroundColor: catStyle ? `${catStyle.gradient}12` : COLORS.gray100 }]}>
+                  <View style={[styles.storeIconCircle, { backgroundColor: catStyle?.gradient || COLORS.accent }]}>
+                    <Ionicons
+                      name={(catStyle?.icon || 'storefront') as any}
+                      size={moderateScale(24)}
+                      color={COLORS.white}
+                    />
                   </View>
-                  {/* Open/Closed badge */}
-                  <View style={[
-                    styles.openBadge,
-                    storeOpen ? styles.openBadgeOpen : styles.openBadgeClosed,
-                  ]}>
-                    <View style={[
-                      styles.openDot,
-                      { backgroundColor: storeOpen ? COLORS.success : COLORS.error },
-                    ]} />
-                    <Text style={[
-                      styles.openBadgeText,
-                      { color: storeOpen ? COLORS.successDark : COLORS.errorDark },
-                    ]}>
-                      {storeOpen ? 'Open Now' : 'Closed'}
-                    </Text>
-                  </View>
+                  {storeOpen && (
+                    <View style={styles.openDotSmall}>
+                      <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.success }} />
+                    </View>
+                  )}
                 </View>
 
                 {/* Store Content */}
                 <View style={styles.storeContent}>
-                  <View style={styles.storeHeader}>
-                    <View style={styles.storeNameRow}>
-                      <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
-                      {!!store.is_verified && (
-                        <View style={styles.verifiedBadge}>
-                          <Ionicons name="shield-checkmark" size={moderateScale(14)} color={COLORS.accent} />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.ratingSection}>
-                      <View style={styles.starsRow}>
-                        {renderStarRating(Number(store.rating || 0))}
-                      </View>
-                      <Text style={styles.ratingNumber}>{Number(store.rating || 0).toFixed(1)}</Text>
-                    </View>
+                  <View style={styles.storeNameRow}>
+                    <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
+                    {!!store.is_verified && (
+                      <Ionicons name="shield-checkmark" size={moderateScale(14)} color={COLORS.accent} style={{ marginLeft: moderateScale(4) }} />
+                    )}
                   </View>
 
-                  {/* Tags */}
-                  <View style={styles.storeTags}>
+                  <View style={styles.storeMetaRow}>
+                    <View style={styles.ratingSection}>
+                      <Ionicons name="star" size={moderateScale(12)} color={COLORS.warningDark} />
+                      <Text style={styles.ratingNumber}>{Number(store.rating || 0).toFixed(1)}</Text>
+                    </View>
                     <View style={[styles.categoryTag, { backgroundColor: catStyle ? `${catStyle.gradient}12` : COLORS.gray100 }]}>
-                      <Ionicons
-                        name={(catStyle?.icon || 'pricetag') as any}
-                        size={moderateScale(12)}
-                        color={catStyle?.gradient || COLORS.gray600}
-                      />
                       <Text style={[styles.categoryTagText, { color: catStyle?.gradient || COLORS.gray600 }]}>
                         {store.category}
                       </Text>
                     </View>
-                    {!!store.is_verified && (
-                      <View style={[styles.categoryTag, { backgroundColor: COLORS.successBg }]}>
-                        <Ionicons name="checkmark-circle" size={moderateScale(12)} color={COLORS.successDark} />
-                        <Text style={[styles.categoryTagText, { color: COLORS.successDark }]}>Verified</Text>
-                      </View>
+                    {storeOpen ? (
+                      <Text style={styles.openText}>Open</Text>
+                    ) : (
+                      <Text style={styles.closedText}>Closed</Text>
                     )}
                   </View>
 
-                  {/* Footer info */}
-                  <View style={styles.storeFooter}>
-                    <View style={styles.storeInfoItem}>
-                      <Ionicons name="location" size={moderateScale(14)} color={COLORS.gray400} />
-                      <Text style={styles.storeInfoText} numberOfLines={1}>{store.address || 'Balingasag'}</Text>
-                    </View>
-                    {!!store.phone && (
-                      <View style={styles.storeInfoItem}>
-                        <Ionicons name="call" size={moderateScale(14)} color={COLORS.gray400} />
-                        <Text style={styles.storeInfoText}>{store.phone}</Text>
-                      </View>
-                    )}
+                  <View style={styles.storeInfoRow}>
+                    <Ionicons name="location-outline" size={moderateScale(12)} color={COLORS.gray400} />
+                    <Text style={styles.storeInfoText} numberOfLines={1}>{store.address || 'Balingasag'}</Text>
                   </View>
+                </View>
+
+                {/* Arrow */}
+                <View style={styles.storeArrow}>
+                  <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.gray300} />
                 </View>
               </TouchableOpacity>
             );
@@ -723,150 +685,103 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   storeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginBottom: verticalScale(14),
-    overflow: 'hidden',
-    ...SHADOWS.md,
+    marginBottom: verticalScale(10),
+    padding: moderateScale(14),
+    ...SHADOWS.sm,
   },
-  storeImageSection: {
+  storeIconArea: {
+    width: moderateScale(56),
+    height: moderateScale(56),
+    borderRadius: moderateScale(16),
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
-  storeImagePlaceholder: {
-    width: '100%',
-    height: verticalScale(140),
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  imagePlaceholderPattern: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  patternCircle: {
-    position: 'absolute',
-    borderRadius: moderateScale(999),
-  },
-  patternCircle1: {
-    width: moderateScale(180),
-    height: moderateScale(180),
-    top: -moderateScale(40),
-    right: -moderateScale(40),
-  },
-  patternCircle2: {
-    width: moderateScale(120),
-    height: moderateScale(120),
-    bottom: -moderateScale(30),
-    left: -moderateScale(20),
-  },
   storeIconCircle: {
-    width: moderateScale(64),
-    height: moderateScale(64),
-    borderRadius: moderateScale(32),
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
-    ...SHADOWS.lg,
   },
-  openBadge: {
+  openDotSmall: {
     position: 'absolute',
-    top: verticalScale(10),
-    right: moderateScale(10),
-    flexDirection: 'row',
+    bottom: moderateScale(2),
+    right: moderateScale(2),
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    backgroundColor: COLORS.white,
     alignItems: 'center',
-    paddingHorizontal: moderateScale(10),
-    paddingVertical: verticalScale(5),
-    borderRadius: moderateScale(14),
-    gap: moderateScale(5),
-  },
-  openBadgeOpen: {
-    backgroundColor: COLORS.successBg,
-  },
-  openBadgeClosed: {
-    backgroundColor: COLORS.errorBg,
-  },
-  openDot: {
-    width: moderateScale(6),
-    height: moderateScale(6),
-    borderRadius: moderateScale(3),
-  },
-  openBadgeText: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
+    justifyContent: 'center',
   },
   storeContent: {
-    padding: moderateScale(16),
-  },
-  storeHeader: {
-    marginBottom: verticalScale(8),
+    flex: 1,
+    marginLeft: moderateScale(12),
   },
   storeNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: moderateScale(6),
-    marginBottom: verticalScale(6),
+    marginBottom: verticalScale(4),
   },
   storeName: {
-    fontSize: RESPONSIVE.fontSize.large,
+    fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '700',
     color: COLORS.gray900,
     flex: 1,
   },
-  verifiedBadge: {
-    width: moderateScale(24),
-    height: moderateScale(24),
-    borderRadius: moderateScale(12),
-    backgroundColor: COLORS.accentBg,
+  storeMetaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(4),
   },
   ratingSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: moderateScale(6),
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: moderateScale(2),
+    gap: moderateScale(3),
   },
   ratingNumber: {
-    fontSize: fontScale(13),
+    fontSize: fontScale(12),
     fontWeight: '700',
     color: COLORS.warningDark,
   },
-  storeTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: verticalScale(12),
-    gap: moderateScale(6),
-  },
   categoryTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: moderateScale(10),
-    paddingVertical: verticalScale(5),
-    borderRadius: moderateScale(14),
-    gap: moderateScale(4),
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: verticalScale(2),
+    borderRadius: moderateScale(10),
   },
   categoryTagText: {
     fontSize: fontScale(11),
     fontWeight: '600',
   },
-  storeFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gray100,
-    paddingTop: verticalScale(10),
+  openText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: COLORS.success,
   },
-  storeInfoItem: {
+  closedText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: COLORS.error,
+  },
+  storeInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: moderateScale(4),
   },
   storeInfoText: {
-    fontSize: fontScale(13),
-    color: COLORS.gray500,
-    maxWidth: moderateScale(130),
+    fontSize: fontScale(12),
+    color: COLORS.gray400,
+    flex: 1,
+  },
+  storeArrow: {
+    marginLeft: moderateScale(8),
   },
   // Empty states
   emptyState: {

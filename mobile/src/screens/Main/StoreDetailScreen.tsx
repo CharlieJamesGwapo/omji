@@ -120,7 +120,9 @@ export default function StoreDetailScreen({ route, navigation }: any) {
       <ScrollView>
         <View style={styles.storeHeader}>
           <View style={[styles.headerImage, { backgroundColor: COLORS.storeBg, alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name="storefront" size={moderateScale(64)} color={COLORS.store} />
+            <View style={{ width: moderateScale(80), height: moderateScale(80), borderRadius: moderateScale(40), backgroundColor: COLORS.store, alignItems: 'center', justifyContent: 'center', ...SHADOWS.lg }}>
+              <Ionicons name="storefront" size={moderateScale(40)} color={COLORS.white} />
+            </View>
           </View>
           <TouchableOpacity
             style={styles.backButton}
