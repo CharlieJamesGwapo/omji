@@ -47,8 +47,11 @@ export default function PasabayScreen({ navigation }: any) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setDetectingLocation(false); return; }
         const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
-        const loc = await Promise.race([locationPromise, timeoutPromise]);
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
+        let loc = await Promise.race([locationPromise, timeoutPromise]);
+        if (!loc) {
+          try { loc = await Location.getLastKnownPositionAsync(); } catch {}
+        }
         if (loc && 'coords' in loc) {
           const result = await Location.reverseGeocodeAsync({
             latitude: loc.coords.latitude,
