@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,13 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Dimensions,
   Keyboard,
   ScrollView,
   Platform,
-  FlatList,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
-import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../utils/responsive';
-
-const { width } = Dimensions.get('window');
+import { RESPONSIVE, fontScale, verticalScale, moderateScale } from '../utils/responsive';
 
 interface MapPickerProps {
   onLocationSelect: (location: {
@@ -32,13 +28,24 @@ interface MapPickerProps {
   title?: string;
 }
 
-// Common places for quick selection
-const QUICK_PLACES = [
-  { name: 'Balingasag Public Market', icon: 'cart' },
-  { name: 'Balingasag Hospital', icon: 'medkit' },
-  { name: 'Balingasag Municipal Hall', icon: 'business' },
-  { name: 'Balingasag Bus Terminal', icon: 'bus' },
-  { name: 'Cagayan de Oro City', icon: 'location' },
+// Expanded popular places in Balingasag and nearby areas
+const POPULAR_PLACES = [
+  { name: 'Balingasag Public Market', icon: 'cart', category: 'Market' },
+  { name: 'Balingasag Hospital', icon: 'medkit', category: 'Hospital' },
+  { name: 'Balingasag Municipal Hall', icon: 'business', category: 'Government' },
+  { name: 'Balingasag Bus Terminal', icon: 'bus', category: 'Transport' },
+  { name: 'Balingasag Church', icon: 'home', category: 'Church' },
+  { name: 'Balingasag National High School', icon: 'school', category: 'School' },
+  { name: 'Cagayan de Oro City', icon: 'location', category: 'City' },
+  { name: 'SM CDO Downtown Premier', icon: 'storefront', category: 'Mall' },
+  { name: 'Laguindingan Airport', icon: 'airplane', category: 'Airport' },
+  { name: 'Gaisano Mall Cagayan de Oro', icon: 'storefront', category: 'Mall' },
+  { name: 'Centrio Mall Cagayan de Oro', icon: 'storefront', category: 'Mall' },
+  { name: 'JR Borja Street Cagayan de Oro', icon: 'navigate', category: 'Street' },
+  { name: 'Opol Misamis Oriental', icon: 'location', category: 'Town' },
+  { name: 'Villanueva Misamis Oriental', icon: 'location', category: 'Town' },
+  { name: 'Jasaan Misamis Oriental', icon: 'location', category: 'Town' },
+  { name: 'Tagoloan Misamis Oriental', icon: 'location', category: 'Town' },
 ];
 
 export default function MapPicker({
@@ -49,55 +56,62 @@ export default function MapPicker({
   const [searchQuery, setSearchQuery] = useState('');
   const [address, setAddress] = useState('');
   const [resolving, setResolving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [selectedCoord, setSelectedCoord] = useState({
-    latitude: initialLocation?.latitude ?? 0,
-    longitude: initialLocation?.longitude ?? 0,
-  });
+  const [loading, setLoading] = useState(false);
+  const [selectedCoord, setSelectedCoord] = useState({ latitude: 0, longitude: 0 });
   const [searchResults, setSearchResults] = useState<Array<{ name: string; latitude: number; longitude: number }>>([]);
   const [hasSelected, setHasSelected] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    initLocation();
-  }, []);
-
-  const initLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLoading(false);
-        return;
-      }
-
-      // Don't auto-select — just finish loading and let user search
-      // This prevents dropoff from auto-filling with pickup address
-    } catch (error) {
-      console.log('Location init error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Filter popular places based on search query
+  const filteredPlaces = searchQuery.trim().length > 0
+    ? POPULAR_PLACES.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : POPULAR_PLACES;
 
   const getAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
-      setResolving(true);
       const result = await Location.reverseGeocodeAsync({ latitude, longitude });
       if (result && result.length > 0) {
         const loc = result[0];
         const parts = [loc.streetNumber, loc.street, loc.subregion, loc.city, loc.region].filter(Boolean);
-        const formatted = parts.length > 0
-          ? parts.join(', ')
-          : [loc.name, loc.city, loc.region].filter(Boolean).join(', ');
-        setAddress(formatted || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-      } else {
-        setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        return parts.length > 0 ? parts.join(', ') : [loc.name, loc.city, loc.region].filter(Boolean).join(', ') || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
       }
+      return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
     } catch {
-      setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-    } finally {
-      setResolving(false);
+      return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
     }
   };
+
+  // Live search as user types (debounced)
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchQuery(text);
+    setSearchResults([]);
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (text.trim().length < 3) return;
+
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        setResolving(true);
+        const results = await Location.geocodeAsync(text.trim());
+        if (results && results.length > 0) {
+          const mapped = [];
+          for (const r of results.slice(0, 5)) {
+            const addr = await getAddressFromCoords(r.latitude, r.longitude);
+            mapped.push({ name: addr, latitude: r.latitude, longitude: r.longitude });
+          }
+          setSearchResults(mapped);
+        }
+      } catch {
+        // Silent - user can still pick from popular places
+      } finally {
+        setResolving(false);
+      }
+    }, 800);
+  }, []);
 
   const searchLocation = async () => {
     if (!searchQuery.trim()) return;
@@ -109,77 +123,18 @@ export default function MapPicker({
       if (results && results.length > 0) {
         const mapped = [];
         for (const r of results.slice(0, 5)) {
-          try {
-            const rev = await Location.reverseGeocodeAsync({ latitude: r.latitude, longitude: r.longitude });
-            const loc = rev?.[0];
-            const parts = [loc?.streetNumber, loc?.street, loc?.subregion, loc?.city, loc?.region].filter(Boolean);
-            const name = parts.length > 0 ? parts.join(', ') : [loc?.name, loc?.city, loc?.region].filter(Boolean).join(', ');
-            mapped.push({ name: name || searchQuery, latitude: r.latitude, longitude: r.longitude });
-          } catch {
-            mapped.push({ name: searchQuery, latitude: r.latitude, longitude: r.longitude });
-          }
+          const addr = await getAddressFromCoords(r.latitude, r.longitude);
+          mapped.push({ name: addr, latitude: r.latitude, longitude: r.longitude });
         }
         if (mapped.length === 1) {
-          // Auto-select if only one result
           selectResult(mapped[0]);
-        } else {
+        } else if (mapped.length > 1) {
           setSearchResults(mapped);
+        } else {
+          Alert.alert('Not Found', 'Try a more specific location name.');
         }
       } else {
-        Alert.alert('Not Found', 'Location not found. Try a different search term.');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to search location. Please try again.');
-    } finally {
-      setResolving(false);
-    }
-  };
-
-  const selectResult = (result: { name: string; latitude: number; longitude: number }) => {
-    setSelectedCoord({ latitude: result.latitude, longitude: result.longitude });
-    setAddress(result.name);
-    setSearchResults([]);
-    setHasSelected(true);
-  };
-
-  const useCurrentLocation = async () => {
-    try {
-      setResolving(true);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please enable location access in settings.');
-        return;
-      }
-      const loc = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
-      ]);
-      if (loc && 'coords' in loc) {
-        setSelectedCoord({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-        await getAddressFromCoords(loc.coords.latitude, loc.coords.longitude);
-        setHasSelected(true);
-      } else {
-        Alert.alert('Timeout', 'Could not get location. Please search manually.');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to get current location.');
-    } finally {
-      setResolving(false);
-    }
-  };
-
-  const searchQuickPlace = async (placeName: string) => {
-    setSearchQuery(placeName);
-    try {
-      setResolving(true);
-      const results = await Location.geocodeAsync(placeName);
-      if (results && results.length > 0) {
-        const { latitude, longitude } = results[0];
-        setSelectedCoord({ latitude, longitude });
-        await getAddressFromCoords(latitude, longitude);
-        setHasSelected(true);
-      } else {
-        Alert.alert('Not Found', `Could not find "${placeName}". Try searching manually.`);
+        Alert.alert('Not Found', 'Location not found. Try a different name or select from the list below.');
       }
     } catch {
       Alert.alert('Error', 'Search failed. Please try again.');
@@ -188,9 +143,69 @@ export default function MapPicker({
     }
   };
 
+  const selectResult = (result: { name: string; latitude: number; longitude: number }) => {
+    setSelectedCoord({ latitude: result.latitude, longitude: result.longitude });
+    setAddress(result.name);
+    setSearchQuery(result.name);
+    setSearchResults([]);
+    setHasSelected(true);
+    Keyboard.dismiss();
+  };
+
+  const selectQuickPlace = async (placeName: string) => {
+    Keyboard.dismiss();
+    setSearchQuery(placeName);
+    try {
+      setResolving(true);
+      const results = await Location.geocodeAsync(placeName);
+      if (results && results.length > 0) {
+        const { latitude, longitude } = results[0];
+        const addr = await getAddressFromCoords(latitude, longitude);
+        setSelectedCoord({ latitude, longitude });
+        setAddress(addr || placeName);
+        setHasSelected(true);
+      } else {
+        Alert.alert('Not Found', `Could not find "${placeName}".`);
+      }
+    } catch {
+      Alert.alert('Error', 'Search failed.');
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const useCurrentLocation = async () => {
+    Keyboard.dismiss();
+    try {
+      setLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please enable location in your phone settings.');
+        return;
+      }
+      const loc = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+      if (loc && 'coords' in loc) {
+        const addr = await getAddressFromCoords(loc.coords.latitude, loc.coords.longitude);
+        setSelectedCoord({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        setAddress(addr);
+        setSearchQuery(addr);
+        setHasSelected(true);
+      } else {
+        Alert.alert('Timeout', 'GPS is slow. Please type your location instead.');
+      }
+    } catch {
+      Alert.alert('Error', 'Could not get location. Please type it manually.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const confirmLocation = () => {
-    if (!address || selectedCoord.latitude === 0) {
-      Alert.alert('Select Location', 'Please search for or select a location first.');
+    if (!hasSelected || !address || selectedCoord.latitude === 0) {
+      Alert.alert('Select Location', 'Please search and select a location first.');
       return;
     }
     onLocationSelect({
@@ -200,127 +215,144 @@ export default function MapPicker({
     });
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Getting your location...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Search Bar */}
         <View style={styles.searchBar}>
           <Ionicons name="search" size={moderateScale(18)} color="#9CA3AF" />
           <TextInput
+            ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search address, place, or landmark..."
+            placeholder="Type any address or place name..."
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
-            onChangeText={(t) => { setSearchQuery(t); setSearchResults([]); }}
+            onChangeText={handleSearchChange}
             onSubmitEditing={searchLocation}
             returnKeyType="search"
-            autoFocus={!hasSelected}
+            autoFocus
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); Keyboard.dismiss(); }} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={moderateScale(18)} color="#9CA3AF" />
+            <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); setHasSelected(false); }} style={{ padding: 4 }}>
+              <Ionicons name="close-circle" size={moderateScale(20)} color="#D1D5DB" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.searchButton} onPress={searchLocation} disabled={!searchQuery.trim()}>
-            <Ionicons name="arrow-forward" size={moderateScale(16)} color="#fff" />
+          <TouchableOpacity
+            style={[styles.searchButton, !searchQuery.trim() && { opacity: 0.4 }]}
+            onPress={searchLocation}
+            disabled={!searchQuery.trim() || resolving}
+          >
+            {resolving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="arrow-forward" size={moderateScale(16)} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
 
+        {/* Selected Location */}
+        {hasSelected && address && (
+          <View style={styles.selectedCard}>
+            <View style={styles.selectedDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.selectedLabel}>Selected</Text>
+              <Text style={styles.selectedAddress} numberOfLines={2}>{address}</Text>
+            </View>
+            <TouchableOpacity onPress={() => { setHasSelected(false); setSearchQuery(''); inputRef.current?.focus(); }}>
+              <Ionicons name="create-outline" size={moderateScale(20)} color="#3B82F6" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Search Results */}
         {searchResults.length > 0 && (
-          <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>Select a result:</Text>
-            {searchResults.map((result, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.resultItem}
-                onPress={() => selectResult(result)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location" size={moderateScale(18)} color="#3B82F6" />
-                <Text style={styles.resultText} numberOfLines={2}>{result.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Current Location Button */}
-        <TouchableOpacity style={styles.currentLocationBtn} onPress={useCurrentLocation} activeOpacity={0.7}>
-          <View style={styles.currentLocationIcon}>
-            <Ionicons name="locate" size={moderateScale(20)} color="#3B82F6" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.currentLocationTitle}>Use My Current Location</Text>
-            <Text style={styles.currentLocationSub}>Automatically detect via GPS</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={moderateScale(16)} color="#9CA3AF" />
-        </TouchableOpacity>
-
-        {/* Quick Places */}
-        {!hasSelected && searchResults.length === 0 && (
-          <View style={styles.quickSection}>
-            <Text style={styles.quickTitle}>Popular Places</Text>
-            {QUICK_PLACES.map((place) => (
-              <TouchableOpacity
-                key={place.name}
-                style={styles.quickItem}
-                onPress={() => searchQuickPlace(place.name)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.quickIcon}>
-                  <Ionicons name={place.icon as any} size={moderateScale(16)} color="#6B7280" />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Search Results</Text>
+            {searchResults.map((result, i) => (
+              <TouchableOpacity key={i} style={styles.placeItem} onPress={() => selectResult(result)} activeOpacity={0.6}>
+                <View style={[styles.placeIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="location" size={moderateScale(16)} color="#2563EB" />
                 </View>
-                <Text style={styles.quickText}>{place.name}</Text>
-                <Ionicons name="chevron-forward" size={moderateScale(14)} color="#D1D5DB" />
+                <Text style={styles.placeText} numberOfLines={2}>{result.name}</Text>
+                <Ionicons name="arrow-forward-circle" size={moderateScale(20)} color="#93C5FD" />
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* Loading */}
-        {resolving && (
-          <View style={styles.resolvingContainer}>
-            <ActivityIndicator size="small" color="#3B82F6" />
-            <Text style={styles.resolvingText}>Searching...</Text>
-          </View>
+        {/* GPS Button */}
+        {!hasSelected && (
+          <TouchableOpacity style={styles.gpsButton} onPress={useCurrentLocation} activeOpacity={0.7} disabled={loading}>
+            <View style={styles.gpsIcon}>
+              {loading ? (
+                <ActivityIndicator size="small" color="#3B82F6" />
+              ) : (
+                <Ionicons name="navigate" size={moderateScale(20)} color="#3B82F6" />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gpsTitle}>Use My Current Location</Text>
+              <Text style={styles.gpsSub}>Auto-detect via GPS</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={moderateScale(16)} color="#93C5FD" />
+          </TouchableOpacity>
         )}
 
-        {/* Selected Location Card */}
-        {hasSelected && address && !resolving && (
-          <View style={styles.selectedCard}>
-            <View style={styles.selectedHeader}>
-              <View style={styles.selectedDot} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.selectedLabel}>Selected Location</Text>
-                <Text style={styles.selectedAddress}>{address}</Text>
+        {/* Popular Places */}
+        {!hasSelected && searchResults.length === 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery.trim() ? `Places matching "${searchQuery}"` : 'Popular Places'}
+            </Text>
+            {filteredPlaces.length > 0 ? (
+              filteredPlaces.map((place) => (
+                <TouchableOpacity
+                  key={place.name}
+                  style={styles.placeItem}
+                  onPress={() => selectQuickPlace(place.name)}
+                  activeOpacity={0.6}
+                >
+                  <View style={styles.placeIcon}>
+                    <Ionicons name={place.icon as any} size={moderateScale(16)} color="#6B7280" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.placeText}>{place.name}</Text>
+                    <Text style={styles.placeCategory}>{place.category}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={moderateScale(14)} color="#D1D5DB" />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: verticalScale(20) }}>
+                <Ionicons name="search-outline" size={moderateScale(32)} color="#D1D5DB" />
+                <Text style={{ color: '#9CA3AF', marginTop: verticalScale(8), fontSize: fontScale(13) }}>
+                  No matching places. Tap the search button to find it.
+                </Text>
               </View>
-              <TouchableOpacity onPress={() => { setHasSelected(false); setAddress(''); setSearchQuery(''); }}>
-                <Ionicons name="create-outline" size={moderateScale(18)} color="#3B82F6" />
-              </TouchableOpacity>
+            )}
+
+            {/* Tip */}
+            <View style={styles.tipCard}>
+              <Ionicons name="bulb-outline" size={moderateScale(16)} color="#D97706" />
+              <Text style={styles.tipText}>
+                Tip: Type any street, barangay, landmark, or city name and tap the search button to find it.
+              </Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Confirm Button - Fixed at bottom */}
+      {/* Confirm Button */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.confirmButton, (!hasSelected || !address || resolving) && styles.confirmButtonDisabled]}
+          style={[styles.confirmButton, (!hasSelected || resolving || loading) && styles.confirmButtonDisabled]}
           onPress={confirmLocation}
-          disabled={!hasSelected || !address || resolving}
+          disabled={!hasSelected || resolving || loading}
           activeOpacity={0.8}
         >
           <Ionicons name="checkmark-circle" size={moderateScale(20)} color="#fff" />
@@ -332,21 +364,7 @@ export default function MapPicker({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  loadingText: {
-    marginTop: verticalScale(10),
-    fontSize: fontScale(14),
-    color: '#6B7280',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(12),
@@ -355,10 +373,10 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: moderateScale(14),
     paddingHorizontal: moderateScale(14),
-    paddingVertical: Platform.OS === 'ios' ? moderateScale(12) : moderateScale(4),
+    paddingVertical: Platform.OS === 'ios' ? moderateScale(10) : moderateScale(2),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -372,82 +390,83 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   searchButton: {
-    width: moderateScale(32),
-    height: moderateScale(32),
-    borderRadius: moderateScale(16),
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultsContainer: {
-    marginTop: verticalScale(12),
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(12),
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  resultsTitle: {
-    fontSize: fontScale(12),
-    color: '#9CA3AF',
-    paddingHorizontal: moderateScale(14),
-    paddingTop: moderateScale(12),
-    paddingBottom: moderateScale(4),
-  },
-  resultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: moderateScale(14),
-    paddingVertical: moderateScale(14),
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    gap: moderateScale(10),
-  },
-  resultText: {
-    flex: 1,
-    fontSize: fontScale(14),
-    color: '#1F2937',
-  },
-  currentLocationBtn: {
+  selectedCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
     borderRadius: moderateScale(14),
-    padding: moderateScale(14),
-    marginTop: verticalScale(16),
+    padding: moderateScale(16),
+    marginTop: verticalScale(14),
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
     gap: moderateScale(12),
   },
-  currentLocationIcon: {
+  selectedDot: {
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    backgroundColor: '#3B82F6',
+  },
+  selectedLabel: {
+    fontSize: fontScale(11),
+    color: '#60A5FA',
+    fontWeight: '600',
+  },
+  selectedAddress: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginTop: 1,
+  },
+  gpsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(14),
+    padding: moderateScale(14),
+    marginTop: verticalScale(14),
+    gap: moderateScale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  gpsIcon: {
     width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: moderateScale(20),
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  currentLocationTitle: {
+  gpsTitle: {
     fontSize: fontScale(14),
     fontWeight: '600',
     color: '#1E40AF',
   },
-  currentLocationSub: {
+  gpsSub: {
     fontSize: fontScale(12),
-    color: '#60A5FA',
+    color: '#93C5FD',
     marginTop: 1,
   },
-  quickSection: {
+  section: {
     marginTop: verticalScale(20),
   },
-  quickTitle: {
+  sectionTitle: {
     fontSize: fontScale(14),
     fontWeight: '700',
     color: '#374151',
     marginBottom: verticalScale(10),
   },
-  quickItem: {
+  placeItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -457,11 +476,11 @@ const styles = StyleSheet.create({
     gap: moderateScale(12),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
     elevation: 1,
   },
-  quickIcon: {
+  placeIcon: {
     width: moderateScale(36),
     height: moderateScale(36),
     borderRadius: moderateScale(18),
@@ -469,57 +488,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickText: {
+  placeText: {
     flex: 1,
     fontSize: fontScale(14),
-    color: '#374151',
+    color: '#1F2937',
+    fontWeight: '500',
   },
-  resolvingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: moderateScale(10),
-    marginTop: verticalScale(20),
+  placeCategory: {
+    fontSize: fontScale(11),
+    color: '#9CA3AF',
+    marginTop: 1,
   },
-  resolvingText: {
-    fontSize: fontScale(14),
-    color: '#6B7280',
-  },
-  selectedCard: {
-    marginTop: verticalScale(16),
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(14),
-    padding: moderateScale(16),
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  selectedHeader: {
+  tipCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: moderateScale(12),
+    backgroundColor: '#FFFBEB',
+    borderRadius: moderateScale(12),
+    padding: moderateScale(14),
+    marginTop: verticalScale(12),
+    gap: moderateScale(10),
   },
-  selectedDot: {
-    width: moderateScale(14),
-    height: moderateScale(14),
-    borderRadius: moderateScale(7),
-    backgroundColor: '#3B82F6',
-    marginTop: 3,
-  },
-  selectedLabel: {
+  tipText: {
+    flex: 1,
     fontSize: fontScale(12),
-    color: '#9CA3AF',
-    marginBottom: 2,
-  },
-  selectedAddress: {
-    fontSize: fontScale(15),
-    fontWeight: '600',
-    color: '#1F2937',
-    lineHeight: verticalScale(20),
+    color: '#92400E',
+    lineHeight: fontScale(18),
   },
   bottomBar: {
     position: 'absolute',
@@ -528,7 +521,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#fff',
     padding: RESPONSIVE.paddingHorizontal,
-    paddingBottom: Platform.OS === 'ios' ? verticalScale(28) : verticalScale(16),
+    paddingBottom: Platform.OS === 'ios' ? verticalScale(28) : verticalScale(14),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
@@ -548,7 +541,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   confirmButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: fontScale(16),
     fontWeight: 'bold',
   },
