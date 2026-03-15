@@ -338,6 +338,7 @@ export default function PasugoScreen({ navigation }: any) {
               const delivery = response.data?.data || {};
               const deliveryIdNum = Number(delivery.id);
               if (!deliveryIdNum || deliveryIdNum <= 0) {
+                setLoading(false);
                 Alert.alert('Booking Error', 'Delivery was created but we could not get the booking ID. Please check your active deliveries.');
                 return;
               }

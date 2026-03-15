@@ -334,6 +334,7 @@ export default function PasundoScreen({ navigation }: any) {
               const ride = response.data?.data || {};
               const rideIdNum = Number(ride.id);
               if (!rideIdNum || rideIdNum <= 0) {
+                setLoading(false);
                 Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
                 return;
               }

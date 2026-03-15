@@ -249,7 +249,7 @@ export default function MapPicker({
           finalAddress = parts.length > 0 ? parts.join(', ') : [loc.name, loc.city, loc.region].filter(Boolean).join(', ');
         }
       } catch {}
-      if (!finalAddress) finalAddress = searchQuery || 'Selected location';
+      if (!finalAddress) finalAddress = searchQuery || `${centerCoord.latitude.toFixed(4)}, ${centerCoord.longitude.toFixed(4)}`;
     }
     onLocationSelect({
       address: finalAddress,
