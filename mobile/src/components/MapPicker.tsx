@@ -69,29 +69,8 @@ export default function MapPicker({
         return;
       }
 
-      if (initialLocation && initialLocation.latitude !== 0) {
-        setSelectedCoord(initialLocation);
-        await getAddressFromCoords(initialLocation.latitude, initialLocation.longitude);
-        setHasSelected(true);
-        setLoading(false);
-        return;
-      }
-
-      const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const timeoutPromise = new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), 6000)
-      );
-      const loc = await Promise.race([locationPromise, timeoutPromise]);
-
-      if (loc && 'coords' in loc) {
-        setSelectedCoord({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-        await getAddressFromCoords(loc.coords.latitude, loc.coords.longitude);
-      }
+      // Don't auto-select — just finish loading and let user search
+      // This prevents dropoff from auto-filling with pickup address
     } catch (error) {
       console.log('Location init error:', error);
     } finally {

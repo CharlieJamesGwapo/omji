@@ -16,22 +16,12 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// Conditionally import maps - crashes in Expo Go
-let MapView: any = null;
-let Marker: any = null;
-let Polyline: any = null;
-let PROVIDER_DEFAULT: any = null;
-let mapsAvailable = false;
-try {
-  const maps = require('react-native-maps');
-  MapView = maps.default;
-  Marker = maps.Marker;
-  Polyline = maps.Polyline;
-  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
-  mapsAvailable = true;
-} catch {
-  // Maps not available in Expo Go
-}
+// Maps disabled - not compatible with Expo Go builds
+const mapsAvailable = false;
+const MapView: any = null;
+const Marker: any = null;
+const Polyline: any = null;
+const PROVIDER_DEFAULT: any = null;
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
@@ -433,9 +423,33 @@ export default function TrackingScreen({ route, navigation }: any) {
           )}
         </MapView>
       ) : (
-        <View style={[styles.map, { backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' }]}>
-          <Ionicons name="map-outline" size={48} color={COLORS.gray300} />
-          <Text style={{ color: COLORS.gray400, marginTop: 8, fontSize: fontScale(13) }}>Map not available</Text>
+        <View style={[styles.map, { backgroundColor: COLORS.gray50, justifyContent: 'center', paddingHorizontal: moderateScale(20) }]}>
+          <View style={{ backgroundColor: COLORS.white, borderRadius: moderateScale(16), padding: moderateScale(20), shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(14) }}>
+              <View style={{ width: moderateScale(32), height: moderateScale(32), borderRadius: moderateScale(16), backgroundColor: COLORS.successBg, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="radio-button-on" size={14} color={COLORS.success} />
+              </View>
+              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                <Text style={{ fontSize: fontScale(11), color: COLORS.gray400 }}>Pickup</Text>
+                <Text style={{ fontSize: fontScale(13), fontWeight: '600', color: COLORS.gray800 }} numberOfLines={2}>{pickupLabel || 'Pickup location'}</Text>
+              </View>
+            </View>
+            <View style={{ borderLeftWidth: 2, borderLeftColor: COLORS.gray200, marginLeft: moderateScale(15), height: verticalScale(16) }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(6) }}>
+              <View style={{ width: moderateScale(32), height: moderateScale(32), borderRadius: moderateScale(16), backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="flag" size={14} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                <Text style={{ fontSize: fontScale(11), color: COLORS.gray400 }}>Dropoff</Text>
+                <Text style={{ fontSize: fontScale(13), fontWeight: '600', color: COLORS.gray800 }} numberOfLines={2}>{dropoffLabel || 'Dropoff location'}</Text>
+              </View>
+            </View>
+            {rideDistance > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: verticalScale(14), paddingTop: verticalScale(12), borderTopWidth: 1, borderTopColor: COLORS.gray100 }}>
+                <Text style={{ fontSize: fontScale(13), color: COLORS.gray500 }}>Distance: {rideDistance.toFixed(1)} km</Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
 
