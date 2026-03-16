@@ -40,27 +40,33 @@ const getMapHTML = (lat: number, lng: number) => `
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    * { margin: 0; padding: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
-    .center-pin {
+    .pin-wrap {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -100%);
       z-index: 1000; pointer-events: none;
-      font-size: 36px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      display: flex; flex-direction: column; align-items: center;
     }
-    .center-dot {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 8px; height: 8px; border-radius: 50%;
-      background: rgba(0,0,0,0.15); z-index: 999;
-      pointer-events: none; margin-top: 4px;
+    .pin-head {
+      width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
+      background: #EF4444; transform: rotate(-45deg);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .pin-head::after {
+      content: ''; width: 10px; height: 10px; border-radius: 50%;
+      background: white; transform: rotate(45deg);
+    }
+    .pin-shadow {
+      width: 12px; height: 5px; border-radius: 50%;
+      background: rgba(0,0,0,0.15); margin-top: 2px;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div class="center-pin">📍</div>
-  <div class="center-dot"></div>
+  <div class="pin-wrap"><div class="pin-head"></div><div class="pin-shadow"></div></div>
   <script>
     var map = L.map('map', {
       center: [${lat}, ${lng}],
@@ -68,7 +74,7 @@ const getMapHTML = (lat: number, lng: number) => `
       zoomControl: false,
       attributionControl: false
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
 
@@ -269,12 +275,15 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         source={{ html: getMapHTML(coords.latitude, coords.longitude) }}
         style={styles.map}
         onMessage={handleMapMessage}
-        onLoad={() => setMapReady(true)}
+        onLoad={() => { setMapReady(true); setInitializing(false); }}
         javaScriptEnabled
         domStorageEnabled
         scrollEnabled={false}
         bounces={false}
         overScrollMode="never"
+        originWhitelist={['*']}
+        userAgent="OMJI/1.0"
+        mixedContentMode="always"
       />
 
       {/* My Location FAB */}
@@ -312,8 +321,8 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         </TouchableOpacity>
       </View>
 
-      {/* Loading overlay */}
-      {initializing && (
+      {/* Loading overlay - only shows briefly while GPS initializes */}
+      {initializing && !mapReady && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={{ color: '#6B7280', marginTop: 8 }}>Loading map...</Text>
