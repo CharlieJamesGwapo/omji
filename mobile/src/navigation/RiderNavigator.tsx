@@ -29,11 +29,11 @@ function RiderTabs() {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
           return (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', width: 50 }}>
               {focused && (
-                <View style={{ position: 'absolute', top: -verticalScale(8), width: moderateScale(32), height: 3, borderRadius: 2, backgroundColor: COLORS.success }} />
+                <View style={{ position: 'absolute', top: -8, width: 28, height: 3, borderRadius: 2, backgroundColor: COLORS.success }} />
               )}
-              <Ionicons name={iconName} size={moderateScale(22)} color={color} />
+              <Ionicons name={iconName} size={24} color={color} />
             </View>
           );
         },
@@ -47,14 +47,14 @@ function RiderTabs() {
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
           shadowRadius: 12,
-          paddingBottom: Platform.OS === 'ios' ? verticalScale(20) : verticalScale(8),
-          paddingTop: verticalScale(8),
-          height: Platform.OS === 'ios' ? verticalScale(80) : verticalScale(64),
+          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 85 : 65,
         },
         tabBarLabelStyle: {
-          fontSize: fontScale(11),
+          fontSize: 11,
           fontWeight: '600' as const,
-          marginTop: verticalScale(2),
+          marginTop: 2,
         },
         headerShown: false,
       })}
