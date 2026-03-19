@@ -10,8 +10,11 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  Platform,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
@@ -32,11 +35,13 @@ const getGreeting = (): string => {
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [featuredStores, setFeaturedStores] = useState<any[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const carouselScrollRef = useRef<FlatList>(null);
   const carouselIndex = useRef(0);
   const lastFetchRef = useRef<number>(0);
@@ -82,49 +87,55 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, []);
 
+  const fetchAllData = useCallback(async () => {
+    try {
+      const [ridesRes, deliveriesRes] = await Promise.allSettled([
+        rideService.getActiveRides(),
+        deliveryService.getActiveDeliveries(),
+      ]);
+      if (ridesRes.status === 'fulfilled') {
+        const data = ridesRes.value?.data?.data;
+        setActiveRides(Array.isArray(data) ? data : []);
+      }
+      if (deliveriesRes.status === 'fulfilled') {
+        const data = deliveriesRes.value?.data?.data;
+        setActiveDeliveries(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching active orders:', error);
+      showToast('Could not load active orders. Please check your connection.', 'error');
+    }
+    fetchUnreadCount();
+    try {
+      setStoresLoading(true);
+      const res = await storeService.getStores();
+      const data = res?.data?.data;
+      if (Array.isArray(data)) {
+        setFeaturedStores(data.slice(0, 10));
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setStoresLoading(false);
+    }
+  }, [fetchUnreadCount]);
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       const now = Date.now();
       if (now - lastFetchRef.current < 3000) return;
       lastFetchRef.current = now;
-      (async () => {
-        try {
-          const [ridesRes, deliveriesRes] = await Promise.allSettled([
-            rideService.getActiveRides(),
-            deliveryService.getActiveDeliveries(),
-          ]);
-          if (ridesRes.status === 'fulfilled') {
-            const data = ridesRes.value?.data?.data;
-            setActiveRides(Array.isArray(data) ? data : []);
-          }
-          if (deliveriesRes.status === 'fulfilled') {
-            const data = deliveriesRes.value?.data?.data;
-            setActiveDeliveries(Array.isArray(data) ? data : []);
-          }
-        } catch (error) {
-          console.error('Error fetching active orders:', error);
-          showToast('Could not load active orders. Please check your connection.', 'error');
-        }
-      })();
-      fetchUnreadCount();
-      // Fetch featured stores
-      (async () => {
-        try {
-          setStoresLoading(true);
-          const res = await storeService.getStores();
-          const data = res?.data?.data;
-          if (Array.isArray(data)) {
-            setFeaturedStores(data.slice(0, 10));
-          }
-        } catch {
-          // Non-critical
-        } finally {
-          setStoresLoading(false);
-        }
-      })();
+      fetchAllData();
     });
     return unsubscribe;
-  }, [navigation, fetchUnreadCount]);
+  }, [navigation, fetchAllData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    lastFetchRef.current = 0; // Reset throttle
+    await fetchAllData();
+    setRefreshing(false);
+  }, [fetchAllData]);
 
   const greeting = useMemo(() => getGreeting(), []);
 
@@ -222,7 +233,17 @@ export default function HomeScreen({ navigation }: any) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, {
+          paddingBottom: 56 + Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0) + verticalScale(20),
+        }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.accent]}
+            tintColor={COLORS.accent}
+          />
+        }
       >
         {/* Active Ride/Delivery Banners */}
         {activeRides.map((ride: any) => (
@@ -521,7 +542,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(16),
-    paddingBottom: verticalScale(100),
   },
 
   // --- Active Ride/Delivery Cards ---

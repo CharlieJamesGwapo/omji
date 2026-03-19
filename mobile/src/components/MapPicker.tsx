@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -37,78 +37,86 @@ const getMapHTML = (lat: number, lng: number) => `
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" crossorigin="" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; }
+    html, body, #map { width: 100%; height: 100%; background: #f0f0f0; }
     .pin-wrap {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -100%);
       z-index: 1000; pointer-events: none;
       display: flex; flex-direction: column; align-items: center;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));
     }
     .pin-head {
-      width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
-      background: #EF4444; transform: rotate(-45deg);
+      width: 32px; height: 32px; border-radius: 50% 50% 50% 0;
+      background: linear-gradient(135deg, #EF4444, #DC2626); transform: rotate(-45deg);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     .pin-head::after {
-      content: ''; width: 10px; height: 10px; border-radius: 50%;
+      content: ''; width: 11px; height: 11px; border-radius: 50%;
       background: white; transform: rotate(45deg);
     }
-    .pin-shadow {
-      width: 12px; height: 5px; border-radius: 50%;
-      background: rgba(0,0,0,0.15); margin-top: 2px;
+    .pin-pulse {
+      width: 16px; height: 6px; border-radius: 50%;
+      background: rgba(239,68,68,0.2); margin-top: 3px;
+      animation: pulse 1.5s ease-in-out infinite;
     }
+    @keyframes pulse {
+      0%, 100% { transform: scaleX(1); opacity: 0.4; }
+      50% { transform: scaleX(1.6); opacity: 0.15; }
+    }
+    #map.moving .pin-wrap { transform: translate(-50%, -110%); transition: transform 0.15s; }
+    #map:not(.moving) .pin-wrap { transform: translate(-50%, -100%); transition: transform 0.15s; }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div class="pin-wrap"><div class="pin-head"></div><div class="pin-shadow"></div></div>
+  <div class="pin-wrap"><div class="pin-head"></div><div class="pin-pulse"></div></div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" crossorigin=""></script>
   <script>
+    var mapEl = document.getElementById('map');
     var map = L.map('map', {
       center: [${lat}, ${lng}],
-      zoom: 15,
+      zoom: 16,
       zoomControl: false,
       attributionControl: false
     });
-    L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
-      maxZoom: 19
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      keepBuffer: 4,
+      updateWhenZooming: false,
+      updateWhenIdle: true
     }).addTo(map);
 
-    // Send center coordinates on move
-    var debounce = null;
+    // Notify RN when map is ready
+    map.whenReady(function() {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+    });
+
+    // Animate pin on drag
+    map.on('movestart', function() { mapEl.classList.add('moving'); });
     map.on('moveend', function() {
-      clearTimeout(debounce);
-      debounce = setTimeout(function() {
-        var c = map.getCenter();
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'move',
-          latitude: c.lat,
-          longitude: c.lng
-        }));
-      }, 300);
+      mapEl.classList.remove('moving');
+      var c = map.getCenter();
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'move', latitude: c.lat, longitude: c.lng
+      }));
     });
 
     // Listen for commands from React Native
-    window.addEventListener('message', function(e) {
+    function handleMsg(e) {
       try {
         var data = JSON.parse(e.data);
         if (data.type === 'flyTo') {
-          map.flyTo([data.latitude, data.longitude], 16, { duration: 1 });
+          map.flyTo([data.latitude, data.longitude], data.zoom || 16, { duration: 0.8 });
+        } else if (data.type === 'setView') {
+          map.setView([data.latitude, data.longitude], data.zoom || 16, { animate: false });
         }
       } catch(err) {}
-    });
-    document.addEventListener('message', function(e) {
-      try {
-        var data = JSON.parse(e.data);
-        if (data.type === 'flyTo') {
-          map.flyTo([data.latitude, data.longitude], 16, { duration: 1 });
-        }
-      } catch(err) {}
-    });
+    }
+    window.addEventListener('message', handleMsg);
+    document.addEventListener('message', handleMsg);
   </script>
 </body>
 </html>
@@ -126,22 +134,44 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
   });
   const [mapReady, setMapReady] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialLocationSent = useRef(false);
 
-  // Get user location on mount
+  // Memoize the HTML so WebView doesn't re-render unnecessarily
+  const mapHTML = useMemo(
+    () => getMapHTML(coords.latitude, coords.longitude),
+    // Only generate HTML once with initial coords
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Get user location on mount (runs in parallel with WebView loading)
   useEffect(() => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setInitializing(false); return; }
+
+        // Try last known first (instant), then get fresh position
+        const lastKnown = await Location.getLastKnownPositionAsync().catch(() => null);
+        if (lastKnown && 'coords' in lastKnown && !initialLocationSent.current) {
+          const c = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+          setCoords(c);
+          initialLocationSent.current = true;
+          webRef.current?.postMessage(JSON.stringify({ type: 'setView', ...c }));
+          resolveAddress(c.latitude, c.longitude);
+        }
+
+        // Then get accurate position in background
         const loc = await Promise.race([
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
           new Promise<null>((r) => setTimeout(() => r(null), 8000)),
-        ]) || await Location.getLastKnownPositionAsync().catch(() => null);
+        ]);
 
         if (loc && 'coords' in loc) {
           const c = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setCoords(c);
-          // Fly map to user location
+          initialLocationSent.current = true;
           webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
           resolveAddress(c.latitude, c.longitude);
         }
@@ -170,15 +200,26 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
     }
   }, []);
 
+  // Debounce reverse geocoding to avoid spamming the API on every pixel of pan
+  const debouncedResolveAddress = useCallback((lat: number, lng: number) => {
+    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
+    geocodeTimer.current = setTimeout(() => {
+      resolveAddress(lat, lng);
+    }, 600);
+  }, [resolveAddress]);
+
   const handleMapMessage = useCallback((event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'move') {
         setCoords({ latitude: data.latitude, longitude: data.longitude });
-        resolveAddress(data.latitude, data.longitude);
+        debouncedResolveAddress(data.latitude, data.longitude);
+      } else if (data.type === 'ready') {
+        setMapReady(true);
+        setInitializing(false);
       }
     } catch {}
-  }, [resolveAddress]);
+  }, [debouncedResolveAddress]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -272,18 +313,20 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       {/* Map WebView */}
       <WebView
         ref={webRef}
-        source={{ html: getMapHTML(coords.latitude, coords.longitude) }}
+        source={{ html: mapHTML }}
         style={styles.map}
         onMessage={handleMapMessage}
-        onLoad={() => { setMapReady(true); setInitializing(false); }}
         javaScriptEnabled
         domStorageEnabled
         scrollEnabled={false}
         bounces={false}
         overScrollMode="never"
         originWhitelist={['*']}
-        userAgent="OMJI/1.0"
         mixedContentMode="always"
+        cacheEnabled={true}
+        cacheMode="LOAD_CACHE_ELSE_NETWORK"
+        startInLoadingState={false}
+        renderToHardwareTextureAndroid={true}
       />
 
       {/* My Location FAB */}
@@ -321,11 +364,13 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         </TouchableOpacity>
       </View>
 
-      {/* Loading overlay - only shows briefly while GPS initializes */}
-      {initializing && !mapReady && (
+      {/* Loading overlay - only shows briefly while initializing */}
+      {!mapReady && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={{ color: '#6B7280', marginTop: 8 }}>Loading map...</Text>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="small" color="#3B82F6" />
+            <Text style={styles.loadingText}>Loading map...</Text>
+          </View>
         </View>
       )}
     </View>
@@ -447,9 +492,28 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
+  },
+  loadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(14),
+    borderRadius: moderateScale(12),
+    gap: moderateScale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  loadingText: {
+    fontSize: fontScale(14),
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });

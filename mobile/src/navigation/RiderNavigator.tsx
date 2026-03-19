@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Platform } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
@@ -16,6 +17,9 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function RiderTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -29,11 +33,18 @@ function RiderTabs() {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           }
           return (
-            <View style={{ alignItems: 'center', justifyContent: 'center', width: 50 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 6 }}>
               {focused && (
-                <View style={{ position: 'absolute', top: -8, width: 28, height: 3, borderRadius: 2, backgroundColor: COLORS.success }} />
+                <View style={{
+                  position: 'absolute',
+                  top: 0,
+                  width: 32,
+                  height: 3,
+                  borderRadius: 1.5,
+                  backgroundColor: COLORS.success,
+                }} />
               )}
-              <Ionicons name={iconName} size={24} color={color} />
+              <Ionicons name={iconName} size={22} color={color} />
             </View>
           );
         },
@@ -41,20 +52,22 @@ function RiderTabs() {
         tabBarInactiveTintColor: '#B0B7C3',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 0,
+          borderTopWidth: 0.5,
+          borderTopColor: '#F3F4F6',
           elevation: 20,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
           shadowRadius: 12,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-          paddingTop: 8,
-          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: bottomInset,
+          paddingTop: 4,
+          height: 56 + bottomInset,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600' as const,
-          marginTop: 2,
+          marginTop: 0,
+          marginBottom: 2,
         },
         headerShown: false,
       })}
