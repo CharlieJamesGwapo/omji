@@ -329,6 +329,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			PromoCode        string  `json:"promo_code"`
 			PaymentMethod    string  `json:"payment_method"`
 			EstimatedFare    float64 `json:"estimated_fare"`
+			DriverID         *uint   `json:"driver_id"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -373,17 +374,72 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 				}
 			}
 		}
+		rideStatus := "pending"
+		if input.DriverID != nil {
+			var targetDriver models.Driver
+			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", *input.DriverID, true, true).First(&targetDriver).Error; err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Selected rider is no longer available"})
+				return
+			}
+			rideStatus = "requested"
+		}
 		ride := models.Ride{
 			UserID: userID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
-			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: "pending", PromoID: promoID, PaymentMethod: input.PaymentMethod,
+			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: rideStatus, PromoID: promoID, PaymentMethod: input.PaymentMethod,
+			DriverID: input.DriverID,
 		}
 		if err := db.Create(&ride).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride"})
 			return
 		}
+		// Send targeted WebSocket notification and start expiry timer for driver-specific requests
+		if input.DriverID != nil {
+			var passenger models.User
+			db.First(&passenger, userID)
+
+			driverIDStr := fmt.Sprintf("%d", *input.DriverID)
+			wsMsg := map[string]interface{}{
+				"type":             "ride_request",
+				"ride_id":          ride.ID,
+				"pickup_location":  ride.PickupLocation,
+				"dropoff_location": ride.DropoffLocation,
+				"distance":         ride.Distance,
+				"estimated_fare":   ride.EstimatedFare,
+				"vehicle_type":     ride.VehicleType,
+				"payment_method":   ride.PaymentMethod,
+				"passenger_name":   passenger.Name,
+				"expires_at":       time.Now().Add(30 * time.Second).Unix(),
+			}
+			if err := driverTracker.Send(driverIDStr, wsMsg); err != nil {
+				log.Printf("Failed to send ride request to driver %s via WS: %v", driverIDStr, err)
+			}
+
+			go func(rideID uint, driverID uint) {
+				time.Sleep(30 * time.Second)
+				var r models.Ride
+				if err := db.Where("id = ? AND status = ?", rideID, "requested").First(&r).Error; err != nil {
+					return
+				}
+				db.Model(&r).Updates(map[string]interface{}{"status": "cancelled", "driver_id": nil})
+				tracker.Broadcast(fmt.Sprintf("%d", rideID), map[string]interface{}{
+					"type":    "ride_expired",
+					"ride_id": rideID,
+				})
+				driverTracker.Send(fmt.Sprintf("%d", driverID), map[string]interface{}{
+					"type":    "ride_expired",
+					"ride_id": rideID,
+				})
+				db.Model(&models.Driver{}).Where("id = ?", driverID).Update("is_available", true)
+				log.Printf("Ride #%d expired (30s timeout)", rideID)
+			}(ride.ID, *input.DriverID)
+		}
 		// Notify user of successful ride booking
-		if err := db.Create(&models.Notification{UserID: userID, Title: "Ride Booked", Body: "Your ride request has been submitted. A rider will accept soon.", Type: "ride_request"}).Error; err != nil {
+		notifBody := "Your ride request has been submitted. A rider will accept soon."
+		if input.DriverID != nil {
+			notifBody = "Your ride request has been sent to the selected rider. Waiting for response..."
+		}
+		if err := db.Create(&models.Notification{UserID: userID, Title: "Ride Booked", Body: notifBody, Type: "ride_request"}).Error; err != nil {
 			log.Printf("Failed to create ride booking notification: %v", err)
 		}
 		c.JSON(http.StatusCreated, gin.H{
