@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface ActivityLog {
   id: number;
@@ -109,6 +110,7 @@ const ActivityLogsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [currentPage, setCurrentPage] = useState(1);
 
   const loadLogs = useCallback(async (showLoading = true) => {
@@ -139,15 +141,15 @@ const ActivityLogsPage: React.FC = () => {
   // Reset page on filter/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filter]);
+  }, [debouncedSearch, filter]);
 
   const filteredLogs = logs.filter((log) => {
     const matchesFilter = filter === 'all' || log.type === filter;
     const matchesSearch =
-      search === '' ||
-      (log.user_name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.action || '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.details || '').toLowerCase().includes(search.toLowerCase());
+      debouncedSearch === '' ||
+      (log.user_name || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (log.action || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (log.details || '').toLowerCase().includes(debouncedSearch.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 

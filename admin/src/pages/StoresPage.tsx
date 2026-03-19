@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Store {
   id: number;
@@ -71,6 +72,7 @@ export default function StoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -96,7 +98,7 @@ export default function StoresPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, activeTab]);
+  }, [debouncedSearch, activeTab]);
 
   const fetchStores = async () => {
     try {
@@ -111,8 +113,8 @@ export default function StoresPage() {
 
   // --- Filtering ---
   const filtered = stores.filter((s) => {
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       const matches =
         (s.name || '').toLowerCase().includes(q) ||
         (s.category || '').toLowerCase().includes(q) ||

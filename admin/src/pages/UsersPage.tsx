@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface User {
   id: number;
@@ -24,6 +25,7 @@ const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -44,7 +46,7 @@ const UsersPage: React.FC = () => {
   // Reset page when search or tab changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, activeTab]);
+  }, [debouncedSearch, activeTab]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -151,8 +153,8 @@ const UsersPage: React.FC = () => {
     }
 
     // Search filter
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(u =>
         (u.name || '').toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q) ||
@@ -161,7 +163,7 @@ const UsersPage: React.FC = () => {
     }
 
     return result;
-  }, [users, activeTab, search]);
+  }, [users, activeTab, debouncedSearch]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

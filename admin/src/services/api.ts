@@ -11,8 +11,8 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30_000; // 30 seconds fresh
-const STALE_TTL = 120_000; // 2 minutes before hard refetch
+const CACHE_TTL = 20_000; // 20 seconds fresh
+const STALE_TTL = 45_000; // 45 seconds before hard refetch
 
 function invalidateCache(pattern?: string) {
   if (!pattern) {

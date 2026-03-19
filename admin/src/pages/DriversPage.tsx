@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Driver {
   id: number;
@@ -56,6 +57,7 @@ const DriversPage: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [filter, setFilter] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -80,7 +82,7 @@ const DriversPage: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filter]);
+  }, [debouncedSearch, filter]);
 
   const loadDrivers = async () => {
     setLoading(true);
@@ -178,7 +180,7 @@ const DriversPage: React.FC = () => {
     const phone = (d.User?.phone || '');
     const plate = (d.vehicle_plate || '').toLowerCase();
     const license = (d.license_number || '').toLowerCase();
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch = !q || name.includes(q) || email.includes(q) || phone.includes(q) || plate.includes(q) || license.includes(q);
 
     let matchesFilter = true;

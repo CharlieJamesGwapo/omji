@@ -80,8 +80,17 @@ const DashboardPage: React.FC = () => {
   }, [loadDashboard]);
 
   useEffect(() => {
-    intervalRef.current = setInterval(() => loadDashboard(false), 60000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    intervalRef.current = setInterval(() => {
+      if (!document.hidden) loadDashboard(false);
+    }, 60000);
+    const handleVisChange = () => {
+      if (!document.hidden) loadDashboard(false);
+    };
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisChange);
+    };
   }, [loadDashboard]);
 
   const revenueData = [

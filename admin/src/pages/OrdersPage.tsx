@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface OrderUser {
   name: string;
@@ -103,6 +104,7 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -116,7 +118,7 @@ const OrdersPage: React.FC = () => {
   // Reset page on filter/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterStatus]);
+  }, [debouncedSearch, filterStatus]);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -148,8 +150,8 @@ const OrdersPage: React.FC = () => {
 
   const filtered = useMemo(() => orders.filter((o) => {
     if (filterStatus !== 'all' && o.status !== filterStatus) return false;
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       return (
         (o.User?.name || '').toLowerCase().includes(q) ||
         (o.Store?.name || '').toLowerCase().includes(q) ||
@@ -158,7 +160,7 @@ const OrdersPage: React.FC = () => {
       );
     }
     return true;
-  }), [orders, filterStatus, search]);
+  }), [orders, filterStatus, debouncedSearch]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

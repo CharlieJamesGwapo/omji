@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface DeliveryUser {
   name: string;
@@ -55,6 +56,7 @@ const DeliveriesPage: React.FC = () => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -68,7 +70,7 @@ const DeliveriesPage: React.FC = () => {
   // Reset page on filter/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterStatus]);
+  }, [debouncedSearch, filterStatus]);
 
   const loadDeliveries = useCallback(async () => {
     setLoading(true);
@@ -107,7 +109,7 @@ const DeliveriesPage: React.FC = () => {
 
   const filtered = useMemo(() => deliveries.filter((d) => {
     const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' ? ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(d.status) : d.status === filterStatus);
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch =
       !q ||
       (d.User?.name || '').toLowerCase().includes(q) ||
@@ -117,7 +119,7 @@ const DeliveriesPage: React.FC = () => {
       (d.Driver?.User?.name || '').toLowerCase().includes(q) ||
       String(d.id).includes(q);
     return matchesStatus && matchesSearch;
-  }), [deliveries, filterStatus, search]);
+  }), [deliveries, filterStatus, debouncedSearch]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

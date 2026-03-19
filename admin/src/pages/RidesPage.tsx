@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface RideUser {
   name: string;
@@ -60,6 +61,7 @@ const RidesPage: React.FC = () => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -73,7 +75,7 @@ const RidesPage: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filter]);
+  }, [debouncedSearch, filter]);
 
   const loadRides = useCallback(async () => {
     setLoading(true);
@@ -113,7 +115,7 @@ const RidesPage: React.FC = () => {
     const pickup = (r.pickup_location || '').toLowerCase();
     const dropoff = (r.dropoff_location || '').toLowerCase();
     const driverName = (r.Driver?.User?.name || '').toLowerCase();
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch = !q || userName.includes(q) || userEmail.includes(q) || pickup.includes(q) || dropoff.includes(q) || driverName.includes(q);
 
     let matchesFilter = true;
@@ -123,7 +125,7 @@ const RidesPage: React.FC = () => {
     else if (filter === 'cancelled') matchesFilter = r.status === 'cancelled';
 
     return matchesSearch && matchesFilter;
-  }), [rides, search, filter]);
+  }), [rides, debouncedSearch, filter]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

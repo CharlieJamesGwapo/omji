@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface RiderApplication {
   id: number;
@@ -54,6 +55,7 @@ const RiderApprovalPage: React.FC = () => {
   const [selectedRider, setSelectedRider] = useState<RiderApplication | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
     loadRiders();
@@ -110,8 +112,8 @@ const RiderApprovalPage: React.FC = () => {
   const filteredRiders = riders.filter((rider) => {
     if (filter === 'pending' && rider.is_verified) return false;
     if (filter === 'approved' && !rider.is_verified) return false;
-    if (search) {
-      const s = search.toLowerCase();
+    if (debouncedSearch) {
+      const s = debouncedSearch.toLowerCase();
       return (
         (rider.User?.name || '').toLowerCase().includes(s) ||
         (rider.User?.email || '').toLowerCase().includes(s) ||

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Promo {
   id: number;
@@ -26,6 +27,7 @@ const PromosPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promo | null>(null);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     code: '', description: '', discount_type: 'percentage', discount_value: 0,
@@ -144,8 +146,8 @@ const PromosPage: React.FC = () => {
   };
 
   const filtered = promos.filter((p) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
     return (
       (p.code || '').toLowerCase().includes(q) ||
       (p.description || '').toLowerCase().includes(q) ||

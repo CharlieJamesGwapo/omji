@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Notification {
   id: number;
@@ -23,6 +24,7 @@ const NotificationsPage: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
@@ -37,7 +39,7 @@ const NotificationsPage: React.FC = () => {
   // Reset page on filter/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterType]);
+  }, [debouncedSearch, filterType]);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
@@ -112,12 +114,12 @@ const NotificationsPage: React.FC = () => {
   // Filter and search
   const filtered = useMemo(() => notifications.filter((n) => {
     const matchesFilter = filterType === 'all' || n.type === filterType;
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch = !q ||
       (n.title || '').toLowerCase().includes(q) ||
       (n.body || '').toLowerCase().includes(q);
     return matchesFilter && matchesSearch;
-  }), [notifications, filterType, search]);
+  }), [notifications, filterType, debouncedSearch]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
