@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -181,9 +182,9 @@ export default function ProfileScreen({ navigation }: any) {
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Alert.alert('Help Center', 'For assistance, email us at support@omji.app or call +63 912 345 6789.\n\nFAQ:\n- How to book a ride?\n- How to track my delivery?\n- How to become a driver?') },
-        { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Alert.alert('Contact Support', 'Email: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily') },
-        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Alert.alert('Terms & Privacy', 'By using OMJI, you agree to our Terms of Service and Privacy Policy.\n\nWe collect location data to provide ride and delivery services. Your data is securely stored and never shared with third parties without consent.') },
+        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=Help%20Request') },
+        { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Linking.openURL('tel:+639123456789') },
+        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Linking.openURL('https://omji.app/terms') },
         { icon: 'information-circle-outline', label: 'About OMJI', screen: null, action: () => Alert.alert('About OMJI', 'OMJI - Balingasag\nYour ride-hailing and delivery app\n\nServices:\n- Pasundo (Pick-up)\n- Pasugo (Delivery)\n- Pasabay (Ride Sharing)\n- Store Orders\n\nVersion 1.0.0') },
       ],
     },

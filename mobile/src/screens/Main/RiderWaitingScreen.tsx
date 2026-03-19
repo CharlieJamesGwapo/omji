@@ -7,11 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, moderateScale, fontScale, verticalScale } from '../../utils/responsive';
-import { rideService } from '../../services/api';
+import { rideService, API_BASE_URL } from '../../services/api';
 import Toast, { ToastType } from '../../components/Toast';
 
 const TIMEOUT_SECONDS = 30;
-const API_BASE = 'https://omji-backend.onrender.com/api/v1';
+const API_BASE = API_BASE_URL;
 
 export default function RiderWaitingScreen({ navigation, route }: any) {
   const { rideId, driverName, driverRating, driverVehicle, bookingData, excludeDriverIds = [] } = route.params;

@@ -12,6 +12,7 @@ import {
   Dimensions,
   Platform,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -181,8 +182,8 @@ export default function HomeScreen({ navigation }: any) {
   const quickActions = [
     { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.accent, bg: COLORS.accentBg },
     { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.pasabay, bg: COLORS.pasabayBg },
-    { icon: 'gift-outline', label: 'Promos', screen: null, action: () => Alert.alert('Promos', 'Check available promos when booking a ride!'), color: COLORS.primary, bg: COLORS.primaryBg },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Alert.alert('Help', 'For support, contact us at support@omji.app'), color: COLORS.pasugo, bg: COLORS.pasugoBg },
+    { icon: 'gift-outline', label: 'Promos', screen: 'Pasundo', color: COLORS.primary, bg: COLORS.primaryBg },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=OMJI%20Support'), color: COLORS.pasugo, bg: COLORS.pasugoBg },
   ];
 
   const STORE_CATEGORY_CONFIG: Record<string, { color: string; icon: string }> = {
