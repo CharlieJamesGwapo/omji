@@ -1705,11 +1705,12 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You are not available. Go online first."})
 			return
 		}
+		db.Preload("User").First(&driver, driver.ID)
 		requestID := c.Param("id")
 		// Try ride first
 		var ride models.Ride
 		rideErr := db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND status = ?", requestID, "pending").First(&ride).Error; err != nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND status IN ?", requestID, []string{"pending", "requested"}).First(&ride).Error; err != nil {
 				return err
 			}
 			ride.DriverID = &driver.ID
@@ -1725,6 +1726,17 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 				if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Accepted", Body: "A driver has accepted your ride request", Type: "ride_request"}).Error; err != nil {
 					log.Printf("Failed to create ride accepted notification: %v", err)
 				}
+				rideIDStr := fmt.Sprintf("%d", ride.ID)
+				tracker.Broadcast(rideIDStr, map[string]interface{}{
+					"type":         "ride_accepted",
+					"ride_id":      ride.ID,
+					"driver_name":  driver.User.Name,
+					"driver_rating": driver.Rating,
+					"vehicle_type": driver.VehicleType,
+					"vehicle_plate": driver.VehiclePlate,
+					"driver_lat":   driver.CurrentLatitude,
+					"driver_lng":   driver.CurrentLongitude,
+				})
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride accepted", "ride_id": ride.ID, "type": "ride", "status": "accepted", "pickup": ride.PickupLocation, "dropoff": ride.DropoffLocation, "fare": ride.EstimatedFare}, "timestamp": time.Now()})
 			return
@@ -1805,6 +1817,46 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No accepted request found with this ID"})
+	}
+}
+
+func DeclineRideRequest(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
+		requestID := c.Param("id")
+		var ride models.Ride
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("id = ? AND status = ? AND driver_id = ?", requestID, "requested", driver.ID).
+				First(&ride).Error; err != nil {
+				return err
+			}
+			ride.Status = "cancelled"
+			ride.DriverID = nil
+			return tx.Save(&ride).Error
+		})
+		if err != nil {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Request not found or already handled"})
+			return
+		}
+		rideIDStr := fmt.Sprintf("%d", ride.ID)
+		tracker.Broadcast(rideIDStr, map[string]interface{}{
+			"type":    "ride_declined",
+			"ride_id": ride.ID,
+		})
+		if err := db.Create(&models.Notification{
+			UserID: ride.UserID, Title: "Ride Declined",
+			Body: "The rider declined your request. Please select another rider.",
+			Type: "ride_request",
+		}).Error; err != nil {
+			log.Printf("Failed to create decline notification: %v", err)
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Request declined"}})
 	}
 }
 

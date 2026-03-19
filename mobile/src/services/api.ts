@@ -232,6 +232,7 @@ export const driverService = {
   getRequests: () => api.get('/driver/requests'),
   acceptRequest: (id: number) => api.post(`/driver/requests/${id}/accept`),
   rejectRequest: (id: number) => api.post(`/driver/requests/${id}/reject`),
+  declineRideRequest: (id: number) => api.post(`/driver/requests/${id}/decline-ride`),
   getEarnings: () => api.get('/driver/earnings'),
   setAvailability: (data: { available: boolean; latitude?: number; longitude?: number }) =>
     api.post('/driver/availability', data),

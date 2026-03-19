@@ -102,6 +102,7 @@ func main() {
 		protected.GET("/driver/requests", handlers.GetDriverRequests(database))
 		protected.POST("/driver/requests/:id/accept", handlers.AcceptRequest(database))
 		protected.POST("/driver/requests/:id/reject", handlers.RejectRequest(database))
+		protected.POST("/driver/requests/:id/decline-ride", handlers.DeclineRideRequest(database))
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
