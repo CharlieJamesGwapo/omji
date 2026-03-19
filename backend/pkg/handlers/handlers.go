@@ -3312,6 +3312,43 @@ func (t *RideTracker) Broadcast(rideID string, msg interface{}) {
 	}
 }
 
+// DriverTracker manages WebSocket connections per driver for push notifications
+type DriverTracker struct {
+	mu    sync.RWMutex
+	conns map[string]*websocket.Conn
+}
+
+var driverTracker = &DriverTracker{conns: make(map[string]*websocket.Conn)}
+
+func (dt *DriverTracker) Set(driverID string, conn *websocket.Conn) {
+	dt.mu.Lock()
+	defer dt.mu.Unlock()
+	if old, ok := dt.conns[driverID]; ok {
+		old.Close()
+	}
+	dt.conns[driverID] = conn
+}
+
+func (dt *DriverTracker) Remove(driverID string) {
+	dt.mu.Lock()
+	defer dt.mu.Unlock()
+	delete(dt.conns, driverID)
+}
+
+func (dt *DriverTracker) Send(driverID string, msg interface{}) error {
+	dt.mu.RLock()
+	defer dt.mu.RUnlock()
+	conn, ok := dt.conns[driverID]
+	if !ok {
+		return fmt.Errorf("driver %s not connected", driverID)
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return conn.WriteMessage(websocket.TextMessage, data)
+}
+
 func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rideID := c.Param("rideId")
@@ -3503,6 +3540,8 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		defer conn.Close()
+		driverTracker.Set(driverID, conn)
+		defer driverTracker.Remove(driverID)
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
