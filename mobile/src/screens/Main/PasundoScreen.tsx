@@ -317,11 +317,10 @@ export default function PasundoScreen({ navigation }: any) {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Book Now',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const response = await rideService.createRide({
+          text: 'Find Rider',
+          onPress: () => {
+            navigation.navigate('RiderSelection', {
+              bookingData: {
                 pickup_location: pickupLabel,
                 pickup_latitude: pickupLocation.latitude,
                 pickup_longitude: pickupLocation.longitude,
@@ -332,39 +331,8 @@ export default function PasundoScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: estimatedFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
-                // driver_id intentionally not sent — rider must accept from their app
-              });
-              const ride = response.data?.data || {};
-              const rideIdNum = Number(ride.id);
-              if (!rideIdNum || rideIdNum <= 0) {
-                setLoading(false);
-                Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
-                return;
-              }
-              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-                navigation.navigate('Payment', {
-                  type: paymentMethod,
-                  amount: ride.estimated_fare || estimatedFare,
-                  serviceType: 'ride',
-                  rideId: rideIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                });
-              } else {
-                navigation.navigate('Tracking', {
-                  type: 'ride',
-                  rideId: rideIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                  fare: ride.estimated_fare || estimatedFare,
-                });
-              }
-            } catch (error: any) {
-              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
-              Alert.alert('Booking Failed', msg);
-            } finally {
-              setLoading(false);
-            }
+              },
+            });
           },
         },
       ]
