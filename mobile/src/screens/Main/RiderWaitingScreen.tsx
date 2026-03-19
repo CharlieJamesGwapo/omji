@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, moderateScale, fontScale, verticalScale } from '../../utils/responsive';
 import { rideService } from '../../services/api';
@@ -15,7 +15,6 @@ const API_BASE = 'https://omji-backend.onrender.com/api/v1';
 
 export default function RiderWaitingScreen({ navigation, route }: any) {
   const { rideId, driverName, driverRating, driverVehicle, bookingData, excludeDriverIds = [] } = route.params;
-  const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT_SECONDS);
   const [status, setStatus] = useState<'waiting' | 'accepted' | 'declined' | 'expired' | 'cancelled'>('waiting');
@@ -90,24 +89,27 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    const wsUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api/v1', '');
-    const ws = new WebSocket(`${wsUrl}/ws/tracking/${rideId}?token=${token}`);
-    wsRef.current = ws;
+    let ws: WebSocket | null = null;
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      const wsUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api/v1', '');
+      ws = new WebSocket(`${wsUrl}/ws/tracking/${rideId}?token=${token || ''}`);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'ride_accepted' || data.type === 'ride_declined' || data.type === 'ride_expired') {
-          handleResponse(data.type);
-        }
-      } catch {}
-    };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'ride_accepted' || data.type === 'ride_declined' || data.type === 'ride_expired') {
+            handleResponse(data.type);
+          }
+        } catch {}
+      };
+      ws.onerror = () => {};
+      ws.onclose = () => {};
+    })();
 
-    ws.onerror = () => {};
-    ws.onclose = () => {};
-
-    return () => { ws.close(); };
-  }, [rideId, token, handleResponse]);
+    return () => { if (ws) ws.close(); };
+  }, [rideId, handleResponse]);
 
   // Polling fallback — check ride status every 3s
   useEffect(() => {
