@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Alert,
+  Linking,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -113,9 +114,9 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Help Center', subtitle: 'FAQs & troubleshooting', action: () => Alert.alert('Help Center', 'For assistance:\n\nEmail: support@omji.app\nPhone: +63 912 345 6789\nHours: 8AM - 10PM daily\n\nFAQ:\n\u2022 How to accept rides?\n\u2022 How to withdraw earnings?\n\u2022 How to update vehicle info?') },
+        { icon: 'help-circle', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Help Center', subtitle: 'FAQs & troubleshooting', action: () => Linking.openURL('mailto:support@omji.app?subject=Rider%20Help%20Request') },
         { icon: 'book', iconColor: COLORS.pasabay, iconBg: COLORS.pasabayBg, label: 'Rider Guide', subtitle: 'Tips & best practices', action: () => Alert.alert('Rider Guide', 'OMJI Rider Guide\n\n1. Go online to receive ride requests\n2. Accept requests within 30 seconds\n3. Navigate to pickup location\n4. Confirm pickup with customer\n5. Complete the ride at destination\n6. Earnings are added to your wallet\n\nTips:\n\u2022 Maintain a high rating\n\u2022 Stay in busy areas\n\u2022 Be polite and professional') },
-        { icon: 'chatbubble', iconColor: COLORS.primary, iconBg: COLORS.primaryBg, label: 'Contact Support', subtitle: '24/7 driver support', action: () => Alert.alert('Contact Support', 'Email: driver-support@omji.app\nPhone: +63 912 345 6789\nHours: 24/7 for driver support') },
+        { icon: 'chatbubble', iconColor: COLORS.primary, iconBg: COLORS.primaryBg, label: 'Contact Support', subtitle: '24/7 driver support', action: () => Linking.openURL('tel:+639123456789') },
       ],
     },
   ];
