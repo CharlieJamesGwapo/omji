@@ -3469,6 +3469,23 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 		tracker.Add(rideID, conn)
 		defer tracker.Remove(rideID, conn)
 		log.Printf("WebSocket connected for ride #%s", rideID)
+
+		// Keepalive: ping every 30s, timeout after 45s
+		conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+			return nil
+		})
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
+			}
+		}()
+
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
@@ -3650,6 +3667,23 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 		defer conn.Close()
 		driverTracker.Set(driverID, conn)
 		defer driverTracker.Remove(driverID)
+
+		// Keepalive: ping every 30s, timeout after 45s
+		conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+			return nil
+		})
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
+			}
+		}()
+
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
