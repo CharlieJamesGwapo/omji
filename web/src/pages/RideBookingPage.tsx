@@ -9,7 +9,7 @@ const RideBookingPage: React.FC = () => {
     vehicleType: 'car',
   });
   const [loading, setLoading] = useState(false);
-  const [estimatedFare, setEstimatedFare] = useState<number | null>(null);
+  const [_estimatedFare, setEstimatedFare] = useState<number | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -21,7 +21,7 @@ const RideBookingPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await rideService.createRide(formData);
+      await rideService.createRide(formData);
       toast.success('Ride booked successfully!');
       setFormData({ pickupLocation: '', dropoffLocation: '', vehicleType: 'car' });
       setEstimatedFare(null);

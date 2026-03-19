@@ -5,7 +5,7 @@ const DriverPage: React.FC = () => {
   const [isDriver, setIsDriver] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const [earnings, setEarnings] = useState({ daily: 0, total: 0 });
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState<any[]>([]);
 
   useEffect(() => {
     loadDriverInfo();

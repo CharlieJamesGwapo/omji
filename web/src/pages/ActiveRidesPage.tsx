@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { rideService } from '../services/api';
 
 const ActiveRidesPage: React.FC = () => {
-  const [rides, setRides] = useState([]);
+  const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

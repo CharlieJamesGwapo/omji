@@ -5,7 +5,7 @@ import { useAuthStore } from '../context/authStore';
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const [stats, setStats] = useState({ rides: 0, deliveries: 0, orders: 0 });
-  const [recentItems, setRecentItems] = useState({ rides: [], deliveries: [], orders: [] });
+  const [recentItems, setRecentItems] = useState<{ rides: any[]; deliveries: any[]; orders: any[] }>({ rides: [], deliveries: [], orders: [] });
 
   useEffect(() => {
     loadDashboardData();
@@ -35,7 +35,7 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const StatCard = ({ icon, title, value, color }) => (
+  const StatCard = ({ icon, title, value, color }: { icon: any; title: string; value: string | number; color: string }) => (
     <div className={`${color} rounded-lg p-6 text-white`}>
       <div className="text-4xl mb-2">{icon}</div>
       <div className="text-sm opacity-90">{title}</div>
@@ -129,7 +129,7 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-const ServiceCard = ({ icon, title, description, href, color }) => (
+const ServiceCard = ({ icon, title, description, href, color }: { icon: any; title: string; description: string; href: string; color: string }) => (
   <a href={href} className={`card bg-gradient-to-br ${color} overflow-hidden group cursor-pointer transform transition hover:scale-105`}>
     <div className="p-6 text-white">
       <div className="text-4xl mb-3">{icon}</div>

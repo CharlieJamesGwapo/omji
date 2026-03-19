@@ -5,7 +5,7 @@ import { useAuthStore } from '../context/authStore';
 const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const [profile, setProfile] = useState(user);
-  const [isEditing, setIsEditing] = useState(false);
+  const [_isEditing, _setIsEditing] = useState(false);
 
   useEffect(() => {
     loadProfile();

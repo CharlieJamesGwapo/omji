@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { storeService } from '../services/api';
 
 const StoresPage: React.FC = () => {
-  const [stores, setStores] = useState([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('all');
 
