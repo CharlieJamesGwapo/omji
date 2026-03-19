@@ -15,9 +15,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
+import RiderRequestModal from '../../components/RiderRequestModal';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
@@ -68,6 +70,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const radarAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [rideRequest, setRideRequest] = useState<any>(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const driverWsRef = useRef<WebSocket | null>(null);
+  const driverProfileId = useRef<number | null>(null);
 
   // Online timer
   useEffect(() => {
@@ -125,6 +131,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       const profileRes = await driverService.getProfile();
       const profileData = profileRes.data?.data;
       if (profileData) {
+        if (profileData.id) driverProfileId.current = profileData.id;
         const newVerified = profileData.is_verified === true;
         setIsVerified(newVerified);
         if (wasVerifiedRef.current === false && newVerified) {
@@ -201,6 +208,41 @@ export default function RiderDashboardScreen({ navigation }: any) {
       unsubBlur();
     };
   }, [isOnline, fetchData, navigation]);
+
+  // WebSocket for receiving targeted ride requests
+  useEffect(() => {
+    if (!isOnline || !driverProfileId.current) return;
+
+    let ws: WebSocket | null = null;
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+
+      const wsUrl = 'wss://omji-backend.onrender.com';
+      ws = new WebSocket(`${wsUrl}/ws/driver/${driverProfileId.current}?token=${token}`);
+      driverWsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'ride_request') {
+            setRideRequest(data);
+            setShowRequestModal(true);
+          } else if (data.type === 'ride_expired') {
+            setShowRequestModal(false);
+            setRideRequest(null);
+          }
+        } catch {}
+      };
+      ws.onerror = () => {};
+      ws.onclose = () => {};
+    })();
+
+    return () => {
+      if (ws) ws.close();
+      if (driverWsRef.current) driverWsRef.current = null;
+    };
+  }, [isOnline, isVerified]);
 
   // Poll for verification status when pending
   useEffect(() => {
@@ -318,6 +360,34 @@ export default function RiderDashboardScreen({ navigation }: any) {
         },
       },
     ]);
+  };
+
+  const handleAcceptRideRequest = async (rideId: number) => {
+    setShowRequestModal(false);
+    try {
+      await driverService.acceptRequest(rideId);
+      showToast('Ride accepted!', 'success');
+      fetchData();
+      navigation.navigate('Tracking', {
+        type: 'ride',
+        rideId,
+        pickup: rideRequest?.pickup_location || '',
+        dropoff: rideRequest?.dropoff_location || '',
+        fare: rideRequest?.estimated_fare || 0,
+      });
+    } catch (error: any) {
+      showToast(error.response?.data?.error || 'Failed to accept ride', 'error');
+      fetchData();
+    }
+    setRideRequest(null);
+  };
+
+  const handleDeclineRideRequest = async (rideId: number) => {
+    setShowRequestModal(false);
+    try {
+      await driverService.declineRideRequest(rideId);
+    } catch {}
+    setRideRequest(null);
   };
 
   const onRefresh = async () => {
@@ -821,6 +891,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
         <View style={{ height: verticalScale(20) }} />
       </ScrollView>
 
+      <RiderRequestModal
+        visible={showRequestModal}
+        request={rideRequest}
+        onAccept={handleAcceptRideRequest}
+        onDecline={handleDeclineRideRequest}
+      />
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </Animated.View>
   );
