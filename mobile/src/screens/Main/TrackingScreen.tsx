@@ -16,12 +16,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// Maps disabled - not compatible with Expo Go builds
-const mapsAvailable = false;
-const MapView: any = null;
-const Marker: any = null;
-const Polyline: any = null;
-const PROVIDER_DEFAULT: any = null;
+import { WebView } from 'react-native-webview';
 import { rideService, deliveryService, driverService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
@@ -49,11 +44,86 @@ const PAYMENT_LABELS: Record<string, { name: string; icon: string; color: string
 
 const RATING_LABELS = ['Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
 
+const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+  <style>
+    * { margin: 0; padding: 0; }
+    html, body, #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"><\/script>
+  <script>
+    var map = L.map('map', { zoomControl: false, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, keepBuffer: 4
+    }).addTo(map);
+
+    var pickup = [${pickupLat}, ${pickupLng}];
+    var dropoff = [${dropoffLat}, ${dropoffLng}];
+
+    var greenIcon = L.divIcon({
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#10B981;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+    });
+    var redIcon = L.divIcon({
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+    });
+
+    L.marker(pickup, { icon: greenIcon }).addTo(map).bindPopup('Pickup');
+    L.marker(dropoff, { icon: redIcon }).addTo(map).bindPopup('Dropoff');
+    L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 4, opacity: 0.7, dashArray: '8,8' }).addTo(map);
+
+    map.fitBounds([pickup, dropoff], { padding: [40, 40] });
+
+    window.addEventListener('message', function(e) {
+      try {
+        var d = JSON.parse(e.data);
+        if (d.type === 'driverLocation') {
+          if (!window._driverMarker) {
+            var driverIcon = L.divIcon({
+              html: '<div style="width:18px;height:18px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);"></div>',
+              iconSize: [18, 18], iconAnchor: [9, 9], className: ''
+            });
+            window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
+          } else {
+            window._driverMarker.setLatLng([d.lat, d.lng]);
+          }
+        }
+      } catch(err) {}
+    });
+    document.addEventListener('message', function(e) {
+      try {
+        var d = JSON.parse(e.data);
+        if (d.type === 'driverLocation') {
+          if (!window._driverMarker) {
+            var driverIcon = L.divIcon({
+              html: '<div style="width:18px;height:18px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);"></div>',
+              iconSize: [18, 18], iconAnchor: [9, 9], className: ''
+            });
+            window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
+          } else {
+            window._driverMarker.setLatLng([d.lat, d.lng]);
+          }
+        }
+      } catch(err) {}
+    });
+  <\/script>
+</body>
+</html>
+`;
+
 export default function TrackingScreen({ route, navigation }: any) {
   const { rideId, pickup, dropoff, fare, type = 'ride' } = route.params || {};
   const { user } = useAuth();
   const isDriver = user?.role === 'rider' || user?.role === 'driver';
-  const mapRef = useRef<any>(null);
+  const webRef = useRef<any>(null);
   const [status, setStatus] = useState('pending');
   const [rideData, setRideData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -270,21 +340,16 @@ export default function TrackingScreen({ route, navigation }: any) {
   // ETA estimation: average speed ~25 km/h for city rides
   const estimatedEtaMinutes = rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0;
 
-  // Re-fit map when ride data changes (e.g. after first fetch)
+  // Send driver location to WebView map when ride data updates
   useEffect(() => {
-    if (rideData && mapRef.current) {
-      const pLat = rideData.pickup_latitude || rideData.pickup_lat || 0;
-      const pLng = rideData.pickup_longitude || rideData.pickup_lng || 0;
-      const dLat = rideData.dropoff_latitude || rideData.dropoff_lat || 0;
-      const dLng = rideData.dropoff_longitude || rideData.dropoff_lng || 0;
-      if (pLat !== 0 && dLat !== 0) {
-        mapRef.current.fitToCoordinates(
-          [{ latitude: pLat, longitude: pLng }, { latitude: dLat, longitude: dLng }],
-          { edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) }, animated: true }
-        );
+    if (rideData && webRef.current && driverInfo && status !== 'pending') {
+      const dLat = driverInfo?.current_latitude || driverInfo?.latitude;
+      const dLng = driverInfo?.current_longitude || driverInfo?.longitude;
+      if (dLat && dLng) {
+        webRef.current.postMessage(JSON.stringify({ type: 'driverLocation', lat: dLat, lng: dLng }));
       }
     }
-  }, [rideData?.id]);
+  }, [rideData?.id, rideData?.driver, status]);
 
   // Auto-show rating when ride completes (for users only)
   useEffect(() => {
@@ -358,98 +423,22 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Map or Fallback */}
-      {mapsAvailable && MapView ? (
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_DEFAULT}
+      {/* Map */}
+      {(mapPickupLat && mapPickupLng && mapDropoffLat && mapDropoffLng) ? (
+        <WebView
+          ref={webRef}
+          source={{ html: getTrackingMapHTML(mapPickupLat, mapPickupLng, mapDropoffLat, mapDropoffLng) }}
           style={styles.map}
-          initialRegion={{
-            latitude: (mapPickupLat + mapDropoffLat) / 2,
-            longitude: (mapPickupLng + mapDropoffLng) / 2,
-            latitudeDelta: Math.abs(mapPickupLat - mapDropoffLat) * 2.5 + 0.01,
-            longitudeDelta: Math.abs(mapPickupLng - mapDropoffLng) * 2.5 + 0.01,
-          }}
-          showsUserLocation
-          showsMyLocationButton={false}
-          onLayout={() => {
-            const coords = [
-              { latitude: mapPickupLat, longitude: mapPickupLng },
-              { latitude: mapDropoffLat, longitude: mapDropoffLng },
-            ];
-            mapRef.current?.fitToCoordinates(coords, {
-              edgePadding: { top: verticalScale(80), right: moderateScale(60), bottom: height * 0.55, left: moderateScale(60) },
-              animated: false,
-            });
-          }}
-        >
-          {Polyline && (
-            <Polyline
-              coordinates={[
-                { latitude: mapPickupLat, longitude: mapPickupLng },
-                { latitude: mapDropoffLat, longitude: mapDropoffLng },
-              ]}
-              strokeColor={COLORS.accent}
-              strokeWidth={4}
-              lineDashPattern={[0]}
-            />
-          )}
-          {Marker && (
-            <>
-              <Marker coordinate={{ latitude: mapPickupLat, longitude: mapPickupLng }} title={pickupLabel}>
-                <View style={styles.markerPickup}>
-                  <Ionicons name="radio-button-on" size={14} color={COLORS.white} />
-                </View>
-              </Marker>
-              <Marker coordinate={{ latitude: mapDropoffLat, longitude: mapDropoffLng }} title={dropoffLabel}>
-                <View style={styles.markerDropoff}>
-                  <Ionicons name="flag" size={14} color={COLORS.white} />
-                </View>
-              </Marker>
-              {!!driverInfo && status !== 'pending' && (
-                <Marker
-                  coordinate={{
-                    latitude: driverVehicle?.current_latitude || driverVehicle?.latitude || mapPickupLat,
-                    longitude: driverVehicle?.current_longitude || driverVehicle?.longitude || mapPickupLng,
-                  }}
-                  title={driverInfo.name || 'Rider'}
-                >
-                  <View style={styles.markerRider}>
-                    <Ionicons name="bicycle" size={16} color={COLORS.white} />
-                  </View>
-                </Marker>
-              )}
-            </>
-          )}
-        </MapView>
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          cacheEnabled={true}
+          cacheMode={'LOAD_CACHE_ELSE_NETWORK' as any}
+        />
       ) : (
-        <View style={[styles.map, { backgroundColor: COLORS.gray50, justifyContent: 'center', paddingHorizontal: moderateScale(20) }]}>
-          <View style={{ backgroundColor: COLORS.white, borderRadius: moderateScale(16), padding: moderateScale(20), shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(14) }}>
-              <View style={{ width: moderateScale(32), height: moderateScale(32), borderRadius: moderateScale(16), backgroundColor: COLORS.successBg, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="radio-button-on" size={14} color={COLORS.success} />
-              </View>
-              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-                <Text style={{ fontSize: fontScale(11), color: COLORS.gray400 }}>Pickup</Text>
-                <Text style={{ fontSize: fontScale(13), fontWeight: '600', color: COLORS.gray800 }} numberOfLines={2}>{pickupLabel || 'Pickup location'}</Text>
-              </View>
-            </View>
-            <View style={{ borderLeftWidth: 2, borderLeftColor: COLORS.gray200, marginLeft: moderateScale(15), height: verticalScale(16) }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(6) }}>
-              <View style={{ width: moderateScale(32), height: moderateScale(32), borderRadius: moderateScale(16), backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="flag" size={14} color={COLORS.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-                <Text style={{ fontSize: fontScale(11), color: COLORS.gray400 }}>Dropoff</Text>
-                <Text style={{ fontSize: fontScale(13), fontWeight: '600', color: COLORS.gray800 }} numberOfLines={2}>{dropoffLabel || 'Dropoff location'}</Text>
-              </View>
-            </View>
-            {rideDistance > 0 && (
-              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: verticalScale(14), paddingTop: verticalScale(12), borderTopWidth: 1, borderTopColor: COLORS.gray100 }}>
-                <Text style={{ fontSize: fontScale(13), color: COLORS.gray500 }}>Distance: {rideDistance.toFixed(1)} km</Text>
-              </View>
-            )}
-          </View>
+        <View style={[styles.map, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name="map-outline" size={48} color="#D1D5DB" />
+          <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Map loading...</Text>
         </View>
       )}
 
