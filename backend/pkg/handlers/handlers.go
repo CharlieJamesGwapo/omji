@@ -417,21 +417,34 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 
 			go func(rideID uint, driverID uint) {
 				time.Sleep(30 * time.Second)
-				var r models.Ride
-				if err := db.Where("id = ? AND status = ?", rideID, "requested").First(&r).Error; err != nil {
+				// Use transaction with row lock to prevent race with AcceptRequest
+				expired := false
+				if err := db.Transaction(func(tx *gorm.DB) error {
+					var r models.Ride
+					if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND status = ?", rideID, "requested").First(&r).Error; err != nil {
+						return err
+					}
+					r.Status = "cancelled"
+					r.DriverID = nil
+					if err := tx.Save(&r).Error; err != nil {
+						return err
+					}
+					expired = true
+					return tx.Model(&models.Driver{}).Where("id = ?", driverID).Update("is_available", true).Error
+				}); err != nil {
 					return
 				}
-				db.Model(&r).Updates(map[string]interface{}{"status": "cancelled", "driver_id": nil})
-				tracker.Broadcast(fmt.Sprintf("%d", rideID), map[string]interface{}{
-					"type":    "ride_expired",
-					"ride_id": rideID,
-				})
-				driverTracker.Send(fmt.Sprintf("%d", driverID), map[string]interface{}{
-					"type":    "ride_expired",
-					"ride_id": rideID,
-				})
-				db.Model(&models.Driver{}).Where("id = ?", driverID).Update("is_available", true)
-				log.Printf("Ride #%d expired (30s timeout)", rideID)
+				if expired {
+					tracker.Broadcast(fmt.Sprintf("%d", rideID), map[string]interface{}{
+						"type":    "ride_expired",
+						"ride_id": rideID,
+					})
+					driverTracker.Send(fmt.Sprintf("%d", driverID), map[string]interface{}{
+						"type":    "ride_expired",
+						"ride_id": rideID,
+					})
+					log.Printf("Ride #%d expired (30s timeout)", rideID)
+				}
 			}(ride.ID, *input.DriverID)
 		}
 		// Notify user of successful ride booking

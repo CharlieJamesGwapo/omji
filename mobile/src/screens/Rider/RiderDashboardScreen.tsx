@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { driverService } from '../../services/api';
+import { driverService, API_BASE_URL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 import RiderRequestModal from '../../components/RiderRequestModal';
@@ -218,7 +218,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
-      const wsUrl = 'wss://omji-backend.onrender.com';
+      const wsUrl = API_BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api/v1', '');
       ws = new WebSocket(`${wsUrl}/ws/driver/${driverProfileId.current}?token=${token}`);
       driverWsRef.current = ws;
 
