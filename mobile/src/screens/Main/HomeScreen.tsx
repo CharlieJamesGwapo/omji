@@ -403,6 +403,26 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
+        {/* Rider Promo Banner */}
+        {user?.role === 'user' && (
+          <TouchableOpacity
+            style={styles.riderPromoBanner}
+            onPress={() => navigation.navigate('RiderRegistration')}
+            activeOpacity={0.8}
+            accessibilityLabel="Become a rider"
+            accessibilityRole="button"
+          >
+            <View style={styles.riderPromoIcon}>
+              <Ionicons name="bicycle" size={moderateScale(20)} color="#10B981" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.riderPromoTitle}>Earn with OMJI</Text>
+              <Text style={styles.riderPromoSubtext}>Become a rider and start earning today</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
+          </TouchableOpacity>
+        )}
+
         {/* Service Cards */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -934,6 +954,37 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     marginLeft: moderateScale(8),
     fontWeight: '500',
+  },
+
+  // --- Rider Promo Banner ---
+  riderPromoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    marginBottom: verticalScale(12),
+    padding: moderateScale(14),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    gap: moderateScale(12),
+  },
+  riderPromoIcon: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  riderPromoTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  riderPromoSubtext: {
+    fontSize: fontScale(11),
+    color: '#047857',
+    marginTop: verticalScale(1),
   },
 
   // --- Location Tag ---

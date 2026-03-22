@@ -74,7 +74,7 @@ export default function RiderProfileScreen({ navigation }: any) {
 
   const stats = [
     { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: COLORS.accent, bg: COLORS.accentBg },
-    { label: 'Rating', value: riderProfile.hasRatings ? `${riderProfile.rating.toFixed(1)}` : 'N/A', icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
+    { label: 'Rating', value: riderProfile.hasRatings ? `${riderProfile.rating.toFixed(1)}` : 'New', icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
     { label: 'Acceptance', value: earningsData.acceptance_rate != null ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
     { label: 'Completion', value: earningsData.completion_rate != null ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
   ];
@@ -136,6 +136,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header with colored background */}
       <View style={styles.headerBg}>
+        <View style={styles.headerDecor} />
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
           <TouchableOpacity
@@ -402,6 +403,18 @@ const styles = StyleSheet.create({
   headerBg: {
     backgroundColor: COLORS.success,
     paddingBottom: verticalScale(60),
+    borderBottomLeftRadius: RESPONSIVE.borderRadius.xlarge,
+    borderBottomRightRadius: RESPONSIVE.borderRadius.xlarge,
+    ...SHADOWS.lg,
+  },
+  headerDecor: {
+    position: 'absolute',
+    top: -moderateScale(40),
+    right: -moderateScale(40),
+    width: moderateScale(140),
+    height: moderateScale(140),
+    borderRadius: moderateScale(70),
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   header: {
     flexDirection: 'row',
@@ -507,7 +520,9 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(14),
     alignItems: 'center',
-    ...SHADOWS.sm,
+    ...SHADOWS.md,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
   },
   statIcon: {
     width: moderateScale(36),

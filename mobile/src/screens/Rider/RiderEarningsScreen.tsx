@@ -716,7 +716,10 @@ const styles = StyleSheet.create({
   },
   periodPillActive: {
     backgroundColor: COLORS.accent,
-    ...SHADOWS.sm,
+    ...SHADOWS.md,
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.3,
+    elevation: 4,
   },
   periodPillText: {
     fontSize: RESPONSIVE.fontSize.small,

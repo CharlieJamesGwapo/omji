@@ -607,13 +607,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.switchToUserBtn}
-            onPress={() => updateUser({ role: 'user' })}
-          >
-            <Ionicons name="car-outline" size={moderateScale(18)} color={COLORS.accent} />
-            <Text style={styles.switchToUserText}>Need a ride? Switch to passenger</Text>
-          </TouchableOpacity>
+          {/* Removed: No mode switching — riders stay as riders */}
         </ScrollView>
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
       </View>
@@ -778,12 +772,17 @@ export default function RiderDashboardScreen({ navigation }: any) {
             <View style={styles.statDivider} />
             <View style={styles.statChip}>
               <Ionicons name="star" size={moderateScale(16)} color={COLORS.warning} />
-              <Text style={styles.statChipValue}>{(earnings.total_ratings || 0) > 0 ? Number(earnings.rating || 0).toFixed(1) : 'N/A'}</Text>
+              <Text style={styles.statChipValue}>{(earnings.total_ratings || 0) > 0 ? Number(earnings.rating || 0).toFixed(1) : 'New'}</Text>
               <Text style={styles.statChipLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statChip}>
-              <Ionicons name="checkmark-circle" size={moderateScale(16)} color={COLORS.success} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(2) }}>
+                <Ionicons name="checkmark-circle" size={moderateScale(16)} color={COLORS.success} />
+                {acceptanceRate >= 90 && (
+                  <Ionicons name="checkmark" size={moderateScale(10)} color={COLORS.success} />
+                )}
+              </View>
               <Text style={styles.statChipValue}>{acceptanceRate}%</Text>
               <Text style={styles.statChipLabel}>Accept</Text>
             </View>
@@ -810,7 +809,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 const customerName = request.passenger_name || request.user?.name || request.User?.name;
 
                 return (
-                  <View key={`${request.type || 'ride'}-${request.id}`} style={styles.requestCard}>
+                  <View key={`${request.type || 'ride'}-${request.id}`} style={[styles.requestCard, { borderLeftWidth: moderateScale(3), borderLeftColor: getJobColor(request) }]}>
                     {/* Header row */}
                     <View style={styles.requestHeader}>
                       <View style={[styles.requestTypeIcon, { backgroundColor: `${getJobColor(request)}12` }]}>
@@ -953,23 +952,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Book as Passenger */}
-        <TouchableOpacity
-          style={styles.switchModeCard}
-          onPress={() => updateUser({ role: 'user' })}
-          activeOpacity={0.7}
-          accessibilityLabel="Book a ride as passenger"
-          accessibilityRole="button"
-        >
-          <View style={styles.switchModeLeft}>
-            <Ionicons name="car-outline" size={moderateScale(18)} color={COLORS.accent} />
-            <View>
-              <Text style={styles.switchModeText}>Need a ride yourself?</Text>
-              <Text style={styles.switchModeSubtext}>Switch to passenger mode</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
-        </TouchableOpacity>
+        {/* Removed: No mode switching — riders stay as riders */}
 
         <View style={{ height: verticalScale(20) }} />
       </ScrollView>
@@ -1147,11 +1130,14 @@ const styles = StyleSheet.create({
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(14),
     alignItems: 'center',
-    ...SHADOWS.sm,
+    ...SHADOWS.md,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
   },
   earningsCardMain: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.successLight,
+    backgroundColor: '#F0FDF4',
   },
   earningsIconWrap: {
     width: moderateScale(40),
@@ -1362,8 +1348,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requestFare: {
-    fontSize: fontScale(22),
-    fontWeight: 'bold',
+    fontSize: fontScale(24),
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   // Route box
   routeBox: {
@@ -1548,35 +1535,6 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: 'bold',
   },
-  // Switch mode
-  switchModeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
-    marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginTop: verticalScale(8),
-    paddingVertical: moderateScale(14),
-    paddingHorizontal: moderateScale(16),
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-  },
-  switchModeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: moderateScale(12),
-  },
-  switchModeText: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    fontWeight: '600',
-    color: COLORS.gray700,
-  },
-  switchModeSubtext: {
-    fontSize: fontScale(11),
-    color: COLORS.gray400,
-    marginTop: verticalScale(1),
-  },
   // Pending Approval
   pendingHeader: {
     backgroundColor: COLORS.warningDark,
@@ -1687,18 +1645,5 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '700',
     color: COLORS.white,
-  },
-  switchToUserBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: verticalScale(20),
-    paddingVertical: moderateScale(14),
-    gap: moderateScale(8),
-  },
-  switchToUserText: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: COLORS.accent,
-    fontWeight: '600',
   },
 });
