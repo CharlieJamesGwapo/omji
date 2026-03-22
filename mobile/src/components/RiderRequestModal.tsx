@@ -34,6 +34,10 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
   const progress = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onDeclineRef = useRef(onDecline);
+  onDeclineRef.current = onDecline;
+  const requestRef = useRef(request);
+  requestRef.current = request;
 
   useEffect(() => {
     if (visible && request) {
@@ -59,7 +63,8 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
         setSecondsLeft(prev => {
           if (prev <= 1) {
             if (countdownRef.current) clearInterval(countdownRef.current);
-            if (request) onDecline(request.ride_id);
+            // Use refs to avoid stale closure
+            if (requestRef.current) onDeclineRef.current(requestRef.current.ride_id);
             return 0;
           }
           return prev - 1;
@@ -128,17 +133,23 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
             {/* Details */}
             <View style={styles.detailsRow}>
               <View style={styles.detailItem}>
-                <Ionicons name="cash-outline" size={18} color={COLORS.accent} />
-                <Text style={styles.detailValue}>₱{(request.estimated_fare || 0).toFixed(0)}</Text>
+                <Ionicons name="cash-outline" size={moderateScale(18)} color={COLORS.accent} />
+                <Text style={styles.detailValue}>{'\u20B1'}{(request.estimated_fare || 0).toFixed(0)}</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="navigate-outline" size={18} color={COLORS.accent} />
+                <Ionicons name="navigate-outline" size={moderateScale(18)} color={COLORS.accent} />
                 <Text style={styles.detailValue}>{(request.distance || 0).toFixed(1)} km</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="card-outline" size={18} color={COLORS.accent} />
+                <Ionicons name="card-outline" size={moderateScale(18)} color={COLORS.accent} />
                 <Text style={styles.detailValue}>{(request.payment_method || 'cash').toUpperCase()}</Text>
               </View>
+              {!!request.vehicle_type && (
+                <View style={styles.detailItem}>
+                  <Ionicons name="bicycle-outline" size={moderateScale(18)} color={COLORS.accent} />
+                  <Text style={styles.detailValue}>{request.vehicle_type}</Text>
+                </View>
+              )}
             </View>
 
             {/* Buttons */}
@@ -147,6 +158,7 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
               onPress={() => onAccept(request.ride_id)}
               activeOpacity={0.8}
               disabled={acceptLoading || declineLoading}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Accept ride request"
               accessibilityRole="button"
             >
@@ -164,6 +176,7 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
               onPress={() => onDecline(request.ride_id)}
               activeOpacity={0.7}
               disabled={acceptLoading || declineLoading}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Reject ride request"
               accessibilityRole="button"
             >

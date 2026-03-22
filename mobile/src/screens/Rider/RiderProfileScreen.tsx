@@ -160,9 +160,11 @@ export default function RiderProfileScreen({ navigation }: any) {
                 source={{ uri: riderProfile.avatar }}
                 style={styles.avatar}
               />
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={moderateScale(22)} color={COLORS.success} />
-              </View>
+              {driverData.is_verified && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={moderateScale(22)} color={COLORS.success} />
+                </View>
+              )}
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{riderProfile.name}</Text>

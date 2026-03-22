@@ -76,6 +76,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const driverWsRef = useRef<WebSocket | null>(null);
   const driverProfileId = useRef<number | null>(null);
+  const [driverProfileIdState, setDriverProfileIdState] = useState<number | null>(null);
 
   // Online timer
   useEffect(() => {
@@ -133,7 +134,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
       const profileRes = await driverService.getProfile();
       const profileData = profileRes.data?.data;
       if (profileData) {
-        if (profileData.id) driverProfileId.current = profileData.id;
+        if (profileData.id) {
+          driverProfileId.current = profileData.id;
+          setDriverProfileIdState(profileData.id);
+        }
         const newVerified = profileData.is_verified === true;
         setIsVerified(newVerified);
         if (wasVerifiedRef.current === false && newVerified) {
@@ -213,14 +217,16 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
   // WebSocket for receiving targeted ride requests
   useEffect(() => {
-    if (!isOnline || !driverProfileId.current) return;
+    if (!isOnline || !driverProfileIdState) return;
 
     let ws: WebSocket | null = null;
-    (async () => {
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
-      ws = new WebSocket(getWebSocketUrl(`/ws/driver/${driverProfileId.current}`, token));
+      ws = new WebSocket(getWebSocketUrl(`/ws/driver/${driverProfileIdState}`, token));
       driverWsRef.current = ws;
 
       ws.onmessage = (event) => {
@@ -236,14 +242,22 @@ export default function RiderDashboardScreen({ navigation }: any) {
         } catch {}
       };
       ws.onerror = () => {};
-      ws.onclose = () => {};
-    })();
+      ws.onclose = () => {
+        // Auto-reconnect after 5s if still online
+        if (isOnline) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
+      };
+    };
+
+    connect();
 
     return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) ws.close();
       if (driverWsRef.current) driverWsRef.current = null;
     };
-  }, [isOnline, isVerified]);
+  }, [isOnline, driverProfileIdState]);
 
   // Poll for verification status when pending
   useEffect(() => {
@@ -251,6 +265,25 @@ export default function RiderDashboardScreen({ navigation }: any) {
     const interval = setInterval(fetchDriverProfile, 15000);
     return () => clearInterval(interval);
   }, [isVerified, fetchDriverProfile]);
+
+  // Continuously update location while online (every 30s)
+  useEffect(() => {
+    if (!isOnline) return;
+    const updateLocation = async () => {
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (loc?.coords) {
+          await driverService.setAvailability({
+            available: true,
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        }
+      } catch {}
+    };
+    const interval = setInterval(updateLocation, 30000);
+    return () => clearInterval(interval);
+  }, [isOnline]);
 
   const handleToggleOnline = async () => {
     if (!isVerified) {
@@ -263,19 +296,46 @@ export default function RiderDashboardScreen({ navigation }: any) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Location Required', 'Please enable location access in settings to go online.');
+          setTogglingOnline(false);
           return;
         }
-        const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-        const loc = await Promise.race([locationPromise, timeoutPromise]);
-        if (!loc || !('coords' in loc)) {
-          Alert.alert('Location Error', 'Could not get your current location. Please try again.');
-          return;
+
+        // Try getting current position with timeout
+        let latitude = 0;
+        let longitude = 0;
+
+        try {
+          const loc = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
+          if (loc && 'coords' in loc) {
+            latitude = loc.coords.latitude;
+            longitude = loc.coords.longitude;
+          }
+        } catch {}
+
+        // Fallback to last known position
+        if (latitude === 0 && longitude === 0) {
+          try {
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            if (lastKnown && 'coords' in lastKnown) {
+              latitude = lastKnown.coords.latitude;
+              longitude = lastKnown.coords.longitude;
+            }
+          } catch {}
         }
+
+        // Use default Balingasag location as final fallback
+        if (latitude === 0 && longitude === 0) {
+          latitude = 8.4343;
+          longitude = 124.7762;
+        }
+
         await driverService.setAvailability({
           available: true,
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
+          latitude,
+          longitude,
         });
         setIsOnline(true);
         setOnlineSince(new Date());
