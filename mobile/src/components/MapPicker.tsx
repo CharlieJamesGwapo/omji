@@ -13,6 +13,7 @@ import {
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale } from '../utils/responsive';
 
 interface MapPickerProps {
@@ -125,6 +126,7 @@ const getMapHTML = (lat: number, lng: number) => `
 `;
 
 export default function MapPicker({ onLocationSelect, initialLocation, title }: MapPickerProps) {
+  const insets = useSafeAreaInsets();
   const webRef = useRef<WebView>(null);
   const [address, setAddress] = useState('');
   const [resolving, setResolving] = useState(false);
@@ -348,7 +350,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       </TouchableOpacity>
 
       {/* Bottom Card */}
-      <View style={styles.bottomCard}>
+      <View style={[styles.bottomCard, { paddingBottom: Math.max(insets.bottom, verticalScale(16)) + verticalScale(12) }]}>
         <View style={styles.handleBar} />
         <View style={styles.addressRow}>
           <View style={styles.addressDotContainer}>
@@ -434,7 +436,7 @@ const styles = StyleSheet.create({
   locationFab: {
     position: 'absolute',
     right: RESPONSIVE.paddingHorizontal,
-    bottom: verticalScale(160),
+    bottom: verticalScale(175),
     width: moderateScale(44),
     height: moderateScale(44),
     borderRadius: moderateScale(22),
@@ -458,7 +460,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: moderateScale(24),
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(8),
-    paddingBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(16),
+    // paddingBottom is applied dynamically via useSafeAreaInsets
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -518,19 +520,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#3B82F6',
     borderRadius: moderateScale(14),
-    paddingVertical: moderateScale(16),
+    paddingVertical: moderateScale(18),
     alignItems: 'center',
     justifyContent: 'center',
     gap: moderateScale(8),
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   confirmText: {
     color: '#fff',
-    fontSize: fontScale(16),
+    fontSize: fontScale(17),
     fontWeight: '700',
     letterSpacing: 0.3,
   },

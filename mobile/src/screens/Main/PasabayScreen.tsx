@@ -527,7 +527,7 @@ export default function PasabayScreen({ navigation }: any) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: verticalScale(36) }}
+        contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? verticalScale(20) : verticalScale(28) }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8B5CF6" />}
       >
         {/* Active Ride Banner */}
@@ -832,7 +832,7 @@ export default function PasabayScreen({ navigation }: any) {
 
             {/* Book */}
             <TouchableOpacity
-              style={[styles.bookButton, (loading || !!activeRide) && { opacity: 0.7 }]}
+              style={[styles.bookButton, (loading || !!activeRide) && { opacity: 0.5 }]}
               onPress={handleBookRide}
               disabled={loading || !!activeRide}
               activeOpacity={0.85}
@@ -948,7 +948,7 @@ const styles = StyleSheet.create({
   priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: moderateScale(8) },
   priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
   priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#8B5CF6' },
-  bookButton: { backgroundColor: '#8B5CF6', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: verticalScale(8), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
+  bookButton: { backgroundColor: '#8B5CF6', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(40), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
   bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
   bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },

@@ -665,22 +665,22 @@ export default function TrackingScreen({ route, navigation }: any) {
             <Text style={styles.routeCardTitle}>Route Details</Text>
             <View style={styles.routeContent}>
               <View style={styles.routeTimeline}>
-                <View style={[styles.routeDotOuter, { borderColor: COLORS.success }]}>
+                <View style={[styles.routeDotOuter, { borderColor: COLORS.success, backgroundColor: `${COLORS.success}15` }]}>
                   <View style={[styles.routeDot, { backgroundColor: COLORS.success }]} />
                 </View>
                 <View style={styles.routeLineVertical} />
-                <View style={[styles.routeDotOuter, { borderColor: COLORS.primary }]}>
-                  <View style={[styles.routeDot, { backgroundColor: COLORS.primary }]} />
+                <View style={[styles.routeDotOuter, { borderColor: COLORS.error, backgroundColor: `${COLORS.error}15` }]}>
+                  <View style={[styles.routeDot, { backgroundColor: COLORS.error }]} />
                 </View>
               </View>
               <View style={styles.routeDetails}>
                 <View style={styles.routeStop}>
-                  <Text style={styles.routeLabel}>Pickup</Text>
+                  <Text style={[styles.routeLabel, { color: COLORS.success, fontWeight: '700' }]}>PICKUP</Text>
                   <Text style={styles.routeAddress} numberOfLines={2}>{pickupLabel}</Text>
                 </View>
                 <View style={styles.routeStopDivider} />
                 <View style={styles.routeStop}>
-                  <Text style={styles.routeLabel}>Drop-off</Text>
+                  <Text style={[styles.routeLabel, { color: COLORS.error, fontWeight: '700' }]}>DROP-OFF</Text>
                   <Text style={styles.routeAddress} numberOfLines={2}>{dropoffLabel}</Text>
                 </View>
               </View>
@@ -688,33 +688,29 @@ export default function TrackingScreen({ route, navigation }: any) {
           </View>
 
           {/* Fare & Payment Summary */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <View style={[styles.summaryIconCircle, { backgroundColor: COLORS.infoBg }]}>
-                  <Ionicons name="speedometer-outline" size={moderateScale(16)} color={COLORS.info} />
-                </View>
-                <Text style={styles.summaryLabel}>Distance</Text>
-                <Text style={styles.summaryValue}>{rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}</Text>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryItem, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
+              <View style={[styles.summaryIconCircle, { backgroundColor: '#3B82F6' }]}>
+                <Ionicons name="speedometer-outline" size={moderateScale(18)} color={COLORS.white} />
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <View style={[styles.summaryIconCircle, { backgroundColor: `${paymentInfo.color}15` }]}>
-                  <Ionicons name={paymentInfo.icon as any} size={moderateScale(16)} color={paymentInfo.color} />
-                </View>
-                <Text style={styles.summaryLabel}>Payment</Text>
-                <Text style={[styles.summaryValue, { color: paymentInfo.color }]}>{paymentInfo.name}</Text>
+              <Text style={styles.summaryLabel}>Distance</Text>
+              <Text style={[styles.summaryValue, { color: '#1E40AF' }]}>{rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}</Text>
+            </View>
+            <View style={[styles.summaryItem, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
+              <View style={[styles.summaryIconCircle, { backgroundColor: '#22C55E' }]}>
+                <Ionicons name={paymentInfo.icon as any} size={moderateScale(18)} color={COLORS.white} />
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <View style={[styles.summaryIconCircle, { backgroundColor: COLORS.successBg }]}>
-                  <Ionicons name="cash-outline" size={moderateScale(16)} color={COLORS.success} />
-                </View>
-                <Text style={styles.summaryLabel}>{status === 'completed' ? 'Total' : 'Estimated'}</Text>
-                <Text style={[styles.summaryValue, { color: COLORS.success, fontSize: RESPONSIVE.fontSize.large }]}>
-                  {'\u20B1'}{Number(rideFare || 0).toFixed(0)}
-                </Text>
+              <Text style={styles.summaryLabel}>Payment</Text>
+              <Text style={[styles.summaryValue, { color: '#166534' }]}>{paymentInfo.name}</Text>
+            </View>
+            <View style={[styles.summaryItem, { backgroundColor: '#FFFBEB', borderColor: '#FEF3C7' }]}>
+              <View style={[styles.summaryIconCircle, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="cash-outline" size={moderateScale(18)} color={COLORS.white} />
               </View>
+              <Text style={styles.summaryLabel}>{status === 'completed' ? 'Total' : 'Estimated'}</Text>
+              <Text style={[styles.summaryValue, { color: '#92400E', fontSize: RESPONSIVE.fontSize.large }]}>
+                {'\u20B1'}{Number(rideFare || 0).toFixed(0)}
+              </Text>
             </View>
           </View>
 
@@ -809,7 +805,7 @@ export default function TrackingScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
 
-          <View style={{ height: verticalScale(20) }} />
+          <View style={{ height: isIOS ? verticalScale(32) : verticalScale(40) }} />
         </ScrollView>
       </View>
 
@@ -1305,12 +1301,12 @@ const styles = StyleSheet.create({
   // Route Card
   routeCard: {
     backgroundColor: COLORS.white,
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(18),
     marginBottom: verticalScale(10),
     borderWidth: 1,
-    borderColor: COLORS.gray200,
-    ...SHADOWS.sm,
+    borderColor: COLORS.gray100,
+    ...SHADOWS.md,
   },
   routeCardTitle: {
     fontSize: fontScale(11),
@@ -1329,13 +1325,12 @@ const styles = StyleSheet.create({
     paddingTop: verticalScale(2),
   },
   routeDotOuter: {
-    width: moderateScale(22),
-    height: moderateScale(22),
-    borderRadius: moderateScale(11),
-    backgroundColor: COLORS.white,
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: moderateScale(2.5),
   },
   routeDot: {
     width: moderateScale(10),
@@ -1343,9 +1338,11 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(5),
   },
   routeLineVertical: {
-    width: moderateScale(2),
+    width: 0,
     flex: 1,
-    backgroundColor: COLORS.gray300,
+    borderLeftWidth: moderateScale(2),
+    borderLeftColor: COLORS.gray300,
+    borderStyle: 'dashed',
     marginVertical: verticalScale(4),
   },
   routeDetails: {
@@ -1372,28 +1369,25 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(3),
     lineHeight: fontScale(20),
   },
-  // Summary Card
-  summaryCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    marginBottom: verticalScale(12),
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    ...SHADOWS.sm,
-  },
+  // Summary Cards
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(12),
   },
   summaryItem: {
     flex: 1,
     alignItems: 'center',
+    borderRadius: RESPONSIVE.borderRadius.large,
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(8),
+    borderWidth: 1,
+    ...SHADOWS.sm,
   },
   summaryIconCircle: {
     width: moderateScale(40),
     height: moderateScale(40),
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: verticalScale(8),
@@ -1410,11 +1404,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.gray900,
     marginTop: verticalScale(2),
-  },
-  summaryDivider: {
-    width: 1,
-    height: moderateScale(50),
-    backgroundColor: COLORS.gray200,
   },
   // Action Buttons
   cancelButton: {

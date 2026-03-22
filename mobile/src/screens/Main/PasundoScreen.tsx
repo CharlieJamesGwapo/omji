@@ -360,7 +360,7 @@ export default function PasundoScreen({ navigation }: any) {
         <View style={{ width: moderateScale(40) }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: verticalScale(32) }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? verticalScale(20) : verticalScale(28) }}>
         {/* Active Ride Banner */}
         {!!activeRide && (
           <TouchableOpacity
@@ -669,8 +669,8 @@ const styles = StyleSheet.create({
   etaValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937', marginTop: verticalScale(2) },
   etaDistanceBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: moderateScale(12), paddingVertical: verticalScale(6), borderRadius: RESPONSIVE.borderRadius.small },
   etaDistanceText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#1E40AF' },
-  bookButton: { backgroundColor: '#3B82F6', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: verticalScale(8), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#3B82F6', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
-  bookButtonDisabled: { opacity: 0.7 },
+  bookButton: { backgroundColor: '#3B82F6', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(40), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#3B82F6', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
+  bookButtonDisabled: { opacity: 0.5 },
   bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
   bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
