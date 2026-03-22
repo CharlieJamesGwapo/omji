@@ -53,6 +53,7 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
   <style>
     * { margin: 0; padding: 0; }
     html, body, #map { width: 100%; height: 100%; background: #ECEEF1; }
+    .leaflet-control-attribution { display: none !important; }
   </style>
 </head>
 <body>
@@ -61,59 +62,71 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 20, keepBuffer: 4, subdomains: 'abcd', attribution: ''
+      maxZoom: 20, keepBuffer: 6, subdomains: 'abcd', updateWhenZooming: false, updateWhenIdle: true
     }).addTo(map);
 
     var pickup = [${pickupLat}, ${pickupLng}];
     var dropoff = [${dropoffLat}, ${dropoffLng}];
 
+    // Bigger, nicer markers
     var greenIcon = L.divIcon({
-      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><div style="width:18px;height:18px;border-radius:50%;background:#10B981;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #10B981;margin-top:-2px;"></div></div>',
-      iconSize: [18, 24], iconAnchor: [9, 24], className: ''
+      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3));"><div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#34D399,#10B981);border:3px solid white;"></div><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #10B981;margin-top:-2px;"></div></div>',
+      iconSize: [22, 29], iconAnchor: [11, 29], className: ''
     });
     var redIcon = L.divIcon({
-      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><div style="width:18px;height:18px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #EF4444;margin-top:-2px;"></div></div>',
-      iconSize: [18, 24], iconAnchor: [9, 24], className: ''
+      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3));"><div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#F87171,#EF4444);border:3px solid white;"></div><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #EF4444;margin-top:-2px;"></div></div>',
+      iconSize: [22, 29], iconAnchor: [11, 29], className: ''
     });
 
     L.marker(pickup, { icon: greenIcon }).addTo(map);
     L.marker(dropoff, { icon: redIcon }).addTo(map);
-    L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.8, dashArray: '10,8' }).addTo(map);
 
-    map.fitBounds([pickup, dropoff], { padding: [40, 40] });
+    // Fit bounds first with padding
+    map.fitBounds([pickup, dropoff], { padding: [50, 50], maxZoom: 16 });
 
-    window.addEventListener('message', function(e) {
+    // Try to get actual road route from OSRM
+    var routeLine = null;
+    fetch('https://router.project-osrm.org/route/v1/driving/' + pickup[1] + ',' + pickup[0] + ';' + dropoff[1] + ',' + dropoff[0] + '?overview=full&geometries=geojson')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.routes && data.routes[0]) {
+          var coords = data.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
+          // Draw route shadow first for depth
+          L.polyline(coords, { color: '#1E40AF', weight: 7, opacity: 0.15, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+          // Draw main route line
+          routeLine = L.polyline(coords, { color: '#3B82F6', weight: 4, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+          map.fitBounds(routeLine.getBounds(), { padding: [50, 50], maxZoom: 16 });
+        } else {
+          // Fallback to dashed straight line
+          L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.7, dashArray: '10,8' }).addTo(map);
+        }
+      })
+      .catch(function() {
+        // Fallback to dashed straight line
+        L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.7, dashArray: '10,8' }).addTo(map);
+      });
+
+    // Driver location handler
+    function handleDriverLocation(d) {
+      if (!window._driverMarker) {
+        var driverIcon = L.divIcon({
+          html: '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#60A5FA,#3B82F6);border:3px solid white;box-shadow:0 2px 10px rgba(59,130,246,0.45);"></div><div style="position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(59,130,246,0.3);animation:ping 1.5s ease-in-out infinite;"></div></div><style>@keyframes ping{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.3;transform:scale(1.4);}}</style>',
+          iconSize: [24, 24], iconAnchor: [12, 12], className: ''
+        });
+        window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon, zIndexOffset: 1000 }).addTo(map);
+      } else {
+        window._driverMarker.setLatLng([d.lat, d.lng]);
+      }
+    }
+
+    function onMsg(e) {
       try {
         var d = JSON.parse(e.data);
-        if (d.type === 'driverLocation') {
-          if (!window._driverMarker) {
-            var driverIcon = L.divIcon({
-              html: '<div style="width:20px;height:20px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 10px rgba(59,130,246,0.45);"><div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(59,130,246,0.3);animation:ping 1.5s ease-in-out infinite;"></div></div><style>@keyframes ping{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.3);}}</style>',
-              iconSize: [20, 20], iconAnchor: [10, 10], className: ''
-            });
-            window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
-          } else {
-            window._driverMarker.setLatLng([d.lat, d.lng]);
-          }
-        }
-      } catch(err) { /* Ignore malformed messages */ }
-    });
-    document.addEventListener('message', function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        if (d.type === 'driverLocation') {
-          if (!window._driverMarker) {
-            var driverIcon = L.divIcon({
-              html: '<div style="width:20px;height:20px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 10px rgba(59,130,246,0.45);"><div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(59,130,246,0.3);animation:ping 1.5s ease-in-out infinite;"></div></div><style>@keyframes ping{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.3);}}</style>',
-              iconSize: [20, 20], iconAnchor: [10, 10], className: ''
-            });
-            window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
-          } else {
-            window._driverMarker.setLatLng([d.lat, d.lng]);
-          }
-        }
-      } catch(err) { /* Ignore malformed messages */ }
-    });
+        if (d.type === 'driverLocation') handleDriverLocation(d);
+      } catch(err) {}
+    }
+    window.addEventListener('message', onMsg);
+    document.addEventListener('message', onMsg);
   <\/script>
 </body>
 </html>
@@ -676,12 +689,12 @@ export default function TrackingScreen({ route, navigation }: any) {
               <View style={styles.routeDetails}>
                 <View style={styles.routeStop}>
                   <Text style={[styles.routeLabel, { color: COLORS.success, fontWeight: '700' }]}>PICKUP</Text>
-                  <Text style={styles.routeAddress} numberOfLines={2}>{pickupLabel}</Text>
+                  <Text style={styles.routeAddress} numberOfLines={3}>{pickupLabel}</Text>
                 </View>
                 <View style={styles.routeStopDivider} />
                 <View style={styles.routeStop}>
                   <Text style={[styles.routeLabel, { color: COLORS.error, fontWeight: '700' }]}>DROP-OFF</Text>
-                  <Text style={styles.routeAddress} numberOfLines={2}>{dropoffLabel}</Text>
+                  <Text style={styles.routeAddress} numberOfLines={3}>{dropoffLabel}</Text>
                 </View>
               </View>
             </View>
@@ -941,7 +954,7 @@ const styles = StyleSheet.create({
   },
   map: {
     width,
-    height: height * 0.38,
+    height: height * 0.42,
   },
   markerPickup: {
     width: moderateScale(28),
@@ -1367,7 +1380,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray800,
     fontWeight: '500',
     marginTop: verticalScale(3),
-    lineHeight: fontScale(20),
+    lineHeight: fontScale(21),
   },
   // Summary Cards
   summaryRow: {
@@ -1412,10 +1425,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.errorBg,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(14),
-    borderWidth: 1,
+    padding: moderateScale(16),
+    borderWidth: 1.5,
     borderColor: COLORS.errorLight,
     gap: moderateScale(8),
+    marginBottom: verticalScale(4),
   },
   cancelButtonDisabled: {
     backgroundColor: COLORS.gray100,

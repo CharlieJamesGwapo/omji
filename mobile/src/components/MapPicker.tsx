@@ -42,6 +42,7 @@ const getMapHTML = (lat: number, lng: number) => `
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; background: #ECEEF1; }
+    .leaflet-control-attribution { display: none !important; }
     .pin-wrap {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -100%);
@@ -85,11 +86,13 @@ const getMapHTML = (lat: number, lng: number) => `
     });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 20,
-      keepBuffer: 4,
+      keepBuffer: 8,
       updateWhenZooming: false,
       updateWhenIdle: true,
       subdomains: 'abcd',
-      attribution: ''
+      attribution: '',
+      fadeAnimation: true,
+      zoomAnimation: true
     }).addTo(map);
 
     // Notify RN when map is ready
@@ -211,7 +214,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
     if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     geocodeTimer.current = setTimeout(() => {
       resolveAddress(lat, lng);
-    }, 600);
+    }, 400);
   }, [resolveAddress]);
 
   const handleMapMessage = useCallback((event: any) => {
@@ -342,6 +345,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         startInLoadingState={false}
         renderToHardwareTextureAndroid={true}
+        androidLayerType="hardware"
       />
 
       {/* My Location FAB */}
