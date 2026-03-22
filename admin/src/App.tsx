@@ -59,41 +59,46 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
 
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={onClose} />
-      )}
+      {/* Mobile overlay with fade animation */}
+      <div
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${
+          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+      />
 
       <div className={`
         fixed lg:sticky top-0 left-0 z-50 h-screen
-        w-64 bg-white flex flex-col border-r border-gray-200
-        transform transition-transform duration-200
+        w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex flex-col
+        shadow-xl
+        transform transition-transform duration-300 ease-in-out
         ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
       `}>
         {/* Brand */}
         <div className="px-5 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-emerald-500/20">
               <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-900">OMJI</h1>
-              <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">ADMIN PANEL</p>
+              <h1 className="text-base font-bold text-white tracking-tight">OMJI</h1>
+              <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-[0.2em]">Admin Panel</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <button onClick={onClose} className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div className="mx-4 border-t border-gray-100" />
+        <div className="mx-5 border-t border-white/10" />
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
           {navGroups.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 pb-1 pt-4 first:pt-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{group.label}</p>
+            <div key={group.label} className="mb-1">
+              <p className="px-3 pb-1.5 pt-4 first:pt-1 text-[10px] font-semibold text-gray-500 uppercase tracking-[0.15em]">{group.label}</p>
               {group.items.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
@@ -101,14 +106,18 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
                     key={item.path}
                     to={item.path}
                     onClick={onClose}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
+                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 relative ${
                       isActive
-                        ? 'bg-red-600 text-white'
-                        : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                     }`}
                   >
-                    <svg className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                    {/* Active indicator bar */}
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-400 rounded-r-full" />
+                    )}
+                    <svg className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-gray-500 group-hover:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={item.icon} />
                     </svg>
                     <span>{item.label}</span>
                   </Link>
@@ -118,22 +127,22 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
           ))}
         </nav>
 
-        {/* User */}
-        <div className="p-3 border-t border-gray-100">
-          <div className="flex items-center gap-2.5 px-2 mb-2">
-            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-red-600 text-xs font-bold flex-shrink-0">
+        {/* User card */}
+        <div className="p-3 border-t border-white/10">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5">
+            <div className="w-9 h-9 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 text-sm font-bold flex-shrink-0 ring-1 ring-emerald-500/30">
               {(user?.name || 'A')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'Admin'}</p>
-              <p className="text-[11px] text-gray-400 truncate">{user?.email || 'Administrator'}</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin'}</p>
+              <p className="text-[11px] text-gray-500 truncate">{user?.email || 'Administrator'}</p>
             </div>
           </div>
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 text-xs font-medium text-gray-500 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-all duration-200"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Sign Out
@@ -153,6 +162,7 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
   }, [location.pathname]);
 
   const currentPage = navItems.find(item => item.path === location.pathname);
+  const currentGroup = navGroups.find(g => g.items.some(i => i.path === location.pathname));
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -160,29 +170,38 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
             <div className="lg:hidden flex items-center gap-2">
-              <div className="w-7 h-7 bg-red-600 rounded-md flex items-center justify-center overflow-hidden">
+              <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center overflow-hidden">
                 <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
               </div>
               <span className="font-bold text-gray-900 text-sm">OMJI</span>
             </div>
-            <div className="hidden lg:block">
-              <h2 className="text-base font-semibold text-gray-900">{currentPage?.label || 'Dashboard'}</h2>
+            {/* Breadcrumb area */}
+            <div className="hidden lg:flex items-center gap-2">
+              {currentGroup && (
+                <>
+                  <span className="text-xs font-medium text-gray-400">{currentGroup.label}</span>
+                  <svg className="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
+              <h2 className="text-sm font-semibold text-gray-900">{currentPage?.label || 'Dashboard'}</h2>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Online
             </div>
           </div>
@@ -253,7 +272,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>
       </div>
@@ -262,7 +281,7 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '8px', padding: '12px 16px', fontSize: '13px' } }} />
+      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '10px', padding: '12px 16px', fontSize: '13px' } }} />
       {isAuthenticated ? (
         <AdminLayout onLogout={handleLogout} user={user} />
       ) : (

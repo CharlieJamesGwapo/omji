@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"omji/pkg/models"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func GenerateOTP() string {
@@ -84,6 +86,45 @@ func UpdateOTP(db *gorm.DB, email string) (string, error) {
 		return "", err
 	}
 	return otp, nil
+}
+
+// updateDriverRating recalculates a driver's rating within a transaction (with row locking)
+func updateDriverRating(tx *gorm.DB, driverID uint, newRating float64) error {
+	var driver models.Driver
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, driverID).Error; err != nil {
+		return nil // driver not found, skip silently
+	}
+	newTotal := driver.TotalRatings + 1
+	avgRating := ((driver.Rating * float64(driver.TotalRatings)) + newRating) / float64(newTotal)
+	return tx.Model(&driver).Updates(map[string]interface{}{"rating": avgRating, "total_ratings": newTotal}).Error
+}
+
+// freeDriver sets a driver as available
+func freeDriver(db *gorm.DB, driverID *uint) {
+	if driverID == nil {
+		return
+	}
+	if err := db.Model(&models.Driver{}).Where("id = ?", *driverID).Update("is_available", true).Error; err != nil {
+		log.Printf("Failed to free driver %d: %v", *driverID, err)
+	}
+}
+
+// notifyUser creates a notification, logging but not failing on error
+func notifyUser(db *gorm.DB, userID uint, title, body, notifType string) {
+	if err := db.Create(&models.Notification{UserID: userID, Title: title, Body: body, Type: notifType}).Error; err != nil {
+		log.Printf("Failed to create notification for user %d: %v", userID, err)
+	}
+}
+
+// notifyDriver looks up a driver by ID and notifies their user account
+func notifyDriver(db *gorm.DB, driverID *uint, title, body, notifType string) {
+	if driverID == nil {
+		return
+	}
+	var driver models.Driver
+	if err := db.Where("id = ?", *driverID).First(&driver).Error; err == nil {
+		notifyUser(db, driver.UserID, title, body, notifType)
+	}
 }
 
 func GetDistance(lat1, lon1, lat2, lon2 float64) float64 {

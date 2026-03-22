@@ -52,7 +52,7 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
   <style>
     * { margin: 0; padding: 0; }
-    html, body, #map { width: 100%; height: 100%; }
+    html, body, #map { width: 100%; height: 100%; background: #ECEEF1; }
   </style>
 </head>
 <body>
@@ -60,25 +60,25 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"><\/script>
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, keepBuffer: 4
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20, keepBuffer: 4, subdomains: 'abcd', attribution: ''
     }).addTo(map);
 
     var pickup = [${pickupLat}, ${pickupLng}];
     var dropoff = [${dropoffLat}, ${dropoffLng}];
 
     var greenIcon = L.divIcon({
-      html: '<div style="width:14px;height:14px;border-radius:50%;background:#10B981;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
-      iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><div style="width:18px;height:18px;border-radius:50%;background:#10B981;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #10B981;margin-top:-2px;"></div></div>',
+      iconSize: [18, 24], iconAnchor: [9, 24], className: ''
     });
     var redIcon = L.divIcon({
-      html: '<div style="width:14px;height:14px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
-      iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+      html: '<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><div style="width:18px;height:18px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #EF4444;margin-top:-2px;"></div></div>',
+      iconSize: [18, 24], iconAnchor: [9, 24], className: ''
     });
 
-    L.marker(pickup, { icon: greenIcon }).addTo(map).bindPopup('Pickup');
-    L.marker(dropoff, { icon: redIcon }).addTo(map).bindPopup('Dropoff');
-    L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 4, opacity: 0.7, dashArray: '8,8' }).addTo(map);
+    L.marker(pickup, { icon: greenIcon }).addTo(map);
+    L.marker(dropoff, { icon: redIcon }).addTo(map);
+    L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.8, dashArray: '10,8' }).addTo(map);
 
     map.fitBounds([pickup, dropoff], { padding: [40, 40] });
 
@@ -88,8 +88,8 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
         if (d.type === 'driverLocation') {
           if (!window._driverMarker) {
             var driverIcon = L.divIcon({
-              html: '<div style="width:18px;height:18px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);"></div>',
-              iconSize: [18, 18], iconAnchor: [9, 9], className: ''
+              html: '<div style="width:20px;height:20px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 10px rgba(59,130,246,0.45);"><div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(59,130,246,0.3);animation:ping 1.5s ease-in-out infinite;"></div></div><style>@keyframes ping{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.3);}}</style>',
+              iconSize: [20, 20], iconAnchor: [10, 10], className: ''
             });
             window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
           } else {
@@ -104,8 +104,8 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
         if (d.type === 'driverLocation') {
           if (!window._driverMarker) {
             var driverIcon = L.divIcon({
-              html: '<div style="width:18px;height:18px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);"></div>',
-              iconSize: [18, 18], iconAnchor: [9, 9], className: ''
+              html: '<div style="width:20px;height:20px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 10px rgba(59,130,246,0.45);"><div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(59,130,246,0.3);animation:ping 1.5s ease-in-out infinite;"></div></div><style>@keyframes ping{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.3);}}</style>',
+              iconSize: [20, 20], iconAnchor: [10, 10], className: ''
             });
             window._driverMarker = L.marker([d.lat, d.lng], { icon: driverIcon }).addTo(map);
           } else {
@@ -659,25 +659,26 @@ export default function TrackingScreen({ route, navigation }: any) {
           {/* Route Details */}
           <View style={styles.routeCard}>
             <Text style={styles.routeCardTitle}>Route Details</Text>
-            <View style={styles.routeRow}>
-              <View style={styles.routeDotOuter}>
-                <View style={[styles.routeDot, { backgroundColor: COLORS.success }]} />
+            <View style={styles.routeContent}>
+              <View style={styles.routeTimeline}>
+                <View style={[styles.routeDotOuter, { borderColor: COLORS.success }]}>
+                  <View style={[styles.routeDot, { backgroundColor: COLORS.success }]} />
+                </View>
+                <View style={styles.routeLineVertical} />
+                <View style={[styles.routeDotOuter, { borderColor: COLORS.primary }]}>
+                  <View style={[styles.routeDot, { backgroundColor: COLORS.primary }]} />
+                </View>
               </View>
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeLabel}>Pickup</Text>
-                <Text style={styles.routeAddress} numberOfLines={2}>{pickupLabel}</Text>
-              </View>
-            </View>
-            <View style={styles.routeConnector}>
-              <View style={styles.routeLine} />
-            </View>
-            <View style={styles.routeRow}>
-              <View style={styles.routeDotOuter}>
-                <View style={[styles.routeDot, { backgroundColor: COLORS.primary }]} />
-              </View>
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeLabel}>Drop-off</Text>
-                <Text style={styles.routeAddress} numberOfLines={2}>{dropoffLabel}</Text>
+              <View style={styles.routeDetails}>
+                <View style={styles.routeStop}>
+                  <Text style={styles.routeLabel}>Pickup</Text>
+                  <Text style={styles.routeAddress} numberOfLines={2}>{pickupLabel}</Text>
+                </View>
+                <View style={styles.routeStopDivider} />
+                <View style={styles.routeStop}>
+                  <Text style={styles.routeLabel}>Drop-off</Text>
+                  <Text style={styles.routeAddress} numberOfLines={2}>{dropoffLabel}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -922,7 +923,7 @@ const styles = StyleSheet.create({
   },
   map: {
     width,
-    height: height * 0.4,
+    height: height * 0.38,
   },
   markerPickup: {
     width: moderateScale(28),
@@ -1281,10 +1282,13 @@ const styles = StyleSheet.create({
   },
   // Route Card
   routeCard: {
-    backgroundColor: COLORS.gray50,
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: RESPONSIVE.paddingHorizontal,
+    padding: moderateScale(16),
     marginBottom: verticalScale(10),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   routeCardTitle: {
     fontSize: fontScale(11),
@@ -1292,30 +1296,45 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: verticalScale(12),
+    marginBottom: verticalScale(14),
   },
-  routeRow: {
+  routeContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+  },
+  routeTimeline: {
+    alignItems: 'center',
+    width: moderateScale(24),
+    paddingTop: verticalScale(2),
   },
   routeDotOuter: {
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(10),
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(11),
     backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: verticalScale(4),
-    ...SHADOWS.sm,
+    borderWidth: 2,
   },
   routeDot: {
     width: moderateScale(10),
     height: moderateScale(10),
     borderRadius: moderateScale(5),
   },
-  routeInfo: {
+  routeLineVertical: {
+    width: moderateScale(2),
     flex: 1,
-    marginLeft: moderateScale(12),
+    backgroundColor: COLORS.gray300,
+    marginVertical: verticalScale(4),
+  },
+  routeDetails: {
+    flex: 1,
+    marginLeft: moderateScale(14),
+  },
+  routeStop: {
+    paddingVertical: verticalScale(2),
+  },
+  routeStopDivider: {
+    height: verticalScale(16),
   },
   routeLabel: {
     fontSize: fontScale(11),
@@ -1328,24 +1347,18 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.medium,
     color: COLORS.gray800,
     fontWeight: '500',
-    marginTop: verticalScale(2),
-  },
-  routeConnector: {
-    paddingLeft: moderateScale(9),
-    paddingVertical: moderateScale(1),
-  },
-  routeLine: {
-    width: moderateScale(2),
-    height: verticalScale(20),
-    backgroundColor: COLORS.gray300,
-    marginVertical: verticalScale(2),
+    marginTop: verticalScale(3),
+    lineHeight: fontScale(20),
   },
   // Summary Card
   summaryCard: {
-    backgroundColor: COLORS.gray50,
+    backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     padding: moderateScale(16),
     marginBottom: verticalScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.sm,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -1356,12 +1369,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryIconCircle: {
-    width: moderateScale(36),
-    height: moderateScale(36),
-    borderRadius: moderateScale(18),
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(12),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(6),
+    marginBottom: verticalScale(8),
   },
   summaryLabel: {
     fontSize: fontScale(10),

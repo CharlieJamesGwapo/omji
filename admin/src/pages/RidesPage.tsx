@@ -211,34 +211,46 @@ const RidesPage: React.FC = () => {
             </svg>
           </button>
         </div>
-        <input
-          type="text"
-          placeholder="Search by name, email, pickup, dropoff..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
-        />
+        <div className="relative w-full sm:w-80">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name, email, pickup, dropoff..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-9 py-2.5 sm:py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Rides</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.active}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Active</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.completed}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Completed</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.cancelled}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Cancelled</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 sm:col-span-1">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 col-span-2 sm:col-span-1">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">₱{stats.revenue.toLocaleString()}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Revenue</div>
         </div>
@@ -252,7 +264,7 @@ const RidesPage: React.FC = () => {
             onClick={() => setFilter(fb.key)}
             className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === fb.key
-                ? 'bg-red-600 text-white'
+                ? 'bg-emerald-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -332,7 +344,7 @@ const RidesPage: React.FC = () => {
                   handleStatusUpdate(ride.id, e.target.value);
                 }}
                 disabled={updatingId === ride.id}
-                className="text-sm min-h-[44px] border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm min-h-[44px] border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
@@ -350,17 +362,17 @@ const RidesPage: React.FC = () => {
       <div className="hidden sm:block rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50/80 border-b border-gray-200">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">ID</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Driver</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Route</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehicle</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Fare</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Route</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fare</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -436,7 +448,7 @@ const RidesPage: React.FC = () => {
                         handleStatusUpdate(ride.id, e.target.value);
                       }}
                       disabled={updatingId === ride.id}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="pending">Pending</option>
                       <option value="accepted">Accepted</option>
@@ -505,7 +517,7 @@ const RidesPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white'
+                          ? 'bg-emerald-600 text-white'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -745,7 +757,7 @@ const RidesPage: React.FC = () => {
                     value={selectedRide.status}
                     onChange={(e) => handleStatusUpdate(selectedRide.id, e.target.value)}
                     disabled={updatingId === selectedRide.id}
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="pending">Pending</option>
                     <option value="accepted">Accepted</option>

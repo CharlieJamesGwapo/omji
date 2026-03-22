@@ -200,7 +200,7 @@ type Order struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
 	UserID           uint      `gorm:"index:idx_order_user_status" json:"user_id"`
 	User             User
-	StoreID          uint      `gorm:"index" json:"store_id"`
+	StoreID          uint      `gorm:"index;index:idx_order_store_status,priority:1" json:"store_id"`
 	Store            Store
 	Items            datatypes.JSON `json:"items"` // Array of {item_id, quantity, price}
 	Subtotal         float64   `json:"subtotal"`
@@ -209,7 +209,7 @@ type Order struct {
 	TotalAmount      float64   `json:"total_amount"`
 	PromoID          *uint     `json:"promo_id,omitempty"`
 	Promo            *Promo
-	Status           string    `gorm:"default:'pending';index:idx_order_user_status" json:"status"` // pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
+	Status           string    `gorm:"default:'pending';index:idx_order_user_status;index:idx_order_store_status,priority:2" json:"status"` // pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
 	DeliveryLocation string    `json:"delivery_location"`
 	DeliveryLatitude float64   `json:"delivery_latitude"`
 	DeliveryLongitude float64  `json:"delivery_longitude"`
@@ -242,30 +242,30 @@ type Promo struct {
 // ChatMessage model
 type ChatMessage struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	SenderID  uint      `gorm:"index" json:"sender_id"`
-	ReceiverID uint     `gorm:"index" json:"receiver_id"`
+	SenderID  uint      `gorm:"index;index:idx_chat_sender_created,priority:1" json:"sender_id"`
+	ReceiverID uint     `gorm:"index;index:idx_chat_receiver_created,priority:1" json:"receiver_id"`
 	RideID    *uint     `gorm:"index" json:"ride_id,omitempty"`
 	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `gorm:"index:idx_chat_sender_created,priority:2;index:idx_chat_receiver_created,priority:2" json:"created_at"`
 }
 
 // Notification model
 type Notification struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index" json:"user_id"`
+	UserID    uint      `gorm:"index;index:idx_notification_user_read,priority:1" json:"user_id"`
 	Title     string    `json:"title"`
 	Body      string    `json:"body"`
 	Type      string    `json:"type"` // ride_request, delivery_request, order_update, promo
-	Read      bool      `gorm:"default:false" json:"read"`
+	Read      bool      `gorm:"default:false;index:idx_notification_user_read,priority:2" json:"read"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // Favorite model
 type Favorite struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index" json:"user_id"`
-	Type      string    `json:"type"` // store, driver
-	ItemID    uint      `json:"item_id"` // store_id or driver_id
+	UserID    uint      `gorm:"index;index:idx_favorite_user_type_item,priority:1" json:"user_id"`
+	Type      string    `gorm:"index:idx_favorite_user_type_item,priority:2" json:"type"` // store, driver
+	ItemID    uint      `gorm:"index:idx_favorite_user_type_item,priority:3" json:"item_id"` // store_id or driver_id
 	CreatedAt time.Time `json:"created_at"`
 }
 

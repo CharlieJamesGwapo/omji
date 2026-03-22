@@ -40,7 +40,7 @@ const getMapHTML = (lat: number, lng: number) => `
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" crossorigin="" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #f0f0f0; }
+    html, body, #map { width: 100%; height: 100%; background: #ECEEF1; }
     .pin-wrap {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -100%);
@@ -82,11 +82,13 @@ const getMapHTML = (lat: number, lng: number) => `
       zoomControl: false,
       attributionControl: false
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20,
       keepBuffer: 4,
       updateWhenZooming: false,
-      updateWhenIdle: true
+      updateWhenIdle: true,
+      subdomains: 'abcd',
+      attribution: ''
     }).addTo(map);
 
     // Notify RN when map is ready
@@ -255,7 +257,14 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
         resolveAddress(c.latitude, c.longitude);
       } else {
-        Alert.alert('GPS Slow', 'Could not get location. Move the map manually.');
+        // Try last known position as fallback instead of showing alert
+        const lastKnown = await Location.getLastKnownPositionAsync().catch(() => null);
+        if (lastKnown && 'coords' in lastKnown) {
+          const c = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+          setCoords(c);
+          webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
+          resolveAddress(c.latitude, c.longitude);
+        }
       }
     } catch {
       Alert.alert('Error', 'Failed to get location.');
@@ -336,8 +345,12 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
 
       {/* Bottom Card */}
       <View style={styles.bottomCard}>
+        <View style={styles.handleBar} />
         <View style={styles.addressRow}>
-          <View style={styles.addressDot} />
+          <View style={styles.addressDotContainer}>
+            <View style={styles.addressDot} />
+            <View style={styles.addressDotPulse} />
+          </View>
           <View style={{ flex: 1 }}>
             {resolving ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -437,29 +450,50 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderTopLeftRadius: moderateScale(20),
-    borderTopRightRadius: moderateScale(20),
+    borderTopLeftRadius: moderateScale(24),
+    borderTopRightRadius: moderateScale(24),
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
-    paddingTop: verticalScale(16),
-    paddingBottom: Platform.OS === 'ios' ? verticalScale(28) : verticalScale(14),
+    paddingTop: verticalScale(8),
+    paddingBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(16),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  handleBar: {
+    width: moderateScale(36),
+    height: moderateScale(4),
+    borderRadius: moderateScale(2),
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+    marginBottom: verticalScale(14),
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: verticalScale(14),
+    marginBottom: verticalScale(16),
     gap: moderateScale(12),
+  },
+  addressDotContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: moderateScale(20),
+    height: moderateScale(20),
+    marginTop: 2,
   },
   addressDot: {
     width: moderateScale(12),
     height: moderateScale(12),
     borderRadius: moderateScale(6),
     backgroundColor: '#EF4444',
-    marginTop: 4,
+  },
+  addressDotPulse: {
+    position: 'absolute',
+    width: moderateScale(20),
+    height: moderateScale(20),
+    borderRadius: moderateScale(10),
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   addressLabel: {
     fontSize: fontScale(11),
@@ -484,11 +518,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: moderateScale(8),
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   confirmText: {
     color: '#fff',
     fontSize: fontScale(16),
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

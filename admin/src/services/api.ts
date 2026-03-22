@@ -218,4 +218,10 @@ export const adminService = {
   deletePaymentConfig: (id: number) => API.delete(`/admin/payment-configs/${id}`),
 };
 
+// Utility to clear all cache (useful for manual refresh)
+export const clearCache = () => invalidateCache();
+
+// Health check
+export const healthCheck = () => axios.get(`${API_URL.replace('/api/v1', '')}/health`, { timeout: 5000 });
+
 export default API;

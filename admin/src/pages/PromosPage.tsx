@@ -56,8 +56,12 @@ const PromosPage: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.discount_type === 'percentage' && (form.discount_value < 0 || form.discount_value > 100)) {
-      toast.error('Percentage discount must be between 0 and 100');
+    if (form.discount_value < 0) {
+      toast.error('Discount value cannot be negative');
+      return;
+    }
+    if (form.discount_type === 'percentage' && form.discount_value > 100) {
+      toast.error('Percentage discount cannot exceed 100');
       return;
     }
     if (form.start_date && form.end_date && new Date(form.end_date) <= new Date(form.start_date)) {
@@ -82,8 +86,12 @@ const PromosPage: React.FC = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPromo) return;
-    if (form.discount_type === 'percentage' && (form.discount_value < 0 || form.discount_value > 100)) {
-      toast.error('Percentage discount must be between 0 and 100');
+    if (form.discount_value < 0) {
+      toast.error('Discount value cannot be negative');
+      return;
+    }
+    if (form.discount_type === 'percentage' && form.discount_value > 100) {
+      toast.error('Percentage discount cannot exceed 100');
       return;
     }
     if (form.start_date && form.end_date && new Date(form.end_date) <= new Date(form.start_date)) {
@@ -155,7 +163,33 @@ const PromosPage: React.FC = () => {
     );
   });
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading promos...</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="space-y-2">
+            <div className="h-7 w-36 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <div className="h-10 w-full sm:w-64 bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-10 w-36 bg-gray-200 rounded-lg animate-pulse" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-gray-100">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4" />
+                <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
+              </div>
+              <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -165,16 +199,28 @@ const PromosPage: React.FC = () => {
           <p className="text-gray-500 text-sm">{promos.length} total promos</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="Search promos..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
-          />
+          <div className="relative w-full sm:w-64">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search promos..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button
             onClick={() => { if (showForm && !editingPromo) { resetForm(); } else { setEditingPromo(null); setForm({ code: '', description: '', discount_type: 'percentage', discount_value: 0, minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true, start_date: '', end_date: '' }); setShowForm(true); } }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm sm:text-base w-full sm:w-auto"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm sm:text-base w-full sm:w-auto"
           >
             {showForm && !editingPromo ? 'Cancel' : '+ Create Promo'}
           </button>
@@ -185,17 +231,17 @@ const PromosPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <h2 className="text-lg font-bold mb-4">{editingPromo ? 'Edit Promo Code' : 'New Promo Code'}</h2>
           <form onSubmit={editingPromo ? handleUpdate : handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
-            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
-            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600">
+            <input placeholder="Code (e.g., RIDE50)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" required />
+            <input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" required />
+            <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="percentage">Percentage</option>
               <option value="fixed">Fixed Amount</option>
             </select>
-            <input type="number" placeholder="Discount Value" value={form.discount_value ?? ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
-            <input type="number" placeholder="Min Amount" value={form.minimum_amount ?? ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
-            <input type="number" placeholder="Max Discount" value={form.max_discount ?? ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
-            <input type="number" placeholder="Usage Limit" value={form.usage_limit ?? ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" />
-            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600">
+            <input type="number" placeholder="Discount Value" value={form.discount_value ?? ''} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" required />
+            <input type="number" placeholder="Min Amount" value={form.minimum_amount ?? ''} onChange={(e) => setForm({ ...form, minimum_amount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input type="number" placeholder="Max Discount" value={form.max_discount ?? ''} onChange={(e) => setForm({ ...form, max_discount: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input type="number" placeholder="Usage Limit" value={form.usage_limit ?? ''} onChange={(e) => setForm({ ...form, usage_limit: Number(e.target.value) })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+            <select value={form.applicable_to} onChange={(e) => setForm({ ...form, applicable_to: e.target.value })} className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="all">All Services</option>
               <option value="rides">Rides Only</option>
               <option value="deliveries">Deliveries Only</option>
@@ -203,11 +249,11 @@ const PromosPage: React.FC = () => {
             </select>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Start Date</label>
-              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
+              <input type="datetime-local" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" required />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">End Date</label>
-              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-600" required />
+              <input type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" required />
             </div>
             <div className="flex items-center gap-3 md:col-span-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -215,13 +261,13 @@ const PromosPage: React.FC = () => {
                   type="checkbox"
                   checked={form.is_active}
                   onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="w-4 h-4 text-red-600 rounded focus:ring-red-600"
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                 />
                 <span className="text-sm text-gray-700">Active</span>
               </label>
             </div>
             <div className="flex gap-3 md:col-span-2">
-              <button type="submit" disabled={saving} className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={saving} className="flex-1 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 {saving ? 'Saving...' : editingPromo ? 'Update Promo' : 'Create Promo'}
               </button>
               {editingPromo && (

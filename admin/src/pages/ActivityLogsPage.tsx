@@ -221,34 +221,46 @@ const ActivityLogsPage: React.FC = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Activity Logs</h1>
           <p className="text-gray-500 text-sm mt-1">{filteredLogs.length} activities recorded</p>
         </div>
-        <input
-          type="text"
-          placeholder="Search by name, action, or details..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm sm:text-base"
-        />
+        <div className="relative w-full sm:w-80">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name, action, or details..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-9 py-2.5 sm:py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.total}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Total Activities</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.ride}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Rides</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.delivery}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Deliveries</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.order}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Orders</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 lg:col-span-1">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 col-span-2 lg:col-span-1">
           <div className="text-2xl sm:text-3xl font-bold text-gray-900">{counts.registration}</div>
           <div className="text-gray-500 text-xs sm:text-sm mt-1">Registrations</div>
         </div>
@@ -262,7 +274,7 @@ const ActivityLogsPage: React.FC = () => {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-4 py-2.5 min-h-[40px] rounded-lg text-sm font-medium transition-all ${
               filter === f.key
-                ? 'bg-red-600 text-white shadow-sm'
+                ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
             }`}
           >
@@ -437,7 +449,7 @@ const ActivityLogsPage: React.FC = () => {
                       onClick={() => setCurrentPage(page)}
                       className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
                         currentPage === page
-                          ? 'bg-red-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-sm'
                           : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                       }`}
                     >

@@ -476,6 +476,10 @@ func GetNearbyDrivers(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Valid latitude and longitude are required"})
 			return
 		}
+		if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Latitude must be -90 to 90, longitude must be -180 to 180"})
+			return
+		}
 
 		var drivers []models.Driver
 		query := db.Where("is_verified = ? AND is_available = ?", true, true).Preload("User")
@@ -625,29 +629,13 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot cancel ride in " + ride.Status + " status"})
 			return
 		}
-		// Free the driver if one was assigned
-		if ride.DriverID != nil {
-			if err := db.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Update("is_available", true).Error; err != nil {
-				log.Printf("Failed to free driver %d on ride cancel: %v", *ride.DriverID, err)
-			}
-		}
+		freeDriver(db, ride.DriverID)
 		if err := db.Model(&ride).Update("status", "cancelled").Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel ride"})
 			return
 		}
-		// Notify driver if one was assigned
-		if ride.DriverID != nil {
-			var driver models.Driver
-			if err := db.Where("id = ?", *ride.DriverID).First(&driver).Error; err == nil {
-				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Ride Cancelled", Body: "The passenger cancelled the ride from " + ride.PickupLocation + ".", Type: "ride_cancelled"}).Error; err != nil {
-					log.Printf("Failed to create ride cancel notification for driver: %v", err)
-				}
-			}
-		}
-		// Notify user
-		if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Cancelled", Body: "Your ride has been cancelled.", Type: "ride_cancelled"}).Error; err != nil {
-			log.Printf("Failed to create ride cancel notification: %v", err)
-		}
+		notifyDriver(db, ride.DriverID, "Ride Cancelled", "The passenger cancelled the ride from "+ride.PickupLocation+".", "ride_cancelled")
+		notifyUser(db, ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
 	}
 }
@@ -677,13 +665,8 @@ func RateRide(db *gorm.DB) gin.HandlerFunc {
 				return err
 			}
 			if ride.DriverID != nil {
-				var driver models.Driver
-				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *ride.DriverID).Error == nil {
-					newTotal := driver.TotalRatings + 1
-					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-					if err := tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal}).Error; err != nil {
-						return err
-					}
+				if err := updateDriverRating(tx, *ride.DriverID, input.Rating); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -1026,28 +1009,13 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivery not found or cannot cancel"})
 			return
 		}
-		if d.DriverID != nil {
-			if err := db.Model(&models.Driver{}).Where("id = ?", *d.DriverID).Update("is_available", true).Error; err != nil {
-				log.Printf("Failed to free driver %d on delivery cancel: %v", *d.DriverID, err)
-			}
-		}
+		freeDriver(db, d.DriverID)
 		if err := db.Model(&d).Update("status", "cancelled").Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel delivery"})
 			return
 		}
-		// Notify driver if one was assigned
-		if d.DriverID != nil {
-			var driver models.Driver
-			if err := db.Where("id = ?", *d.DriverID).First(&driver).Error; err == nil {
-				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Delivery Cancelled", Body: "The customer cancelled the delivery from " + d.PickupLocation + ".", Type: "delivery_cancelled"}).Error; err != nil {
-					log.Printf("Failed to create delivery cancel notification for driver: %v", err)
-				}
-			}
-		}
-		// Notify user
-		if err := db.Create(&models.Notification{UserID: d.UserID, Title: "Delivery Cancelled", Body: "Your delivery has been cancelled.", Type: "delivery_cancelled"}).Error; err != nil {
-			log.Printf("Failed to create delivery cancel notification: %v", err)
-		}
+		notifyDriver(db, d.DriverID, "Delivery Cancelled", "The customer cancelled the delivery from "+d.PickupLocation+".", "delivery_cancelled")
+		notifyUser(db, d.UserID, "Delivery Cancelled", "Your delivery has been cancelled.", "delivery_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
 	}
 }
@@ -1076,13 +1044,8 @@ func RateDelivery(db *gorm.DB) gin.HandlerFunc {
 				return err
 			}
 			if d.DriverID != nil {
-				var driver models.Driver
-				if tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, *d.DriverID).Error == nil {
-					newTotal := driver.TotalRatings + 1
-					newRating := ((driver.Rating * float64(driver.TotalRatings)) + input.Rating) / float64(newTotal)
-					if err := tx.Model(&driver).Updates(map[string]interface{}{"rating": newRating, "total_ratings": newTotal}).Error; err != nil {
-						return err
-					}
+				if err := updateDriverRating(tx, *d.DriverID, input.Rating); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -1799,7 +1762,9 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
 					return err
 				}
-				tx.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"})
+				if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"}).Error; err != nil {
+					log.Printf("Failed to create ride reassign notification: %v", err)
+				}
 				return nil
 			})
 			if txErr != nil {
@@ -1819,7 +1784,9 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
 					return err
 				}
-				tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"})
+				if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"}).Error; err != nil {
+					log.Printf("Failed to create delivery reassign notification: %v", err)
+				}
 				return nil
 			})
 			if txErr != nil {
@@ -2792,6 +2759,22 @@ func CreatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		if promo.Code == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Promo code is required"})
+			return
+		}
+		if promo.DiscountValue < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Discount value cannot be negative"})
+			return
+		}
+		if promo.DiscountType == "percentage" && promo.DiscountValue > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Percentage discount cannot exceed 100"})
+			return
+		}
+		if promo.MaxDiscount < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Max discount cannot be negative"})
+			return
+		}
 		if err := db.Create(&promo).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create promo"})
 			return
@@ -3146,6 +3129,15 @@ func AdminUpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, accepted, driver_arrived, in_progress, completed, cancelled"})
 			return
 		}
+		// Prevent modifying terminal statuses
+		if ride.Status == "completed" && input.Status != "completed" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a completed ride"})
+			return
+		}
+		if ride.Status == "cancelled" && input.Status != "cancelled" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a cancelled ride"})
+			return
+		}
 		ride.Status = input.Status
 		if input.Status == "completed" {
 			now := time.Now()
@@ -3180,6 +3172,15 @@ func AdminUpdateDeliveryStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, accepted, driver_arrived, picked_up, in_progress, completed, cancelled"})
 			return
 		}
+		// Prevent modifying terminal statuses
+		if delivery.Status == "completed" && input.Status != "completed" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a completed delivery"})
+			return
+		}
+		if delivery.Status == "cancelled" && input.Status != "cancelled" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a cancelled delivery"})
+			return
+		}
 		delivery.Status = input.Status
 		if input.Status == "completed" {
 			now := time.Now()
@@ -3211,6 +3212,15 @@ func AdminUpdateOrderStatus(db *gorm.DB) gin.HandlerFunc {
 		validOrderStatuses := map[string]bool{"pending": true, "confirmed": true, "preparing": true, "ready": true, "out_for_delivery": true, "delivered": true, "cancelled": true}
 		if !validOrderStatuses[input.Status] {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled"})
+			return
+		}
+		// Prevent modifying terminal statuses
+		if order.Status == "delivered" && input.Status != "delivered" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a delivered order"})
+			return
+		}
+		if order.Status == "cancelled" && input.Status != "cancelled" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot change status of a cancelled order"})
 			return
 		}
 		order.Status = input.Status
@@ -3565,7 +3575,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 									if wallet.Balance >= fare {
 										wallet.Balance -= fare
 										if err := tx.Save(&wallet).Error; err == nil {
-											tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"})
+											if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"}).Error; err != nil {
+												log.Printf("Failed to create wallet transaction for WS ride payment: %v", err)
+											}
 										}
 									} else {
 										updates["payment_method"] = "cash"
@@ -3587,7 +3599,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 							nTitle, nBody = "Ride Completed", "Your ride has been completed."
 						}
 						if nTitle != "" {
-							tx.Create(&models.Notification{UserID: ride.UserID, Title: nTitle, Body: nBody, Type: "ride_update"})
+							if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: nTitle, Body: nBody, Type: "ride_update"}).Error; err != nil {
+								log.Printf("Failed to create WS ride status notification: %v", err)
+							}
 						}
 						return nil
 					}); err != nil {
@@ -3625,7 +3639,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 										if wallet.Balance >= delivery.DeliveryFee {
 											wallet.Balance -= delivery.DeliveryFee
 											if err := tx.Save(&wallet).Error; err == nil {
-												tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"})
+												if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"}).Error; err != nil {
+													log.Printf("Failed to create wallet transaction for WS delivery payment: %v", err)
+												}
 											}
 										} else {
 											updates["payment_method"] = "cash"
@@ -3649,7 +3665,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 								dTitle, dBody = "Delivery Completed", "Your delivery has been completed."
 							}
 							if dTitle != "" {
-								tx.Create(&models.Notification{UserID: delivery.UserID, Title: dTitle, Body: dBody, Type: "delivery_update"})
+								if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: dTitle, Body: dBody, Type: "delivery_update"}).Error; err != nil {
+									log.Printf("Failed to create WS delivery status notification: %v", err)
+								}
 							}
 							return nil
 						}); err != nil {
@@ -3752,6 +3770,18 @@ func AdminCreateRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_type is required for rides"})
 			return
 		}
+		if input.BaseFare < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "base_fare cannot be negative"})
+			return
+		}
+		if input.RatePerKm < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "rate_per_km cannot be negative"})
+			return
+		}
+		if input.MinimumFare < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "minimum_fare cannot be negative"})
+			return
+		}
 		if err := db.Create(&input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create rate config. A config for this service/vehicle may already exist."})
 			return
@@ -3772,6 +3802,15 @@ func AdminUpdateRate(db *gorm.DB) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid input"})
 			return
+		}
+		// Validate numeric fields are not negative
+		for _, field := range []string{"base_fare", "rate_per_km", "minimum_fare"} {
+			if val, ok := input[field]; ok {
+				if numVal, ok := val.(float64); ok && numVal < 0 {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": field + " cannot be negative"})
+					return
+				}
+			}
 		}
 		if err := db.Model(&rate).Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update rate config"})

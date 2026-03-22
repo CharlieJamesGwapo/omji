@@ -4,10 +4,85 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+// Simple in-memory rate limiter
+type rateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	limit    int
+	window   time.Duration
+}
+
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	rl := &rateLimiter{
+		requests: make(map[string][]time.Time),
+		limit:    limit,
+		window:   window,
+	}
+	// Cleanup old entries every minute
+	go func() {
+		for {
+			time.Sleep(time.Minute)
+			rl.mu.Lock()
+			now := time.Now()
+			for key, times := range rl.requests {
+				valid := times[:0]
+				for _, t := range times {
+					if now.Sub(t) < rl.window {
+						valid = append(valid, t)
+					}
+				}
+				if len(valid) == 0 {
+					delete(rl.requests, key)
+				} else {
+					rl.requests[key] = valid
+				}
+			}
+			rl.mu.Unlock()
+		}
+	}()
+	return rl
+}
+
+func (rl *rateLimiter) allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	// Filter to only requests within the window
+	times := rl.requests[key]
+	valid := times[:0]
+	for _, t := range times {
+		if now.Sub(t) < rl.window {
+			valid = append(valid, t)
+		}
+	}
+	if len(valid) >= rl.limit {
+		rl.requests[key] = valid
+		return false
+	}
+	rl.requests[key] = append(valid, now)
+	return true
+}
+
+// RateLimitMiddleware limits requests per IP address
+func RateLimitMiddleware(requestsPerMinute int) gin.HandlerFunc {
+	limiter := newRateLimiter(requestsPerMinute, time.Minute)
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !limiter.allow(ip) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests, please try again later"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
 
 func getJWTSecret() string {
 	secret := os.Getenv("JWT_SECRET")

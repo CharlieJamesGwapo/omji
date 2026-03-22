@@ -25,6 +25,9 @@ func main() {
 	// Add CORS middleware
 	router.Use(middleware.CORSMiddleware())
 
+	// Add rate limiting: 120 requests per minute per IP
+	router.Use(middleware.RateLimitMiddleware(120))
+
 	// Ensure uploads directory exists (Render has ephemeral filesystem)
 	os.MkdirAll("./uploads", 0755)
 

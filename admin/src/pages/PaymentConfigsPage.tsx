@@ -281,7 +281,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_name}
                     onChange={e => setForm({ ...form, account_name: e.target.value })}
                     placeholder="e.g. Juan Dela Cruz"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ const PaymentConfigsPage: React.FC = () => {
                     value={form.account_number}
                     onChange={e => setForm({ ...form, account_number: e.target.value })}
                     placeholder="e.g. 09171234567"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                   />
                 </div>
                 <div className="flex items-end">
@@ -314,7 +314,7 @@ const PaymentConfigsPage: React.FC = () => {
                   value={form.qr_code_url}
                   onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
                   placeholder="https://example.com/my-qr-code.png"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
 

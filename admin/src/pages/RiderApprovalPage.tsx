@@ -126,9 +126,38 @@ const RiderApprovalPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <div className="w-10 h-10 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading rider applications...</p>
+      <div className="space-y-6 px-2 sm:px-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div className="space-y-2">
+            <div className="h-7 w-52 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-72 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-full sm:w-64 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-xl animate-pulse" />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-24 bg-gray-200 rounded-lg animate-pulse" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-1/3" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -142,13 +171,25 @@ const RiderApprovalPage: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Review and verify rider documents before approval</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="Search name, email, phone, plate..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2.5 min-h-[44px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 text-sm"
-          />
+          <div className="relative w-full sm:w-64">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search name, email, phone, plate..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 min-h-[44px] border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button
             onClick={loadRiders}
             className="flex-shrink-0 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center gap-2"
@@ -163,15 +204,15 @@ const RiderApprovalPage: React.FC = () => {
 
       {/* Stat Summary Cards */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
           <p className="text-gray-500 text-xs sm:text-sm font-medium">Pending Review</p>
           <p className="text-gray-900 text-xl sm:text-2xl font-bold mt-1">{pendingCount}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
           <p className="text-gray-500 text-xs sm:text-sm font-medium">Verified</p>
           <p className="text-gray-900 text-xl sm:text-2xl font-bold mt-1">{approvedCount}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
           <p className="text-gray-500 text-xs sm:text-sm font-medium">Total</p>
           <p className="text-gray-900 text-xl sm:text-2xl font-bold mt-1">{riders.length}</p>
         </div>
@@ -185,7 +226,7 @@ const RiderApprovalPage: React.FC = () => {
             onClick={() => setFilter(f)}
             className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === f
-                ? 'bg-red-600 text-white'
+                ? 'bg-emerald-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -526,7 +567,7 @@ const RiderApprovalPage: React.FC = () => {
                       const url = docs[docKey];
                       return (
                         <div key={docKey} className={`rounded-xl border-2 overflow-hidden ${url ? 'border-gray-200' : 'border-dashed border-gray-300 bg-gray-50'}`}>
-                          <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                          <div className="px-3 py-2 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
                             <span className="text-xs font-medium text-gray-700">{DOC_LABELS[docKey]}</span>
                             {url ? (
                               <span className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Uploaded</span>
