@@ -42,7 +42,7 @@ export default function NotificationsScreen({ navigation }: any) {
       const data = response.data?.data;
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.log('Error fetching notifications:', error);
+      // Fetch failed - toast will inform user to retry
       showToast('Could not load notifications. Pull down to retry.', 'error');
     } finally {
       setLoading(false);
@@ -152,6 +152,8 @@ export default function NotificationsScreen({ navigation }: any) {
         ]}
         onPress={() => handleMarkRead(item.id)}
         activeOpacity={0.7}
+        accessibilityLabel={`${item.is_read ? '' : 'Unread: '}${item.title}. ${item.body}`}
+        accessibilityRole="button"
       >
         <View style={[styles.iconContainer, { backgroundColor: config.bg }]}>
           <Ionicons name={config.icon as any} size={moderateScale(22)} color={config.color} />
@@ -203,6 +205,9 @@ export default function NotificationsScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.headerBackBtn}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
@@ -215,12 +220,12 @@ export default function NotificationsScreen({ navigation }: any) {
           )}
         </View>
         {unreadCount > 0 ? (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn} accessibilityLabel="Mark all as read" accessibilityRole="button">
             <Ionicons name="checkmark-done" size={moderateScale(18)} color={COLORS.accent} />
             <Text style={styles.markAllText}>Read all</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={onRefresh}>
+          <TouchableOpacity onPress={onRefresh} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Refresh notifications" accessibilityRole="button">
             <Ionicons name="refresh-outline" size={moderateScale(22)} color={COLORS.gray800} />
           </TouchableOpacity>
         )}
@@ -239,7 +244,7 @@ export default function NotificationsScreen({ navigation }: any) {
                 <Text style={styles.emptySubtext}>
                   When you receive notifications about your rides, deliveries, or orders, they will appear here.
                 </Text>
-                <TouchableOpacity style={styles.emptyButton} onPress={onRefresh}>
+                <TouchableOpacity style={styles.emptyButton} onPress={onRefresh} accessibilityLabel="Refresh notifications" accessibilityRole="button">
                   <Ionicons name="refresh-outline" size={moderateScale(18)} color={COLORS.accent} />
                   <Text style={styles.emptyButtonText}>Refresh</Text>
                 </TouchableOpacity>

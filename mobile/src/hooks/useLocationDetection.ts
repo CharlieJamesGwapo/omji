@@ -64,7 +64,7 @@ export function useLocationDetection(): UseLocationDetectionResult {
           });
         }
       } catch (e) {
-        console.log('Auto-detect location failed:', e);
+        // Location detection failed silently - user can pick manually
       } finally {
         if (!cancelled) setDetecting(false);
       }

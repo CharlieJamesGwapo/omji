@@ -221,6 +221,9 @@ export default function ProfileScreen({ navigation }: any) {
                 { text: 'Notifications', onPress: () => navigation.navigate('Notifications') },
                 { text: 'Cancel', style: 'cancel' },
               ])}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Settings"
+              accessibilityRole="button"
             >
               <Ionicons name="settings-outline" size={moderateScale(22)} color={COLORS.white} />
             </TouchableOpacity>
@@ -260,6 +263,8 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.editProfileButton}
             onPress={() => navigation.navigate('EditProfile')}
+            accessibilityLabel="Edit profile"
+            accessibilityRole="button"
           >
             <Ionicons name="create-outline" size={moderateScale(16)} color={COLORS.white} />
             <Text style={styles.editProfileText}>Edit Profile</Text>
@@ -287,6 +292,8 @@ export default function ProfileScreen({ navigation }: any) {
           style={styles.walletCard}
           onPress={() => navigation.navigate('Wallet')}
           activeOpacity={0.85}
+          accessibilityLabel="View wallet"
+          accessibilityRole="button"
         >
           <View style={styles.walletGradient}>
             <View style={styles.walletTop}>
@@ -304,6 +311,8 @@ export default function ProfileScreen({ navigation }: any) {
               <TouchableOpacity
                 style={styles.walletActionButton}
                 onPress={() => navigation.navigate('Wallet')}
+                accessibilityLabel="Top up wallet"
+                accessibilityRole="button"
               >
                 <Ionicons name="add-circle-outline" size={moderateScale(16)} color={COLORS.white} />
                 <Text style={styles.walletActionText}>Top Up</Text>
@@ -312,6 +321,8 @@ export default function ProfileScreen({ navigation }: any) {
               <TouchableOpacity
                 style={styles.walletActionButton}
                 onPress={() => navigation.navigate('Wallet')}
+                accessibilityLabel="View transactions"
+                accessibilityRole="button"
               >
                 <Ionicons name="swap-horizontal-outline" size={moderateScale(16)} color={COLORS.white} />
                 <Text style={styles.walletActionText}>Transactions</Text>
@@ -344,6 +355,8 @@ export default function ProfileScreen({ navigation }: any) {
                     ]}
                     onPress={() => item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.())}
                     activeOpacity={0.6}
+                    accessibilityLabel={item.label}
+                    accessibilityRole="button"
                   >
                     <View style={[styles.menuIconContainer, { backgroundColor: iconBg }]}>
                       <Ionicons name={item.icon as any} size={moderateScale(18)} color={accentColor} />
@@ -358,7 +371,7 @@ export default function ProfileScreen({ navigation }: any) {
         })}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7} accessibilityLabel="Sign out" accessibilityRole="button">
           <View style={styles.logoutIconContainer}>
             <Ionicons name="log-out-outline" size={moderateScale(20)} color={COLORS.error} />
           </View>

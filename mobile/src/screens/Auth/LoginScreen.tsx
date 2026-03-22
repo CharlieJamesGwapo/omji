@@ -248,7 +248,7 @@ export default function LoginScreen({ navigation }: any) {
                 >
                   {banner.message}
                 </Text>
-                <TouchableOpacity onPress={hideBanner} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity onPress={hideBanner} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Dismiss notification" accessibilityRole="button">
                   <Ionicons
                     name="close"
                     size={18}
@@ -284,6 +284,7 @@ export default function LoginScreen({ navigation }: any) {
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
                 autoCapitalize="none"
+                accessibilityLabel="Phone number or email"
               />
             </View>
             {phoneError ? (
@@ -317,10 +318,13 @@ export default function LoginScreen({ navigation }: any) {
                 onBlur={() => setPasswordFocused(false)}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                accessibilityLabel="Password"
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={showPassword ? 'eye' : 'eye-off'}
@@ -334,7 +338,7 @@ export default function LoginScreen({ navigation }: any) {
             ) : null}
 
             {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotButton} onPress={() => Alert.alert('Reset Password', 'To reset your password, please contact support at support@omji.app or call +63 912 345 6789.')}>
+            <TouchableOpacity style={styles.forgotButton} onPress={() => Alert.alert('Reset Password', 'To reset your password, please contact support at support@omji.app or call +63 912 345 6789.')} accessibilityLabel="Forgot password" accessibilityRole="button">
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
@@ -344,9 +348,14 @@ export default function LoginScreen({ navigation }: any) {
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.9}
+              accessibilityLabel={loading ? 'Logging in' : 'Login'}
+              accessibilityRole="button"
             >
               {loading ? (
-                <ActivityIndicator color={COLORS.white} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) }}>
+                  <ActivityIndicator color={COLORS.white} />
+                  <Text style={styles.loginText}>Logging in...</Text>
+                </View>
               ) : (
                 <Text style={styles.loginText}>Login</Text>
               )}
@@ -363,6 +372,8 @@ export default function LoginScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.signupButton}
               onPress={() => navigation.navigate('Register')}
+              accessibilityLabel="Sign up for a new account"
+              accessibilityRole="button"
             >
               <Text style={styles.signupText}>
                 Don't have an account?{' '}
@@ -383,6 +394,8 @@ export default function LoginScreen({ navigation }: any) {
                   ]
                 );
               }}
+              accessibilityLabel="Become a driver"
+              accessibilityRole="button"
             >
               <Ionicons name="car-sport" size={18} color={COLORS.success} />
               <Text style={styles.driverSignupText}>
@@ -542,6 +555,8 @@ const styles = StyleSheet.create({
   forgotButton: {
     alignSelf: 'flex-end',
     marginBottom: verticalScale(16),
+    minHeight: 44,
+    justifyContent: 'center',
   },
   forgotText: {
     fontSize: RESPONSIVE.fontSize.small,
@@ -564,7 +579,7 @@ const styles = StyleSheet.create({
     elevation: moderateScale(5),
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   loginText: {
     fontSize: RESPONSIVE.fontSize.regular,
@@ -594,6 +609,8 @@ const styles = StyleSheet.create({
   // Sign Up
   signupButton: {
     alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   signupText: {
     fontSize: RESPONSIVE.fontSize.medium,

@@ -42,7 +42,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         setDriverData(profileRes.value?.data?.data || {});
       }
     } catch (error) {
-      console.log('Rider data fetch failed:', (error as any).response?.status || (error as any).message);
+      // Fetch failed - toast will inform user to retry
       showToast('Could not load profile data. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -144,6 +144,9 @@ export default function RiderProfileScreen({ navigation }: any) {
               { text: 'Logout', style: 'destructive', onPress: handleLogout },
               { text: 'Cancel', style: 'cancel' },
             ])}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
           >
             <Ionicons name="settings-outline" size={moderateScale(22)} color={COLORS.white} />
           </TouchableOpacity>
@@ -347,6 +350,8 @@ export default function RiderProfileScreen({ navigation }: any) {
                   ]}
                   onPress={() => item.action?.()}
                   activeOpacity={0.7}
+                  accessibilityLabel={item.label}
+                  accessibilityRole="button"
                 >
                   <View style={[styles.menuIconWrap, { backgroundColor: item.iconBg }]}>
                     <Ionicons name={item.icon as any} size={moderateScale(18)} color={item.iconColor} />
@@ -365,7 +370,7 @@ export default function RiderProfileScreen({ navigation }: any) {
         ))}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7} accessibilityLabel="Logout" accessibilityRole="button">
           <View style={styles.logoutIconWrap}>
             <Ionicons name="log-out-outline" size={moderateScale(20)} color={COLORS.error} />
           </View>

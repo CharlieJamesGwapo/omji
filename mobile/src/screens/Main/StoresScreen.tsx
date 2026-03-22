@@ -157,6 +157,9 @@ export default function StoresScreen({ navigation }: any) {
           style={styles.favoritesButton}
           onPress={() => navigation.navigate('Favorites')}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="View favorites"
+          accessibilityRole="button"
         >
           <Ionicons name="heart" size={moderateScale(18)} color={COLORS.primary} />
         </TouchableOpacity>
@@ -184,11 +187,16 @@ export default function StoresScreen({ navigation }: any) {
             onChangeText={setSearchQuery}
             onFocus={handleSearchFocus}
             onBlur={handleSearchBlur}
+            accessibilityLabel="Search stores"
+            accessibilityRole="search"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               style={styles.searchClearButton}
               onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
             >
               <Ionicons name="close-circle" size={moderateScale(18)} color={COLORS.gray400} />
             </TouchableOpacity>
@@ -216,6 +224,9 @@ export default function StoresScreen({ navigation }: any) {
               ]}
               onPress={() => setSelectedCategory(category.id)}
               activeOpacity={0.7}
+              accessibilityLabel={`Filter by ${category.name}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
             >
               <View style={[
                 styles.categoryIconContainer,
@@ -274,6 +285,8 @@ export default function StoresScreen({ navigation }: any) {
                     style={styles.featuredCard}
                     onPress={() => navigation.navigate('StoreDetail', { store })}
                     activeOpacity={0.8}
+                    accessibilityLabel={`Featured store: ${store.name}, rated ${Number(store.rating || 0).toFixed(1)} stars`}
+                    accessibilityRole="button"
                   >
                     {/* Featured Image placeholder */}
                     <View style={[
@@ -355,6 +368,8 @@ export default function StoresScreen({ navigation }: any) {
                 style={styles.storeCard}
                 onPress={() => navigation.navigate('StoreDetail', { store })}
                 activeOpacity={0.7}
+                accessibilityLabel={`${store.name}, ${store.category}, rated ${Number(store.rating || 0).toFixed(1)} stars`}
+                accessibilityRole="button"
               >
                 {/* Store Icon */}
                 <View style={[styles.storeIconArea, { backgroundColor: catStyle ? `${catStyle.gradient}12` : COLORS.gray100 }]}>
@@ -536,6 +551,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: moderateScale(14),
     paddingVertical: verticalScale(10),
+    minHeight: moderateScale(44),
     borderRadius: moderateScale(24),
     backgroundColor: COLORS.white,
     borderWidth: 1,

@@ -141,7 +141,13 @@ export default function PaymentScreen({ route, navigation }: any) {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: brandColor }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <Ionicons name="arrow-back" size={moderateScale(22)} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -214,6 +220,9 @@ export default function PaymentScreen({ route, navigation }: any) {
               style={[styles.copyButton, { borderColor: brandColor }]}
               onPress={() => copyToClipboard(displayAmount.toFixed(2), 'amount')}
               activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel={copiedField === 'amount' ? 'Amount copied' : 'Copy payment amount'}
+              accessibilityRole="button"
             >
               <Ionicons
                 name={copiedField === 'amount' ? 'checkmark' : 'copy-outline'}
@@ -246,6 +255,9 @@ export default function PaymentScreen({ route, navigation }: any) {
                       onPress={() => copyToClipboard(config.account_number, 'account')}
                       style={[styles.copySmallBtn, { backgroundColor: brandColor }]}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityLabel={copiedField === 'account' ? 'Account number copied' : 'Copy account number'}
+                      accessibilityRole="button"
                     >
                       <Ionicons
                         name={copiedField === 'account' ? 'checkmark' : 'copy-outline'}
@@ -267,6 +279,8 @@ export default function PaymentScreen({ route, navigation }: any) {
             style={[styles.openAppButton, { backgroundColor: brandColor }]}
             onPress={openApp}
             activeOpacity={0.85}
+            accessibilityLabel={`Open ${brandName} app`}
+            accessibilityRole="button"
           >
             <Ionicons
               name={isGcash ? 'phone-portrait-outline' : 'card-outline'}
@@ -340,6 +354,8 @@ export default function PaymentScreen({ route, navigation }: any) {
             style={[styles.doneButton, { backgroundColor: brandColor }]}
             onPress={handleDone}
             activeOpacity={0.8}
+            accessibilityLabel="Confirm payment completed"
+            accessibilityRole="button"
           >
             <Ionicons
               name="checkmark-circle"

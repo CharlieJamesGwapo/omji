@@ -14,6 +14,9 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+
+	// Validate JWT_SECRET is set (will log.Fatal if missing)
+	config.GetJWTSecret()
 	
 	// Initialize database
 	database := db.InitDB(cfg)
@@ -109,6 +112,7 @@ func main() {
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
+		// Intentional: UpdateRideStatus handles both ride and delivery status updates
 		protected.PUT("/driver/deliveries/:id/status", handlers.UpdateRideStatus(database))
 
 		// Wallet routes

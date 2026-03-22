@@ -70,7 +70,7 @@ export default function CartScreen({ route, navigation }: any) {
           setDeliveryAddress(parts.length > 0 ? parts.join(', ') : 'Current Location');
         }
       } catch (e) {
-        console.log('Location error:', e);
+        // Location detection failed silently - delivery address stays as default
       }
     })();
   }, []);
@@ -192,6 +192,9 @@ export default function CartScreen({ route, navigation }: any) {
         <TouchableOpacity
           style={styles.headerBackBtn}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
@@ -201,13 +204,18 @@ export default function CartScreen({ route, navigation }: any) {
             <Text style={styles.headerSubtitle}>{itemCount} item{itemCount !== 1 ? 's' : ''}</Text>
           )}
         </View>
-        <TouchableOpacity onPress={() => {
-          if (cartItems.length === 0) return;
-          Alert.alert('Clear Cart', 'Remove all items from your cart?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Clear', style: 'destructive', onPress: () => setCartItems([]) },
-          ]);
-        }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (cartItems.length === 0) return;
+            Alert.alert('Clear Cart', 'Remove all items from your cart?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Clear', style: 'destructive', onPress: () => setCartItems([]) },
+            ]);
+          }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Clear cart"
+          accessibilityRole="button"
+        >
           <Text style={[styles.clearText, cartItems.length === 0 && { opacity: 0.3 }]}>Clear</Text>
         </TouchableOpacity>
       </View>
@@ -274,6 +282,9 @@ export default function CartScreen({ route, navigation }: any) {
                 <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removeItem(item.id)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel={`Remove ${item.name} from cart`}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="trash-outline" size={moderateScale(16)} color={COLORS.error} />
                 </TouchableOpacity>
@@ -281,15 +292,21 @@ export default function CartScreen({ route, navigation }: any) {
                   <TouchableOpacity
                     style={styles.quantityButton}
                     onPress={() => updateQuantity(item.id, -1)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 0 }}
+                    accessibilityLabel={`Decrease quantity of ${item.name}`}
+                    accessibilityRole="button"
                   >
                     <Ionicons name="remove" size={moderateScale(16)} color={COLORS.primary} />
                   </TouchableOpacity>
                   <View style={styles.quantityDisplay}>
-                    <Text style={styles.quantity}>{item.quantity}</Text>
+                    <Text style={styles.quantity} accessibilityLabel={`Quantity: ${item.quantity}`}>{item.quantity}</Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.quantityButton, styles.quantityButtonAdd]}
                     onPress={() => updateQuantity(item.id, 1)}
+                    hitSlop={{ top: 8, bottom: 8, left: 0, right: 8 }}
+                    accessibilityLabel={`Increase quantity of ${item.name}`}
+                    accessibilityRole="button"
                   >
                     <Ionicons name="add" size={moderateScale(16)} color={COLORS.white} />
                   </TouchableOpacity>
@@ -308,6 +325,8 @@ export default function CartScreen({ route, navigation }: any) {
               <TouchableOpacity
                 style={styles.browseButton}
                 onPress={() => navigation.goBack()}
+                accessibilityLabel="Back to store"
+                accessibilityRole="button"
               >
                 <Ionicons name="storefront-outline" size={moderateScale(18)} color={COLORS.white} />
                 <Text style={styles.browseButtonText}>Back to Store</Text>
@@ -391,9 +410,14 @@ export default function CartScreen({ route, navigation }: any) {
             onPress={handleCheckout}
             disabled={checkingOut}
             activeOpacity={0.8}
+            accessibilityLabel={checkingOut ? 'Processing order' : `Place order for ${total.toFixed(2)} pesos`}
+            accessibilityRole="button"
           >
             {checkingOut ? (
-              <ActivityIndicator color={COLORS.white} />
+              <>
+                <ActivityIndicator color={COLORS.white} />
+                <Text style={styles.checkoutButtonText}>Processing...</Text>
+              </>
             ) : (
               <>
                 <Ionicons name="bag-check" size={moderateScale(20)} color={COLORS.white} />
@@ -629,8 +653,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200,
   },
   quantityButton: {
-    width: moderateScale(32),
-    height: moderateScale(32),
+    width: moderateScale(36),
+    height: moderateScale(36),
     borderRadius: RESPONSIVE.borderRadius.small,
     alignItems: 'center',
     justifyContent: 'center',
@@ -651,9 +675,9 @@ const styles = StyleSheet.create({
     color: COLORS.gray800,
   },
   removeButton: {
-    width: moderateScale(32),
-    height: moderateScale(32),
-    borderRadius: moderateScale(16),
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     backgroundColor: COLORS.errorBg,
     alignItems: 'center',
     justifyContent: 'center',

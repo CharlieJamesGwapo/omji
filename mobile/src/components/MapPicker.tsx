@@ -177,7 +177,9 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
           webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
           resolveAddress(c.latitude, c.longitude);
         }
-      } catch {} finally {
+      } catch {
+        // Location permission denied or unavailable - map still usable with manual selection
+      } finally {
         setInitializing(false);
       }
     })();
@@ -220,7 +222,9 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         setMapReady(true);
         setInitializing(false);
       }
-    } catch {}
+    } catch {
+      // Ignore malformed WebView messages
+    }
   }, [debouncedResolveAddress]);
 
   const handleSearch = async () => {

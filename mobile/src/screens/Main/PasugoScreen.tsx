@@ -66,7 +66,7 @@ export default function PasugoScreen({ navigation }: any) {
           });
         }
       } catch (e) {
-        console.log('Auto-detect location failed:', e);
+        // Location detection failed silently - user can pick manually
       } finally {
         setDetectingLocation(false);
       }
@@ -127,7 +127,7 @@ export default function PasugoScreen({ navigation }: any) {
             setActiveDelivery(null);
           }
         } catch (e) {
-          console.log('Failed to fetch active deliveries:', e);
+          // Silently ignore - will retry on next focus
         }
       })();
     });
@@ -380,7 +380,13 @@ export default function PasugoScreen({ navigation }: any) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -397,6 +403,8 @@ export default function PasugoScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.activeBanner}
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: activeDelivery.id, pickup: activeDelivery.pickup_location, dropoff: activeDelivery.dropoff_location, fare: activeDelivery.delivery_fee })}
+            accessibilityLabel="Active delivery in progress, tap to track"
+            accessibilityRole="button"
           >
             <View style={[styles.activeBannerDot, { backgroundColor: '#10B981' }]} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
@@ -410,7 +418,7 @@ export default function PasugoScreen({ navigation }: any) {
         {/* Pickup Location */}
         <View style={styles.section}>
           <Text style={styles.label}>Pickup Location *</Text>
-          <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)}>
+          <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)} accessibilityLabel={pickupLocation.address ? `Pickup location: ${pickupLocation.address}` : 'Select pickup location'} accessibilityRole="button">
             <Ionicons name="location-outline" size={20} color="#10B981" />
             {detectingLocation ? (
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: moderateScale(12) }}>
@@ -429,7 +437,7 @@ export default function PasugoScreen({ navigation }: any) {
         {/* Dropoff Location */}
         <View style={styles.section}>
           <Text style={styles.label}>Dropoff Location *</Text>
-          <TouchableOpacity style={styles.inputContainer} onPress={() => setShowDropoffMap(true)}>
+          <TouchableOpacity style={styles.inputContainer} onPress={() => setShowDropoffMap(true)} accessibilityLabel={dropoffLocation.address ? `Dropoff location: ${dropoffLocation.address}` : 'Select dropoff location'} accessibilityRole="button">
             <Ionicons name="flag-outline" size={20} color="#EF4444" />
             <Text style={[styles.input, !dropoffLocation.address && styles.placeholder]} numberOfLines={1}>
               {dropoffLocation.address || 'Select dropoff on map'}
@@ -458,8 +466,10 @@ export default function PasugoScreen({ navigation }: any) {
             {sizeOptions.map((opt) => (
               <TouchableOpacity
                 key={opt.id}
-                style={[styles.sizeCard, itemSize === opt.id && styles.sizeCardActive]}
+                style={[styles.sizeCard, itemSize === opt.id && styles.sizeCardActive, { minHeight: moderateScale(44) }]}
                 onPress={() => setItemSize(opt.id)}
+                accessibilityLabel={`${opt.label} package size: ${opt.desc}${itemSize === opt.id ? ', selected' : ''}`}
+                accessibilityRole="button"
               >
                 <Ionicons name={opt.icon as any} size={24} color={itemSize === opt.id ? '#10B981' : '#6B7280'} />
                 <Text style={[styles.sizeName, itemSize === opt.id && { color: '#10B981' }]}>{opt.label}</Text>
@@ -488,7 +498,7 @@ export default function PasugoScreen({ navigation }: any) {
         {/* Item Photo */}
         <View style={styles.section}>
           <Text style={styles.label}>Item Photo (Optional)</Text>
-          <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
+          <TouchableOpacity style={styles.photoButton} onPress={pickImage} accessibilityLabel={itemPhoto ? 'Change item photo' : 'Upload item photo'} accessibilityRole="button">
             {itemPhoto ? (
               <Image source={{ uri: itemPhoto }} style={styles.photoPreview} />
             ) : (
@@ -526,7 +536,7 @@ export default function PasugoScreen({ navigation }: any) {
             <View style={[styles.inputContainer, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
               <Ionicons name="pricetag" size={20} color="#10B981" />
               <Text style={[styles.input, { color: '#065F46', fontWeight: '600' }]}>{promoCode} (-₱{promoDiscount.toFixed(0)})</Text>
-              <TouchableOpacity onPress={handleRemovePromo}>
+              <TouchableOpacity onPress={handleRemovePromo} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Remove promo code" accessibilityRole="button">
                 <Ionicons name="close-circle" size={22} color="#EF4444" />
               </TouchableOpacity>
             </View>
@@ -534,7 +544,7 @@ export default function PasugoScreen({ navigation }: any) {
             <View style={styles.inputContainer}>
               <Ionicons name="pricetag-outline" size={20} color="#10B981" />
               <TextInput style={styles.input} placeholder="Enter promo code" value={promoCode} onChangeText={setPromoCode} autoCapitalize="characters" />
-              <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()}>
+              <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Apply promo code" accessibilityRole="button">
                 {applyingPromo ? (
                   <ActivityIndicator size="small" color="#10B981" />
                 ) : (
@@ -592,6 +602,8 @@ export default function PasugoScreen({ navigation }: any) {
           onPress={handleBookDelivery}
           disabled={loading || !!activeDelivery}
           activeOpacity={0.85}
+          accessibilityLabel={`Book delivery${estimatedFare > 0 ? `, estimated fare ${estimatedFare.toFixed(0)} pesos` : ''}`}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
@@ -613,7 +625,7 @@ export default function PasugoScreen({ navigation }: any) {
       <Modal visible={showPickupMap} animationType="slide">
         <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowPickupMap(false)}>
+            <TouchableOpacity onPress={() => setShowPickupMap(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close pickup map" accessibilityRole="button">
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Pickup Location</Text>
@@ -627,7 +639,7 @@ export default function PasugoScreen({ navigation }: any) {
       <Modal visible={showDropoffMap} animationType="slide">
         <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowDropoffMap(false)}>
+            <TouchableOpacity onPress={() => setShowDropoffMap(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close dropoff map" accessibilityRole="button">
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Dropoff Location</Text>

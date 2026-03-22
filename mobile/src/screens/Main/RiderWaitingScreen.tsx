@@ -7,11 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, moderateScale, fontScale, verticalScale } from '../../utils/responsive';
-import { rideService, API_BASE_URL } from '../../services/api';
+import { rideService } from '../../services/api';
+import { getWebSocketUrl } from '../../utils/websocket';
 import Toast, { ToastType } from '../../components/Toast';
 
 const TIMEOUT_SECONDS = 30;
-const API_BASE = API_BASE_URL;
 
 export default function RiderWaitingScreen({ navigation, route }: any) {
   const { rideId, driverName, driverRating, driverVehicle, bookingData, excludeDriverIds = [] } = route.params;
@@ -92,8 +92,12 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
     let ws: WebSocket | null = null;
     (async () => {
       const token = await AsyncStorage.getItem('token');
-      const wsUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api/v1', '');
-      ws = new WebSocket(`${wsUrl}/ws/tracking/${rideId}?token=${token || ''}`);
+      if (!token) {
+        setToast({ visible: true, message: 'Authentication error. Please log in again.', type: 'error' });
+        return;
+      }
+
+      ws = new WebSocket(getWebSocketUrl(`/ws/tracking/${rideId}`, token));
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
@@ -102,7 +106,9 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
           if (data.type === 'ride_accepted' || data.type === 'ride_declined' || data.type === 'ride_expired') {
             handleResponse(data.type);
           }
-        } catch {}
+        } catch {
+          // Ignore malformed WebSocket messages
+        }
       };
       ws.onerror = () => {};
       ws.onclose = () => {};
@@ -165,7 +171,12 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
           {status === 'expired' && 'Request Expired'}
         </Text>
         {status === 'waiting' && (
-          <Text style={styles.timerText}>{secondsLeft}s remaining</Text>
+          <>
+            <Text style={styles.timerText}>{secondsLeft}s remaining</Text>
+            {secondsLeft <= 10 && (
+              <Text style={styles.timeoutHint}>Still searching for a rider...</Text>
+            )}
+          </>
         )}
         {status === 'accepted' && (
           <Text style={styles.subText}>Connecting you with your rider...</Text>
@@ -204,7 +215,14 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
 
         {/* Cancel button */}
         {status === 'waiting' && (
-          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleCancel}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Cancel ride request"
+            accessibilityRole="button"
+          >
             <Text style={styles.cancelText}>Cancel Request</Text>
           </TouchableOpacity>
         )}
@@ -233,6 +251,7 @@ const styles = StyleSheet.create({
   statusTitle: { fontSize: fontScale(22), fontWeight: '700', color: COLORS.gray900, marginBottom: 8 },
   timerText: { fontSize: fontScale(16), fontWeight: '600', color: COLORS.accent, marginBottom: verticalScale(8) },
   subText: { fontSize: fontScale(14), color: COLORS.gray500, marginBottom: verticalScale(24) },
+  timeoutHint: { fontSize: fontScale(13), color: COLORS.warning, marginBottom: verticalScale(8), fontWeight: '500' as const },
   driverCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
     borderRadius: moderateScale(16), padding: moderateScale(16),

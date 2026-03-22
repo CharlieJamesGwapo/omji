@@ -2,24 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
-
-interface Promo {
-  id: number;
-  code: string;
-  description: string;
-  discount_type: 'percentage' | 'fixed';
-  discount_value: number;
-  minimum_amount: number;
-  max_discount: number;
-  usage_limit: number;
-  usage_count: number;
-  is_active: boolean;
-  applicable_to: string;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { Promo } from '../types';
+import { ITEMS_PER_PAGE } from '../constants';
+import { formatCurrency, getErrorMessage } from '../utils';
+import { SearchInput, ConfirmDialog, EmptyState, PageSkeleton, Pagination } from '../components';
 
 const PromosPage: React.FC = () => {
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -29,6 +15,8 @@ const PromosPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; promoId: number | null }>({ open: false, promoId: null });
   const [form, setForm] = useState({
     code: '', description: '', discount_type: 'percentage', discount_value: 0,
     minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true,
@@ -37,13 +25,15 @@ const PromosPage: React.FC = () => {
 
   useEffect(() => { loadPromos(); }, []);
 
+  // Reset page on search change
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
+
   const loadPromos = async () => {
     try {
       const res = await adminService.getPromos();
       setPromos(res.data.data || []);
     } catch (err) {
-      console.error('Failed to load promos:', err);
-      toast.error('Failed to load promos');
+      toast.error(getErrorMessage(err, 'Failed to load promos'));
     }
     setLoading(false);
   };
@@ -76,8 +66,8 @@ const PromosPage: React.FC = () => {
       if (newPromo) setPromos([newPromo, ...promos]);
       toast.success('Promo created successfully!');
       resetForm();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to create promo');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to create promo'));
     } finally {
       setSaving(false);
     }
@@ -106,8 +96,8 @@ const PromosPage: React.FC = () => {
       if (updated) setPromos(promos.map(p => p.id === updated.id ? updated : p));
       toast.success('Promo updated successfully!');
       resetForm();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update promo');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update promo'));
     } finally {
       setSaving(false);
     }
@@ -137,20 +127,21 @@ const PromosPage: React.FC = () => {
       const updated = res.data.data;
       if (updated) setPromos(promos.map(p => p.id === promo.id ? updated : p));
       toast.success(promo.is_active ? 'Promo deactivated' : 'Promo activated');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update promo status');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update promo status'));
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this promo?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!confirmDialog.promoId) return;
     try {
-      await adminService.deletePromo(id);
-      setPromos(promos.filter(p => p.id !== id));
+      await adminService.deletePromo(confirmDialog.promoId);
+      setPromos(promos.filter(p => p.id !== confirmDialog.promoId));
       toast.success('Promo deleted');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete promo');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete promo'));
     }
+    setConfirmDialog({ open: false, promoId: null });
   };
 
   const filtered = promos.filter((p) => {
@@ -163,32 +154,15 @@ const PromosPage: React.FC = () => {
     );
   });
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="space-y-2">
-            <div className="h-7 w-36 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
-          </div>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <div className="h-10 w-full sm:w-64 bg-gray-200 rounded-xl animate-pulse" />
-            <div className="h-10 w-36 bg-gray-200 rounded-lg animate-pulse" />
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-gray-100">
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4" />
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
-              </div>
-              <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={0} tableRows={5} showSearch />;
   }
 
   return (
@@ -199,25 +173,12 @@ const PromosPage: React.FC = () => {
           <p className="text-gray-500 text-sm">{promos.length} total promos</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search promos..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search promos..."
+            className="w-full sm:w-64"
+          />
           <button
             onClick={() => { if (showForm && !editingPromo) { resetForm(); } else { setEditingPromo(null); setForm({ code: '', description: '', discount_type: 'percentage', discount_value: 0, minimum_amount: 0, max_discount: 0, usage_limit: 100, applicable_to: 'all', is_active: true, start_date: '', end_date: '' }); setShowForm(true); } }}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm sm:text-base w-full sm:w-auto"
@@ -282,36 +243,42 @@ const PromosPage: React.FC = () => {
 
       {/* Mobile card view */}
       <div className="sm:hidden space-y-4">
-        {filtered.map((promo) => (
+        {paginated.map((promo) => (
           <div key={promo.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div className="flex justify-between items-start mb-3">
               <span className="font-mono font-bold text-gray-900">{promo.code}</span>
               <button
                 onClick={() => handleToggleActive(promo)}
                 className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors min-h-[40px] ${promo.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                aria-label={promo.is_active ? 'Deactivate promo' : 'Activate promo'}
               >
                 {promo.is_active ? 'Active' : 'Inactive'}
               </button>
             </div>
             <p className="text-sm text-gray-600 mb-3">{promo.description}</p>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div><span className="text-gray-500">Discount:</span> <span className="font-medium">{promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}</span></div>
+              <div><span className="text-gray-500">Discount:</span> <span className="font-medium">{promo.discount_type === 'percentage' ? `${promo.discount_value}%` : formatCurrency(promo.discount_value)}</span></div>
               <div><span className="text-gray-500">Usage:</span> <span className="font-medium">{promo.usage_count || 0}/{promo.usage_limit}</span></div>
               <div><span className="text-gray-500">Applies to:</span> <span className="capitalize font-medium">{promo.applicable_to}</span></div>
-              {promo.max_discount > 0 && <div><span className="text-gray-500">Max:</span> <span className="font-medium">P{promo.max_discount}</span></div>}
+              {promo.max_discount > 0 && <div><span className="text-gray-500">Max:</span> <span className="font-medium">{formatCurrency(promo.max_discount)}</span></div>}
             </div>
             {(promo.start_date || promo.end_date) && (
               <div className="text-xs text-gray-400 mb-3">
-                {promo.start_date && new Date(promo.start_date).getFullYear() > 1 ? new Date(promo.start_date).toLocaleDateString() : '—'} to {promo.end_date && new Date(promo.end_date).getFullYear() > 1 ? new Date(promo.end_date).toLocaleDateString() : '—'}
+                {promo.start_date && new Date(promo.start_date).getFullYear() > 1 ? new Date(promo.start_date).toLocaleDateString() : '\u2014'} to {promo.end_date && new Date(promo.end_date).getFullYear() > 1 ? new Date(promo.end_date).toLocaleDateString() : '\u2014'}
               </div>
             )}
             <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
               <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium min-h-[40px]">Edit</button>
-              <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium min-h-[40px]">Delete</button>
+              <button onClick={() => setConfirmDialog({ open: true, promoId: promo.id })} className="text-red-600 hover:text-red-800 text-sm font-medium min-h-[40px]">Delete</button>
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <div className="text-center py-12 text-gray-400 bg-white rounded-xl">{search ? 'No promos match your search' : 'No promos yet'}</div>}
+        {filtered.length === 0 && (
+          <EmptyState
+            title={search ? 'No promos match your search' : 'No promos yet'}
+            description={search ? 'Try adjusting your search terms' : 'Create your first promo code to get started'}
+          />
+        )}
       </div>
 
       {/* Desktop table view */}
@@ -330,13 +297,13 @@ const PromosPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((promo) => (
+              {paginated.map((promo) => (
                 <tr key={promo.id} className="hover:bg-gray-50">
                   <td className="px-4 lg:px-6 py-4 text-sm font-mono font-bold text-gray-900">{promo.code}</td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.description}</td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
-                    {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `P${promo.discount_value}`}
-                    {promo.max_discount > 0 && <span className="text-gray-400 text-xs ml-1">(max P{promo.max_discount})</span>}
+                    {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : formatCurrency(promo.discount_value)}
+                    {promo.max_discount > 0 && <span className="text-gray-400 text-xs ml-1">(max {formatCurrency(promo.max_discount)})</span>}
                   </td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">{promo.usage_count || 0} / {promo.usage_limit}</td>
                   <td className="px-4 lg:px-6 py-4"><span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">{promo.applicable_to}</span></td>
@@ -344,6 +311,7 @@ const PromosPage: React.FC = () => {
                     <button
                       onClick={() => handleToggleActive(promo)}
                       className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors ${promo.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      aria-label={promo.is_active ? 'Deactivate promo' : 'Activate promo'}
                     >
                       {promo.is_active ? 'Active' : 'Inactive'}
                     </button>
@@ -351,7 +319,7 @@ const PromosPage: React.FC = () => {
                   <td className="px-4 lg:px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleEdit(promo)} className="text-gray-600 hover:text-gray-900 text-sm font-medium">Edit</button>
-                      <button onClick={() => handleDelete(promo.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+                      <button onClick={() => setConfirmDialog({ open: true, promoId: promo.id })} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -359,8 +327,33 @@ const PromosPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && <div className="text-center py-12 text-gray-400">{search ? 'No promos match your search' : 'No promos yet'}</div>}
+        {filtered.length === 0 && (
+          <EmptyState
+            title={search ? 'No promos match your search' : 'No promos yet'}
+            description={search ? 'Try adjusting your search terms' : 'Create your first promo code to get started'}
+          />
+        )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filtered.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Promo"
+        message="Are you sure you want to delete this promo code? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDialog({ open: false, promoId: null })}
+      />
     </div>
   );
 };

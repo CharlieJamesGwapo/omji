@@ -127,10 +127,19 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
             <Ionicons name="arrow-back" size={moderateScale(24)} color={COLORS.gray800} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.favoriteButton} onPress={toggleFavorite}>
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={toggleFavorite}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            accessibilityRole="button"
+          >
             <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={moderateScale(24)} color={isFavorite ? COLORS.error : COLORS.gray800} />
           </TouchableOpacity>
         </View>
@@ -178,6 +187,9 @@ export default function StoreDetailScreen({ route, navigation }: any) {
                   selectedCategory === category && styles.categoryChipActive,
                 ]}
                 onPress={() => setSelectedCategory(category)}
+                accessibilityLabel={`Filter by ${category}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedCategory === category }}
               >
                 <Text
                   style={[
@@ -196,8 +208,16 @@ export default function StoreDetailScreen({ route, navigation }: any) {
         <View style={styles.productsSection}>
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.store} />
-              <Text style={styles.loadingText}>Loading menu...</Text>
+              {[1, 2, 3].map((i) => (
+                <View key={`menu-skeleton-${i}`} style={[styles.productCard, { opacity: 0.5 }]}>
+                  <View style={[styles.productImage, { backgroundColor: COLORS.gray100 }]} />
+                  <View style={styles.productInfo}>
+                    <View style={{ backgroundColor: COLORS.gray200, height: verticalScale(14), width: '70%', borderRadius: moderateScale(4), marginBottom: verticalScale(6) }} />
+                    <View style={{ backgroundColor: COLORS.gray100, height: verticalScale(12), width: '90%', borderRadius: moderateScale(4), marginBottom: verticalScale(8) }} />
+                    <View style={{ backgroundColor: COLORS.gray200, height: verticalScale(16), width: '30%', borderRadius: moderateScale(4) }} />
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -205,7 +225,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
             <View style={styles.emptyContainer}>
               <Ionicons name="alert-circle-outline" size={moderateScale(48)} color={COLORS.gray300} />
               <Text style={styles.emptyText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={fetchMenu}>
+              <TouchableOpacity style={styles.retryButton} onPress={fetchMenu} accessibilityLabel="Retry loading menu" accessibilityRole="button">
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
@@ -246,6 +266,10 @@ export default function StoreDetailScreen({ route, navigation }: any) {
                         style={[styles.addButton, !product.available && styles.addButtonDisabled]}
                         onPress={() => handleAddToCart(product)}
                         disabled={product.available === false}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityLabel={`Add ${product.name} to cart`}
+                        accessibilityRole="button"
                       >
                         <Ionicons name="add" size={moderateScale(20)} color={COLORS.white} />
                       </TouchableOpacity>
@@ -262,7 +286,13 @@ export default function StoreDetailScreen({ route, navigation }: any) {
 
       {/* Cart Button */}
       {cartCount > 0 && (
-        <TouchableOpacity style={styles.cartButton} onPress={handleViewCart}>
+        <TouchableOpacity
+          style={styles.cartButton}
+          onPress={handleViewCart}
+          activeOpacity={0.8}
+          accessibilityLabel={`View cart with ${cartCount} item${cartCount !== 1 ? 's' : ''}`}
+          accessibilityRole="button"
+        >
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeText}>{cartCount}</Text>
           </View>
@@ -388,8 +418,7 @@ const styles = StyleSheet.create({
     padding: RESPONSIVE.paddingHorizontal,
   },
   loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: verticalScale(60),
+    paddingVertical: verticalScale(8),
   },
   loadingText: {
     fontSize: RESPONSIVE.fontSize.regular,

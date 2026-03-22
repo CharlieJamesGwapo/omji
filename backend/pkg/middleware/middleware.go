@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"omji/config"
 	"os"
 	"strings"
 	"sync"
@@ -85,18 +86,19 @@ func RateLimitMiddleware(requestsPerMinute int) gin.HandlerFunc {
 }
 
 func getJWTSecret() string {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "your-super-secret-key-change-in-production"
-	}
-	return secret
+	return config.GetJWTSecret()
 }
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check both env var names for compatibility
 		allowedOrigin := os.Getenv("CORS_ORIGIN")
 		if allowedOrigin == "" {
-			allowedOrigin = "*"
+			allowedOrigin = os.Getenv("ALLOWED_ORIGINS")
+		}
+		if allowedOrigin == "" {
+			// Default to same-origin only (no cross-origin) when not configured
+			allowedOrigin = "https://omji-admin.onrender.com"
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")

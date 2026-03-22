@@ -157,9 +157,10 @@ export default function RegisterScreen({ navigation }: any) {
             secureTextEntry={options?.secure && !isPasswordVisible}
             keyboardType={options?.keyboard || 'default'}
             autoCapitalize={options?.autoCapitalize || 'none'}
+            accessibilityLabel={placeholder}
           />
           {options?.secure && (
-            <TouchableOpacity onPress={toggleVisibility}>
+            <TouchableOpacity onPress={toggleVisibility} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'} accessibilityRole="button">
               <Ionicons name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.gray400} />
             </TouchableOpacity>
           )}
@@ -186,7 +187,7 @@ export default function RegisterScreen({ navigation }: any) {
         {/* Header */}
         <View style={styles.header}>
           {!registrationSuccess && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
               <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
             </TouchableOpacity>
           )}
@@ -212,6 +213,13 @@ export default function RegisterScreen({ navigation }: any) {
             {renderInput('mail-outline', 'Email Address', email, setEmail, 'email', { keyboard: 'email-address' })}
             {renderInput('phone-portrait-outline', 'Phone Number', phone, setPhone, 'phone', { keyboard: 'phone-pad' })}
             {renderInput('lock-closed-outline', 'Password', password, setPassword, 'password', { secure: true })}
+
+            {/* Password Requirements Hint */}
+            {focusedField === 'password' && password.length === 0 && (
+              <Text style={styles.passwordHint}>
+                Min 6 characters. Use uppercase, numbers, and symbols for a stronger password.
+              </Text>
+            )}
 
             {/* Password Strength Indicator */}
             {password.length > 0 && (
@@ -253,6 +261,8 @@ export default function RegisterScreen({ navigation }: any) {
                 if (fieldErrors.terms) setFieldErrors(prev => { const n = { ...prev }; delete n.terms; return n; });
               }}
               activeOpacity={0.7}
+              accessibilityLabel={agreedToTerms ? 'Agreed to terms and privacy policy' : 'Agree to terms and privacy policy'}
+              accessibilityRole="button"
             >
               <View style={[
                 styles.checkbox,
@@ -292,16 +302,21 @@ export default function RegisterScreen({ navigation }: any) {
               style={[styles.registerButton, (loading || !agreedToTerms || (confirmPassword.length > 0 && password !== confirmPassword)) && styles.registerButtonDisabled]}
               onPress={handleRegister}
               disabled={loading || (confirmPassword.length > 0 && password !== confirmPassword)}
+              accessibilityLabel={loading ? 'Creating account' : 'Create account'}
+              accessibilityRole="button"
             >
               {loading ? (
-                <ActivityIndicator color={COLORS.white} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) }}>
+                  <ActivityIndicator color={COLORS.white} />
+                  <Text style={styles.registerButtonText}>Creating account...</Text>
+                </View>
               ) : (
                 <Text style={styles.registerButtonText}>Create Account</Text>
               )}
             </TouchableOpacity>
 
             {/* Login Link */}
-            <TouchableOpacity style={styles.loginContainer} onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity style={styles.loginContainer} onPress={() => navigation.navigate('Login')} accessibilityLabel="Go to login" accessibilityRole="button">
               <Text style={styles.loginText}>Already have an account? </Text>
               <Text style={styles.loginLink}>Login</Text>
             </TouchableOpacity>
@@ -318,7 +333,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.gray50 },
   scrollContent: { flexGrow: 1, padding: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35) },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(28) },
-  backButton: { marginRight: moderateScale(16) },
+  backButton: { marginRight: moderateScale(16), minWidth: 44, minHeight: 44, justifyContent: 'center' },
   headerTitle: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: COLORS.gray800 },
   formContainer: {
     backgroundColor: COLORS.white, borderRadius: moderateScale(20), padding: RESPONSIVE.paddingHorizontal,
@@ -369,6 +384,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: verticalScale(16),
     paddingHorizontal: moderateScale(2),
+    minHeight: 44,
   },
   checkbox: {
     width: moderateScale(22),
@@ -469,9 +485,17 @@ const styles = StyleSheet.create({
     shadowRadius: moderateScale(6),
     elevation: moderateScale(4),
   },
-  registerButtonDisabled: { opacity: 0.6 },
+  registerButtonDisabled: { opacity: 0.5 },
   registerButtonText: { color: COLORS.white, fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold' },
-  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8) },
+  passwordHint: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginTop: verticalScale(-8),
+    marginBottom: verticalScale(8),
+    paddingHorizontal: moderateScale(4),
+    lineHeight: fontScale(16),
+  },
+  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8), minHeight: 44 },
   loginText: { color: COLORS.gray500, fontSize: RESPONSIVE.fontSize.medium },
   loginLink: { color: COLORS.accent, fontSize: RESPONSIVE.fontSize.medium, fontWeight: 'bold' },
 });

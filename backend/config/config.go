@@ -2,11 +2,30 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/joho/godotenv"
 )
+
+var (
+	jwtSecret     string
+	jwtSecretOnce sync.Once
+)
+
+// GetJWTSecret returns the JWT secret from the JWT_SECRET env var.
+// It log.Fatals if the env var is not set. The value is cached after first call.
+func GetJWTSecret() string {
+	jwtSecretOnce.Do(func() {
+		jwtSecret = os.Getenv("JWT_SECRET")
+		if jwtSecret == "" {
+			log.Fatal("FATAL: JWT_SECRET environment variable is not set")
+		}
+	})
+	return jwtSecret
+}
 
 type Config struct {
 	DBHost     string
@@ -33,7 +52,7 @@ func LoadConfig() *Config {
 		DBPassword: getEnv("DB_PASSWORD", "omji_password"),
 		DBName:     getEnv("DB_NAME", "omji_db"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		JWTSecret:  getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+		JWTSecret:  "", // Use config.GetJWTSecret() instead; validated at startup
 		SMTPHost:   getEnv("SMTP_HOST", "smtp.gmail.com"),
 		SMTPPort:   getEnv("SMTP_PORT", "587"),
 		SMTPUser:   getEnv("SMTP_USER", ""),

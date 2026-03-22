@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +60,11 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to process password"})
 			return
 		}
-		otp := GenerateOTP()
+		otp, otpErr := GenerateOTP()
+		if otpErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate OTP"})
+			return
+		}
 		user := models.User{
 			Name: input.Name, Email: input.Email, Phone: input.Phone,
 			Password: string(hashedPassword), OTPCode: otp,
@@ -193,7 +198,11 @@ func ResendOTP(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
 			return
 		}
-		otp := GenerateOTP()
+		otp, otpErr := GenerateOTP()
+		if otpErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate OTP"})
+			return
+		}
 		if err := db.Model(&user).Updates(map[string]interface{}{
 			"otp_code":   otp,
 			"otp_expiry": time.Now().Add(5 * time.Minute),
@@ -945,7 +954,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			UserID: userID, PickupLocation: pickupLocation, PickupLatitude: pickupLat, PickupLongitude: pickupLng,
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
-			PaymentMethod: paymentMethod, BarcodeNumber: GenerateOTP(), PromoID: promoID,
+			PaymentMethod: paymentMethod, BarcodeNumber: func() string { b, err := GenerateOTP(); if err != nil { return fmt.Sprintf("%06d", 0) }; return b }(), PromoID: promoID,
 		}
 		if err := db.Create(&delivery).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})
@@ -1212,6 +1221,10 @@ func RateOrder(db *gorm.DB) gin.HandlerFunc {
 		var order models.Order
 		if err := db.Where("id = ? AND user_id = ? AND status = ?", c.Param("id"), userID, "delivered").First(&order).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivered order not found"})
+			return
+		}
+		if order.UserRating != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You have already rated this order"})
 			return
 		}
 		txErr := db.Transaction(func(tx *gorm.DB) error {
@@ -3337,7 +3350,10 @@ func TopUpWallet(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
 			return
 		}
-		dbTx.Commit()
+		if err := dbTx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -3392,7 +3408,10 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
 			return
 		}
-		tx.Commit()
+		if err := tx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "transaction": transaction}, "timestamp": time.Now()})
 	}
 }
@@ -3400,7 +3419,25 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 // ===== WEBSOCKET HANDLERS =====
 
 var wsUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // Allow non-browser clients (mobile apps)
+		}
+		allowed := os.Getenv("ALLOWED_ORIGINS")
+		if allowed == "" {
+			allowed = os.Getenv("CORS_ORIGIN")
+		}
+		if allowed == "" || allowed == "*" {
+			return true
+		}
+		for _, o := range strings.Split(allowed, ",") {
+			if strings.TrimSpace(o) == origin {
+				return true
+			}
+		}
+		return false
+	},
 }
 
 type RideTracker struct {
@@ -3425,6 +3462,10 @@ func (t *RideTracker) Remove(rideID string, conn *websocket.Conn) {
 			t.rides[rideID] = append(conns[:i], conns[i+1:]...)
 			break
 		}
+	}
+	// Clean up empty map entry to prevent memory leak
+	if len(t.rides[rideID]) == 0 {
+		delete(t.rides, rideID)
 	}
 }
 
@@ -3499,12 +3540,19 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 			conn.SetReadDeadline(time.Now().Add(45 * time.Second))
 			return nil
 		})
+		done := make(chan struct{})
+		defer close(done)
 		go func() {
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
-			for range ticker.C {
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			for {
+				select {
+				case <-done:
 					return
+				case <-ticker.C:
+					if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+						return
+					}
 				}
 			}
 		}()
@@ -3705,12 +3753,19 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 			conn.SetReadDeadline(time.Now().Add(45 * time.Second))
 			return nil
 		})
+		done := make(chan struct{})
+		defer close(done)
 		go func() {
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
-			for range ticker.C {
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			for {
+				select {
+				case <-done:
 					return
+				case <-ticker.C:
+					if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+						return
+					}
 				}
 			}
 		}()

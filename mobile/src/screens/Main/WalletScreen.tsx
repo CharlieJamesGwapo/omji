@@ -178,12 +178,16 @@ export default function WalletScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Wallet</Text>
-        <TouchableOpacity onPress={onRefresh} style={styles.headerRefreshBtn}>
-          <Ionicons name="refresh-outline" size={22} color={COLORS.gray600} />
+        <TouchableOpacity onPress={onRefresh} style={styles.headerRefreshBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Refresh wallet" accessibilityRole="button">
+          {refreshing ? (
+            <ActivityIndicator size="small" color={COLORS.gray600} />
+          ) : (
+            <Ionicons name="refresh-outline" size={22} color={COLORS.gray600} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -212,6 +216,8 @@ export default function WalletScreen({ navigation }: any) {
                 style={[styles.actionButton, styles.topUpActionBtn]}
                 onPress={() => { setShowTopUp(!showTopUp); setShowWithdraw(false); }}
                 activeOpacity={0.8}
+                accessibilityLabel="Top up wallet"
+                accessibilityRole="button"
               >
                 <View style={styles.actionIconCircle}>
                   <Ionicons name="add" size={moderateScale(20)} color={COLORS.accent} />
@@ -222,6 +228,8 @@ export default function WalletScreen({ navigation }: any) {
                 style={[styles.actionButton, styles.withdrawActionBtn]}
                 onPress={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
                 activeOpacity={0.8}
+                accessibilityLabel="Withdraw funds"
+                accessibilityRole="button"
               >
                 <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                   <Ionicons name="arrow-down" size={moderateScale(20)} color={COLORS.white} />
@@ -247,6 +255,8 @@ export default function WalletScreen({ navigation }: any) {
                     setShowWithdraw(false);
                   }}
                   activeOpacity={0.7}
+                  accessibilityLabel={`Quick top up ${item.label} pesos`}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.quickTopUpCurrency}>{'\u20B1'}</Text>
                   <Text style={styles.quickTopUpValue}>{item.label}</Text>
@@ -261,7 +271,7 @@ export default function WalletScreen({ navigation }: any) {
           <View style={styles.formSection}>
             <View style={styles.formSectionHeader}>
               <Text style={styles.formSectionTitle}>Top Up Wallet</Text>
-              <TouchableOpacity onPress={() => setShowTopUp(false)}>
+              <TouchableOpacity onPress={() => setShowTopUp(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close top up form" accessibilityRole="button">
                 <Ionicons name="close-circle" size={moderateScale(24)} color={COLORS.gray400} />
               </TouchableOpacity>
             </View>
@@ -348,6 +358,8 @@ export default function WalletScreen({ navigation }: any) {
               onPress={handleTopUp}
               disabled={topUpLoading}
               activeOpacity={0.8}
+              accessibilityLabel="Confirm top up"
+              accessibilityRole="button"
             >
               {topUpLoading ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -366,7 +378,7 @@ export default function WalletScreen({ navigation }: any) {
           <View style={styles.formSection}>
             <View style={styles.formSectionHeader}>
               <Text style={styles.formSectionTitle}>Withdraw Funds</Text>
-              <TouchableOpacity onPress={() => setShowWithdraw(false)}>
+              <TouchableOpacity onPress={() => setShowWithdraw(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close withdraw form" accessibilityRole="button">
                 <Ionicons name="close-circle" size={moderateScale(24)} color={COLORS.gray400} />
               </TouchableOpacity>
             </View>
@@ -505,6 +517,8 @@ export default function WalletScreen({ navigation }: any) {
                 style={styles.retryButton}
                 onPress={() => { setLoading(true); fetchWallet(); }}
                 activeOpacity={0.8}
+                accessibilityLabel="Retry loading wallet"
+                accessibilityRole="button"
               >
                 <Ionicons name="refresh" size={moderateScale(16)} color={COLORS.white} />
                 <Text style={styles.retryButtonText}>Retry</Text>
@@ -523,6 +537,8 @@ export default function WalletScreen({ navigation }: any) {
                 style={styles.emptyActionBtn}
                 onPress={() => { setShowTopUp(true); setShowWithdraw(false); }}
                 activeOpacity={0.8}
+                accessibilityLabel="Add funds to get started"
+                accessibilityRole="button"
               >
                 <Ionicons name="add-circle" size={moderateScale(18)} color={COLORS.accent} />
                 <Text style={styles.emptyActionText}>Add funds to get started</Text>
@@ -715,6 +731,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: RESPONSIVE.borderRadius.medium,
     paddingVertical: moderateScale(14),
+    minHeight: moderateScale(44),
     borderWidth: 1.5,
     borderColor: COLORS.gray200,
     shadowColor: COLORS.black,
@@ -778,7 +795,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray50,
     borderRadius: RESPONSIVE.borderRadius.small,
     paddingVertical: moderateScale(12),
+    minHeight: moderateScale(44),
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.gray200,
   },

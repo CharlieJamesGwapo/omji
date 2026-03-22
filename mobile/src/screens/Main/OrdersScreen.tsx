@@ -310,6 +310,8 @@ export default function OrdersScreen({ navigation }: any) {
         key={`${order.type}-${order.id}`}
         style={[styles.orderCard, { borderLeftColor: statusColor, borderLeftWidth: moderateScale(4) }]}
         activeOpacity={0.7}
+        accessibilityLabel={`${order.service} order, status: ${formatStatus(order.status)}, fare: ${(order.fare || 0).toFixed(0)} pesos`}
+        accessibilityRole="button"
         onPress={() => {
           if (order.type === 'ride' || order.type === 'delivery') {
             navigation.navigate('Tracking', {
@@ -416,6 +418,8 @@ export default function OrdersScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.trackButton}
               activeOpacity={0.8}
+              accessibilityLabel="Track order live"
+              accessibilityRole="button"
               onPress={() =>
                 navigation.navigate('Tracking', {
                   type: order.type === 'delivery' ? 'delivery' : 'ride',
@@ -496,7 +500,14 @@ export default function OrdersScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>My Orders</Text>
           <Text style={styles.headerSubtitle}>{orders.length} total order{orders.length !== 1 ? 's' : ''}</Text>
         </View>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={onRefresh}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Refresh orders"
+          accessibilityRole="button"
+        >
           <Ionicons name="refresh-outline" size={moderateScale(20)} color={COLORS.gray600} />
         </TouchableOpacity>
       </View>
@@ -514,6 +525,9 @@ export default function OrdersScreen({ navigation }: any) {
               ]}
               onPress={() => setActiveTab(tab.id)}
               activeOpacity={0.7}
+              accessibilityLabel={`View ${tab.name.toLowerCase()} orders${tab.count > 0 ? `, ${tab.count} items` : ''}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
             >
               <Text style={[styles.tabPillText, isActive && styles.tabPillTextActive]}>
                 {tab.name}

@@ -154,11 +154,14 @@ export default function RideHistoryScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.headerBackBtn}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Activity History</Text>
-        <TouchableOpacity onPress={onRefresh}>
+        <TouchableOpacity onPress={onRefresh} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Refresh history" accessibilityRole="button">
           <Ionicons name="refresh-outline" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
       </View>
@@ -210,6 +213,9 @@ export default function RideHistoryScreen({ navigation }: any) {
                 style={[styles.filterChip, isActive && styles.filterChipActive]}
                 onPress={() => setFilterType(option.id)}
                 activeOpacity={0.7}
+                accessibilityLabel={`Filter: ${option.label}, ${count} items`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
               >
                 <Ionicons
                   name={option.icon as any}
@@ -241,6 +247,8 @@ export default function RideHistoryScreen({ navigation }: any) {
               <TouchableOpacity
                 key={ride._key || `${ride._type}-${ride.id}`}
                 style={styles.rideCard}
+                accessibilityLabel={`${serviceConfig.label}, ${formatStatus(ride.status)}, ${(ride.final_fare || ride.estimated_fare || 0).toFixed(0)} pesos`}
+                accessibilityRole="button"
                 onPress={() => {
                   if (ride._type === 'order') {
                     Alert.alert(

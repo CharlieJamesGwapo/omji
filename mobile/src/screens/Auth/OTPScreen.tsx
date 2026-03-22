@@ -106,6 +106,9 @@ export default function OTPScreen({ navigation, route }: any) {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
@@ -136,6 +139,7 @@ export default function OTPScreen({ navigation, route }: any) {
               keyboardType="number-pad"
               maxLength={1}
               selectTextOnFocus
+              accessibilityLabel={`OTP digit ${index + 1} of 6`}
             />
           ))}
         </View>
@@ -145,9 +149,14 @@ export default function OTPScreen({ navigation, route }: any) {
           style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
           onPress={handleVerify}
           disabled={loading}
+          accessibilityLabel={loading ? 'Verifying code' : 'Verify code'}
+          accessibilityRole="button"
         >
           {loading ? (
-            <ActivityIndicator color="#ffffff" />
+            <View style={{ alignItems: 'center' }}>
+              <ActivityIndicator color="#ffffff" />
+              <Text style={[styles.verifyButtonText, { marginTop: verticalScale(4), fontSize: RESPONSIVE.fontSize.small }]}>Verifying your code...</Text>
+            </View>
           ) : (
             <Text style={styles.verifyButtonText}>Verify</Text>
           )}
@@ -156,10 +165,12 @@ export default function OTPScreen({ navigation, route }: any) {
         {/* Resend */}
         <TouchableOpacity
           onPress={handleResend}
-          style={styles.resendContainer}
+          style={[styles.resendContainer, resendCooldown > 0 && { opacity: 0.5 }]}
           disabled={resendCooldown > 0 || resending}
+          accessibilityLabel={resendCooldown > 0 ? `Resend code available in ${resendCooldown} seconds` : 'Resend verification code'}
+          accessibilityRole="button"
         >
-          <Text style={styles.resendText}>Didn't receive code? </Text>
+          <Text style={[styles.resendText, resendCooldown > 0 && { color: '#9CA3AF' }]}>Didn't receive code? </Text>
           {resending ? (
             <ActivityIndicator size="small" color="#3B82F6" />
           ) : resendCooldown > 0 ? (
@@ -183,7 +194,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: RESPONSIVE.paddingHorizontal,
   },
   backButton: {
-    width: moderateScale(40),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -219,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(40),
   },
   otpInput: {
-    width: moderateScale(50),
+    width: moderateScale(56),
     height: moderateScale(60),
     borderWidth: 2,
     borderColor: '#E5E7EB',
@@ -239,7 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   verifyButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   verifyButtonText: {
     color: '#ffffff',

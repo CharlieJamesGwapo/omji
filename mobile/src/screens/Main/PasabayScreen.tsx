@@ -67,7 +67,7 @@ export default function PasabayScreen({ navigation }: any) {
           });
         }
       } catch (e) {
-        console.log('Auto-detect location failed:', e);
+        // Location detection failed silently - user can pick manually
       } finally {
         setDetectingLocation(false);
       }
@@ -109,7 +109,7 @@ export default function PasabayScreen({ navigation }: any) {
             setActiveRide(null);
           }
         } catch (e) {
-          console.log('Failed to fetch active rides:', e);
+          // Silently ignore - will retry on next focus
         }
       })();
     });
@@ -507,7 +507,13 @@ export default function PasabayScreen({ navigation }: any) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -529,6 +535,8 @@ export default function PasabayScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.activeBanner}
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: activeRide.id, pickup: activeRide.pickup_location, dropoff: activeRide.dropoff_location, fare: activeRide.estimated_fare })}
+            accessibilityLabel="Active ride in progress, tap to track"
+            accessibilityRole="button"
           >
             <View style={styles.activeBannerDot} />
             <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
@@ -544,6 +552,8 @@ export default function PasabayScreen({ navigation }: any) {
           <TouchableOpacity
             style={[styles.modeButton, mode === 'book' && styles.modeButtonActive]}
             onPress={() => setMode('book')}
+            accessibilityLabel={`${isDriver ? 'Offer a ride' : 'Book a ride'}${mode === 'book' ? ', selected' : ''}`}
+            accessibilityRole="button"
           >
             <Ionicons name="add-circle-outline" size={20} color={mode === 'book' ? '#ffffff' : '#6B7280'} />
             <Text style={[styles.modeText, mode === 'book' && styles.modeTextActive]}>{isDriver ? 'Offer a Ride' : 'Book a Ride'}</Text>
@@ -551,6 +561,8 @@ export default function PasabayScreen({ navigation }: any) {
           <TouchableOpacity
             style={[styles.modeButton, mode === 'join' && styles.modeButtonActive]}
             onPress={() => { setMode('join'); fetchAvailableRides(); }}
+            accessibilityLabel={`Join a ride${mode === 'join' ? ', selected' : ''}`}
+            accessibilityRole="button"
           >
             <Ionicons name="people-outline" size={20} color={mode === 'join' ? '#ffffff' : '#6B7280'} />
             <Text style={[styles.modeText, mode === 'join' && styles.modeTextActive]}>Join a Ride</Text>
@@ -566,7 +578,25 @@ export default function PasabayScreen({ navigation }: any) {
               </View>
             </View>
             {loadingRides ? (
-              <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: verticalScale(36) }} />
+              <View>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={[styles.rideShareCard, { opacity: 0.5 }]}>
+                    <View style={styles.rideShareHeader}>
+                      <View style={[styles.rideShareIcon, { backgroundColor: '#E5E7EB' }]} />
+                      <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                        <View style={{ width: '70%', height: moderateScale(14), backgroundColor: '#E5E7EB', borderRadius: moderateScale(4), marginBottom: verticalScale(6) }} />
+                        <View style={{ width: '50%', height: moderateScale(12), backgroundColor: '#E5E7EB', borderRadius: moderateScale(4) }} />
+                      </View>
+                      <View style={{ width: moderateScale(40), height: moderateScale(20), backgroundColor: '#E5E7EB', borderRadius: moderateScale(4) }} />
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: moderateScale(8), marginBottom: verticalScale(10) }}>
+                      <View style={{ width: moderateScale(80), height: moderateScale(24), backgroundColor: '#E5E7EB', borderRadius: moderateScale(8) }} />
+                      <View style={{ width: moderateScale(60), height: moderateScale(24), backgroundColor: '#E5E7EB', borderRadius: moderateScale(8) }} />
+                    </View>
+                    <View style={{ height: moderateScale(40), backgroundColor: '#E5E7EB', borderRadius: moderateScale(8) }} />
+                  </View>
+                ))}
+              </View>
             ) : availableRides.length > 0 ? (
               availableRides.map((ride: any) => (
                 <View key={ride.id} style={styles.rideShareCard}>
@@ -615,6 +645,8 @@ export default function PasabayScreen({ navigation }: any) {
                     style={styles.joinButton}
                     onPress={() => handleJoinRideShare(ride)}
                     disabled={joiningRideId !== null}
+                    accessibilityLabel={`Join ride from ${ride.pickup_location} to ${ride.dropoff_location}, fare ${ride.base_fare || 0} pesos`}
+                    accessibilityRole="button"
                   >
                     {joiningRideId === ride.id ? (
                       <ActivityIndicator color="#ffffff" size="small" />
@@ -632,7 +664,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <Ionicons name="car-outline" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyText}>No ride shares available</Text>
                 <Text style={styles.emptySubtext}>Pull to refresh or book your own ride</Text>
-                <TouchableOpacity style={styles.switchModeButton} onPress={() => setMode('book')}>
+                <TouchableOpacity style={styles.switchModeButton} onPress={() => setMode('book')} accessibilityLabel={isDriver ? 'Offer a ride' : 'Book a ride'} accessibilityRole="button">
                   <Text style={styles.switchModeText}>{isDriver ? 'Offer a Ride' : 'Book a Ride'}</Text>
                 </TouchableOpacity>
               </View>
@@ -649,6 +681,8 @@ export default function PasabayScreen({ navigation }: any) {
                     key={type.id}
                     style={[styles.rideTypeCard, rideType === type.id && styles.rideTypeCardActive]}
                     onPress={() => setRideType(type.id)}
+                    accessibilityLabel={`${type.name}, from ${type.basePrice} pesos${rideType === type.id ? ', selected' : ''}`}
+                    accessibilityRole="button"
                   >
                     <Ionicons name={type.icon as any} size={28} color={rideType === type.id ? '#8B5CF6' : '#6B7280'} />
                     <Text style={[styles.rideTypeName, rideType === type.id && styles.rideTypeNameActive]}>{type.name}</Text>
@@ -661,7 +695,7 @@ export default function PasabayScreen({ navigation }: any) {
             {/* Pickup */}
             <View style={styles.section}>
               <Text style={styles.label}>Pickup Location *</Text>
-              <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)}>
+              <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)} accessibilityLabel={pickupLocation.address ? `Pickup location: ${pickupLocation.address}` : 'Select pickup location'} accessibilityRole="button">
                 <Ionicons name="location-outline" size={20} color="#8B5CF6" />
                 {detectingLocation ? (
                   <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: moderateScale(12) }}>
@@ -680,7 +714,7 @@ export default function PasabayScreen({ navigation }: any) {
             {/* Dropoff */}
             <View style={styles.section}>
               <Text style={styles.label}>Dropoff Location *</Text>
-              <TouchableOpacity style={styles.inputContainer} onPress={() => setShowDropoffMap(true)}>
+              <TouchableOpacity style={styles.inputContainer} onPress={() => setShowDropoffMap(true)} accessibilityLabel={dropoffLocation.address ? `Dropoff location: ${dropoffLocation.address}` : 'Select dropoff location'} accessibilityRole="button">
                 <Ionicons name="flag-outline" size={20} color="#EF4444" />
                 <Text style={[styles.input, !dropoffLocation.address && styles.placeholder]} numberOfLines={1}>
                   {dropoffLocation.address || 'Select dropoff on map'}
@@ -697,10 +731,13 @@ export default function PasabayScreen({ navigation }: any) {
                   style={[styles.controlButton, passengers <= 1 && styles.controlButtonDisabled]}
                   onPress={() => setPassengers(Math.max(1, passengers - 1))}
                   disabled={passengers <= 1}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel="Decrease passengers"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="remove" size={24} color={passengers <= 1 ? '#D1D5DB' : '#8B5CF6'} />
                 </TouchableOpacity>
-                <View style={styles.passengerDisplay}>
+                <View style={styles.passengerDisplay} accessibilityLabel={`${passengers} passenger${passengers > 1 ? 's' : ''}`}>
                   <Ionicons name="people" size={24} color="#8B5CF6" />
                   <Text style={styles.passengerCount}>{passengers}</Text>
                 </View>
@@ -708,6 +745,9 @@ export default function PasabayScreen({ navigation }: any) {
                   style={[styles.controlButton, passengers >= 4 && styles.controlButtonDisabled]}
                   onPress={() => setPassengers(Math.min(4, passengers + 1))}
                   disabled={passengers >= 4}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel="Increase passengers"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="add" size={24} color={passengers >= 4 ? '#D1D5DB' : '#8B5CF6'} />
                 </TouchableOpacity>
@@ -740,7 +780,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <View style={[styles.inputContainer, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
                   <Ionicons name="pricetag" size={20} color="#10B981" />
                   <Text style={[styles.input, { color: '#065F46', fontWeight: '600' }]}>{promoCode} (-₱{promoDiscount.toFixed(0)})</Text>
-                  <TouchableOpacity onPress={handleRemovePromo}>
+                  <TouchableOpacity onPress={handleRemovePromo} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Remove promo code" accessibilityRole="button">
                     <Ionicons name="close-circle" size={22} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
@@ -748,7 +788,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <View style={styles.inputContainer}>
                   <Ionicons name="pricetag-outline" size={20} color="#8B5CF6" />
                   <TextInput style={styles.input} placeholder="Enter promo code" value={promoCode} onChangeText={setPromoCode} autoCapitalize="characters" />
-                  <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()}>
+                  <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Apply promo code" accessibilityRole="button">
                     {applyingPromo ? (
                       <ActivityIndicator size="small" color="#8B5CF6" />
                     ) : (
@@ -796,6 +836,8 @@ export default function PasabayScreen({ navigation }: any) {
               onPress={handleBookRide}
               disabled={loading || !!activeRide}
               activeOpacity={0.85}
+              accessibilityLabel={`${isDriver ? 'Offer ride share' : 'Book ride'}${totalFare > 0 ? `, fare ${totalFare.toFixed(0)} pesos` : ''}`}
+              accessibilityRole="button"
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -819,7 +861,7 @@ export default function PasabayScreen({ navigation }: any) {
       <Modal visible={showPickupMap} animationType="slide">
         <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowPickupMap(false)}>
+            <TouchableOpacity onPress={() => setShowPickupMap(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close pickup map" accessibilityRole="button">
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Pickup</Text>
@@ -833,7 +875,7 @@ export default function PasabayScreen({ navigation }: any) {
       <Modal visible={showDropoffMap} animationType="slide">
         <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowDropoffMap(false)}>
+            <TouchableOpacity onPress={() => setShowDropoffMap(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close dropoff map" accessibilityRole="button">
               <Ionicons name="close" size={28} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Dropoff</Text>

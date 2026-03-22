@@ -66,10 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ? { email: phoneOrEmail, password }
         : { phone: phoneOrEmail, password };
 
-      console.log('🔐 Login attempt with:', loginData);
-
       const response = await authService.login(loginData);
-      console.log('✅ Login response received:', response.data);
 
       // Backend returns: { success: true, data: { token, user } }
       const data = response.data?.data;
@@ -82,9 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
 
       setUser(userData);
-      console.log('✅ Login successful! User:', userData.name);
     } catch (error: any) {
-      console.error('❌ Login error:', error.response?.data || error.message);
       const message = error.response?.data?.error || error.message || 'Login failed';
       throw new Error(message);
     }
@@ -92,9 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, phone: string, password: string) => {
     try {
-      console.log('🔐 Register attempt with:', { name, email, phone });
       const response = await authService.register({ name, email, phone, password });
-      console.log('✅ Register response received:', response.data);
 
       // Backend returns: { success: true, data: { token, user, otp } }
       const data = response.data?.data;
@@ -107,12 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
 
       setUser(userData);
-      console.log('✅ Registration successful! User:', userData.name);
     } catch (error: any) {
-      console.error('❌ Registration error:', error);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error code:', error.code);
 
       const message = error.response?.data?.error || error.message || 'Registration failed';
       throw new Error(message);
@@ -151,7 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       }
     } catch (error) {
-      console.log('Failed to refresh user profile:', error);
+      // Silently ignore refresh failures - user can still use cached data
     }
   };
 

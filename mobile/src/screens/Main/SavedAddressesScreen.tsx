@@ -206,7 +206,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
     const iconName = LABEL_ICONS[item.label] || 'location';
 
     return (
-      <View style={styles.addressCard}>
+      <View style={styles.addressCard} accessibilityLabel={`${item.label}: ${item.address}`}>
         <View style={styles.addressIconContainer}>
           <Ionicons name={iconName} size={22} color="#3B82F6" />
         </View>
@@ -219,7 +219,9 @@ export default function SavedAddressesScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => handleDeleteAddress(item)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel={`Delete ${item.label} address`}
+          accessibilityRole="button"
         >
           <Ionicons name="trash-outline" size={20} color="#EF4444" />
         </TouchableOpacity>
@@ -241,7 +243,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Addresses</Text>
@@ -269,7 +271,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
       )}
 
       {/* Add Address FAB */}
-      <TouchableOpacity style={styles.fab} onPress={handleOpenModal} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.fab} onPress={handleOpenModal} activeOpacity={0.8} accessibilityLabel="Add new address" accessibilityRole="button">
         <Ionicons name="add" size={28} color="#ffffff" />
       </TouchableOpacity>
 
@@ -285,7 +287,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Address</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close" accessibilityRole="button">
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
@@ -301,6 +303,8 @@ export default function SavedAddressesScreen({ navigation }: any) {
                     key={label}
                     style={[styles.labelChip, isSelected && styles.labelChipActive]}
                     onPress={() => setSelectedLabel(label)}
+                    accessibilityLabel={`${label}${isSelected ? ', selected' : ''}`}
+                    accessibilityRole="button"
                   >
                     <Ionicons
                       name={iconName}
@@ -334,6 +338,8 @@ export default function SavedAddressesScreen({ navigation }: any) {
               style={styles.currentLocationButton}
               onPress={handleUseCurrentLocation}
               disabled={fetchingLocation}
+              accessibilityLabel="Use current location"
+              accessibilityRole="button"
             >
               {fetchingLocation ? (
                 <ActivityIndicator size="small" color="#3B82F6" />
@@ -350,6 +356,8 @@ export default function SavedAddressesScreen({ navigation }: any) {
               style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               onPress={handleSaveAddress}
               disabled={saving}
+              accessibilityLabel="Save address"
+              accessibilityRole="button"
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#ffffff" />

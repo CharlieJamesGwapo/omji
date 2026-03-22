@@ -204,6 +204,8 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.avatarButton}
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.7}
+            accessibilityLabel="Open profile"
+            accessibilityRole="button"
           >
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
@@ -217,6 +219,9 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.notificationButton}
             onPress={() => navigation.navigate('Notifications')}
             activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Notifications"
+            accessibilityRole="button"
           >
             <View style={styles.notificationCircle}>
               <Ionicons name="notifications-outline" size={moderateScale(22)} color={COLORS.gray800} />
@@ -253,6 +258,8 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.activeCard}
             onPress={() => navigation.navigate('Tracking', { type: 'ride', rideId: ride.id, pickup: ride.pickup_location, dropoff: ride.dropoff_location, fare: ride.final_fare || ride.estimated_fare })}
             activeOpacity={0.8}
+            accessibilityLabel={`Active ride to ${ride.dropoff_location || 'destination'}, status ${ride.status || 'unknown'}`}
+            accessibilityRole="button"
           >
             <View style={[styles.activeAccent, { backgroundColor: COLORS.accent }]} />
             <View style={styles.activeCardContent}>
@@ -283,6 +290,8 @@ export default function HomeScreen({ navigation }: any) {
             style={[styles.activeCard]}
             onPress={() => navigation.navigate('Tracking', { type: 'delivery', rideId: del.id, pickup: del.pickup_location, dropoff: del.dropoff_location, fare: del.delivery_fee })}
             activeOpacity={0.8}
+            accessibilityLabel={`Active delivery to ${del.dropoff_location || 'destination'}, status ${del.status || 'unknown'}`}
+            accessibilityRole="button"
           >
             <View style={[styles.activeAccent, { backgroundColor: COLORS.primary }]} />
             <View style={styles.activeCardContent}>
@@ -308,12 +317,27 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         ))}
 
+        {/* Empty state when no active rides/deliveries */}
+        {activeRides.length === 0 && activeDeliveries.length === 0 && !refreshing && (
+          <View style={styles.noActiveContainer}>
+            <Ionicons name="checkmark-circle-outline" size={moderateScale(24)} color={COLORS.gray400} />
+            <Text style={styles.noActiveText}>No active rides or deliveries</Text>
+          </View>
+        )}
+
         {/* Featured Stores Carousel */}
         {featuredStores.length > 0 && (
           <View style={styles.carouselSection}>
             <View style={styles.carouselHeader}>
               <Text style={styles.carouselTitle}>Popular Stores</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Services')} activeOpacity={0.7}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Services')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ minHeight: 44, justifyContent: 'center' }}
+                accessibilityLabel="See all stores"
+                accessibilityRole="button"
+              >
                 <Text style={styles.carouselSeeAll}>See All</Text>
               </TouchableOpacity>
             </View>
@@ -334,6 +358,8 @@ export default function HomeScreen({ navigation }: any) {
                     style={styles.storeCard}
                     activeOpacity={0.85}
                     onPress={() => navigation.navigate('StoreDetail', { store: item })}
+                    accessibilityLabel={`${item.name || 'Store'}, ${item.category || 'store'}, rating ${Number(item.rating || 0).toFixed(1)}`}
+                    accessibilityRole="button"
                   >
                     <View style={[styles.storeIconArea, { backgroundColor: `${catCfg.color}15` }]}>
                       <View style={[styles.storeIconCircle, { backgroundColor: catCfg.color }]}>
@@ -367,6 +393,8 @@ export default function HomeScreen({ navigation }: any) {
           style={styles.destinationBar}
           onPress={() => navigation.navigate('Pasabay')}
           activeOpacity={0.8}
+          accessibilityLabel="Search for a destination"
+          accessibilityRole="button"
         >
           <View style={styles.destinationDot} />
           <Text style={styles.destinationText}>Where would you like to go?</Text>
@@ -388,6 +416,8 @@ export default function HomeScreen({ navigation }: any) {
                 style={[styles.serviceCard, SHADOWS.md]}
                 onPress={() => navigation.navigate(service.screen)}
                 activeOpacity={0.85}
+                accessibilityLabel={`${service.name} ${service.description.toLowerCase()}`}
+                accessibilityRole="button"
               >
                 <View style={styles.serviceCardInner}>
                   <View style={[styles.serviceIconContainer, { backgroundColor: service.bg }]}>
@@ -413,6 +443,8 @@ export default function HomeScreen({ navigation }: any) {
                 style={styles.quickActionButton}
                 onPress={() => action.screen ? navigation.navigate(action.screen) : action.action?.()}
                 activeOpacity={0.7}
+                accessibilityLabel={action.label}
+                accessibilityRole="button"
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: action.bg }]}>
                   <Ionicons name={action.icon as any} size={moderateScale(24)} color={action.color} />
@@ -428,6 +460,8 @@ export default function HomeScreen({ navigation }: any) {
           style={styles.promoBanner}
           onPress={() => Alert.alert('Special Promo', 'Use code OMJI20 for 20% off your first ride!')}
           activeOpacity={0.85}
+          accessibilityLabel="Limited offer: 20% off your first ride"
+          accessibilityRole="button"
         >
           <View style={styles.promoGlow} />
           <View style={styles.promoContent}>
@@ -880,6 +914,26 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     color: COLORS.gray500,
     textTransform: 'capitalize',
+  },
+
+  // --- No Active Rides/Deliveries ---
+  noActiveContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: moderateScale(16),
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  noActiveText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginLeft: moderateScale(8),
+    fontWeight: '500',
   },
 
   // --- Location Tag ---

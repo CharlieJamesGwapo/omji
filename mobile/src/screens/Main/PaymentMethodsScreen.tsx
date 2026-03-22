@@ -147,7 +147,9 @@ export default function PaymentMethodsScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => handleDeleteMethod(item)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel={`Remove ${config.label} payment method`}
+          accessibilityRole="button"
         >
           <Ionicons name="trash-outline" size={moderateScale(20)} color="#EF4444" />
         </TouchableOpacity>
@@ -169,7 +171,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={moderateScale(24)} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment Methods</Text>
@@ -197,7 +199,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
       )}
 
       {/* Add Payment Method FAB */}
-      <TouchableOpacity style={styles.fab} onPress={handleOpenModal} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.fab} onPress={handleOpenModal} activeOpacity={0.8} accessibilityLabel="Add payment method" accessibilityRole="button">
         <Ionicons name="add" size={moderateScale(28)} color="#ffffff" />
       </TouchableOpacity>
 
@@ -213,7 +215,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Payment Method</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close" accessibilityRole="button">
                 <Ionicons name="close" size={moderateScale(24)} color="#6B7280" />
               </TouchableOpacity>
             </View>
@@ -228,6 +230,8 @@ export default function PaymentMethodsScreen({ navigation }: any) {
                     key={pt.type}
                     style={[styles.typeCard, isSelected && styles.typeCardActive]}
                     onPress={() => setSelectedType(pt.type)}
+                    accessibilityLabel={`${pt.label}${isSelected ? ', selected' : ''}`}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[
@@ -278,6 +282,8 @@ export default function PaymentMethodsScreen({ navigation }: any) {
               style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               onPress={handleAddMethod}
               disabled={saving}
+              accessibilityLabel="Add payment method"
+              accessibilityRole="button"
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#ffffff" />

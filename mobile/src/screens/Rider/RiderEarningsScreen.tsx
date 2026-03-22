@@ -48,7 +48,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
         setWalletBalance(walletRes.value?.data?.data?.balance ?? 0);
       }
     } catch (error) {
-      console.log('Earnings fetch failed:', (error as any).response?.status || (error as any).message);
+      // Fetch failed - toast will inform user to retry
       showToast('Could not load earnings data. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -192,6 +192,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.downloadButton}
           onPress={() => Alert.alert('Download Report', 'Coming soon! Earnings report download will be available in a future update.')}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Download earnings report"
+          accessibilityRole="button"
         >
           <Ionicons name="download-outline" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
@@ -248,6 +251,8 @@ export default function RiderEarningsScreen({ navigation }: any) {
                   onPress={() => amt <= balance && setWithdrawAmount(String(amt))}
                   disabled={amt > balance}
                   activeOpacity={0.7}
+                  accessibilityLabel={`Select ${amt} pesos`}
+                  accessibilityRole="button"
                 >
                   <Text style={[
                     styles.quickAmountText,
@@ -277,9 +282,14 @@ export default function RiderEarningsScreen({ navigation }: any) {
                 onPress={handleWithdraw}
                 disabled={withdrawLoading}
                 activeOpacity={0.8}
+                accessibilityLabel={withdrawLoading ? 'Processing withdrawal' : 'Withdraw funds'}
+                accessibilityRole="button"
               >
                 {withdrawLoading ? (
-                  <ActivityIndicator color="#059669" size="small" />
+                  <>
+                    <ActivityIndicator color="#059669" size="small" />
+                    <Text style={styles.withdrawButtonText}>Processing...</Text>
+                  </>
                 ) : (
                   <>
                     <Ionicons name="arrow-up-circle" size={moderateScale(18)} color="#059669" />
@@ -306,6 +316,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
                 ]}
                 onPress={() => setSelectedPeriod(period.id)}
                 activeOpacity={0.7}
+                accessibilityLabel={`${period.label} earnings`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: selectedPeriod === period.id }}
               >
                 <Ionicons
                   name={period.icon}
@@ -455,6 +468,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
               style={styles.refreshButton}
               onPress={fetchEarnings}
               activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Refresh earnings data"
+              accessibilityRole="button"
             >
               <Ionicons name="refresh-outline" size={fontScale(14)} color={COLORS.accent} />
               <Text style={styles.refreshText}>Refresh</Text>

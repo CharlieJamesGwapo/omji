@@ -281,6 +281,9 @@ export default function EditProfileScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
@@ -292,6 +295,8 @@ export default function EditProfileScreen({ navigation }: any) {
             styles.saveHeaderButton,
             (!hasUnsavedChanges() || saving) && styles.saveHeaderButtonDisabled,
           ]}
+          accessibilityLabel="Save profile changes"
+          accessibilityRole="button"
         >
           {saving ? (
             <ActivityIndicator size="small" color={COLORS.white} />
@@ -319,6 +324,9 @@ export default function EditProfileScreen({ navigation }: any) {
               style={styles.avatarWrapper}
               onPress={showImageOptions}
               activeOpacity={0.8}
+              accessibilityLabel="Change profile photo"
+              accessibilityRole="button"
+              accessibilityHint="Tap to change your profile photo"
             >
               <Image
                 source={{ uri: getAvatarUri() }}
@@ -328,8 +336,8 @@ export default function EditProfileScreen({ navigation }: any) {
                 <Ionicons name="camera" size={moderateScale(20)} color={COLORS.white} />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={showImageOptions}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
+            <TouchableOpacity onPress={showImageOptions} accessibilityLabel="Change profile photo" accessibilityRole="button">
+              <Text style={styles.changePhotoText}>Tap to change photo</Text>
             </TouchableOpacity>
           </View>
 
@@ -375,6 +383,7 @@ export default function EditProfileScreen({ navigation }: any) {
                     autoCapitalize="words"
                     editable={!saving}
                     maxLength={NAME_MAX_LENGTH}
+                    accessibilityLabel="Full name"
                   />
                 </View>
               </View>
@@ -406,6 +415,7 @@ export default function EditProfileScreen({ navigation }: any) {
                     style={[styles.floatingInput, styles.inputTextDisabled]}
                     value={user?.email || ''}
                     editable={false}
+                    accessibilityLabel="Email address, read only"
                   />
                   <View style={styles.lockBadge}>
                     <Ionicons name="lock-closed" size={moderateScale(12)} color={COLORS.gray400} />
@@ -453,6 +463,7 @@ export default function EditProfileScreen({ navigation }: any) {
                     value={phone}
                     onChangeText={handlePhoneChange}
                     onFocus={handlePhoneFocus}
+                    accessibilityLabel="Phone number"
                     onBlur={() => {
                       handlePhoneBlur();
                       // Auto-format on blur
@@ -488,6 +499,8 @@ export default function EditProfileScreen({ navigation }: any) {
             onPress={handleSave}
             disabled={saving || !hasUnsavedChanges()}
             activeOpacity={0.8}
+            accessibilityLabel={hasUnsavedChanges() ? 'Save changes' : 'No changes to save'}
+            accessibilityRole="button"
           >
             {saving ? (
               <ActivityIndicator size="small" color={COLORS.white} />

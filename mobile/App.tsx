@@ -55,8 +55,7 @@ const RootNavigator = () => {
           <Ionicons name="desktop-outline" size={80} color="#DC2626" style={{ marginBottom: 20 }} />
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>Admin Access</Text>
           <Text style={{ fontSize: 16, color: '#6B7280', marginBottom: 20, textAlign: 'center', lineHeight: 24 }}>
-            {"Admin panel is only available on the web interface.\n\nPlease visit the web admin dashboard at:\n"}
-            <Text style={{ color: '#DC2626', fontWeight: 'bold' }}>{"http://localhost:3001"}</Text>
+            {"Admin panel is only available on the web interface.\n\nPlease contact your administrator for dashboard access."}
           </Text>
           <TouchableOpacity
             onPress={logout}

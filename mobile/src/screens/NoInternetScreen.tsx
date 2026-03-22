@@ -104,9 +104,14 @@ export default function NoInternetScreen() {
           onPress={handleRetry}
           disabled={checking}
           activeOpacity={0.8}
+          accessibilityLabel={checking ? 'Checking connection' : 'Retry connection'}
+          accessibilityRole="button"
         >
           {checking ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <>
+              <ActivityIndicator size="small" color={COLORS.white} />
+              <Text style={styles.retryText}>Checking...</Text>
+            </>
           ) : (
             <>
               <Ionicons name="refresh" size={moderateScale(20)} color={COLORS.white} />
@@ -119,7 +124,7 @@ export default function NoInternetScreen() {
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsTitle}>Troubleshooting</Text>
 
-          <TouchableOpacity style={styles.suggestionItem} onPress={openWiFiSettings} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.suggestionItem} onPress={openWiFiSettings} activeOpacity={0.7} accessibilityLabel="Open WiFi settings" accessibilityRole="button">
             <View style={[styles.suggestionIcon, { backgroundColor: COLORS.accentBg }]}>
               <Ionicons name="wifi" size={moderateScale(18)} color={COLORS.accent} />
             </View>
@@ -132,7 +137,7 @@ export default function NoInternetScreen() {
 
           <View style={styles.suggestionDivider} />
 
-          <TouchableOpacity style={styles.suggestionItem} onPress={openMobileDataSettings} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.suggestionItem} onPress={openMobileDataSettings} activeOpacity={0.7} accessibilityLabel="Open mobile data settings" accessibilityRole="button">
             <View style={[styles.suggestionIcon, { backgroundColor: COLORS.successBg }]}>
               <Ionicons name="cellular" size={moderateScale(18)} color={COLORS.success} />
             </View>
@@ -223,6 +228,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: moderateScale(36),
     borderRadius: RESPONSIVE.borderRadius.medium,
     minWidth: moderateScale(180),
+    minHeight: moderateScale(48),
     gap: moderateScale(8),
     marginBottom: verticalScale(32),
     ...SHADOWS.colored(COLORS.accent),
@@ -254,6 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: verticalScale(10),
+    minHeight: moderateScale(44),
   },
   suggestionIcon: {
     width: moderateScale(40),

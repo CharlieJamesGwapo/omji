@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Easing, Vibration,
+  View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Easing, Vibration, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS } from '../constants/theme';
@@ -23,11 +23,13 @@ interface Props {
   request: RideRequestData | null;
   onAccept: (rideId: number) => void;
   onDecline: (rideId: number) => void;
+  acceptLoading?: boolean;
+  declineLoading?: boolean;
 }
 
 const TIMEOUT = 30;
 
-export default function RiderRequestModal({ visible, request, onAccept, onDecline }: Props) {
+export default function RiderRequestModal({ visible, request, onAccept, onDecline, acceptLoading, declineLoading }: Props) {
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT);
   const progress = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -141,19 +143,35 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
 
             {/* Buttons */}
             <TouchableOpacity
-              style={styles.acceptBtn}
+              style={[styles.acceptBtn, acceptLoading && { opacity: 0.7 }]}
               onPress={() => onAccept(request.ride_id)}
               activeOpacity={0.8}
+              disabled={acceptLoading || declineLoading}
+              accessibilityLabel="Accept ride request"
+              accessibilityRole="button"
             >
-              <Ionicons name="checkmark-circle" size={22} color={COLORS.white} />
-              <Text style={styles.acceptText}>Accept Ride</Text>
+              {acceptLoading ? (
+                <ActivityIndicator color={COLORS.white} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={22} color={COLORS.white} />
+                  <Text style={styles.acceptText}>Accept Ride</Text>
+                </>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.declineBtn}
+              style={[styles.declineBtn, declineLoading && { opacity: 0.7 }]}
               onPress={() => onDecline(request.ride_id)}
               activeOpacity={0.7}
+              disabled={acceptLoading || declineLoading}
+              accessibilityLabel="Reject ride request"
+              accessibilityRole="button"
             >
-              <Text style={styles.declineText}>Decline</Text>
+              {declineLoading ? (
+                <ActivityIndicator color={COLORS.gray600} size="small" />
+              ) : (
+                <Text style={styles.declineText}>Decline</Text>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>

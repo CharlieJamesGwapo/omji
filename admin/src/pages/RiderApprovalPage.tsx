@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
+import { ITEMS_PER_PAGE, DOC_LABELS } from '../constants';
+import { getErrorMessage, formatCurrency } from '../utils';
+import { SearchInput, ConfirmDialog, EmptyState, PageSkeleton, Pagination } from '../components';
 
 interface RiderApplication {
   id: number;
@@ -28,14 +31,7 @@ interface RiderApplication {
   updated_at: string;
 }
 
-const DOC_LABELS: Record<string, string> = {
-  profile_photo: 'Profile Photo',
-  license_photo: "Driver's License",
-  orcr_photo: 'OR/CR Document',
-  id_photo: 'Valid Government ID',
-};
-
-const getDocuments = (rider: RiderApplication): Record<string, string> => {
+const getRiderDocuments = (rider: RiderApplication): Record<string, string> => {
   if (!rider.documents) return {};
   if (typeof rider.documents === 'string') {
     try { return JSON.parse(rider.documents); } catch { return {}; }
@@ -44,7 +40,7 @@ const getDocuments = (rider: RiderApplication): Record<string, string> => {
 };
 
 const getDocCount = (rider: RiderApplication): number => {
-  return Object.keys(getDocuments(rider)).length;
+  return Object.keys(getRiderDocuments(rider)).length;
 };
 
 const RiderApprovalPage: React.FC = () => {
@@ -56,54 +52,64 @@ const RiderApprovalPage: React.FC = () => {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    riderId: number | null;
+    action: 'approve' | 'reject' | null;
+  }>({ open: false, riderId: null, action: null });
 
-  useEffect(() => {
-    loadRiders();
-  }, []);
+  useEffect(() => { loadRiders(); }, []);
+
+  // Reset page on filter/search change
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, filter]);
 
   const loadRiders = async () => {
     try {
       const response = await adminService.getDrivers();
       setRiders(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to load riders:', error);
-      toast.error('Failed to load rider applications');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to load rider applications'));
     }
     setLoading(false);
   };
 
   const handleApprove = async (riderId: number) => {
-    if (!confirm('Are you sure you want to approve this rider? They will gain access to the Rider Dashboard and can start accepting rides.')) return;
-
     setActionLoading(true);
     try {
       await adminService.verifyDriver(riderId);
       toast.success('Rider approved successfully! Their account is now active.');
       loadRiders();
       setSelectedRider(null);
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to approve rider');
-      console.error(error);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to approve rider'));
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleReject = async (riderId: number) => {
-    if (!confirm('Are you sure you want to reject this rider application? This will permanently delete their application.')) return;
-
     setActionLoading(true);
     try {
       await adminService.deleteDriver(riderId);
       toast.success('Rider application rejected');
       loadRiders();
       setSelectedRider(null);
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to reject rider');
-      console.error(error);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to reject rider'));
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDialog.riderId || !confirmDialog.action) return;
+    if (confirmDialog.action === 'approve') {
+      await handleApprove(confirmDialog.riderId);
+    } else {
+      await handleReject(confirmDialog.riderId);
+    }
+    setConfirmDialog({ open: false, riderId: null, action: null });
   };
 
   const pendingCount = riders.filter((r) => !r.is_verified).length;
@@ -124,42 +130,15 @@ const RiderApprovalPage: React.FC = () => {
     return true;
   });
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredRiders.length / ITEMS_PER_PAGE));
+  const paginated = filteredRiders.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) {
-    return (
-      <div className="space-y-6 px-2 sm:px-0">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div className="space-y-2">
-            <div className="h-7 w-52 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-4 w-72 bg-gray-200 rounded animate-pulse" />
-          </div>
-          <div className="h-10 w-full sm:w-64 bg-gray-200 rounded-xl animate-pulse" />
-        </div>
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-xl animate-pulse" />
-          ))}
-        </div>
-        <div className="flex gap-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-9 w-24 bg-gray-200 rounded-lg animate-pulse" />
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
-                  <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-gray-200 rounded animate-pulse w-1/3" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={3} filterButtons={3} tableRows={4} />;
   }
 
   return (
@@ -171,28 +150,16 @@ const RiderApprovalPage: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Review and verify rider documents before approval</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search name, email, phone, plate..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 min-h-[44px] border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search name, email, phone, plate..."
+            className="w-full sm:w-64"
+          />
           <button
             onClick={loadRiders}
             className="flex-shrink-0 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center gap-2"
+            aria-label="Refresh rider list"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -237,23 +204,18 @@ const RiderApprovalPage: React.FC = () => {
 
       {/* Rider Cards or Empty State */}
       {filteredRiders.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 sm:p-12 text-center">
-          <div className="flex justify-center mb-4">
-            <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <p className="text-gray-400 text-base sm:text-lg font-medium">
-            No {filter === 'all' ? '' : filter} rider applications
-          </p>
-          <p className="text-gray-300 text-sm mt-1">
-            {filter === 'pending' ? 'All caught up! No pending applications to review.' : filter === 'approved' ? 'No approved riders yet.' : 'No rider applications found.'}
-          </p>
-        </div>
+        <EmptyState
+          title={`No ${filter === 'all' ? '' : filter} rider applications`}
+          description={
+            filter === 'pending' ? 'All caught up! No pending applications to review.' :
+            filter === 'approved' ? 'No approved riders yet.' :
+            'No rider applications found.'
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {filteredRiders.map((rider) => {
-            const docs = getDocuments(rider);
+          {paginated.map((rider) => {
+            const docs = getRiderDocuments(rider);
             const docCount = Object.keys(docs).length;
             return (
               <div
@@ -301,7 +263,7 @@ const RiderApprovalPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Vehicle Model</p>
-                      <p className="font-medium text-gray-900 text-sm">{rider.vehicle_model || '—'}</p>
+                      <p className="font-medium text-gray-900 text-sm">{rider.vehicle_model || '\u2014'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">License Number</p>
@@ -321,6 +283,7 @@ const RiderApprovalPage: React.FC = () => {
                             onClick={() => { setSelectedRider(rider); }}
                             className="group relative"
                             title={DOC_LABELS[key] || key}
+                            aria-label={`View ${DOC_LABELS[key] || key}`}
                           >
                             <img
                               src={url}
@@ -372,14 +335,14 @@ const RiderApprovalPage: React.FC = () => {
                   {!rider.is_verified && (
                     <>
                       <button
-                        onClick={() => handleReject(rider.id)}
+                        onClick={() => setConfirmDialog({ open: true, riderId: rider.id, action: 'reject' })}
                         disabled={actionLoading}
                         className="px-4 py-2.5 min-h-[44px] bg-red-50 text-red-600 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Reject
                       </button>
                       <button
-                        onClick={() => handleApprove(rider.id)}
+                        onClick={() => setConfirmDialog({ open: true, riderId: rider.id, action: 'approve' })}
                         disabled={actionLoading}
                         className="px-4 py-2.5 min-h-[44px] bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -393,6 +356,31 @@ const RiderApprovalPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredRiders.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.action === 'approve' ? 'Approve Rider' : 'Reject Application'}
+        message={
+          confirmDialog.action === 'approve'
+            ? 'Are you sure you want to approve this rider? They will gain access to the Rider Dashboard and can start accepting rides.'
+            : 'Are you sure you want to reject this rider application? This will permanently delete their application.'
+        }
+        confirmLabel={confirmDialog.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={confirmDialog.action === 'approve' ? 'default' : 'danger'}
+        loading={actionLoading}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmDialog({ open: false, riderId: null, action: null })}
+      />
 
       {/* Full Detail Modal */}
       {selectedRider && (
@@ -409,7 +397,7 @@ const RiderApprovalPage: React.FC = () => {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   {(() => {
-                    const docs = getDocuments(selectedRider);
+                    const docs = getRiderDocuments(selectedRider);
                     return docs.profile_photo ? (
                       <img src={docs.profile_photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
@@ -432,6 +420,7 @@ const RiderApprovalPage: React.FC = () => {
                   <button
                     onClick={() => setSelectedRider(null)}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close modal"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -499,7 +488,7 @@ const RiderApprovalPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Vehicle Model</p>
-                    <p className="font-medium text-sm text-gray-900">{selectedRider.vehicle_model || '—'}</p>
+                    <p className="font-medium text-sm text-gray-900">{selectedRider.vehicle_model || '\u2014'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">License Number</p>
@@ -527,7 +516,7 @@ const RiderApprovalPage: React.FC = () => {
                       <p className="text-xs text-gray-500">Rating</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center">
-                      <p className="text-lg font-bold text-gray-900">₱{(selectedRider.total_earnings || 0).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-gray-900">{formatCurrency(selectedRider.total_earnings || 0)}</p>
                       <p className="text-xs text-gray-500">Earnings</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center">
@@ -563,7 +552,7 @@ const RiderApprovalPage: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(['profile_photo', 'license_photo', 'orcr_photo', 'id_photo'] as const).map((docKey) => {
-                      const docs = getDocuments(selectedRider);
+                      const docs = getRiderDocuments(selectedRider);
                       const url = docs[docKey];
                       return (
                         <div key={docKey} className={`rounded-xl border-2 overflow-hidden ${url ? 'border-gray-200' : 'border-dashed border-gray-300 bg-gray-50'}`}>
@@ -579,6 +568,7 @@ const RiderApprovalPage: React.FC = () => {
                             <button
                               onClick={() => setLightboxImage(url)}
                               className="w-full cursor-pointer hover:opacity-90 transition-opacity relative group"
+                              aria-label={`Enlarge ${DOC_LABELS[docKey]}`}
                             >
                               <img
                                 src={url}
@@ -623,11 +613,11 @@ const RiderApprovalPage: React.FC = () => {
                   <div>
                     <p className="text-sm font-medium text-amber-800">Verification Checklist</p>
                     <ul className="text-xs text-amber-700 mt-1.5 space-y-1">
-                      <li>• Verify the profile photo matches the ID photo</li>
-                      <li>• Confirm the license number matches the uploaded license document</li>
-                      <li>• Check that the OR/CR matches the declared vehicle plate number</li>
-                      <li>• Ensure the valid ID is a government-issued document (not a selfie)</li>
-                      <li>• Verify plate number format is valid</li>
+                      <li>- Verify the profile photo matches the ID photo</li>
+                      <li>- Confirm the license number matches the uploaded license document</li>
+                      <li>- Check that the OR/CR matches the declared vehicle plate number</li>
+                      <li>- Ensure the valid ID is a government-issued document (not a selfie)</li>
+                      <li>- Verify plate number format is valid</li>
                     </ul>
                   </div>
                 </div>
@@ -637,14 +627,14 @@ const RiderApprovalPage: React.FC = () => {
               {!selectedRider.is_verified && (
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRider.id)}
+                    onClick={() => setConfirmDialog({ open: true, riderId: selectedRider.id, action: 'reject' })}
                     disabled={actionLoading}
                     className="flex-1 px-4 py-3 min-h-[44px] bg-red-50 text-red-600 rounded-xl hover:bg-red-100 active:bg-red-200 font-semibold transition-colors text-sm border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Reject Application
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRider.id)}
+                    onClick={() => setConfirmDialog({ open: true, riderId: selectedRider.id, action: 'approve' })}
                     disabled={actionLoading}
                     className="flex-1 px-4 py-3 min-h-[44px] bg-green-600 text-white rounded-xl hover:bg-green-700 active:bg-green-800 font-semibold transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -676,6 +666,7 @@ const RiderApprovalPage: React.FC = () => {
           <button
             className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-40 transition-colors"
             onClick={() => setLightboxImage(null)}
+            aria-label="Close lightbox"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

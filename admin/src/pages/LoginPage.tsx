@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { authService } from '../services/api';
 import axios from 'axios';
+import { getErrorMessage } from '../utils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.com/api/v1';
 const HEALTH_URL = API_URL.replace('/api/v1', '/health');
@@ -97,7 +98,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           return false;
         }
       } else {
-        setError(err.response?.data?.error || err.response?.data?.message || 'Login failed. Please check your credentials.');
+        setError(getErrorMessage(err, 'Login failed. Please check your credentials.'));
         return false;
       }
     }
@@ -147,7 +148,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </svg>
               Server is waking up...
             </div>
-            <p className="mt-1 ml-6 text-[11px] text-yellow-600">Free tier cold start takes ~30s. Just click Sign In — it will auto-retry until the server is ready.</p>
+            <p className="mt-1 ml-6 text-[11px] text-yellow-600">Free tier cold start takes ~30s. Just click Sign In -- it will auto-retry until the server is ready.</p>
           </div>
         )}
         {serverStatus === 'online' && !loading && (
@@ -187,7 +188,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none text-sm text-gray-900 placeholder-gray-400"
-                placeholder="••••••••"
+                placeholder="--------"
                 required
                 disabled={loading}
               />

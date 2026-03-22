@@ -2,56 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
-
-interface Driver {
-  id: number;
-  user_id: number;
-  vehicle_type: string;
-  vehicle_model: string;
-  vehicle_plate: string;
-  license_number: string;
-  is_verified: boolean;
-  is_available: boolean;
-  current_latitude: number;
-  current_longitude: number;
-  total_earnings: number;
-  completed_rides: number;
-  rating: number;
-  total_ratings: number;
-  documents: Record<string, string> | null;
-  created_at: string;
-  updated_at: string;
-  User?: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string;
-    profile_image: string;
-    is_verified: boolean;
-    role: string;
-    rating: number;
-    created_at: string;
-  };
-}
+import type { Driver } from '../types';
+import { ITEMS_PER_PAGE, DOC_LABELS, VERIFIED_BADGE, UNVERIFIED_BADGE } from '../constants';
+import { formatDate, getErrorMessage, getDocuments } from '../utils';
+import { Pagination, ConfirmDialog, SearchInput, EmptyState, Modal, PageSkeleton } from '../components';
 
 type FilterType = 'all' | 'online' | 'offline' | 'verified' | 'pending';
-
-const ITEMS_PER_PAGE = 20;
-
-const DOC_LABELS: Record<string, string> = {
-  profile_photo: 'Profile Photo',
-  license_photo: "Driver's License",
-  orcr_photo: 'OR/CR Document',
-  id_photo: 'Valid Government ID',
-};
-
-const getDocuments = (driver: Driver): Record<string, string> => {
-  if (!driver.documents) return {};
-  if (typeof driver.documents === 'string') {
-    try { return JSON.parse(driver.documents); } catch { return {}; }
-  }
-  return driver.documents;
-};
 
 const DriversPage: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -76,6 +32,14 @@ const DriversPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
+  // Confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   useEffect(() => {
     loadDrivers();
   }, []);
@@ -90,7 +54,6 @@ const DriversPage: React.FC = () => {
       const res = await adminService.getDrivers();
       setDrivers(res.data?.data || []);
     } catch (err) {
-      console.error('Failed to load drivers:', err);
       toast.error('Failed to load drivers. Please check your connection.');
     }
     setLoading(false);
@@ -112,19 +75,26 @@ const DriversPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to delete driver "${name}"? This action cannot be undone.`)) return;
-    try {
-      await adminService.deleteDriver(id);
-      setDrivers(prev => prev.filter(d => d.id !== id));
-      if (showDetailModal && selectedDriver?.id === id) {
-        setShowDetailModal(false);
-        setSelectedDriver(null);
-      }
-      toast.success('Driver deleted successfully!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete driver');
-    }
+  const handleDelete = (id: number, name: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Driver',
+      message: `Are you sure you want to delete driver "${name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        try {
+          await adminService.deleteDriver(id);
+          setDrivers(prev => prev.filter(d => d.id !== id));
+          if (showDetailModal && selectedDriver?.id === id) {
+            setShowDetailModal(false);
+            setSelectedDriver(null);
+          }
+          toast.success('Driver deleted successfully!');
+        } catch (err: any) {
+          toast.error(getErrorMessage(err, 'Failed to delete driver'));
+        }
+      },
+    });
   };
 
   const handleOpenEdit = (driver: Driver) => {
@@ -162,7 +132,7 @@ const DriversPage: React.FC = () => {
       setEditDriver(null);
       toast.success('Driver updated successfully!');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to update driver');
+      toast.error(getErrorMessage(err, 'Failed to update driver'));
     } finally {
       setSaving(false);
     }
@@ -217,43 +187,7 @@ const DriversPage: React.FC = () => {
 
   // Loading skeleton
   if (loading) {
-    return (
-      <div className="space-y-6">
-        {/* Header skeleton */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="space-y-2">
-            <div className="h-7 w-48 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
-          </div>
-          <div className="h-10 w-full sm:w-80 bg-gray-200 rounded-lg animate-pulse" />
-        </div>
-        {/* Stat cards skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-xl animate-pulse" />
-          ))}
-        </div>
-        {/* Filter skeleton */}
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-9 w-20 bg-gray-200 rounded-lg animate-pulse" />
-          ))}
-        </div>
-        {/* Table skeleton */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-gray-100">
-              <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
-              </div>
-              <div className="h-6 w-20 bg-gray-200 rounded-full animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={4} filterButtons={5} tableRows={8} />;
   }
 
   return (
@@ -264,25 +198,12 @@ const DriversPage: React.FC = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Driver Management</h1>
           <p className="text-gray-500 text-sm mt-1">{stats.total} registered drivers</p>
         </div>
-        <div className="relative w-full sm:w-80">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search name, email, phone, plate, license..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-9 py-2.5 sm:py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search name, email, phone, plate, license..."
+          className="w-full sm:w-80"
+        />
       </div>
 
       {/* Stats Cards */}
@@ -398,7 +319,7 @@ const DriversPage: React.FC = () => {
 
             {/* Badges */}
             <div className="flex items-center gap-2 flex-wrap mb-3">
-              <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${driver.is_verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${driver.is_verified ? VERIFIED_BADGE : UNVERIFIED_BADGE}`}>
                 {driver.is_verified ? 'Verified' : 'Pending'}
               </span>
               <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${driver.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -443,12 +364,12 @@ const DriversPage: React.FC = () => {
                 <span className="text-gray-400">Rating</span>
               </div>
               <div className="text-center">
-                <p className="font-bold text-green-600">P{(driver.total_earnings || 0).toLocaleString()}</p>
-                <span className="text-gray-400">Earnings</span>
+                <p className="font-bold text-green-600">P{(driver.total_rides || 0).toLocaleString()}</p>
+                <span className="text-gray-400">Rides</span>
               </div>
               <div className="text-center">
-                <p className="font-bold text-gray-900">{driver.completed_rides || 0}</p>
-                <span className="text-gray-400">Rides</span>
+                <p className="font-bold text-gray-900">{driver.total_deliveries || 0}</p>
+                <span className="text-gray-400">Deliveries</span>
               </div>
             </div>
 
@@ -487,15 +408,10 @@ const DriversPage: React.FC = () => {
 
         {/* Mobile empty state */}
         {filtered.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <p className="text-gray-400 text-lg">
-              {search || filter !== 'all' ? 'No drivers match your filters' : 'No drivers registered yet'}
-            </p>
-          </div>
+          <EmptyState
+            title={search || filter !== 'all' ? 'No drivers match your filters' : 'No drivers registered yet'}
+            description={search ? 'Try adjusting your search or filters' : undefined}
+          />
         )}
       </div>
 
@@ -512,8 +428,8 @@ const DriversPage: React.FC = () => {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Docs</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rating</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Earnings</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rides</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Deliveries</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -578,7 +494,7 @@ const DriversPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full w-fit ${driver.is_verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full w-fit ${driver.is_verified ? VERIFIED_BADGE : UNVERIFIED_BADGE}`}>
                         {driver.is_verified ? (
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -606,24 +522,24 @@ const DriversPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-green-600">P{(driver.total_earnings || 0).toLocaleString()}</span>
+                    <span className="text-sm font-medium text-gray-900">{driver.total_rides || 0}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900">{driver.completed_rides || 0}</span>
+                    <span className="text-sm font-medium text-gray-900">{driver.total_deliveries || 0}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleViewDetails(driver)}
                         className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="View details"
+                        aria-label="View driver details"
                       >
                         View
                       </button>
                       <button
                         onClick={() => handleOpenEdit(driver)}
                         className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Edit driver"
+                        aria-label="Edit driver"
                       >
                         Edit
                       </button>
@@ -632,7 +548,7 @@ const DriversPage: React.FC = () => {
                           onClick={() => handleVerify(driver.id)}
                           disabled={verifyingId === driver.id}
                           className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${verifyingId === driver.id ? 'text-green-400 cursor-not-allowed opacity-50' : 'text-green-600 hover:bg-green-50'}`}
-                          title="Verify driver"
+                          aria-label="Verify driver"
                         >
                           {verifyingId === driver.id ? 'Verifying...' : 'Verify'}
                         </button>
@@ -640,7 +556,7 @@ const DriversPage: React.FC = () => {
                         <button
                           onClick={() => handleOpenEdit(driver)}
                           className="px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Unverify driver via edit"
+                          aria-label="Unverify driver via edit"
                         >
                           Unverify
                         </button>
@@ -648,7 +564,7 @@ const DriversPage: React.FC = () => {
                       <button
                         onClick={() => handleDelete(driver.id, driver.User?.name || 'Unknown')}
                         className="px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete driver"
+                        aria-label="Delete driver"
                       >
                         Delete
                       </button>
@@ -662,474 +578,404 @@ const DriversPage: React.FC = () => {
 
         {/* Desktop empty state */}
         {filtered.length === 0 && (
-          <div className="text-center py-16">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <p className="text-gray-400 text-lg">
-              {search || filter !== 'all' ? 'No drivers match your filters' : 'No drivers registered yet'}
-            </p>
-          </div>
+          <EmptyState
+            title={search || filter !== 'all' ? 'No drivers match your filters' : 'No drivers registered yet'}
+            description={search ? 'Try adjusting your search or filters' : undefined}
+          />
         )}
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Previous
-          </button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((page) => {
-                if (totalPages <= 7) return true;
-                if (page === 1 || page === totalPages) return true;
-                if (Math.abs(page - currentPage) <= 1) return true;
-                return false;
-              })
-              .map((page, idx, arr) => {
-                const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
-                return (
-                  <React.Fragment key={page}>
-                    {showEllipsis && (
-                      <span className="px-2 py-1 text-sm text-gray-400">...</span>
-                    )}
-                    <button
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
-                        currentPage === page
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-          </div>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filtered.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
 
       {/* ==================== DETAIL MODAL ==================== */}
-      {showDetailModal && selectedDriver && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="bg-white border-b border-gray-200 p-4 sm:p-6 rounded-t-2xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  {(() => {
-                    const docs = getDocuments(selectedDriver);
-                    return docs.profile_photo ? (
-                      <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
-                        {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}
-                      </div>
-                    );
-                  })()}
-                  <div className="min-w-0">
-                    <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{selectedDriver.User?.name || 'Unknown Driver'}</h2>
-                    <p className="text-gray-500 text-xs sm:text-sm">Driver #{selectedDriver.id}</p>
+      <Modal
+        open={showDetailModal && !!selectedDriver}
+        onClose={() => setShowDetailModal(false)}
+        title=""
+        size="lg"
+      >
+        {selectedDriver && (
+          <div className="space-y-4 sm:space-y-6">
+            {/* Custom header with avatar */}
+            <div className="flex items-center gap-3 sm:gap-4 -mt-2">
+              {(() => {
+                const docs = getDocuments(selectedDriver);
+                return docs.profile_photo ? (
+                  <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
+                    {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}
                   </div>
-                </div>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors flex-shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                );
+              })()}
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{selectedDriver.User?.name || 'Unknown Driver'}</h2>
+                <p className="text-gray-500 text-xs sm:text-sm">Driver #{selectedDriver.id}</p>
               </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Status Badges */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${selectedDriver.is_verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {selectedDriver.is_verified ? 'Verified Driver' : 'Pending Verification'}
-                </span>
-                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 ${selectedDriver.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                  <span className={`w-2 h-2 rounded-full ${selectedDriver.is_available ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                  {selectedDriver.is_available ? 'Online' : 'Offline'}
-                </span>
-              </div>
+            {/* Status Badges */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${selectedDriver.is_verified ? VERIFIED_BADGE : UNVERIFIED_BADGE}`}>
+                {selectedDriver.is_verified ? 'Verified Driver' : 'Pending Verification'}
+              </span>
+              <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 ${selectedDriver.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`w-2 h-2 rounded-full ${selectedDriver.is_available ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                {selectedDriver.is_available ? 'Online' : 'Offline'}
+              </span>
+            </div>
 
-              {/* Driver Information */}
-              <div>
-                <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Driver Information</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Full Name</div>
-                    <div className="text-sm font-medium text-gray-900">{selectedDriver.User?.name || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Email Address</div>
-                    <div className="text-sm font-medium text-gray-900 break-all">{selectedDriver.User?.email || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Phone Number</div>
-                    <div className="text-sm font-medium text-gray-900">{selectedDriver.User?.phone || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Role</div>
-                    <div className="text-sm font-medium text-gray-900 capitalize">{selectedDriver.User?.role || 'driver'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg col-span-1 sm:col-span-2">
-                    <div className="text-xs text-gray-500 mb-1">Joined Date</div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {selectedDriver.User?.created_at
-                        ? new Date(selectedDriver.User.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                        : new Date(selectedDriver.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                      }
-                    </div>
+            {/* Driver Information */}
+            <div>
+              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Driver Information</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Full Name</div>
+                  <div className="text-sm font-medium text-gray-900">{selectedDriver.User?.name || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Email Address</div>
+                  <div className="text-sm font-medium text-gray-900 break-all">{selectedDriver.User?.email || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Phone Number</div>
+                  <div className="text-sm font-medium text-gray-900">{selectedDriver.User?.phone || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Role</div>
+                  <div className="text-sm font-medium text-gray-900 capitalize">{selectedDriver.User?.role || 'driver'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg col-span-1 sm:col-span-2">
+                  <div className="text-xs text-gray-500 mb-1">Joined Date</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {formatDate(selectedDriver.User?.created_at || selectedDriver.created_at)}
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Vehicle Information */}
-              <div>
-                <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Vehicle Information</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Vehicle Type</div>
-                    <div className="text-sm font-medium text-gray-900 capitalize">{selectedDriver.vehicle_type || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Vehicle Model</div>
-                    <div className="text-sm font-medium text-gray-900">{selectedDriver.vehicle_model || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Vehicle Plate</div>
-                    <div className="text-sm font-medium text-gray-900">{selectedDriver.vehicle_plate || 'N/A'}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">License Number</div>
-                    <div className="text-sm font-medium text-gray-900">{selectedDriver.license_number || 'N/A'}</div>
-                  </div>
+            {/* Vehicle Information */}
+            <div>
+              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Vehicle Information</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Vehicle Type</div>
+                  <div className="text-sm font-medium text-gray-900 capitalize">{selectedDriver.vehicle_type || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Vehicle Model</div>
+                  <div className="text-sm font-medium text-gray-900">{selectedDriver.vehicle_model || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Vehicle Plate</div>
+                  <div className="text-sm font-medium text-gray-900">{selectedDriver.vehicle_plate || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">License Number</div>
+                  <div className="text-sm font-medium text-gray-900">{selectedDriver.license_number || 'N/A'}</div>
                 </div>
               </div>
+            </div>
 
-              {/* Uploaded Documents */}
-              <div>
-                <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {/* Uploaded Documents */}
+            <div>
+              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Documents
+                <span className="text-xs font-normal text-gray-400">
+                  ({Object.keys(getDocuments(selectedDriver)).length}/4 uploaded)
+                </span>
+              </div>
+              {Object.keys(getDocuments(selectedDriver)).length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                  <svg className="w-8 h-8 text-amber-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                   </svg>
-                  Documents
-                  <span className="text-xs font-normal text-gray-400">
-                    ({Object.keys(getDocuments(selectedDriver)).length}/4 uploaded)
-                  </span>
+                  <p className="text-amber-700 font-medium text-sm">No documents uploaded</p>
+                  <p className="text-amber-500 text-xs mt-1">This driver has not uploaded any verification documents</p>
                 </div>
-                {Object.keys(getDocuments(selectedDriver)).length === 0 ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                    <svg className="w-8 h-8 text-amber-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <p className="text-amber-700 font-medium text-sm">No documents uploaded</p>
-                    <p className="text-amber-500 text-xs mt-1">This driver has not uploaded any verification documents</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(['profile_photo', 'license_photo', 'orcr_photo', 'id_photo'] as const).map((docKey) => {
-                      const docs = getDocuments(selectedDriver);
-                      const url = docs[docKey];
-                      return (
-                        <div key={docKey} className={`rounded-lg border-2 overflow-hidden ${url ? 'border-gray-200' : 'border-dashed border-gray-300 bg-gray-50'}`}>
-                          <div className="px-3 py-2 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-700">{DOC_LABELS[docKey]}</span>
-                            {url ? (
-                              <span className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Uploaded</span>
-                            ) : (
-                              <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">Missing</span>
-                            )}
-                          </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(['profile_photo', 'license_photo', 'orcr_photo', 'id_photo'] as const).map((docKey) => {
+                    const docs = getDocuments(selectedDriver);
+                    const url = docs[docKey];
+                    return (
+                      <div key={docKey} className={`rounded-lg border-2 overflow-hidden ${url ? 'border-gray-200' : 'border-dashed border-gray-300 bg-gray-50'}`}>
+                        <div className="px-3 py-2 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-700">{DOC_LABELS[docKey]}</span>
                           {url ? (
-                            <button
-                              onClick={() => setLightboxImage(url)}
-                              className="w-full cursor-pointer hover:opacity-90 transition-opacity relative group"
-                            >
-                              <img
-                                src={url}
-                                alt={DOC_LABELS[docKey]}
-                                className="w-full h-40 object-cover"
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  const parent = img.parentElement;
-                                  if (parent) {
-                                    const fallback = document.createElement('div');
-                                    fallback.className = 'h-40 flex items-center justify-center text-gray-400 text-sm';
-                                    fallback.textContent = 'Failed to load image';
-                                    parent.replaceChildren(fallback);
-                                  }
-                                }}
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                                <div className="bg-white bg-opacity-90 rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                  </svg>
-                                  Click to enlarge
-                                </div>
-                              </div>
-                            </button>
+                            <span className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Uploaded</span>
                           ) : (
-                            <div className="h-40 flex flex-col items-center justify-center text-gray-400">
-                              <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span className="text-xs">Not provided</span>
-                            </div>
+                            <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">Missing</span>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                        {url ? (
+                          <button
+                            onClick={() => setLightboxImage(url)}
+                            className="w-full cursor-pointer hover:opacity-90 transition-opacity relative group"
+                            aria-label={`View ${DOC_LABELS[docKey]}`}
+                          >
+                            <img
+                              src={url}
+                              alt={DOC_LABELS[docKey]}
+                              className="w-full h-40 object-cover"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                const parent = img.parentElement;
+                                if (parent) {
+                                  const fallback = document.createElement('div');
+                                  fallback.className = 'h-40 flex items-center justify-center text-gray-400 text-sm';
+                                  fallback.textContent = 'Failed to load image';
+                                  parent.replaceChildren(fallback);
+                                }
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                              <div className="bg-white bg-opacity-90 rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                                Click to enlarge
+                              </div>
+                            </div>
+                          </button>
+                        ) : (
+                          <div className="h-40 flex flex-col items-center justify-center text-gray-400">
+                            <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-xs">Not provided</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-              {/* Performance */}
-              <div>
-                <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Performance</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Rating</div>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span className="text-sm font-bold text-gray-900">{(selectedDriver.rating || 0).toFixed(1)}</span>
-                      <span className="text-xs text-gray-500">({selectedDriver.total_ratings || 0} ratings)</span>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Completed Rides</div>
-                    <div className="text-sm font-bold text-gray-900">{selectedDriver.completed_rides || 0}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">Total Earnings</div>
-                    <div className="text-sm font-bold text-green-600">P{(selectedDriver.total_earnings || 0).toLocaleString()}</div>
+            {/* Performance */}
+            <div>
+              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Performance</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Rating</div>
+                  <div className="flex items-center gap-1">
+                    <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span className="text-sm font-bold text-gray-900">{(selectedDriver.rating || 0).toFixed(1)}</span>
+                    <span className="text-xs text-gray-500">({selectedDriver.total_ratings || 0} ratings)</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    handleOpenEdit(selectedDriver);
-                  }}
-                  className="flex-1 px-4 sm:px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors text-sm sm:text-base flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Driver
-                </button>
-                {!selectedDriver.is_verified && (
-                  <button
-                    onClick={() => {
-                      handleVerify(selectedDriver.id);
-                    }}
-                    disabled={verifyingId === selectedDriver.id}
-                    className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors text-sm sm:text-base ${verifyingId === selectedDriver.id ? 'bg-green-400 text-white cursor-not-allowed opacity-50' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
-                  >
-                    {verifyingId === selectedDriver.id ? 'Verifying...' : 'Verify Driver'}
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    handleDelete(selectedDriver.id, selectedDriver.User?.name || 'Unknown');
-                  }}
-                  className="flex-1 px-4 sm:px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors text-sm sm:text-base"
-                >
-                  Delete Driver
-                </button>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="flex-1 px-4 sm:px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors text-sm sm:text-base"
-                >
-                  Close
-                </button>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Total Rides</div>
+                  <div className="text-sm font-bold text-gray-900">{selectedDriver.total_rides || 0}</div>
+                </div>
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Total Deliveries</div>
+                  <div className="text-sm font-bold text-gray-900">{selectedDriver.total_deliveries || 0}</div>
+                </div>
               </div>
             </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  handleOpenEdit(selectedDriver);
+                }}
+                className="flex-1 px-4 sm:px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors text-sm sm:text-base flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Driver
+              </button>
+              {!selectedDriver.is_verified && (
+                <button
+                  onClick={() => {
+                    handleVerify(selectedDriver.id);
+                  }}
+                  disabled={verifyingId === selectedDriver.id}
+                  className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors text-sm sm:text-base ${verifyingId === selectedDriver.id ? 'bg-green-400 text-white cursor-not-allowed opacity-50' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
+                >
+                  {verifyingId === selectedDriver.id ? 'Verifying...' : 'Verify Driver'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  handleDelete(selectedDriver.id, selectedDriver.User?.name || 'Unknown');
+                }}
+                className="flex-1 px-4 sm:px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors text-sm sm:text-base"
+              >
+                Delete Driver
+              </button>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="flex-1 px-4 sm:px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors text-sm sm:text-base"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ==================== EDIT MODAL ==================== */}
-      {showEditModal && editDriver && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            {/* Edit Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+      <Modal
+        open={showEditModal && !!editDriver}
+        onClose={() => { if (!saving) { setShowEditModal(false); setEditDriver(null); } }}
+        title="Edit Driver"
+        size="md"
+      >
+        {editDriver && (
+          <form onSubmit={handleSaveEdit} className="space-y-4 sm:space-y-5">
+            <p className="text-sm text-gray-500 -mt-2">{editDriver.User?.name || 'Unknown'} - #{editDriver.id}</p>
+
+            {/* Vehicle Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Type</label>
+              <select
+                value={editForm.vehicle_type}
+                onChange={(e) => setEditForm({ ...editForm, vehicle_type: e.target.value })}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base bg-white"
+              >
+                <option value="motorcycle">Motorcycle</option>
+                <option value="car">Car</option>
+              </select>
+            </div>
+
+            {/* Vehicle Model */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Model</label>
+              <input
+                type="text"
+                value={editForm.vehicle_model}
+                onChange={(e) => setEditForm({ ...editForm, vehicle_model: e.target.value })}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
+                placeholder="e.g. Honda Click 160"
+              />
+            </div>
+
+            {/* Vehicle Plate */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Plate</label>
+              <input
+                type="text"
+                value={editForm.vehicle_plate}
+                onChange={(e) => setEditForm({ ...editForm, vehicle_plate: e.target.value })}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
+                placeholder="e.g. ABC 1234"
+              />
+            </div>
+
+            {/* License Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">License Number</label>
+              <input
+                type="text"
+                value={editForm.license_number}
+                onChange={(e) => setEditForm({ ...editForm, license_number: e.target.value })}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
+                placeholder="e.g. N01-12-345678"
+              />
+            </div>
+
+            {/* Toggles */}
+            <div className="space-y-4 pt-2">
+              {/* Is Available Toggle */}
+              <div className="flex items-center justify-between py-2">
                 <div>
-                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Edit Driver</h2>
-                  <p className="text-sm text-gray-500 mt-1">{editDriver.User?.name || 'Unknown'} - #{editDriver.id}</p>
+                  <label className="text-sm font-medium text-gray-700">Available / Online</label>
+                  <p className="text-xs text-gray-500 mt-0.5">Toggle driver's online status</p>
                 </div>
                 <button
-                  onClick={() => { setShowEditModal(false); setEditDriver(null); }}
-                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 transition-colors p-2 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, is_available: !editForm.is_available })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    editForm.is_available ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                      editForm.is_available ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Is Verified Toggle */}
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Verified</label>
+                  <p className="text-xs text-gray-500 mt-0.5">Toggle driver's verification status</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, is_verified: !editForm.is_verified })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    editForm.is_verified ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                      editForm.is_verified ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-              {/* Vehicle Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Type</label>
-                <select
-                  value={editForm.vehicle_type}
-                  onChange={(e) => setEditForm({ ...editForm, vehicle_type: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base bg-white"
-                >
-                  <option value="motorcycle">Motorcycle</option>
-                  <option value="car">Car</option>
-                </select>
-              </div>
-
-              {/* Vehicle Model */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Model</label>
-                <input
-                  type="text"
-                  value={editForm.vehicle_model}
-                  onChange={(e) => setEditForm({ ...editForm, vehicle_model: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
-                  placeholder="e.g. Honda Click 160"
-                />
-              </div>
-
-              {/* Vehicle Plate */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Plate</label>
-                <input
-                  type="text"
-                  value={editForm.vehicle_plate}
-                  onChange={(e) => setEditForm({ ...editForm, vehicle_plate: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
-                  placeholder="e.g. ABC 1234"
-                />
-              </div>
-
-              {/* License Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">License Number</label>
-                <input
-                  type="text"
-                  value={editForm.license_number}
-                  onChange={(e) => setEditForm({ ...editForm, license_number: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm sm:text-base"
-                  placeholder="e.g. N01-12-345678"
-                />
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-4 pt-2">
-                {/* Is Available Toggle */}
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Available / Online</label>
-                    <p className="text-xs text-gray-500 mt-0.5">Toggle driver's online status</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm({ ...editForm, is_available: !editForm.is_available })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      editForm.is_available ? 'bg-green-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
-                        editForm.is_available ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Is Verified Toggle */}
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Verified</label>
-                    <p className="text-xs text-gray-500 mt-0.5">Toggle driver's verification status</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm({ ...editForm, is_verified: !editForm.is_verified })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      editForm.is_verified ? 'bg-green-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
-                        editForm.is_verified ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => { setShowEditModal(false); setEditDriver(null); }}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors text-sm sm:text-base"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2"
-                >
-                  {saving ? (
-                    <>
-                      <svg
-                        className="animate-spin h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            {/* Action Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setEditDriver(null); }}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-sm sm:text-base flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* Image Lightbox */}
       {lightboxImage && (
@@ -1140,6 +986,7 @@ const DriversPage: React.FC = () => {
           <button
             className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-40 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
             onClick={() => setLightboxImage(null)}
+            aria-label="Close lightbox"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1153,6 +1000,17 @@ const DriversPage: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

@@ -96,7 +96,7 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
             window._driverMarker.setLatLng([d.lat, d.lng]);
           }
         }
-      } catch(err) {}
+      } catch(err) { /* Ignore malformed messages */ }
     });
     document.addEventListener('message', function(e) {
       try {
@@ -112,7 +112,7 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
             window._driverMarker.setLatLng([d.lat, d.lng]);
           }
         }
-      } catch(err) {}
+      } catch(err) { /* Ignore malformed messages */ }
     });
   <\/script>
 </body>
@@ -444,12 +444,12 @@ export default function TrackingScreen({ route, navigation }: any) {
 
       {/* Top Bar Buttons */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.topBarButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.topBarButton} onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
         <View style={styles.topBarRight}>
           {status !== 'completed' && status !== 'cancelled' && (
-            <TouchableOpacity style={styles.topBarButton} onPress={handleShareTrip}>
+            <TouchableOpacity style={styles.topBarButton} onPress={handleShareTrip} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Share trip" accessibilityRole="button">
               <Ionicons name="share-outline" size={moderateScale(20)} color={COLORS.gray800} />
             </TouchableOpacity>
           )}
@@ -629,6 +629,8 @@ export default function TrackingScreen({ route, navigation }: any) {
                     rideId: type === 'ride' ? rideId : undefined,
                     deliveryId: type === 'delivery' ? rideId : undefined,
                   })}
+                  accessibilityLabel={`Message ${isDriver ? 'passenger' : 'rider'}`}
+                  accessibilityRole="button"
                 >
                   <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.accentBg }]}>
                     <Ionicons name="chatbubble-ellipses" size={moderateScale(18)} color={COLORS.accent} />
@@ -646,6 +648,8 @@ export default function TrackingScreen({ route, navigation }: any) {
                       Alert.alert('No Phone', 'Phone number is not available. Try chat instead.');
                     }
                   }}
+                  accessibilityLabel={`Call ${isDriver ? 'passenger' : 'rider'}`}
+                  accessibilityRole="button"
                 >
                   <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.successBg }]}>
                     <Ionicons name="call" size={moderateScale(18)} color={COLORS.success} />
@@ -721,6 +725,8 @@ export default function TrackingScreen({ route, navigation }: any) {
               onPress={handleUpdateStatus}
               disabled={updatingStatus}
               activeOpacity={0.8}
+              accessibilityLabel={`Update status to ${getNextDriverStatus()!.label}`}
+              accessibilityRole="button"
             >
               {updatingStatus ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -743,6 +749,10 @@ export default function TrackingScreen({ route, navigation }: any) {
               onPress={handleCancel}
               disabled={cancelling || status === 'in_progress' || status === 'picked_up'}
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={status === 'in_progress' || status === 'picked_up' ? 'Cannot cancel after pickup' : `Cancel ${type === 'delivery' ? 'delivery' : 'ride'}`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: cancelling || status === 'in_progress' || status === 'picked_up' }}
             >
               {cancelling ? (
                 <ActivityIndicator color={COLORS.error} />
@@ -750,7 +760,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                 <>
                   <Ionicons name="lock-closed-outline" size={moderateScale(18)} color={COLORS.gray400} />
                   <Text style={[styles.cancelButtonText, { color: COLORS.gray400 }]}>
-                    Cannot cancel - {type === 'delivery' ? 'delivery' : 'ride'} in progress
+                    Cannot cancel after pickup
                   </Text>
                 </>
               ) : (
@@ -769,6 +779,8 @@ export default function TrackingScreen({ route, navigation }: any) {
                   style={styles.rateButton}
                   onPress={() => setShowRating(true)}
                   activeOpacity={0.8}
+                  accessibilityLabel="Rate your rider"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="star" size={moderateScale(20)} color={COLORS.warningDark} />
                   <Text style={styles.rateButtonText}>Rate Your Rider</Text>
@@ -811,6 +823,9 @@ export default function TrackingScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.ratingCloseBtn}
               onPress={() => { setShowRating(false); setHasRated(true); }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Close rating"
+              accessibilityRole="button"
             >
               <Ionicons name="close" size={moderateScale(22)} color={COLORS.gray500} />
             </TouchableOpacity>
@@ -841,11 +856,14 @@ export default function TrackingScreen({ route, navigation }: any) {
                   onPress={() => handleStarPress(star)}
                   style={styles.starButton}
                   activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityLabel={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                  accessibilityRole="button"
                 >
                   <Animated.View style={{ transform: [{ scale: starAnims[star - 1] }] }}>
                     <Ionicons
                       name={star <= rating ? 'star' : 'star-outline'}
-                      size={moderateScale(40)}
+                      size={moderateScale(44)}
                       color={star <= rating ? COLORS.warningDark : COLORS.gray300}
                     />
                   </Animated.View>
@@ -883,6 +901,8 @@ export default function TrackingScreen({ route, navigation }: any) {
               onPress={handleSubmitRating}
               disabled={submittingRating}
               activeOpacity={0.8}
+              accessibilityLabel="Submit rating"
+              accessibilityRole="button"
             >
               {submittingRating ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -897,6 +917,8 @@ export default function TrackingScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.skipRatingButton}
               onPress={() => { setShowRating(false); setHasRated(true); }}
+              accessibilityLabel="Skip rating"
+              accessibilityRole="button"
             >
               <Text style={styles.skipRatingText}>Maybe Later</Text>
             </TouchableOpacity>
@@ -1523,6 +1545,10 @@ const styles = StyleSheet.create({
   },
   starButton: {
     paddingHorizontal: moderateScale(6),
+    minWidth: moderateScale(44),
+    minHeight: moderateScale(44),
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   ratingLabelBadge: {
     paddingHorizontal: moderateScale(16),

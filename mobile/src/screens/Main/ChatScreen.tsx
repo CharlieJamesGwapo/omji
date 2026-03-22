@@ -174,7 +174,7 @@ export default function ChatScreen({ route, navigation }: any) {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={moderateScale(24)} color={COLORS.gray800} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
@@ -202,7 +202,7 @@ export default function ChatScreen({ route, navigation }: any) {
           } else {
             Alert.alert('No Phone', 'Phone number not available');
           }
-        }}>
+        }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Call driver" accessibilityRole="button">
           <Ionicons name="call" size={moderateScale(24)} color={COLORS.success} />
         </TouchableOpacity>
       </View>
@@ -248,6 +248,8 @@ export default function ChatScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.quickReply}
               onPress={() => sendMessage(item)}
+              accessibilityLabel={`Quick reply: ${item}`}
+              accessibilityRole="button"
             >
               <Text style={styles.quickReplyText}>{item}</Text>
             </TouchableOpacity>
@@ -269,14 +271,17 @@ export default function ChatScreen({ route, navigation }: any) {
           style={[styles.sendButton, (!message.trim() || sending) && styles.sendButtonDisabled]}
           onPress={() => sendMessage()}
           disabled={!message.trim() || sending}
+          accessibilityLabel="Send message"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !message.trim() || sending }}
         >
           {sending ? (
-            <ActivityIndicator size="small" color="#D1D5DB" />
+            <ActivityIndicator size="small" color={COLORS.gray400} />
           ) : (
             <Ionicons
               name="send"
               size={moderateScale(20)}
-              color={message.trim() ? COLORS.white : COLORS.gray300}
+              color={message.trim() ? COLORS.white : COLORS.gray400}
             />
           )}
         </TouchableOpacity>
@@ -458,6 +463,7 @@ const styles = StyleSheet.create({
     marginLeft: moderateScale(8),
   },
   sendButtonDisabled: {
-    backgroundColor: COLORS.gray100,
+    backgroundColor: COLORS.gray200,
+    opacity: 0.7,
   },
 });

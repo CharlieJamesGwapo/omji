@@ -14,13 +14,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func GenerateOTP() string {
+func GenerateOTP() (string, error) {
 	max := big.NewInt(900000)
 	num, err := rand.Int(rand.Reader, max)
 	if err != nil {
-		return "123456"
+		return "", fmt.Errorf("failed to generate secure OTP: %w", err)
 	}
-	return fmt.Sprintf("%06d", num.Int64()+100000)
+	return fmt.Sprintf("%06d", num.Int64()+100000), nil
 }
 
 func CalculateFare(distance float64, vehicleType string) float64 {
@@ -66,18 +66,25 @@ func GetOrderDeliveryFeeFromDB(db *gorm.DB) float64 {
 	return 30.0
 }
 
+// TODO: Replace with a real email provider (e.g., SendGrid, AWS SES, Mailgun)
 func SendOTPEmail(email, otp string) error {
-	fmt.Printf("OTP for %s: %s (expires in 5 minutes)\n", email, otp)
+	// OTP is not logged to stdout for security
+	log.Printf("OTP email requested for %s", email)
 	return nil
 }
 
+// TODO: Replace with a real SMS provider (e.g., Twilio, Vonage, Semaphore)
 func SendOTPSMS(phone, otp string) error {
-	fmt.Printf("SMS OTP for %s: %s (expires in 5 minutes)\n", phone, otp)
+	// OTP is not logged to stdout for security
+	log.Printf("OTP SMS requested for %s", phone)
 	return nil
 }
 
 func UpdateOTP(db *gorm.DB, email string) (string, error) {
-	otp := GenerateOTP()
+	otp, err := GenerateOTP()
+	if err != nil {
+		return "", err
+	}
 	expiry := time.Now().Add(5 * time.Minute)
 	if err := db.Model(&models.User{}).Where("email = ?", email).Updates(map[string]interface{}{
 		"otp_code":   otp,

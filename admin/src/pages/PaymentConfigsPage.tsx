@@ -1,17 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
-
-interface PaymentConfig {
-  id: number;
-  type: string;
-  account_name: string;
-  account_number: string;
-  qr_code_url: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import type { PaymentConfig } from '../types';
+import { getErrorMessage } from '../utils';
+import { ConfirmDialog, PageSkeleton, Modal } from '../components';
 
 const EMPTY_FORM = {
   type: 'gcash',
@@ -47,12 +39,14 @@ const PaymentConfigsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; configId: number | null }>({ open: false, configId: null });
+
   const loadConfigs = useCallback(async () => {
     try {
       const res = await adminService.getPaymentConfigs();
       setConfigs(res.data.data || []);
-    } catch {
-      toast.error('Failed to load payment configs');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to load payment configs'));
     }
     setLoading(false);
   }, []);
@@ -97,35 +91,28 @@ const PaymentConfigsPage: React.FC = () => {
       }
       setModalOpen(false);
       await loadConfigs();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to save'));
     }
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this payment config?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!confirmDialog.configId) return;
     try {
-      await adminService.deletePaymentConfig(id);
+      await adminService.deletePaymentConfig(confirmDialog.configId);
       toast.success('Payment config deleted');
       await loadConfigs();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to delete');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete'));
     }
+    setConfirmDialog({ open: false, configId: null });
   };
 
   const theme = THEME[form.type] || THEME.gcash;
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-64 bg-gray-200 rounded-xl animate-pulse" />
-          <div className="h-64 bg-gray-200 rounded-xl animate-pulse" />
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={0} tableRows={2} showSearch={false} />;
   }
 
   return (
@@ -200,7 +187,7 @@ const PaymentConfigsPage: React.FC = () => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(config.id)}
+                        onClick={() => setConfirmDialog({ open: true, configId: config.id })}
                         className="px-4 py-2 min-h-[40px] bg-gray-100 text-gray-600 rounded-lg text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors"
                       >
                         Delete
@@ -246,153 +233,153 @@ const PaymentConfigsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete Payment Config"
+        message="Are you sure you want to delete this payment configuration? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDialog({ open: false, configId: null })}
+      />
+
       {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">
-                {editId ? 'Edit' : 'Configure'} {THEME[form.type]?.label || form.type} Payment
-              </h2>
-              <button onClick={() => setModalOpen(false)} className="p-2 min-w-[40px] min-h-[40px] hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={`${editId ? 'Edit' : 'Configure'} ${THEME[form.type]?.label || form.type} Payment`}
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setModalOpen(false)}
+              className="px-5 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50"
+              style={{ backgroundColor: theme.color }}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          {/* Form Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
+              <input
+                type="text"
+                value={THEME[form.type]?.label || form.type}
+                disabled
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 text-sm"
+              />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+              <input
+                type="text"
+                value={form.account_name}
+                onChange={e => setForm({ ...form, account_name: e.target.value })}
+                placeholder="e.g. Juan Dela Cruz"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+              <input
+                type="text"
+                value={form.account_number}
+                onChange={e => setForm({ ...form, account_number: e.target.value })}
+                placeholder="e.g. 09171234567"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors ${form.is_active ? 'bg-green-500' : 'bg-gray-300'}`}
+                  onClick={() => setForm({ ...form, is_active: !form.is_active })}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_active ? 'translate-x-5' : ''}`} />
+                </div>
+                <span className="text-sm font-medium text-gray-700">{form.is_active ? 'Active' : 'Inactive'}</span>
+              </label>
+            </div>
+          </div>
 
-            <div className="p-5 space-y-5">
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
-                  <input
-                    type="text"
-                    value={THEME[form.type]?.label || form.type}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">QR Code Image URL</label>
+            <input
+              type="url"
+              value={form.qr_code_url}
+              onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
+              placeholder="https://example.com/my-qr-code.png"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            />
+          </div>
+
+          {/* Mobile Preview */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-3">Mobile App Preview</p>
+            <div className="bg-gray-100 rounded-xl p-4 flex justify-center">
+              <div className="w-72 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+                {/* Preview Header */}
+                <div className="px-4 py-3" style={{ backgroundColor: theme.color }}>
+                  <p className="text-white text-center text-sm font-semibold">
+                    Complete the payment in your {THEME[form.type]?.label} app
+                  </p>
+                </div>
+
+                {/* Preview Body */}
+                <div className="p-4 space-y-4">
+                  {form.account_name && (
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Send to</p>
+                      <p className="text-sm font-bold text-gray-900">{form.account_name}</p>
+                      {form.account_number && (
+                        <p className="text-xs text-gray-500">{form.account_number}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {form.qr_code_url ? (
+                    <div className="flex justify-center">
+                      <img
+                        src={form.qr_code_url}
+                        alt="QR Preview"
+                        className="w-40 h-40 object-contain rounded-lg border border-gray-100"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50" y="55" font-size="10" text-anchor="middle" fill="%239ca3af">No image</text></svg>';
+                          (e.target as HTMLImageElement).alt = 'Invalid image URL';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-40 h-40 mx-auto bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
+                      <p className="text-xs text-gray-400 text-center px-4">QR code will appear here</p>
+                    </div>
+                  )}
+
+                  <button
+                    className="w-full py-2.5 rounded-xl text-white text-sm font-semibold"
+                    style={{ backgroundColor: theme.color }}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
-                  <input
-                    type="text"
-                    value={form.account_name}
-                    onChange={e => setForm({ ...form, account_name: e.target.value })}
-                    placeholder="e.g. Juan Dela Cruz"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                  <input
-                    type="text"
-                    value={form.account_number}
-                    onChange={e => setForm({ ...form, account_number: e.target.value })}
-                    placeholder="e.g. 09171234567"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div
-                      className={`relative w-11 h-6 rounded-full transition-colors ${form.is_active ? 'bg-green-500' : 'bg-gray-300'}`}
-                      onClick={() => setForm({ ...form, is_active: !form.is_active })}
-                    >
-                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_active ? 'translate-x-5' : ''}`} />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{form.is_active ? 'Active' : 'Inactive'}</span>
-                  </label>
+                  >
+                    Open in {THEME[form.type]?.label}
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">QR Code Image URL</label>
-                <input
-                  type="url"
-                  value={form.qr_code_url}
-                  onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
-                  placeholder="https://example.com/my-qr-code.png"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-
-              {/* Mobile Preview */}
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-3">Mobile App Preview</p>
-                <div className="bg-gray-100 rounded-xl p-4 flex justify-center">
-                  <div className="w-72 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-                    {/* Preview Header */}
-                    <div className="px-4 py-3" style={{ backgroundColor: theme.color }}>
-                      <p className="text-white text-center text-sm font-semibold">
-                        Complete the payment in your {THEME[form.type]?.label} app
-                      </p>
-                    </div>
-
-                    {/* Preview Body */}
-                    <div className="p-4 space-y-4">
-                      {form.account_name && (
-                        <div className="text-center">
-                          <p className="text-xs text-gray-400">Send to</p>
-                          <p className="text-sm font-bold text-gray-900">{form.account_name}</p>
-                          {form.account_number && (
-                            <p className="text-xs text-gray-500">{form.account_number}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {form.qr_code_url ? (
-                        <div className="flex justify-center">
-                          <img
-                            src={form.qr_code_url}
-                            alt="QR Preview"
-                            className="w-40 h-40 object-contain rounded-lg border border-gray-100"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50" y="55" font-size="10" text-anchor="middle" fill="%239ca3af">No image</text></svg>';
-                              (e.target as HTMLImageElement).alt = 'Invalid image URL';
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-40 h-40 mx-auto bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
-                          <p className="text-xs text-gray-400 text-center px-4">QR code will appear here</p>
-                        </div>
-                      )}
-
-                      <button
-                        className="w-full py-2.5 rounded-xl text-white text-sm font-semibold"
-                        style={{ backgroundColor: theme.color }}
-                        disabled
-                      >
-                        Open in {THEME[form.type]?.label}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-5 border-t border-gray-100">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-5 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: theme.color }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
             </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

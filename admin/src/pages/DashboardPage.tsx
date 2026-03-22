@@ -6,10 +6,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
-
-const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div className={`animate-pulse rounded-xl bg-gray-100 ${className}`} />
-);
+import { getErrorMessage } from '../utils';
+import { PageSkeleton } from '../components';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -68,8 +66,7 @@ const DashboardPage: React.FC = () => {
       setMonthlyRevenueData(monthlyRevenueRes.data.data || []);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Failed to load dashboard:', err);
-      toast.error('Failed to load dashboard data');
+      toast.error(getErrorMessage(err, 'Failed to load dashboard data'));
     }
     setLoading(false);
     setRefreshing(false);
@@ -103,7 +100,7 @@ const DashboardPage: React.FC = () => {
     { label: 'Total Users', value: stats.totalUsers, accent: 'border-l-emerald-500', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
     { label: 'Total Drivers', value: stats.totalDrivers, accent: 'border-l-blue-500', iconBg: 'bg-blue-50', iconColor: 'text-blue-600', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
     { label: 'Active Rides', value: stats.activeRides, accent: 'border-l-amber-500', iconBg: 'bg-amber-50', iconColor: 'text-amber-600', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-    { label: 'Total Revenue', value: `₱${stats.totalEarnings.toLocaleString()}`, accent: 'border-l-violet-500', iconBg: 'bg-violet-50', iconColor: 'text-violet-600', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: 'Total Revenue', value: `\u20B1${stats.totalEarnings.toLocaleString()}`, accent: 'border-l-violet-500', iconBg: 'bg-violet-50', iconColor: 'text-violet-600', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   ];
 
   const quickActions = [
@@ -116,31 +113,7 @@ const DashboardPage: React.FC = () => {
   ];
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-7 w-48 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-4 w-32 bg-gray-50 rounded animate-pulse mt-2" />
-          </div>
-          <div className="h-10 w-28 bg-gray-100 rounded-xl animate-pulse" />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <SkeletonCard key={i} className="h-24" />)}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} className="h-20" />)}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SkeletonCard className="h-72" />
-          <SkeletonCard className="h-72" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SkeletonCard className="h-64" />
-          <SkeletonCard className="h-64" />
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={4} tableRows={5} showSearch={false} />;
   }
 
   return (
@@ -162,6 +135,7 @@ const DashboardPage: React.FC = () => {
           onClick={() => loadDashboard(true)}
           disabled={refreshing}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-sm"
+          aria-label="Refresh dashboard"
         >
           <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -201,6 +175,7 @@ const DashboardPage: React.FC = () => {
               key={action.path}
               onClick={() => navigate(action.path)}
               className={`relative bg-white rounded-xl border border-gray-100 p-4 text-center ${action.color} transition-all duration-200 shadow-sm hover:shadow-md group`}
+              aria-label={`Go to ${action.label}`}
             >
               {action.badge ? (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-sm">

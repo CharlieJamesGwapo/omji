@@ -16,7 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { driverService, API_BASE_URL } from '../../services/api';
+import { driverService } from '../../services/api';
+import { getWebSocketUrl } from '../../utils/websocket';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 import RiderRequestModal from '../../components/RiderRequestModal';
@@ -53,6 +54,7 @@ interface DriverRequest {
 export default function RiderDashboardScreen({ navigation }: any) {
   const { user, logout, refreshUser, updateUser } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
+  const [togglingOnline, setTogglingOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
@@ -143,7 +145,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        console.log('Driver profile fetch failed:', error.response?.status || error.message);
+        // Profile fetch failed - will retry on next poll
       }
       setIsVerified(false);
       wasVerifiedRef.current = false;
@@ -175,7 +177,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {
-        console.log('Driver data fetch failed:', error.response?.status || error.message);
+        // Data fetch failed - will retry on next poll
       }
     } finally {
       setLoading(false);
@@ -218,8 +220,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
-      const wsUrl = API_BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api/v1', '');
-      ws = new WebSocket(`${wsUrl}/ws/driver/${driverProfileId.current}?token=${token}`);
+      ws = new WebSocket(getWebSocketUrl(`/ws/driver/${driverProfileId.current}`, token));
       driverWsRef.current = ws;
 
       ws.onmessage = (event) => {
@@ -256,6 +257,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       showToast('Your account is pending admin approval.', 'warning');
       return;
     }
+    setTogglingOnline(true);
     if (!isOnline) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -281,6 +283,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
         fetchData();
       } catch (error: any) {
         showToast(error.response?.data?.error || 'Failed to go online', 'error');
+      } finally {
+        setTogglingOnline(false);
       }
     } else {
       try {
@@ -291,6 +295,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
         showToast('You are now offline.', 'info');
       } catch (error: any) {
         showToast(error.response?.data?.error || 'Failed to go offline', 'error');
+      } finally {
+        setTogglingOnline(false);
       }
     }
   };
@@ -613,13 +619,19 @@ export default function RiderDashboardScreen({ navigation }: any) {
                 {isOnline ? 'Receiving requests' : 'Tap to go online'}
               </Text>
             </View>
-            <Switch
-              value={isOnline}
-              onValueChange={handleToggleOnline}
-              trackColor={{ false: COLORS.gray300, true: COLORS.successLight }}
-              thumbColor={isOnline ? COLORS.success : COLORS.gray100}
-              style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] }}
-            />
+            {togglingOnline ? (
+              <ActivityIndicator size="small" color={isOnline ? COLORS.success : COLORS.gray500} />
+            ) : (
+              <Switch
+                value={isOnline}
+                onValueChange={handleToggleOnline}
+                trackColor={{ false: COLORS.gray300, true: COLORS.successLight }}
+                thumbColor={isOnline ? COLORS.success : COLORS.gray100}
+                style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] }}
+                accessibilityLabel={isOnline ? 'Go offline' : 'Go online'}
+                accessibilityRole="switch"
+              />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -813,6 +825,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
                         style={styles.declineBtn}
                         onPress={() => handleDeclineJob(request)}
                         activeOpacity={0.7}
+                        accessibilityLabel={`Decline ${request.type === 'delivery' ? 'delivery' : 'ride'} request`}
+                        accessibilityRole="button"
                       >
                         <Ionicons name="close" size={moderateScale(18)} color={COLORS.error} />
                         <Text style={styles.declineBtnText}>Decline</Text>
@@ -821,6 +835,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
                         style={[styles.acceptBtn, { backgroundColor: getJobColor(request) }]}
                         onPress={() => handleAcceptJob(request)}
                         activeOpacity={0.7}
+                        accessibilityLabel={`Accept ${request.type === 'delivery' ? 'delivery' : 'ride'} request`}
+                        accessibilityRole="button"
                       >
                         <Text style={styles.acceptBtnText}>
                           Accept {request.type === 'delivery' ? 'Delivery' : 'Ride'}
@@ -869,7 +885,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
               <Text style={styles.offlineText}>
                 Go online to receive rides, deliveries, and ride share requests
               </Text>
-              <TouchableOpacity style={styles.goOnlineBtn} onPress={handleToggleOnline} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.goOnlineBtn} onPress={handleToggleOnline} activeOpacity={0.8} accessibilityLabel="Go online to receive requests" accessibilityRole="button">
                 <Ionicons name="flash" size={moderateScale(18)} color={COLORS.white} />
                 <Text style={styles.goOnlineBtnText}>Go Online</Text>
               </TouchableOpacity>
@@ -882,6 +898,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
           style={styles.switchModeCard}
           onPress={() => updateUser({ role: 'user' })}
           activeOpacity={0.7}
+          accessibilityLabel="Switch to user mode"
+          accessibilityRole="button"
         >
           <Ionicons name="swap-horizontal" size={moderateScale(18)} color={COLORS.accent} />
           <Text style={styles.switchModeText}>Switch to User Mode</Text>

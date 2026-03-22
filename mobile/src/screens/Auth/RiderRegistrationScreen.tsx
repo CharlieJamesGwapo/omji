@@ -173,6 +173,8 @@ export default function RiderRegistrationScreen({ navigation }: any) {
       <TouchableOpacity
         style={styles.uploadButton}
         onPress={() => pickImage(type)}
+        accessibilityLabel={`Upload ${title}`}
+        accessibilityRole="button"
       >
         {photo ? (
           <Image source={{ uri: photo }} style={styles.uploadedImage} />
@@ -200,7 +202,11 @@ export default function RiderRegistrationScreen({ navigation }: any) {
           } else {
             navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }));
           }
-        }} style={{ position: 'absolute', left: moderateScale(16), top: isIOS ? verticalScale(50) : verticalScale(35), zIndex: 1 }}>
+        }} style={{ position: 'absolute', left: moderateScale(16), top: isIOS ? verticalScale(50) : verticalScale(35), zIndex: 1, minWidth: 44, minHeight: 44, justifyContent: 'center' as const }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Ionicons name="bicycle" size={48} color="#DC2626" />
@@ -255,6 +261,8 @@ export default function RiderRegistrationScreen({ navigation }: any) {
                   navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }));
                 }
               }}
+              accessibilityLabel="Back to home"
+              accessibilityRole="button"
             >
               <Text style={styles.goToDashboardText}>Back to Home</Text>
               <Ionicons name="arrow-forward" size={moderateScale(18)} color={COLORS.white} />
@@ -274,6 +282,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             placeholder="Juan Dela Cruz"
             value={fullName}
             onChangeText={setFullName}
+            accessibilityLabel="Full name"
           />
         </View>
 
@@ -285,6 +294,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
+            accessibilityLabel="Phone number"
           />
         </View>
 
@@ -297,6 +307,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            accessibilityLabel="Email address"
           />
         </View>
 
@@ -309,6 +320,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             onChangeText={setAddress}
             multiline
             numberOfLines={3}
+            accessibilityLabel="Complete address"
           />
         </View>
       </View>
@@ -328,6 +340,8 @@ export default function RiderRegistrationScreen({ navigation }: any) {
                   vehicleType === type && styles.vehicleTypeButtonActive,
                 ]}
                 onPress={() => setVehicleType(type)}
+                accessibilityLabel={`Vehicle type: ${type}${vehicleType === type ? ' (selected)' : ''}`}
+                accessibilityRole="button"
               >
                 <Text
                   style={[
@@ -350,6 +364,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             value={plateNumber}
             onChangeText={setPlateNumber}
             autoCapitalize="characters"
+            accessibilityLabel="Plate number"
           />
         </View>
 
@@ -360,6 +375,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             placeholder="Honda TMX 155"
             value={vehicleModel}
             onChangeText={setVehicleModel}
+            accessibilityLabel="Vehicle model"
           />
         </View>
 
@@ -370,6 +386,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             placeholder="Red"
             value={vehicleColor}
             onChangeText={setVehicleColor}
+            accessibilityLabel="Vehicle color"
           />
         </View>
       </View>
@@ -385,6 +402,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
             placeholder="N01-12-345678"
             value={licenseNumber}
             onChangeText={setLicenseNumber}
+            accessibilityLabel="Driver's license number"
           />
         </View>
       </View>
@@ -404,12 +422,17 @@ export default function RiderRegistrationScreen({ navigation }: any) {
 
       {/* Submit Button */}
       <TouchableOpacity
-        style={[styles.submitButton, loading && { opacity: 0.7 }]}
+        style={[styles.submitButton, loading && { opacity: 0.5 }]}
         onPress={handleSubmit}
         disabled={loading}
+        accessibilityLabel={loading ? 'Submitting registration' : 'Submit application'}
+        accessibilityRole="button"
       >
         {loading ? (
-          <ActivityIndicator color="#ffffff" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) }}>
+            <ActivityIndicator color="#ffffff" />
+            <Text style={styles.submitButtonText}>Submitting registration...</Text>
+          </View>
         ) : (
           <>
             <Text style={styles.submitButtonText}>Submit Application</Text>
@@ -512,6 +535,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#ffffff',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   vehicleTypeButtonActive: {
     backgroundColor: '#DC2626',

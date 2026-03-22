@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
+import { ITEMS_PER_PAGE } from '../constants';
+import { formatCurrency, getErrorMessage } from '../utils';
+import { SearchInput, EmptyState, PageSkeleton, Pagination } from '../components';
 
 interface ActivityLog {
   id: number;
@@ -17,8 +20,6 @@ interface ActivityLog {
 
 type FilterType = 'all' | 'ride' | 'delivery' | 'order' | 'user' | 'driver';
 
-const ITEMS_PER_PAGE = 20;
-
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; iconBg: string }> = {
   ride: { label: 'Ride', color: 'text-blue-700', bg: 'bg-blue-100', iconBg: 'bg-blue-50 border-blue-200' },
   delivery: { label: 'Delivery', color: 'text-purple-700', bg: 'bg-purple-100', iconBg: 'bg-purple-50 border-purple-200' },
@@ -27,7 +28,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; ic
   driver: { label: 'Driver', color: 'text-indigo-700', bg: 'bg-indigo-100', iconBg: 'bg-indigo-50 border-indigo-200' },
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const LOG_STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
   active: 'bg-blue-100 text-blue-700',
   pending: 'bg-yellow-100 text-yellow-700',
@@ -83,7 +84,7 @@ const getTypeIcon = (type: string): React.ReactNode => {
   }
 };
 
-const formatTime = (dateStr: string): string => {
+const formatRelativeTime = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return 'Invalid date';
@@ -101,10 +102,6 @@ const formatTime = (dateStr: string): string => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const formatCurrency = (amount: number): string => {
-  return `P${(amount || 0).toLocaleString()}`;
-};
-
 const ActivityLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,9 +116,8 @@ const ActivityLogsPage: React.FC = () => {
       const response = await adminService.getActivityLogs();
       const data = response.data?.data || [];
       setLogs(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load activity logs:', error);
-      toast.error('Failed to load activity logs');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to load activity logs'));
     }
     if (showLoading) setLoading(false);
   }, []);
@@ -178,39 +174,7 @@ const ActivityLogsPage: React.FC = () => {
   ];
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="space-y-2">
-            <div className="h-7 w-40 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
-          </div>
-          <div className="h-10 w-full sm:w-80 bg-gray-200 rounded-lg animate-pulse" />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-xl animate-pulse" />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-9 w-20 bg-gray-200 rounded-lg animate-pulse" />
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-200 animate-pulse flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                <div className="h-2 bg-gray-200 rounded animate-pulse w-full" />
-                <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton statCards={5} filterButtons={6} tableRows={8} />;
   }
 
   return (
@@ -221,25 +185,12 @@ const ActivityLogsPage: React.FC = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Activity Logs</h1>
           <p className="text-gray-500 text-sm mt-1">{filteredLogs.length} activities recorded</p>
         </div>
-        <div className="relative w-full sm:w-80">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name, action, or details..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-9 py-2.5 sm:py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name, action, or details..."
+          className="w-full sm:w-80"
+        />
       </div>
 
       {/* Stat Cards */}
@@ -283,30 +234,19 @@ const ActivityLogsPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Results count */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <span>Showing {paginated.length} of {filteredLogs.length} logs</span>
-        {totalPages > 1 && (
-          <span className="hidden sm:inline">Page {currentPage} of {totalPages}</span>
-        )}
-      </div>
-
       {/* Empty State */}
       {filteredLogs.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 text-center py-12 sm:py-16">
-          <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p className="text-gray-400 text-base sm:text-lg">No activity logs found</p>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">Try adjusting your search or filters</p>
-        </div>
+        <EmptyState
+          title="No activity logs found"
+          description="Try adjusting your search or filters"
+        />
       ) : (
         <>
           {/* Mobile Card View */}
           <div className="block lg:hidden space-y-3">
             {paginated.map((log) => {
               const config = TYPE_CONFIG[log.type] || TYPE_CONFIG.user;
-              const statusColor = STATUS_COLORS[log.status?.toLowerCase()] || 'bg-gray-100 text-gray-700';
+              const statusColor = LOG_STATUS_COLORS[log.status?.toLowerCase()] || 'bg-gray-100 text-gray-700';
               return (
                 <div key={log.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                   <div className="flex items-start gap-3">
@@ -338,7 +278,7 @@ const ActivityLogsPage: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-gray-400">{formatTime(log.created_at)}</span>
+                        <span className="text-xs text-gray-400">{formatRelativeTime(log.created_at)}</span>
                         {log.amount > 0 && (
                           <span className="text-sm font-semibold text-gray-900">{formatCurrency(log.amount)}</span>
                         )}
@@ -368,7 +308,7 @@ const ActivityLogsPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {paginated.map((log) => {
                     const config = TYPE_CONFIG[log.type] || TYPE_CONFIG.user;
-                    const statusColor = STATUS_COLORS[log.status?.toLowerCase()] || 'bg-gray-100 text-gray-700';
+                    const statusColor = LOG_STATUS_COLORS[log.status?.toLowerCase()] || 'bg-gray-100 text-gray-700';
                     return (
                       <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
@@ -408,7 +348,7 @@ const ActivityLogsPage: React.FC = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="text-sm text-gray-500 whitespace-nowrap">{formatTime(log.created_at)}</span>
+                          <span className="text-sm text-gray-500 whitespace-nowrap">{formatRelativeTime(log.created_at)}</span>
                         </td>
                       </tr>
                     );
@@ -421,53 +361,13 @@ const ActivityLogsPage: React.FC = () => {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Previous
-          </button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((page) => {
-                if (totalPages <= 7) return true;
-                if (page === 1 || page === totalPages) return true;
-                if (Math.abs(page - currentPage) <= 1) return true;
-                return false;
-              })
-              .map((page, idx, arr) => {
-                const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
-                return (
-                  <React.Fragment key={page}>
-                    {showEllipsis && (
-                      <span className="px-2 py-1 text-sm text-gray-400">...</span>
-                    )}
-                    <button
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 text-sm font-medium rounded-lg transition-colors ${
-                        currentPage === page
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-          </div>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredLogs.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 };

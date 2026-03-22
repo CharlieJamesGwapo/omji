@@ -122,6 +122,8 @@ export default function FavoritesScreen({ navigation }: any) {
       style={styles.card}
       onPress={() => handleCardPress(item)}
       activeOpacity={0.7}
+      accessibilityLabel={`${item.name || 'Store'}, rated ${item.rating?.toFixed(1) || '0.0'}`}
+      accessibilityRole="button"
     >
       <View style={styles.cardIconContainer}>
         <Ionicons name="storefront" size={moderateScale(32)} color="#3B82F6" />
@@ -149,7 +151,9 @@ export default function FavoritesScreen({ navigation }: any) {
       <TouchableOpacity
         style={styles.heartButton}
         onPress={() => handleUnfavorite(item)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel={`Remove ${item.name || 'item'} from favorites`}
+        accessibilityRole="button"
       >
         <Ionicons name="heart" size={moderateScale(24)} color="#EF4444" />
       </TouchableOpacity>
@@ -171,6 +175,9 @@ export default function FavoritesScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(24)} color="#1F2937" />
         </TouchableOpacity>
@@ -188,6 +195,9 @@ export default function FavoritesScreen({ navigation }: any) {
               activeFilter === tab.key && styles.filterTabActive,
             ]}
             onPress={() => setActiveFilter(tab.key)}
+            accessibilityLabel={`Filter by ${tab.label}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeFilter === tab.key }}
           >
             <Text
               style={[

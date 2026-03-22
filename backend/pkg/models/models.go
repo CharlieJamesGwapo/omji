@@ -60,8 +60,8 @@ type Driver struct {
 	VehicleModel    string    `json:"vehicle_model"`
 	VehiclePlate    string    `gorm:"uniqueIndex" json:"vehicle_plate"`
 	LicenseNumber   string    `gorm:"uniqueIndex" json:"license_number"`
-	IsVerified      bool      `gorm:"default:false" json:"is_verified"`
-	IsAvailable     bool      `gorm:"default:false" json:"is_available"`
+	IsVerified      bool      `gorm:"default:false;index:idx_driver_verified_available,priority:1" json:"is_verified"`
+	IsAvailable     bool      `gorm:"default:false;index:idx_driver_verified_available,priority:2" json:"is_available"`
 	CurrentLatitude float64   `json:"current_latitude"`
 	CurrentLongitude float64  `json:"current_longitude"`
 	TotalEarnings   float64   `gorm:"default:0" json:"total_earnings"`
@@ -317,8 +317,8 @@ type PaymentConfig struct {
 }
 
 // AutoMigrate is used for database migrations
-func AutoMigrate(db *gorm.DB) {
-	db.AutoMigrate(
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&User{},
 		&SavedAddress{},
 		&PaymentMethod{},

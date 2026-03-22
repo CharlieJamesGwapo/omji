@@ -97,6 +97,8 @@ export default function RiderSelectionScreen({ navigation, route }: any) {
       onPress={() => handleSelectRider(item)}
       activeOpacity={0.7}
       disabled={submitting}
+      accessibilityLabel={`Select rider ${item.name}, ${item.vehicle_type}, rating ${(item.rating || 0).toFixed(1)}`}
+      accessibilityRole="button"
     >
       <View style={styles.driverLeft}>
         <View style={[styles.avatar, { backgroundColor: COLORS.accent }]}>
@@ -126,7 +128,7 @@ export default function RiderSelectionScreen({ navigation, route }: any) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -135,7 +137,7 @@ export default function RiderSelectionScreen({ navigation, route }: any) {
             {drivers.length} rider{drivers.length !== 1 ? 's' : ''} nearby
           </Text>
         </View>
-        <TouchableOpacity onPress={fetchDrivers} style={styles.refreshBtn}>
+        <TouchableOpacity onPress={fetchDrivers} style={styles.refreshBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Refresh rider list" accessibilityRole="button">
           <Ionicons name="refresh" size={22} color={COLORS.accent} />
         </TouchableOpacity>
       </View>
@@ -165,7 +167,7 @@ export default function RiderSelectionScreen({ navigation, route }: any) {
           <Ionicons name="car-outline" size={64} color={COLORS.gray300} />
           <Text style={styles.emptyTitle}>No riders available nearby</Text>
           <Text style={styles.emptySubtitle}>Try again in a moment</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchDrivers}>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchDrivers} accessibilityLabel="Retry finding riders" accessibilityRole="button">
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -247,11 +249,12 @@ const styles = StyleSheet.create({
   distanceText: { fontSize: fontScale(13), fontWeight: '600', color: COLORS.gray700 },
   etaText: { fontSize: fontScale(11), color: COLORS.gray400, marginTop: 2 },
   selectBadge: {
-    marginTop: verticalScale(6), backgroundColor: COLORS.accentBg,
-    paddingHorizontal: moderateScale(12), paddingVertical: moderateScale(5),
-    borderRadius: moderateScale(8),
+    marginTop: verticalScale(6), backgroundColor: COLORS.accent,
+    paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(8),
+    borderRadius: moderateScale(10), minHeight: moderateScale(44),
+    alignItems: 'center' as const, justifyContent: 'center' as const,
   },
-  selectText: { fontSize: fontScale(12), fontWeight: '600', color: COLORS.accent },
+  selectText: { fontSize: fontScale(14), fontWeight: '700', color: COLORS.white },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   loadingText: { fontSize: fontScale(14), color: COLORS.gray500, marginTop: verticalScale(12) },
   emptyTitle: { fontSize: fontScale(18), fontWeight: '700', color: COLORS.gray700, marginTop: verticalScale(16) },
