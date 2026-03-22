@@ -84,27 +84,45 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
     // Fit bounds first with padding
     map.fitBounds([pickup, dropoff], { padding: [50, 50], maxZoom: 16 });
 
-    // Try to get actual road route from OSRM
+    // Draw route - try OSRM first, then curved line fallback
+    function drawFallbackRoute() {
+      // Create a curved line using intermediate points for a nicer look
+      var midLat = (pickup[0] + dropoff[0]) / 2;
+      var midLng = (pickup[1] + dropoff[1]) / 2;
+      var dLat = dropoff[0] - pickup[0];
+      var dLng = dropoff[1] - pickup[1];
+      // Offset the midpoint perpendicular to the line for a curve effect
+      var offset = Math.sqrt(dLat*dLat + dLng*dLng) * 0.15;
+      var curveMid = [midLat + dLng * 0.08, midLng - dLat * 0.08];
+      // Generate smooth curve points
+      var pts = [];
+      for (var t = 0; t <= 1; t += 0.05) {
+        var lat = (1-t)*(1-t)*pickup[0] + 2*(1-t)*t*curveMid[0] + t*t*dropoff[0];
+        var lng = (1-t)*(1-t)*pickup[1] + 2*(1-t)*t*curveMid[1] + t*t*dropoff[1];
+        pts.push([lat, lng]);
+      }
+      L.polyline(pts, { color: '#93C5FD', weight: 5, opacity: 0.4, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+      L.polyline(pts, { color: '#3B82F6', weight: 3, opacity: 0.85, lineCap: 'round', lineJoin: 'round', dashArray: '12,6' }).addTo(map);
+    }
+
     var routeLine = null;
-    fetch('https://router.project-osrm.org/route/v1/driving/' + pickup[1] + ',' + pickup[0] + ';' + dropoff[1] + ',' + dropoff[0] + '?overview=full&geometries=geojson')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.routes && data.routes[0]) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://router.project-osrm.org/route/v1/driving/' + pickup[1] + ',' + pickup[0] + ';' + dropoff[1] + ',' + dropoff[0] + '?overview=full&geometries=geojson');
+    xhr.timeout = 5000;
+    xhr.onload = function() {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
           var coords = data.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
-          // Draw route shadow first for depth
-          L.polyline(coords, { color: '#1E40AF', weight: 7, opacity: 0.15, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-          // Draw main route line
+          L.polyline(coords, { color: '#1E40AF', weight: 7, opacity: 0.12, lineCap: 'round', lineJoin: 'round' }).addTo(map);
           routeLine = L.polyline(coords, { color: '#3B82F6', weight: 4, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
           map.fitBounds(routeLine.getBounds(), { padding: [50, 50], maxZoom: 16 });
-        } else {
-          // Fallback to dashed straight line
-          L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.7, dashArray: '10,8' }).addTo(map);
-        }
-      })
-      .catch(function() {
-        // Fallback to dashed straight line
-        L.polyline([pickup, dropoff], { color: '#3B82F6', weight: 3, opacity: 0.7, dashArray: '10,8' }).addTo(map);
-      });
+        } else { drawFallbackRoute(); }
+      } catch(e) { drawFallbackRoute(); }
+    };
+    xhr.onerror = function() { drawFallbackRoute(); };
+    xhr.ontimeout = function() { drawFallbackRoute(); };
+    xhr.send();
 
     // Driver location handler
     function handleDriverLocation(d) {
@@ -748,37 +766,34 @@ export default function TrackingScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
 
-          {/* Actions */}
+          {/* Cancel Action */}
           {status !== 'completed' && status !== 'cancelled' && !isDriver && (
-            <TouchableOpacity
-              style={[
-                styles.cancelButton,
-                (status === 'in_progress' || status === 'picked_up') && styles.cancelButtonDisabled,
-              ]}
-              onPress={handleCancel}
-              disabled={cancelling || status === 'in_progress' || status === 'picked_up'}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={status === 'in_progress' || status === 'picked_up' ? 'Cannot cancel after pickup' : `Cancel ${type === 'delivery' ? 'delivery' : 'ride'}`}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: cancelling || status === 'in_progress' || status === 'picked_up' }}
-            >
-              {cancelling ? (
-                <ActivityIndicator color={COLORS.error} />
-              ) : status === 'in_progress' || status === 'picked_up' ? (
-                <>
-                  <Ionicons name="lock-closed-outline" size={moderateScale(18)} color={COLORS.gray400} />
-                  <Text style={[styles.cancelButtonText, { color: COLORS.gray400 }]}>
-                    Cannot cancel after pickup
-                  </Text>
-                </>
+            <View style={styles.cancelSection}>
+              {status === 'in_progress' || status === 'picked_up' ? (
+                <View style={styles.cancelDisabledBar}>
+                  <Ionicons name="lock-closed" size={moderateScale(16)} color={COLORS.gray400} />
+                  <Text style={styles.cancelDisabledText}>Cannot cancel after pickup</Text>
+                </View>
               ) : (
-                <>
-                  <Ionicons name="close-circle-outline" size={moderateScale(18)} color={COLORS.error} />
-                  <Text style={styles.cancelButtonText}>Cancel {type === 'delivery' ? 'Delivery' : 'Ride'}</Text>
-                </>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancel}
+                  disabled={cancelling}
+                  activeOpacity={0.7}
+                  accessibilityLabel={`Cancel ${type === 'delivery' ? 'delivery' : 'ride'}`}
+                  accessibilityRole="button"
+                >
+                  {cancelling ? (
+                    <ActivityIndicator color={COLORS.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="close-circle" size={moderateScale(20)} color={COLORS.white} />
+                      <Text style={styles.cancelButtonText}>Cancel {type === 'delivery' ? 'Delivery' : 'Ride'}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           )}
 
           {status === 'completed' && !isDriver && (
@@ -1419,26 +1434,45 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(2),
   },
   // Action Buttons
+  cancelSection: {
+    marginTop: verticalScale(4),
+    marginBottom: verticalScale(8),
+  },
   cancelButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.errorBg,
+    backgroundColor: '#EF4444',
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(16),
-    borderWidth: 1.5,
-    borderColor: COLORS.errorLight,
-    gap: moderateScale(8),
-    marginBottom: verticalScale(4),
+    paddingVertical: moderateScale(16),
+    paddingHorizontal: moderateScale(24),
+    gap: moderateScale(10),
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cancelButtonDisabled: {
+  cancelDisabledBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.gray100,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(14),
+    gap: moderateScale(8),
+    borderWidth: 1,
     borderColor: COLORS.gray200,
+  },
+  cancelDisabledText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '500',
+    color: COLORS.gray400,
   },
   cancelButtonText: {
     fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: '600',
-    color: COLORS.error,
+    fontWeight: '700',
+    color: COLORS.white,
   },
   driverActionButton: {
     flexDirection: 'row',
