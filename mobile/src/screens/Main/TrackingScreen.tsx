@@ -235,7 +235,7 @@ export default function TrackingScreen({ route, navigation }: any) {
       setRideData(data);
       setStatus(data?.status || 'pending');
     } catch (error) {
-      console.error('Error fetching ride details:', error);
+      // Silently handle fetch errors - polling will retry
     } finally {
       setLoading(false);
     }
@@ -486,6 +486,14 @@ export default function TrackingScreen({ route, navigation }: any) {
           )}
         </View>
       </View>
+
+      {/* Live Tracking Indicator */}
+      {['accepted', 'driver_arrived', 'in_progress', 'picked_up'].includes(status) && (
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE</Text>
+        </View>
+      )}
 
       {/* Bottom Sheet */}
       <View style={styles.bottomSheet}>
@@ -1026,6 +1034,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.md,
+  },
+  // Live badge
+  liveBadge: {
+    position: 'absolute',
+    top: isIOS ? verticalScale(52) : verticalScale(37),
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(12),
+    gap: moderateScale(5),
+    zIndex: 20,
+  },
+  liveDot: {
+    width: moderateScale(6),
+    height: moderateScale(6),
+    borderRadius: moderateScale(3),
+    backgroundColor: COLORS.white,
+  },
+  liveText: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 1,
   },
   // Bottom sheet
   bottomSheet: {

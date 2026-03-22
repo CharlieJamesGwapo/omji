@@ -611,8 +611,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
             style={styles.switchToUserBtn}
             onPress={() => updateUser({ role: 'user' })}
           >
-            <Ionicons name="swap-horizontal" size={moderateScale(18)} color={COLORS.accent} />
-            <Text style={styles.switchToUserText}>Switch to User Mode</Text>
+            <Ionicons name="car-outline" size={moderateScale(18)} color={COLORS.accent} />
+            <Text style={styles.switchToUserText}>Need a ride? Switch to passenger</Text>
           </TouchableOpacity>
         </ScrollView>
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
@@ -701,8 +701,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Active Jobs</Text>
               <View style={styles.activeBadge}>
-                <View style={styles.activeBadgeDot} />
-                <Text style={styles.activeBadgeText}>{activeJobs.length} active</Text>
+                <View style={styles.livePulseDot} />
+                <Text style={styles.activeBadgeText}>LIVE · {activeJobs.length} active</Text>
               </View>
             </View>
             {activeJobs.map((job) => (
@@ -953,16 +953,21 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Switch to User Mode */}
+        {/* Book as Passenger */}
         <TouchableOpacity
           style={styles.switchModeCard}
           onPress={() => updateUser({ role: 'user' })}
           activeOpacity={0.7}
-          accessibilityLabel="Switch to user mode"
+          accessibilityLabel="Book a ride as passenger"
           accessibilityRole="button"
         >
-          <Ionicons name="swap-horizontal" size={moderateScale(18)} color={COLORS.accent} />
-          <Text style={styles.switchModeText}>Switch to User Mode</Text>
+          <View style={styles.switchModeLeft}>
+            <Ionicons name="car-outline" size={moderateScale(18)} color={COLORS.accent} />
+            <View>
+              <Text style={styles.switchModeText}>Need a ride yourself?</Text>
+              <Text style={styles.switchModeSubtext}>Switch to passenger mode</Text>
+            </View>
+          </View>
           <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
         </TouchableOpacity>
 
@@ -1209,6 +1214,14 @@ const styles = StyleSheet.create({
     height: moderateScale(6),
     borderRadius: moderateScale(3),
     backgroundColor: COLORS.error,
+  },
+  livePulseDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    backgroundColor: '#22C55E',
+    borderWidth: 1.5,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   activeBadgeText: {
     fontSize: fontScale(11),
@@ -1539,19 +1552,30 @@ const styles = StyleSheet.create({
   switchModeCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.white,
     marginHorizontal: RESPONSIVE.marginHorizontal,
-    marginTop: verticalScale(16),
+    marginTop: verticalScale(8),
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    padding: moderateScale(14),
-    ...SHADOWS.sm,
-    gap: moderateScale(10),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  switchModeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(12),
   },
   switchModeText: {
-    flex: 1,
     fontSize: RESPONSIVE.fontSize.medium,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: COLORS.gray700,
+  },
+  switchModeSubtext: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+    marginTop: verticalScale(1),
   },
   // Pending Approval
   pendingHeader: {
