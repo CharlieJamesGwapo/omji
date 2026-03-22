@@ -212,6 +212,7 @@ func main() {
 		// Payment config management
 		admin.GET("/payment-configs", handlers.AdminGetPaymentConfigs(database))
 		admin.POST("/payment-configs", handlers.AdminCreatePaymentConfig(database))
+		admin.POST("/payment-configs/upload-qr", handlers.AdminUploadQRCode(database))
 		admin.PUT("/payment-configs/:id", handlers.AdminUpdatePaymentConfig(database))
 		admin.DELETE("/payment-configs/:id", handlers.AdminDeletePaymentConfig(database))
 	}

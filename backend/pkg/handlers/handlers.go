@@ -4250,6 +4250,59 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// AdminUploadQRCode handles QR code image file uploads
+func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("qr_image")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No file uploaded"})
+			return
+		}
+
+		// Validate file size (max 5MB)
+		if file.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
+			return
+		}
+
+		// Validate file type (only images)
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		allowedExts := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
+		if !allowedExts[ext] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
+			return
+		}
+
+		// Generate unique filename
+		filename := fmt.Sprintf("qr_%d%s", time.Now().UnixNano(), ext)
+		uploadPath := filepath.Join("uploads", "qr", filename)
+
+		// Ensure directory exists
+		os.MkdirAll(filepath.Join("uploads", "qr"), 0755)
+
+		// Save file
+		if err := c.SaveUploadedFile(file, uploadPath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save file"})
+			return
+		}
+
+		// Build URL
+		baseURL := os.Getenv("BASE_URL")
+		if baseURL == "" {
+			baseURL = "https://omji-backend.onrender.com"
+		}
+		imageURL := fmt.Sprintf("%s/%s", baseURL, uploadPath)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"url":      imageURL,
+				"filename": filename,
+			},
+		})
+	}
+}
+
 // Public endpoint - returns active payment configs for mobile
 func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {

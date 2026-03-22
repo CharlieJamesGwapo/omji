@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import type { PaymentConfig } from '../types';
@@ -40,6 +40,9 @@ const PaymentConfigsPage: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; configId: number | null }>({ open: false, configId: null });
+  const [uploadingQR, setUploadingQR] = useState(false);
+  const [qrInputMode, setQrInputMode] = useState<'upload' | 'url'>('upload');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadConfigs = useCallback(async () => {
     try {
@@ -95,6 +98,32 @@ const PaymentConfigsPage: React.FC = () => {
       toast.error(getErrorMessage(err, 'Failed to save'));
     }
     setSaving(false);
+  };
+
+  const handleQRUpload = async (file: File) => {
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Invalid file type. Only PNG, JPG, WEBP allowed');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Maximum 5MB allowed');
+      return;
+    }
+
+    setUploadingQR(true);
+    try {
+      const res = await adminService.uploadQRCode(file);
+      const url = res.data?.data?.url;
+      if (url) {
+        setForm(prev => ({ ...prev, qr_code_url: url }));
+        toast.success('QR code uploaded successfully');
+      }
+    } catch (err: any) {
+      toast.error(getErrorMessage(err, 'Failed to upload QR code'));
+    } finally {
+      setUploadingQR(false);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -225,7 +254,7 @@ const PaymentConfigsPage: React.FC = () => {
           <div className="text-sm text-gray-600 space-y-1">
             <p className="font-semibold text-gray-700">How it works</p>
             <ul className="list-disc list-inside space-y-0.5 text-gray-500">
-              <li>Upload your GCash/Maya QR code image and paste the URL here</li>
+              <li>Upload your GCash/Maya QR code image directly or paste an image URL</li>
               <li>Users will see this QR code when they select GCash/Maya as their payment method</li>
               <li>They can scan the QR code or tap "Open in GCash/Maya" to complete payment</li>
             </ul>
@@ -314,15 +343,85 @@ const PaymentConfigsPage: React.FC = () => {
             </div>
           </div>
 
+          {/* QR Code */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">QR Code Image URL</label>
-            <input
-              type="url"
-              value={form.qr_code_url}
-              onChange={e => setForm({ ...form, qr_code_url: e.target.value })}
-              placeholder="https://example.com/my-qr-code.png"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">QR Code Image</label>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setQrInputMode('upload')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    qrInputMode === 'upload' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrInputMode('url')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    qrInputMode === 'url' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  URL
+                </button>
+              </div>
+            </div>
+
+            {qrInputMode === 'upload' ? (
+              <div
+                onClick={() => !uploadingQR && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleQRUpload(file);
+                }}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                  uploadingQR ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50/30'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleQRUpload(file);
+                  }}
+                />
+                {uploadingQR ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-gray-500">Uploading...</p>
+                  </div>
+                ) : form.qr_code_url ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <img src={form.qr_code_url} alt="QR Code" className="w-32 h-32 object-contain rounded-lg border border-gray-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <p className="text-xs text-gray-500">Click or drag to replace</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm font-medium text-gray-600">Click to upload or drag & drop</p>
+                    <p className="text-xs text-gray-400">PNG, JPG, WEBP up to 5MB</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="url"
+                placeholder="https://example.com/my-qr-code.png"
+                value={form.qr_code_url}
+                onChange={(e) => setForm({ ...form, qr_code_url: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+              />
+            )}
           </div>
 
           {/* Mobile Preview */}

@@ -216,6 +216,14 @@ export const adminService = {
   createPaymentConfig: (data: any) => API.post('/admin/payment-configs', data),
   updatePaymentConfig: (id: number, data: any) => API.put(`/admin/payment-configs/${id}`, data),
   deletePaymentConfig: (id: number) => API.delete(`/admin/payment-configs/${id}`),
+  uploadQRCode: (file: File) => {
+    const formData = new FormData();
+    formData.append('qr_image', file);
+    return API.post('/admin/payment-configs/upload-qr', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
 };
 
 // Utility to clear all cache (useful for manual refresh)

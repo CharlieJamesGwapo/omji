@@ -10,6 +10,7 @@ import {
   Linking,
   Alert,
   StatusBar,
+  Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,8 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [referenceNo] = useState(() => `OMJI-${Date.now().toString(36).toUpperCase()}`);
+  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes in seconds
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isGcash = type === 'gcash';
@@ -38,6 +41,23 @@ export default function PaymentScreen({ route, navigation }: any) {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
+  }, []);
+
+  // Payment session countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          Alert.alert('Session Expired', 'Payment session has expired. Please try again.', [
+            { text: 'Go Back', onPress: () => navigation.goBack() },
+          ]);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   // Intercept back gesture to prompt payment confirmation
@@ -161,11 +181,19 @@ export default function PaymentScreen({ route, navigation }: any) {
           </View>
           <Text style={styles.headerSubtitle}>{serviceLabel} Payment</Text>
         </View>
-        <View style={styles.amountBadge}>
-          <Text style={styles.amountBadgeText}>
-            {'\u20B1'}
-            {displayAmount.toFixed(0)}
-          </Text>
+        <View style={styles.headerRight}>
+          <View style={styles.timerBadge}>
+            <Ionicons name="time-outline" size={moderateScale(14)} color="#ffffff" />
+            <Text style={styles.timerText}>
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </Text>
+          </View>
+          <View style={styles.amountBadge}>
+            <Text style={styles.amountBadgeText}>
+              {'\u20B1'}
+              {displayAmount.toFixed(0)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -176,16 +204,46 @@ export default function PaymentScreen({ route, navigation }: any) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
-          {/* Shield / Security Notice */}
-          <View style={styles.securityRow}>
-            <View style={[styles.shieldIcon, { backgroundColor: brandColorLight }]}>
-              <Ionicons
-                name="shield-checkmark"
-                size={moderateScale(20)}
-                color={brandColor}
-              />
+          {/* Security Notice */}
+          <View style={styles.securityNotice}>
+            <View style={styles.securityRow}>
+              <View style={[styles.shieldIcon, { backgroundColor: brandColorLight }]}>
+                <Ionicons
+                  name="shield-checkmark"
+                  size={moderateScale(20)}
+                  color={brandColor}
+                />
+              </View>
+              <Text style={styles.securityText}>Secure Payment Session</Text>
             </View>
-            <Text style={styles.securityText}>A safer way to pay!</Text>
+            <Text style={styles.securitySubtext}>
+              Never share your payment details with anyone.
+            </Text>
+          </View>
+
+          {/* Reference Number */}
+          <View style={[styles.referenceContainer, { backgroundColor: brandColorLight }]}>
+            <View style={styles.referenceLeft}>
+              <Text style={styles.referenceLabel}>Reference No.</Text>
+              <Text style={[styles.referenceValue, { color: brandColor }]}>{referenceNo}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.copySmallBtn, { backgroundColor: brandColor }]}
+              onPress={() => copyToClipboard(referenceNo, 'reference')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel={copiedField === 'reference' ? 'Reference number copied' : 'Copy reference number'}
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name={copiedField === 'reference' ? 'checkmark' : 'copy-outline'}
+                size={moderateScale(12)}
+                color="#ffffff"
+              />
+              <Text style={styles.copySmallText}>
+                {copiedField === 'reference' ? 'Copied!' : 'Copy'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Step-by-step Instructions */}
@@ -432,7 +490,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(24),
-    paddingBottom: verticalScale(40),
+    paddingBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(40),
   },
   card: {
     backgroundColor: COLORS.white,
@@ -444,10 +502,58 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  securityNotice: {
+    marginBottom: verticalScale(16),
+  },
   securityRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: verticalScale(4),
+  },
+  securitySubtext: {
+    fontSize: fontScale(12),
+    color: COLORS.gray400,
+    marginLeft: moderateScale(46),
+    lineHeight: fontScale(16),
+  },
+  referenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: moderateScale(12),
+    borderRadius: RESPONSIVE.borderRadius.medium,
     marginBottom: verticalScale(16),
+  },
+  referenceLeft: {
+    flex: 1,
+  },
+  referenceLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+  },
+  referenceValue: {
+    fontSize: fontScale(15),
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+    marginTop: verticalScale(2),
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    gap: verticalScale(4),
+  },
+  timerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(3),
+    borderRadius: moderateScale(10),
+    gap: moderateScale(4),
+  },
+  timerText: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#ffffff',
   },
   shieldIcon: {
     width: moderateScale(36),
@@ -458,9 +564,9 @@ const styles = StyleSheet.create({
     marginRight: moderateScale(10),
   },
   securityText: {
-    fontSize: fontScale(15),
-    fontWeight: '600',
-    color: COLORS.gray600,
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: COLORS.gray700 ?? COLORS.gray600,
   },
   stepsContainer: {
     marginBottom: verticalScale(20),

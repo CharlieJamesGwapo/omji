@@ -5,9 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { moderateScale, fontScale, RESPONSIVE } from '../utils/responsive';
+import { moderateScale, fontScale, verticalScale, RESPONSIVE } from '../utils/responsive';
 
 interface PaymentMethod {
   id: string;
@@ -57,9 +58,10 @@ interface Props {
   selected: string;
   onSelect: (method: string) => void;
   accentColor?: string;
+  walletBalance?: number | null;
 }
 
-export default function PaymentMethodSelector({ selected, onSelect, accentColor = '#3B82F6' }: Props) {
+export default function PaymentMethodSelector({ selected, onSelect, accentColor = '#3B82F6', walletBalance }: Props) {
   const [showModal, setShowModal] = useState(false);
   const selectedMethod = PAYMENT_METHODS.find(m => m.id === selected) || PAYMENT_METHODS[0];
 
@@ -69,13 +71,23 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
       <TouchableOpacity
         style={styles.selectedCard}
         onPress={() => setShowModal(true)}
+        accessibilityLabel={`Payment method: ${selectedMethod.name}. Tap to change`}
+        accessibilityRole="button"
       >
         <View style={[styles.selectedIcon, { backgroundColor: selectedMethod.bgColor }]}>
           <Ionicons name={selectedMethod.icon as any} size={moderateScale(24)} color={selectedMethod.color} />
         </View>
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedLabel}>Payment Method</Text>
-          <Text style={styles.selectedName}>{selectedMethod.name}</Text>
+          <View style={styles.nameRow}>
+            <Ionicons name="lock-closed" size={moderateScale(12)} color="#9CA3AF" />
+            <Text style={styles.selectedName}>{selectedMethod.name}</Text>
+          </View>
+          {selected === 'wallet' && walletBalance != null && (
+            <Text style={styles.walletBalanceText}>
+              Balance: {'\u20B1'}{(walletBalance ?? 0).toFixed(2)}
+            </Text>
+          )}
         </View>
         <View style={styles.changeButton}>
           <Text style={[styles.changeText, { color: accentColor }]}>Change</Text>
@@ -104,13 +116,24 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
                     onSelect(method.id);
                     setShowModal(false);
                   }}
+                  accessibilityLabel={`${method.name}: ${method.description}${isSelected ? ', currently selected' : ''}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <View style={[styles.methodIcon, { backgroundColor: method.bgColor }]}>
                     <Ionicons name={method.icon as any} size={moderateScale(28)} color={method.color} />
                   </View>
                   <View style={styles.methodInfo}>
-                    <Text style={styles.methodName}>{method.name}</Text>
+                    <View style={styles.methodNameRow}>
+                      <Text style={styles.methodName}>{method.name}</Text>
+                      <Ionicons name="lock-closed" size={moderateScale(12)} color="#9CA3AF" style={styles.lockIcon} />
+                    </View>
                     <Text style={styles.methodDescription}>{method.description}</Text>
+                    {method.id === 'wallet' && walletBalance != null && (
+                      <Text style={styles.walletBalanceInModal}>
+                        Balance: {'\u20B1'}{(walletBalance ?? 0).toFixed(2)}
+                      </Text>
+                    )}
                   </View>
                   <View style={[
                     styles.radio,
@@ -127,6 +150,8 @@ export default function PaymentMethodSelector({ selected, onSelect, accentColor 
             <TouchableOpacity
               style={[styles.doneButton, { backgroundColor: accentColor }]}
               onPress={() => setShowModal(false)}
+              accessibilityLabel="Done selecting payment method"
+              accessibilityRole="button"
             >
               <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
@@ -162,10 +187,21 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     color: '#6B7280',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+    marginTop: moderateScale(2),
+  },
   selectedName: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#1F2937',
+  },
+  walletBalanceText: {
+    fontSize: fontScale(12),
+    color: '#8B5CF6',
+    fontWeight: '600',
     marginTop: moderateScale(2),
   },
   changeButton: {
@@ -187,7 +223,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: moderateScale(24),
     borderTopRightRadius: moderateScale(24),
     padding: moderateScale(20),
-    paddingBottom: moderateScale(40),
+    paddingBottom: Platform.OS === 'ios' ? verticalScale(36) : verticalScale(40),
   },
   modalHandle: {
     width: moderateScale(40),
@@ -227,10 +263,23 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: moderateScale(14),
   },
+  methodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   methodName: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#1F2937',
+  },
+  lockIcon: {
+    marginLeft: moderateScale(5),
+  },
+  walletBalanceInModal: {
+    fontSize: fontScale(12),
+    color: '#8B5CF6',
+    fontWeight: '600',
+    marginTop: moderateScale(3),
   },
   methodDescription: {
     fontSize: fontScale(13),
