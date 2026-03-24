@@ -41,9 +41,13 @@ OMJI backend upgraded from Render Free to Standard ($25/mo, 2GB RAM, 1 CPU). Thi
 
 **Why 10s timeout:** Render sends SIGTERM and waits 30s before SIGKILL. 10s is enough for API requests while leaving buffer.
 
+**WebSocket shutdown:** `http.Server.Shutdown()` does not close long-lived WebSocket connections. During shutdown, explicitly close all tracked WebSocket connections in `RideTracker` and `DriverTracker` so clients receive a clean close frame and can reconnect to the new instance.
+
+**DB connection:** Store the `*sql.DB` reference at startup (from `db.DB()`) for both the health check ping and clean shutdown close.
+
 **Flow:**
 ```
-SIGTERM received → stop accepting new connections → wait for in-flight (max 10s) → close DB → exit 0
+SIGTERM received → stop accepting new connections → close all WebSocket connections → wait for in-flight (max 10s) → close DB → exit 0
 ```
 
 ## 2. Health Check with DB Validation
@@ -66,11 +70,12 @@ SIGTERM received → stop accepting new connections → wait for in-flight (max 
 
 **File:** `pkg/middleware/middleware.go` (CORSMiddleware), `render.yaml`
 
-**Current:** `ALLOWED_ORIGINS=*` in render.yaml allows any website to call the API.
+**Current:** `ALLOWED_ORIGINS=*` in render.yaml allows any website to call the API. The middleware sets the raw env var value as the `Access-Control-Allow-Origin` header, which does NOT support comma-separated values per the CORS spec.
 
 **Change:**
 - Update `render.yaml`: set `ALLOWED_ORIGINS` to `https://omji-admin.onrender.com`
-- The existing middleware already reads this env var — no code change needed for CORS itself
+- Update `CORSMiddleware` to support multiple origins: split `ALLOWED_ORIGINS` on commas, check the request's `Origin` header against the whitelist, and echo back the matching origin. This matches the approach already used by the WebSocket upgrader.
+- If no origin matches, don't set the header (browser will block the request)
 
 ### 3b. Security Headers Middleware
 
@@ -87,9 +92,7 @@ Add `SecurityHeadersMiddleware()` that sets:
 
 **File:** `pkg/handlers/handlers.go` (WebSocket upgrader)
 
-**Current:** `CheckOrigin: func(r *http.Request) bool { return true }` — accepts connections from any origin.
-
-**Change:** Validate origin against allowed origins list (read from `ALLOWED_ORIGINS` env var + always allow the mobile app which sends no origin header).
+**Status:** Already implemented — the WebSocket upgrader already reads `ALLOWED_ORIGINS`, splits on commas, and allows empty origins for mobile clients. No code change needed. The only action is changing the `ALLOWED_ORIGINS` env var from `*` to the admin URL (covered in Section 6).
 
 ### 3d. Auth Route Rate Limiting
 
@@ -97,7 +100,7 @@ Add `SecurityHeadersMiddleware()` that sets:
 
 **Current:** All routes share the same 120 req/min limit.
 
-**Change:** Add a separate `AuthRateLimitMiddleware(20)` applied only to `/api/v1/public/auth/*` routes — 20 requests per minute per IP to prevent brute force login/OTP attempts.
+**Change:** Add a separate `AuthRateLimitMiddleware(20)` applied only to `/api/v1/public/auth/*` routes — 20 requests per minute per IP to prevent brute force login/OTP attempts. This creates a second independent rate limiter instance; auth routes will be tracked by both the global limiter (120/min) and the auth limiter (20/min). This is intentional — the auth limit is stricter and will trigger first.
 
 ### 3e. Admin Password Logging
 
@@ -118,6 +121,14 @@ Wait — the admin password is only generated once on first seed when no admin e
 - Add Persistent Disk: Name `uploads-data`, Mount Path `/var/data/uploads`, Size 1GB
 - Cost: $0.25/month
 
+**render.yaml disk config:**
+```yaml
+disk:
+  name: uploads-data
+  mountPath: /var/data/uploads
+  sizeGB: 1
+```
+
 ### 4b. Environment Variable
 
 Add `UPLOAD_DIR` env var:
@@ -131,9 +142,12 @@ Add `UPLOAD_DIR` env var:
 - `os.MkdirAll(uploadDir, 0755)`
 - `router.Static("/uploads", uploadDir)`
 
-**File:** `pkg/handlers/handlers.go`
-- All upload handlers read `UPLOAD_DIR` env var (default `./uploads`)
-- Save files to `uploadDir + "/" + filename` instead of `"uploads/" + filename`
+**File:** `pkg/handlers/handlers.go` — three distinct upload paths to update:
+1. **Delivery item photo** (~line 865): `os.MkdirAll("uploads", ...)` + `"uploads/" + filename`
+2. **Driver documents** (~line 1556): `os.MkdirAll("uploads", ...)` + `"uploads/" + filename` (profile_photo, license_photo, orcr_photo, id_photo)
+3. **QR code uploads** (~line 4278): `filepath.Join("uploads", "qr", filename)` — uses a subdirectory
+
+All three must be updated to use `UPLOAD_DIR` env var. The QR path becomes `filepath.Join(uploadDir, "qr", filename)`.
 
 ### 4d. Dockerfile Change
 
@@ -155,7 +169,7 @@ Create `RequestLoggerMiddleware()` using Go's standard `log/slog` package:
 {"time":"2026-03-25T10:30:00Z","level":"INFO","msg":"request","method":"POST","path":"/api/v1/rides/create","status":200,"latency_ms":45,"ip":"1.2.3.4"}
 ```
 
-**Also update:** Replace scattered `log.Printf` calls in `main.go` and `database.go` with `slog.Info`/`slog.Error` for consistency. Existing handler-level `log.Printf` calls are left as-is to minimize blast radius.
+**Also update:** Replace `log.Printf`/`log.Println` calls in `main.go` and `database.go` with `slog.Info`/`slog.Error` for consistency. Keep `log.Fatalf` calls as-is since `slog` has no Fatal level — `log.Fatalf` correctly calls `os.Exit(1)`. Existing handler-level `log.Printf` calls are left as-is to minimize blast radius.
 
 ## 6. Render Dashboard Configuration
 
@@ -166,7 +180,7 @@ These are manual steps in the Render dashboard (not code):
 | Health Check Path | *(empty)* | `/health` |
 | `ALLOWED_ORIGINS` env var | `*` | `https://omji-admin.onrender.com` |
 | `UPLOAD_DIR` env var | *(not set)* | `/var/data/uploads` |
-| Edge Caching | None | Enable for static content |
+| Edge Caching | None | Enable — Render auto-caches cacheable responses at edge based on Cache-Control headers. No path config needed; just enable the "All Cacheable Content" profile in dashboard. Static uploads will benefit from edge serving. |
 | Persistent Disk | *(none)* | 1GB at `/var/data/uploads` |
 
 ## Files Changed
@@ -179,7 +193,7 @@ These are manual steps in the Render dashboard (not code):
 | `pkg/db/database.go` | Modified | Remove admin password plaintext logging, use slog |
 | `pkg/handlers/handlers.go` | Modified | Upload dir from env var, WebSocket origin validation |
 | `backend/Dockerfile` | Modified | Create /var/data/uploads directory |
-| `backend/render.yaml` | Modified | ALLOWED_ORIGINS value, disk config |
+| `backend/render.yaml` | Modified | ALLOWED_ORIGINS value, disk config, UPLOAD_DIR env var |
 
 ## Dependencies
 
