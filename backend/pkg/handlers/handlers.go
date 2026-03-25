@@ -24,6 +24,15 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// getUploadDir returns the upload directory from UPLOAD_DIR env var, defaulting to "./uploads"
+func getUploadDir() string {
+	dir := os.Getenv("UPLOAD_DIR")
+	if dir == "" {
+		return "./uploads"
+	}
+	return dir
+}
+
 // ===== AUTH HANDLERS =====
 
 type RegisterInput struct {
@@ -862,9 +871,10 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			// Handle file upload
 			file, err := c.FormFile("item_photo")
 			if err == nil && file != nil {
-				os.MkdirAll("uploads", os.ModePerm)
+				uploadDir := getUploadDir()
+				os.MkdirAll(uploadDir, os.ModePerm)
 				filename := strconv.FormatUint(uint64(userID), 10) + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
-				savePath := "uploads/" + filename
+				savePath := filepath.Join(uploadDir, filename)
 				if err := c.SaveUploadedFile(file, savePath); err == nil {
 					baseURL := os.Getenv("BASE_URL")
 					if baseURL == "" {
@@ -1553,9 +1563,10 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 		for _, field := range docFields {
 			file, err := c.FormFile(field)
 			if err == nil && file != nil {
-				os.MkdirAll("uploads", os.ModePerm)
+				uploadDir := getUploadDir()
+				os.MkdirAll(uploadDir, os.ModePerm)
 				filename := strconv.FormatUint(uint64(userID), 10) + "_" + field + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
-				savePath := "uploads/" + filename
+				savePath := filepath.Join(uploadDir, filename)
 				if err := c.SaveUploadedFile(file, savePath); err == nil {
 					documents[field] = baseURL + "/uploads/" + filename
 				}
@@ -3484,6 +3495,21 @@ func (t *RideTracker) Broadcast(rideID string, msg interface{}) {
 	}
 }
 
+// CloseAll closes all tracked WebSocket connections (used during graceful shutdown)
+func (t *RideTracker) CloseAll() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for rideID, conns := range t.rides {
+		for _, conn := range conns {
+			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			conn.WriteMessage(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseGoingAway, "server shutting down"))
+			conn.Close()
+		}
+		delete(t.rides, rideID)
+	}
+}
+
 // DriverTracker manages WebSocket connections per driver for push notifications
 type DriverTracker struct {
 	mu    sync.RWMutex
@@ -3519,6 +3545,25 @@ func (dt *DriverTracker) Send(driverID string, msg interface{}) error {
 		return err
 	}
 	return conn.WriteMessage(websocket.TextMessage, data)
+}
+
+// CloseAll closes all tracked driver WebSocket connections (used during graceful shutdown)
+func (dt *DriverTracker) CloseAll() {
+	dt.mu.Lock()
+	defer dt.mu.Unlock()
+	for driverID, conn := range dt.conns {
+		conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseGoingAway, "server shutting down"))
+		conn.Close()
+		delete(dt.conns, driverID)
+	}
+}
+
+// CloseAllWebSockets closes all WebSocket connections (called during graceful shutdown)
+func CloseAllWebSockets() {
+	tracker.CloseAll()
+	driverTracker.CloseAll()
 }
 
 func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
@@ -4275,10 +4320,11 @@ func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 
 		// Generate unique filename
 		filename := fmt.Sprintf("qr_%d%s", time.Now().UnixNano(), ext)
-		uploadPath := filepath.Join("uploads", "qr", filename)
+		uploadDir := getUploadDir()
+		uploadPath := filepath.Join(uploadDir, "qr", filename)
 
 		// Ensure directory exists
-		os.MkdirAll(filepath.Join("uploads", "qr"), 0755)
+		os.MkdirAll(filepath.Join(uploadDir, "qr"), 0755)
 
 		// Save file
 		if err := c.SaveUploadedFile(file, uploadPath); err != nil {
@@ -4291,7 +4337,7 @@ func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 		if baseURL == "" {
 			baseURL = "https://omji-backend.onrender.com"
 		}
-		imageURL := fmt.Sprintf("%s/%s", baseURL, uploadPath)
+		imageURL := fmt.Sprintf("%s/uploads/qr/%s", baseURL, filename)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
