@@ -28,6 +28,9 @@ WORKDIR /app
 # Install ca-certificates for HTTPS
 RUN apk --no-cache add ca-certificates
 
+# Create upload directory (Render persistent disk mounts here)
+RUN mkdir -p /var/data/uploads
+
 # Copy binary from builder
 COPY --from=builder /app/bin/server .
 

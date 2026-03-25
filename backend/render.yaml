@@ -4,6 +4,11 @@ services:
     env: go
     buildCommand: go build -o bin/server cmd/main.go
     startCommand: ./bin/server
+    healthCheckPath: /health
+    disk:
+      name: uploads-data
+      mountPath: /var/data/uploads
+      sizeGB: 1
     envVars:
       - key: PORT
         value: 8080
@@ -14,4 +19,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "*"
+        value: "https://omji-admin.onrender.com"
+      - key: UPLOAD_DIR
+        value: "/var/data/uploads"
