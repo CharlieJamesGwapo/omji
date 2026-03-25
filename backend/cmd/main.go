@@ -1,49 +1,93 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"log"
+	"log/slog"
+	"net/http"
 	"omji/config"
 	"omji/pkg/db"
 	"omji/pkg/handlers"
 	"omji/pkg/middleware"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+var (
+	startTime time.Time
+	sqlDB     *sql.DB
+)
+
 func main() {
+	startTime = time.Now()
+
+	// Configure slog for JSON output in production
+	if os.Getenv("GIN_MODE") == "release" {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	}
+
 	// Load configuration
 	cfg := config.LoadConfig()
 
 	// Validate JWT_SECRET is set (will log.Fatal if missing)
 	config.GetJWTSecret()
-	
+
 	// Initialize database
 	database := db.InitDB(cfg)
 	db.MigrateDB(database)
 
-	// Create Gin router
-	router := gin.Default()
+	// Store sql.DB reference for health checks and shutdown
+	var err error
+	sqlDB, err = database.DB()
+	if err != nil {
+		log.Fatalf("Failed to get sql.DB: %v", err)
+	}
 
-	// Add CORS middleware
+	// Create Gin router (gin.New instead of gin.Default to avoid duplicate logging)
+	router := gin.New()
+	router.Use(gin.Recovery())
+
+	// Middleware stack
+	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.CORSMiddleware())
-
-	// Add rate limiting: 120 requests per minute per IP
 	router.Use(middleware.RateLimitMiddleware(120))
+	router.Use(middleware.RequestLoggerMiddleware())
 
-	// Ensure uploads directory exists (Render has ephemeral filesystem)
-	os.MkdirAll("./uploads", 0755)
+	// Upload directory (persistent disk on Render, local ./uploads in dev)
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	os.MkdirAll(uploadDir, 0755)
+	router.Static("/uploads", uploadDir)
 
-	// Serve uploaded files with fallback for missing files
-	router.Static("/uploads", "./uploads")
-
-	// Health check endpoint
+	// Health check with DB validation
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "OMJI Backend is running!"})
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+
+		dbStatus := "connected"
+		statusCode := http.StatusOK
+		if err := sqlDB.PingContext(ctx); err != nil {
+			dbStatus = "disconnected"
+			statusCode = http.StatusServiceUnavailable
+		}
+
+		c.JSON(statusCode, gin.H{
+			"status": map[bool]string{true: "healthy", false: "unhealthy"}[statusCode == http.StatusOK],
+			"db":     dbStatus,
+			"uptime": time.Since(startTime).Round(time.Second).String(),
+		})
 	})
 
 	// Public routes (no auth required)
 	public := router.Group("/api/v1/public")
+	public.Use(middleware.AuthRateLimitMiddleware(20))
 	{
 		// Auth routes
 		public.POST("/auth/register", handlers.Register(database))
@@ -221,14 +265,47 @@ func main() {
 	router.GET("/ws/tracking/:rideId", handlers.WebSocketTrackingHandler(database))
 	router.GET("/ws/driver/:driverId", handlers.WebSocketDriverHandler(database))
 
-	// Start server
+	// Start server with graceful shutdown
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("🚀 OMJI Backend starting on port %s\n", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
 	}
+
+	// Start server in goroutine
+	go func() {
+		slog.Info("OMJI Backend starting", "port", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("Shutting down server...")
+
+	// Close all WebSocket connections first
+	handlers.CloseAllWebSockets()
+	slog.Info("WebSocket connections closed")
+
+	// Give in-flight requests up to 10 seconds to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("Server forced shutdown", "error", err)
+	}
+
+	// Close database connection
+	if err := sqlDB.Close(); err != nil {
+		slog.Error("Database close error", "error", err)
+	}
+
+	slog.Info("Server exited cleanly")
 }
