@@ -90,20 +90,35 @@ func getJWTSecret() string {
 }
 
 func CORSMiddleware() gin.HandlerFunc {
+	// Parse allowed origins once at startup
+	originsEnv := os.Getenv("CORS_ORIGIN")
+	if originsEnv == "" {
+		originsEnv = os.Getenv("ALLOWED_ORIGINS")
+	}
+	if originsEnv == "" {
+		originsEnv = "https://omji-admin.onrender.com"
+	}
+
+	allowedOrigins := make(map[string]bool)
+	for _, o := range strings.Split(originsEnv, ",") {
+		trimmed := strings.TrimSpace(o)
+		if trimmed != "" {
+			allowedOrigins[trimmed] = true
+		}
+	}
+	// Check for wildcard
+	allowAll := allowedOrigins["*"]
+
 	return func(c *gin.Context) {
-		// Check both env var names for compatibility
-		allowedOrigin := os.Getenv("CORS_ORIGIN")
-		if allowedOrigin == "" {
-			allowedOrigin = os.Getenv("ALLOWED_ORIGINS")
+		origin := c.GetHeader("Origin")
+
+		if allowAll || allowedOrigins[origin] {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Pragma, Expires")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+			c.Writer.Header().Set("Vary", "Origin")
 		}
-		if allowedOrigin == "" {
-			// Default to same-origin only (no cross-origin) when not configured
-			allowedOrigin = "https://omji-admin.onrender.com"
-		}
-		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Pragma, Expires")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -175,6 +190,31 @@ func DriverMiddleware() gin.HandlerFunc {
 		role, exists := c.Get("role")
 		if !exists || (role != "driver" && role != "admin") {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Driver access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func SecurityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "DENY")
+		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Next()
+	}
+}
+
+// AuthRateLimitMiddleware applies a stricter rate limit to auth routes (brute force protection)
+func AuthRateLimitMiddleware(requestsPerMinute int) gin.HandlerFunc {
+	limiter := newRateLimiter(requestsPerMinute, time.Minute)
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !limiter.allow(ip) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many authentication attempts, please try again later"})
 			c.Abort()
 			return
 		}
