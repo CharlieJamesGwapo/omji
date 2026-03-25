@@ -78,8 +78,13 @@ func main() {
 			statusCode = http.StatusServiceUnavailable
 		}
 
+		status := "healthy"
+		if statusCode != http.StatusOK {
+			status = "unhealthy"
+		}
+
 		c.JSON(statusCode, gin.H{
-			"status": map[bool]string{true: "healthy", false: "unhealthy"}[statusCode == http.StatusOK],
+			"status": status,
 			"db":     dbStatus,
 			"uptime": time.Since(startTime).Round(time.Second).String(),
 		})
