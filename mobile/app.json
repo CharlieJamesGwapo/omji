@@ -65,13 +65,17 @@
       "expo-font"
     ],
     "updates": {
-      "enabled": false
+      "enabled": false,
+      "url": "https://u.expo.dev/58003a41-a27a-47ac-b17a-886e1f190db9"
     },
-    "owner": "bboydevzxc",
+    "owner": "bboydevzxczc",
     "extra": {
       "eas": {
-        "projectId": "7f04b0e6-c8b9-4969-b4a1-630725f245a7"
+        "projectId": "58003a41-a27a-47ac-b17a-886e1f190db9"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
