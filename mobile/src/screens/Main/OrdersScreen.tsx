@@ -110,7 +110,7 @@ export default function OrdersScreen({ navigation }: any) {
               driverName: ride.driver?.name || ride.Driver?.name,
               driverRating: ride.driver?.rating || ride.Driver?.rating,
               icon: 'navigate-circle',
-              color: '#10B981',
+              color: COLORS.primaryDark,
             });
           });
         }
@@ -132,7 +132,7 @@ export default function OrdersScreen({ navigation }: any) {
               driverName: delivery.driver?.name || delivery.Driver?.name,
               driverRating: delivery.driver?.rating || delivery.Driver?.rating,
               icon: 'cube',
-              color: '#3B82F6',
+              color: COLORS.primaryDark,
             });
           });
         }
@@ -152,7 +152,7 @@ export default function OrdersScreen({ navigation }: any) {
               fare: order.total_amount || 0,
               createdAt: order.created_at || '',
               icon: 'storefront',
-              color: '#EF4444',
+              color: COLORS.primaryDark,
             });
           });
         }
@@ -185,7 +185,7 @@ export default function OrdersScreen({ navigation }: any) {
                 fare: ride.final_fare || ride.estimated_fare || 0, createdAt: ride.created_at || '',
                 driverName: ride.driver?.name || ride.Driver?.name,
                 driverRating: ride.driver?.rating || ride.Driver?.rating,
-                icon: 'navigate-circle', color: '#10B981',
+                icon: 'navigate-circle', color: COLORS.primaryDark,
               });
             }
           });
@@ -203,7 +203,7 @@ export default function OrdersScreen({ navigation }: any) {
                 fare: d.delivery_fee || d.estimated_fare || 0, createdAt: d.created_at || '',
                 driverName: d.driver?.name || d.Driver?.name,
                 driverRating: d.driver?.rating || d.Driver?.rating,
-                icon: 'cube', color: '#3B82F6',
+                icon: 'cube', color: COLORS.primaryDark,
               });
             }
           });
@@ -220,7 +220,7 @@ export default function OrdersScreen({ navigation }: any) {
                 from: o.Store?.name || o.store_name || 'Store',
                 to: o.delivery_location || o.delivery_address || '',
                 fare: o.total_amount || 0, createdAt: o.created_at || '',
-                icon: 'storefront', color: '#EF4444',
+                icon: 'storefront', color: COLORS.primaryDark,
               });
             }
           });
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     gap: moderateScale(6),
   },
   tabPillActive: {
-    backgroundColor: COLORS.gray900,
+    backgroundColor: COLORS.primaryDark,
   },
   tabPillText: {
     fontSize: fontScale(13),
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray600,
   },
   tabCountTextActive: {
-    color: COLORS.gray900,
+    color: COLORS.primaryDark,
   },
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   driverRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accentBg,
+    backgroundColor: COLORS.primaryBg,
     paddingHorizontal: moderateScale(12),
     paddingVertical: verticalScale(8),
     borderRadius: RESPONSIVE.borderRadius.small,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     width: moderateScale(28),
     height: moderateScale(28),
     borderRadius: moderateScale(14),
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -821,12 +821,12 @@ const styles = StyleSheet.create({
   trackButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primaryDark,
     paddingHorizontal: moderateScale(18),
     paddingVertical: verticalScale(10),
     borderRadius: moderateScale(24),
     gap: moderateScale(6),
-    ...SHADOWS.colored(COLORS.accent),
+    ...SHADOWS.colored(COLORS.primaryDark),
   },
   trackButtonText: {
     fontSize: RESPONSIVE.fontSize.medium,
