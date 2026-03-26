@@ -126,7 +126,7 @@ export default function FavoritesScreen({ navigation }: any) {
       accessibilityRole="button"
     >
       <View style={styles.cardIconContainer}>
-        <Ionicons name="storefront" size={moderateScale(32)} color="#3B82F6" />
+        <Ionicons name="storefront" size={moderateScale(32)} color="#DC2626" />
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.cardName} numberOfLines={1}>
@@ -214,7 +214,7 @@ export default function FavoritesScreen({ navigation }: any) {
       {/* Content */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color="#DC2626" />
         </View>
       ) : (
         <FlatList
@@ -231,8 +231,8 @@ export default function FavoritesScreen({ navigation }: any) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#3B82F6']}
-              tintColor="#3B82F6"
+              colors={['#DC2626']}
+              tintColor="#DC2626"
             />
           }
         />
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     marginRight: moderateScale(10),
   },
   filterTabActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
   },
   filterTabText: {
     fontSize: RESPONSIVE.fontSize.medium,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     width: moderateScale(60),
     height: moderateScale(60),
     borderRadius: RESPONSIVE.borderRadius.medium,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },

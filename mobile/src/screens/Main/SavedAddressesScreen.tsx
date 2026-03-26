@@ -208,7 +208,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
     return (
       <View style={styles.addressCard} accessibilityLabel={`${item.label}: ${item.address}`}>
         <View style={styles.addressIconContainer}>
-          <Ionicons name={iconName} size={22} color="#3B82F6" />
+          <Ionicons name={iconName} size={22} color="#DC2626" />
         </View>
         <View style={styles.addressInfo}>
           <Text style={styles.addressLabel}>{item.label}</Text>
@@ -252,7 +252,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color="#DC2626" />
         </View>
       ) : (
         <FlatList
@@ -264,7 +264,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
             addresses.length === 0 ? styles.emptyListContent : styles.listContent
           }
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#DC2626" />
           }
           showsVerticalScrollIndicator={false}
         />
@@ -342,9 +342,9 @@ export default function SavedAddressesScreen({ navigation }: any) {
               accessibilityRole="button"
             >
               {fetchingLocation ? (
-                <ActivityIndicator size="small" color="#3B82F6" />
+                <ActivityIndicator size="small" color="#DC2626" />
               ) : (
-                <Ionicons name="navigate" size={18} color="#3B82F6" />
+                <Ionicons name="navigate" size={18} color="#DC2626" />
               )}
               <Text style={styles.currentLocationText}>
                 {fetchingLocation ? 'Getting location...' : 'Use current location'}
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     width: moderateScale(44),
     height: moderateScale(44),
     borderRadius: moderateScale(22),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -471,10 +471,10 @@ const styles = StyleSheet.create({
     width: moderateScale(56),
     height: moderateScale(56),
     borderRadius: moderateScale(28),
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: '#DC2626',
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
     shadowRadius: moderateScale(8),
@@ -527,8 +527,8 @@ const styles = StyleSheet.create({
     gap: moderateScale(6),
   },
   labelChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   labelChipText: {
     fontSize: RESPONSIVE.fontSize.medium,
@@ -560,11 +560,11 @@ const styles = StyleSheet.create({
   },
   currentLocationText: {
     fontSize: RESPONSIVE.fontSize.medium,
-    color: '#3B82F6',
+    color: '#DC2626',
     fontWeight: '500',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
     borderRadius: moderateScale(12),
     paddingVertical: moderateScale(14),
     alignItems: 'center',

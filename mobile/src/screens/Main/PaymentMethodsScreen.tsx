@@ -180,7 +180,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color="#DC2626" />
         </View>
       ) : (
         <FlatList
@@ -192,7 +192,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
             methods.length === 0 ? styles.emptyListContent : styles.listContent
           }
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#DC2626" />
           }
           showsVerticalScrollIndicator={false}
         />
@@ -244,7 +244,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
                       <Ionicons
                         name={pt.icon}
                         size={moderateScale(24)}
-                        color={isSelected ? '#3B82F6' : pt.color}
+                        color={isSelected ? '#DC2626' : pt.color}
                       />
                     </View>
                     <Text style={[styles.typeLabel, isSelected && styles.typeLabelActive]}>
@@ -271,8 +271,8 @@ export default function PaymentMethodsScreen({ navigation }: any) {
               <Switch
                 value={isDefault}
                 onValueChange={setIsDefault}
-                trackColor={{ false: '#E5E7EB', true: '#93C5FD' }}
-                thumbColor={isDefault ? '#3B82F6' : '#ffffff'}
+                trackColor={{ false: '#E5E7EB', true: '#FCA5A5' }}
+                thumbColor={isDefault ? '#DC2626' : '#ffffff'}
                 ios_backgroundColor="#E5E7EB"
               />
             </View>
@@ -367,17 +367,17 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   defaultBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEF2F2',
     paddingHorizontal: moderateScale(8),
     paddingVertical: moderateScale(3),
     borderRadius: moderateScale(6),
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#FCA5A5',
   },
   defaultBadgeText: {
     fontSize: RESPONSIVE.fontSize.small,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#DC2626',
   },
   deleteButton: {
     padding: moderateScale(8),
@@ -406,10 +406,10 @@ const styles = StyleSheet.create({
     width: moderateScale(56),
     height: moderateScale(56),
     borderRadius: moderateScale(28),
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: '#DC2626',
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.3,
     shadowRadius: moderateScale(8),
@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   typeCardActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   typeIconWrapper: {
     width: moderateScale(40),
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(2),
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
     borderRadius: RESPONSIVE.borderRadius.medium,
     paddingVertical: moderateScale(14),
     alignItems: 'center',

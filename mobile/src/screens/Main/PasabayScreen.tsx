@@ -528,7 +528,7 @@ export default function PasabayScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? verticalScale(20) : verticalScale(28) }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8B5CF6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#DC2626" />}
       >
         {/* Active Ride Banner */}
         {!!activeRide && (
@@ -543,7 +543,7 @@ export default function PasabayScreen({ navigation }: any) {
               <Text style={styles.activeBannerTitle}>Active ride in progress</Text>
               <Text style={styles.activeBannerSub}>Tap to track • {activeRide.status?.replace(/_/g, ' ')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
+            <Ionicons name="chevron-forward" size={20} color="#DC2626" />
           </TouchableOpacity>
         )}
 
@@ -602,7 +602,7 @@ export default function PasabayScreen({ navigation }: any) {
                 <View key={ride.id} style={styles.rideShareCard}>
                   <View style={styles.rideShareHeader}>
                     <View style={styles.rideShareIcon}>
-                      <Ionicons name="car" size={24} color="#8B5CF6" />
+                      <Ionicons name="car" size={24} color="#DC2626" />
                     </View>
                     <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
                       <Text style={styles.rideShareRoute} numberOfLines={1}>{ride.pickup_location}</Text>
@@ -684,7 +684,7 @@ export default function PasabayScreen({ navigation }: any) {
                     accessibilityLabel={`${type.name}, from ${type.basePrice} pesos${rideType === type.id ? ', selected' : ''}`}
                     accessibilityRole="button"
                   >
-                    <Ionicons name={type.icon as any} size={28} color={rideType === type.id ? '#8B5CF6' : '#6B7280'} />
+                    <Ionicons name={type.icon as any} size={28} color={rideType === type.id ? '#DC2626' : '#6B7280'} />
                     <Text style={[styles.rideTypeName, rideType === type.id && styles.rideTypeNameActive]}>{type.name}</Text>
                     <Text style={[styles.rideTypePrice, rideType === type.id && styles.rideTypePriceActive]}>from ₱{type.basePrice}</Text>
                   </TouchableOpacity>
@@ -696,10 +696,10 @@ export default function PasabayScreen({ navigation }: any) {
             <View style={styles.section}>
               <Text style={styles.label}>Pickup Location *</Text>
               <TouchableOpacity style={styles.inputContainer} onPress={() => setShowPickupMap(true)} accessibilityLabel={pickupLocation.address ? `Pickup location: ${pickupLocation.address}` : 'Select pickup location'} accessibilityRole="button">
-                <Ionicons name="location-outline" size={20} color="#8B5CF6" />
+                <Ionicons name="location-outline" size={20} color="#DC2626" />
                 {detectingLocation ? (
                   <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: moderateScale(12) }}>
-                    <ActivityIndicator size="small" color="#8B5CF6" />
+                    <ActivityIndicator size="small" color="#DC2626" />
                     <Text style={{ marginLeft: moderateScale(8), color: '#6B7280', fontSize: RESPONSIVE.fontSize.medium }}>Detecting location...</Text>
                   </View>
                 ) : (
@@ -707,7 +707,7 @@ export default function PasabayScreen({ navigation }: any) {
                     {pickupLocation.address || 'Select pickup on map'}
                   </Text>
                 )}
-                <Ionicons name="navigate" size={20} color="#8B5CF6" />
+                <Ionicons name="navigate" size={20} color="#DC2626" />
               </TouchableOpacity>
             </View>
 
@@ -735,10 +735,10 @@ export default function PasabayScreen({ navigation }: any) {
                   accessibilityLabel="Decrease passengers"
                   accessibilityRole="button"
                 >
-                  <Ionicons name="remove" size={24} color={passengers <= 1 ? '#D1D5DB' : '#8B5CF6'} />
+                  <Ionicons name="remove" size={24} color={passengers <= 1 ? '#D1D5DB' : '#DC2626'} />
                 </TouchableOpacity>
                 <View style={styles.passengerDisplay} accessibilityLabel={`${passengers} passenger${passengers > 1 ? 's' : ''}`}>
-                  <Ionicons name="people" size={24} color="#8B5CF6" />
+                  <Ionicons name="people" size={24} color="#DC2626" />
                   <Text style={styles.passengerCount}>{passengers}</Text>
                 </View>
                 <TouchableOpacity
@@ -749,7 +749,7 @@ export default function PasabayScreen({ navigation }: any) {
                   accessibilityLabel="Increase passengers"
                   accessibilityRole="button"
                 >
-                  <Ionicons name="add" size={24} color={passengers >= 4 ? '#D1D5DB' : '#8B5CF6'} />
+                  <Ionicons name="add" size={24} color={passengers >= 4 ? '#D1D5DB' : '#DC2626'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -770,7 +770,7 @@ export default function PasabayScreen({ navigation }: any) {
             {/* Payment */}
             <View style={styles.section}>
               <Text style={styles.label}>Payment Method</Text>
-              <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} accentColor="#8B5CF6" />
+              <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} accentColor="#DC2626" />
             </View>
 
             {/* Promo Code */}
@@ -786,13 +786,13 @@ export default function PasabayScreen({ navigation }: any) {
                 </View>
               ) : (
                 <View style={styles.inputContainer}>
-                  <Ionicons name="pricetag-outline" size={20} color="#8B5CF6" />
+                  <Ionicons name="pricetag-outline" size={20} color="#DC2626" />
                   <TextInput style={styles.input} placeholder="Enter promo code" value={promoCode} onChangeText={setPromoCode} autoCapitalize="characters" />
                   <TouchableOpacity onPress={handleApplyPromo} disabled={applyingPromo || !promoCode.trim()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Apply promo code" accessibilityRole="button">
                     {applyingPromo ? (
-                      <ActivityIndicator size="small" color="#8B5CF6" />
+                      <ActivityIndicator size="small" color="#DC2626" />
                     ) : (
-                      <Text style={{ color: promoCode.trim() ? '#8B5CF6' : '#D1D5DB', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Apply</Text>
+                      <Text style={{ color: promoCode.trim() ? '#DC2626' : '#D1D5DB', fontWeight: '600', fontSize: RESPONSIVE.fontSize.medium }}>Apply</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -848,7 +848,7 @@ export default function PasabayScreen({ navigation }: any) {
                     {totalFare > 0 && <Text style={styles.bookButtonFare}>₱{totalFare.toFixed(0)} • {passengers} passenger{passengers > 1 ? 's' : ''}</Text>}
                   </View>
                   <View style={styles.bookButtonArrow}>
-                    <Ionicons name="arrow-forward" size={20} color="#8B5CF6" />
+                    <Ionicons name="arrow-forward" size={20} color="#DC2626" />
                   </View>
                 </View>
               )}
@@ -892,51 +892,51 @@ export default function PasabayScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(16), backgroundColor: '#8B5CF6' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(16), backgroundColor: '#DC2626' },
   backBtn: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#ffffff' },
   headerSubtitle: { fontSize: RESPONSIVE.fontSize.small, color: 'rgba(255,255,255,0.85)', marginTop: verticalScale(2) },
-  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F3FF', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#DDD6FE' },
-  activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#8B5CF6' },
+  activeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), padding: moderateScale(14), borderRadius: RESPONSIVE.borderRadius.medium, borderWidth: 1, borderColor: '#FCA5A5' },
+  activeBannerDot: { width: moderateScale(12), height: moderateScale(12), borderRadius: moderateScale(6), backgroundColor: '#DC2626' },
   activeBannerTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#4C1D95' },
   activeBannerSub: { fontSize: RESPONSIVE.fontSize.small, color: '#6D28D9', marginTop: verticalScale(2) },
   modeToggle: { flexDirection: 'row', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(12), backgroundColor: '#F3F4F6', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(4) },
   modeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: moderateScale(12), borderRadius: RESPONSIVE.borderRadius.small, gap: moderateScale(8) },
-  modeButtonActive: { backgroundColor: '#8B5CF6' },
+  modeButtonActive: { backgroundColor: '#DC2626' },
   modeText: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#6B7280' },
   modeTextActive: { color: '#ffffff' },
   section: { paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(12) },
   label: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600', color: '#374151', marginBottom: verticalScale(6) },
-  countBadge: { backgroundColor: '#8B5CF6', borderRadius: RESPONSIVE.borderRadius.medium, minWidth: moderateScale(24), height: moderateScale(24), alignItems: 'center', justifyContent: 'center', marginLeft: moderateScale(8), paddingHorizontal: moderateScale(8) },
+  countBadge: { backgroundColor: '#DC2626', borderRadius: RESPONSIVE.borderRadius.medium, minWidth: moderateScale(24), height: moderateScale(24), alignItems: 'center', justifyContent: 'center', marginLeft: moderateScale(8), paddingHorizontal: moderateScale(8) },
   countText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: 'bold', color: '#ffffff' },
   rideShareCard: { backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: RESPONSIVE.paddingHorizontal, marginBottom: verticalScale(10), borderWidth: 1, borderColor: '#E5E7EB' },
   rideShareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) },
-  rideShareIcon: { width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' },
+  rideShareIcon: { width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
   rideShareRoute: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: '#1F2937' },
   rideShareDest: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', marginTop: verticalScale(2) },
-  rideShareFare: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#8B5CF6' },
+  rideShareFare: { fontSize: RESPONSIVE.fontSize.xlarge, fontWeight: 'bold', color: '#DC2626' },
   rideShareMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: moderateScale(8), marginBottom: verticalScale(10) },
   metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: moderateScale(8), paddingVertical: moderateScale(4), borderRadius: RESPONSIVE.borderRadius.small },
   metaText: { fontSize: RESPONSIVE.fontSize.small, color: '#6B7280', marginLeft: moderateScale(4) },
-  joinButton: { backgroundColor: '#8B5CF6', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(12), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
+  joinButton: { backgroundColor: '#DC2626', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(12), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(8) },
   joinButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600' },
   emptyRides: { alignItems: 'center', paddingVertical: verticalScale(36) },
   emptyText: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: '600', color: '#6B7280', marginTop: verticalScale(12) },
   emptySubtext: { fontSize: RESPONSIVE.fontSize.small, color: '#9CA3AF', marginTop: verticalScale(8) },
-  switchModeButton: { backgroundColor: '#8B5CF6', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(10), paddingHorizontal: moderateScale(24), marginTop: verticalScale(12) },
+  switchModeButton: { backgroundColor: '#DC2626', borderRadius: RESPONSIVE.borderRadius.small, paddingVertical: moderateScale(10), paddingHorizontal: moderateScale(24), marginTop: verticalScale(12) },
   switchModeText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.medium, fontWeight: '600' },
   rideTypeCard: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(14), borderWidth: 2, borderColor: '#E5E7EB' },
-  rideTypeCardActive: { borderColor: '#8B5CF6', backgroundColor: '#F5F3FF' },
+  rideTypeCardActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
   rideTypeName: { fontSize: fontScale(11), fontWeight: '600', color: '#6B7280', marginTop: verticalScale(6), textAlign: 'center' },
-  rideTypeNameActive: { color: '#8B5CF6' },
+  rideTypeNameActive: { color: '#DC2626' },
   rideTypePrice: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(4) },
-  rideTypePriceActive: { color: '#7C3AED' },
+  rideTypePriceActive: { color: '#B91C1C' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: moderateScale(12), borderWidth: 1, borderColor: '#E5E7EB' },
   input: { flex: 1, marginLeft: moderateScale(12), fontSize: RESPONSIVE.fontSize.regular, color: '#1F2937' },
   placeholder: { color: '#9CA3AF' },
   passengerControl: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  controlButton: { width: moderateScale(48), height: moderateScale(48), borderRadius: moderateScale(24), backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' },
+  controlButton: { width: moderateScale(48), height: moderateScale(48), borderRadius: moderateScale(24), backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
   controlButtonDisabled: { backgroundColor: '#F3F4F6' },
   passengerDisplay: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: moderateScale(32), paddingVertical: moderateScale(12), marginHorizontal: RESPONSIVE.paddingHorizontal, borderWidth: 1, borderColor: '#E5E7EB' },
   passengerCount: { fontSize: RESPONSIVE.fontSize.xxlarge, fontWeight: 'bold', color: '#1F2937', marginLeft: moderateScale(8) },
@@ -947,8 +947,8 @@ const styles = StyleSheet.create({
   priceValue: { fontSize: RESPONSIVE.fontSize.medium, color: '#1F2937', fontWeight: '600' },
   priceDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: moderateScale(8) },
   priceTotalLabel: { fontSize: RESPONSIVE.fontSize.regular, fontWeight: 'bold', color: '#1F2937' },
-  priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#8B5CF6' },
-  bookButton: { backgroundColor: '#8B5CF6', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(40), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
+  priceTotalValue: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#DC2626' },
+  bookButton: { backgroundColor: '#DC2626', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(16), marginBottom: Platform.OS === 'ios' ? verticalScale(32) : verticalScale(40), borderRadius: RESPONSIVE.borderRadius.medium, padding: moderateScale(18), shadowColor: '#DC2626', shadowOffset: { width: 0, height: verticalScale(4) }, shadowOpacity: 0.3, shadowRadius: moderateScale(8), elevation: moderateScale(6) },
   bookButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bookButtonText: { color: '#ffffff', fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold' },
   bookButtonFare: { color: 'rgba(255,255,255,0.9)', fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(2) },
