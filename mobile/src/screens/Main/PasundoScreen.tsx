@@ -19,6 +19,7 @@ import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
+import { useRoadDistance } from '../../hooks/useDistance';
 
 export default function PasundoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -160,36 +161,20 @@ export default function PasundoScreen({ navigation }: any) {
     setShowDropoffMap(false);
   };
 
-  const calculateDistance = (point1: any, point2: any) => {
-    if (!point1.latitude || !point2.latitude) return 0;
-    const R = 6371;
-    const dLat = (point2.latitude - point1.latitude) * Math.PI / 180;
-    const dLon = (point2.longitude - point1.longitude) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(point1.latitude * Math.PI / 180) *
-      Math.cos(point2.latitude * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const distance = calculateDistance(pickupLocation, dropoffLocation);
+  const { distance, duration: roadDuration } = useRoadDistance(pickupLocation, dropoffLocation);
   const baseFareCalc = distance > 0
     ? Math.round((selectedVehicle.base + distance * selectedVehicle.rate) * 100) / 100
     : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
 
-  // Calculate estimated arrival time
+  // Calculate estimated arrival time from road duration
   useEffect(() => {
-    if (distance > 0) {
-      const avgSpeed = vehicleType === 'car' ? 30 : 25; // km/h average in Balingasag
-      const minutes = Math.ceil((distance / avgSpeed) * 60);
-      setEstimatedTime(minutes <= 1 ? '~1 min' : `~${minutes} min`);
+    if (distance > 0 && roadDuration > 0) {
+      setEstimatedTime(roadDuration <= 1 ? '~1 min' : `~${roadDuration} min`);
     } else {
       setEstimatedTime('');
     }
-  }, [distance, vehicleType]);
+  }, [distance, roadDuration]);
 
   // Reset promo when fare basis changes (locations or vehicle changed)
   useEffect(() => {

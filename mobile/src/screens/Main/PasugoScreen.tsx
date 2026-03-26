@@ -21,6 +21,7 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } 
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
+import { useRoadDistance } from '../../hooks/useDistance';
 
 export default function PasugoScreen({ navigation }: any) {
   const [showPickupMap, setShowPickupMap] = useState(false);
@@ -166,34 +167,19 @@ export default function PasugoScreen({ navigation }: any) {
     setShowDropoffMap(false);
   };
 
-  const calculateDistance = (point1: any, point2: any) => {
-    if (!point1.latitude || !point2.latitude) return 0;
-    const R = 6371;
-    const dLat = (point2.latitude - point1.latitude) * Math.PI / 180;
-    const dLon = (point2.longitude - point1.longitude) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(point1.latitude * Math.PI / 180) *
-      Math.cos(point2.latitude * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const distance = calculateDistance(pickupLocation, dropoffLocation);
+  const { distance, duration: roadDuration } = useRoadDistance(pickupLocation, dropoffLocation);
   const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
 
-  // Calculate estimated delivery time
+  // Calculate estimated delivery time from road duration
   useEffect(() => {
-    if (distance > 0) {
-      const avgSpeed = 20; // delivery average km/h
-      const minutes = Math.ceil((distance / avgSpeed) * 60) + 5; // +5 for pickup time
+    if (distance > 0 && roadDuration > 0) {
+      const minutes = roadDuration + 5; // +5 for pickup time
       setEstimatedTime(minutes <= 1 ? '~1 min' : `~${minutes} min`);
     } else {
       setEstimatedTime('');
     }
-  }, [distance]);
+  }, [distance, roadDuration]);
 
   // Reset promo when fare basis changes (locations changed)
   useEffect(() => {

@@ -21,6 +21,7 @@ import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
+import { useRoadDistance } from '../../hooks/useDistance';
 
 export default function PasabayScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -280,21 +281,7 @@ export default function PasabayScreen({ navigation }: any) {
     setShowDropoffMap(false);
   };
 
-  const calculateDistance = (point1: any, point2: any) => {
-    if (!point1.latitude || !point2.latitude) return 0;
-    const R = 6371;
-    const dLat = (point2.latitude - point1.latitude) * Math.PI / 180;
-    const dLon = (point2.longitude - point1.longitude) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(point1.latitude * Math.PI / 180) *
-      Math.cos(point2.latitude * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const distance = calculateDistance(pickupLocation, dropoffLocation);
+  const { distance } = useRoadDistance(pickupLocation, dropoffLocation);
   const selectedType = rideTypes.find(r => r.id === rideType) || rideTypes[0];
   const passengerCharge = passengers > 1 ? (passengers - 1) * 20 : 0;
   const distanceCharge = distance * selectedType.ratePerKm;
