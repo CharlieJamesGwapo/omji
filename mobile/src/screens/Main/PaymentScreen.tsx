@@ -86,13 +86,32 @@ export default function PaymentScreen({ route, navigation }: any) {
     return () => clearInterval(timer);
   }, []);
 
-  // Back button goes to home screen directly
   const goHome = () => {
     navigation.reset({
       index: 0,
       routes: [{ name: 'Main' }],
     });
   };
+
+  const handleBack = () => {
+    Alert.alert(
+      'Leave Payment?',
+      'You have an ongoing payment session. What would you like to do?',
+      [
+        { text: 'Continue Payment', style: 'cancel' },
+        { text: 'Go Home', style: 'destructive', onPress: goHome },
+      ]
+    );
+  };
+
+  // Intercept hardware/gesture back to show confirmation
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      e.preventDefault();
+      handleBack();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchConfig = async () => {
     try {
@@ -188,10 +207,10 @@ export default function PaymentScreen({ route, navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={goHome}
+          onPress={handleBack}
           style={styles.backBtn}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel="Go home"
+          accessibilityLabel="Go back"
           accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color="#ffffff" />
