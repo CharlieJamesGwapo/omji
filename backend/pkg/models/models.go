@@ -316,6 +316,30 @@ type PaymentConfig struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// CommissionConfig model for admin-managed platform commission
+type CommissionConfig struct {
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	Percentage float64   `gorm:"default:10" json:"percentage"` // e.g. 15.0 = 15%
+	IsActive   bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// CommissionRecord tracks commission per completed service
+type CommissionRecord struct {
+	ID                   uint      `gorm:"primaryKey" json:"id"`
+	ServiceType          string    `gorm:"index:idx_commission_service_type" json:"service_type"` // ride, delivery, order
+	ServiceID            uint      `json:"service_id"`
+	DriverID             uint      `gorm:"index:idx_commission_driver_id" json:"driver_id"`
+	Driver               Driver    `gorm:"foreignKey:DriverID" json:"driver,omitempty"`
+	TotalFare            float64   `json:"total_fare"`
+	CommissionPercentage float64   `json:"commission_percentage"`
+	CommissionAmount     float64   `json:"commission_amount"`
+	PaymentMethod        string    `json:"payment_method"`
+	Status               string    `gorm:"index:idx_commission_status;default:'pending_collection'" json:"status"` // deducted, pending_collection
+	CreatedAt            time.Time `json:"created_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
@@ -337,6 +361,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&Favorite{},
 		&RateConfig{},
 		&PaymentConfig{},
+		&CommissionConfig{},
+		&CommissionRecord{},
 	)
 }
 
