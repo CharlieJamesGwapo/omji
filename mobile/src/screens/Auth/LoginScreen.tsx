@@ -117,13 +117,27 @@ export default function LoginScreen({ navigation }: any) {
 
           {/* Logo */}
           <Animated.View style={[styles.logoSection, { transform: [{ scale: logoAnim }] }]}>
-            <View style={styles.logoRing}>
-              <View style={styles.logoInner}>
-                <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="cover" />
-              </View>
+            <View style={styles.logoBox}>
+              <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="cover" />
             </View>
             <Text style={styles.appName}>OMJI</Text>
-            <Text style={styles.tagline}>One App. All Rides. All Services.</Text>
+            <Text style={styles.tagline}>Your Ride. Your Delivery. Your Way.</Text>
+
+            {/* Service Pills */}
+            <View style={styles.pills}>
+              <View style={[styles.pill, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="car-outline" size={14} color="#3B82F6" />
+                <Text style={[styles.pillText, { color: '#3B82F6' }]}>Pasundo</Text>
+              </View>
+              <View style={[styles.pill, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="cube-outline" size={14} color="#10B981" />
+                <Text style={[styles.pillText, { color: '#10B981' }]}>Pasugo</Text>
+              </View>
+              <View style={[styles.pill, { backgroundColor: '#F5F3FF' }]}>
+                <Ionicons name="people-outline" size={14} color="#8B5CF6" />
+                <Text style={[styles.pillText, { color: '#8B5CF6' }]}>Pasabay</Text>
+              </View>
+            </View>
           </Animated.View>
 
           {/* Form */}
@@ -252,33 +266,32 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: moderateScale(28) },
 
   // Logo
-  logoSection: { alignItems: 'center', paddingTop: verticalScale(70), marginBottom: verticalScale(36) },
-  logoRing: {
-    width: moderateScale(110),
-    height: moderateScale(110),
-    borderRadius: moderateScale(55),
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: verticalScale(16),
-    borderWidth: 3,
-    borderColor: COLORS.primaryLight,
-    shadowColor: COLORS.primaryDark,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  logoInner: {
-    width: moderateScale(94),
-    height: moderateScale(94),
-    borderRadius: moderateScale(47),
+  logoSection: { alignItems: 'center', paddingTop: verticalScale(60), marginBottom: verticalScale(32) },
+  logoBox: {
+    width: moderateScale(96),
+    height: moderateScale(96),
+    borderRadius: moderateScale(24),
     overflow: 'hidden',
-    backgroundColor: COLORS.white,
+    marginBottom: verticalScale(14),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   logo: { width: '100%', height: '100%' },
-  appName: { fontSize: fontScale(28), fontWeight: '800', color: COLORS.gray900, letterSpacing: 3 },
-  tagline: { fontSize: fontScale(12), color: COLORS.gray400, marginTop: verticalScale(4), letterSpacing: 0.5 },
+  appName: { fontSize: fontScale(30), fontWeight: '800', color: COLORS.gray900, letterSpacing: 4 },
+  tagline: { fontSize: fontScale(13), color: COLORS.gray400, marginTop: verticalScale(4), letterSpacing: 0.3 },
+  pills: { flexDirection: 'row', marginTop: verticalScale(14), gap: moderateScale(8) },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(6),
+    borderRadius: moderateScale(20),
+    gap: moderateScale(4),
+  },
+  pillText: { fontSize: fontScale(11), fontWeight: '600' },
 
   // Form
   form: { marginBottom: verticalScale(20) },
