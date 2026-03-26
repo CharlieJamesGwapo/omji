@@ -127,17 +127,17 @@ export default function LoginScreen({ navigation }: any) {
 
             {/* Service Pills */}
             <View style={styles.pills}>
-              <View style={[styles.pill, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="car-outline" size={14} color="#3B82F6" />
-                <Text style={[styles.pillText, { color: '#3B82F6' }]}>Pasundo</Text>
+              <View style={[styles.pill, { backgroundColor: COLORS.primaryBg }]}>
+                <Ionicons name="car-outline" size={14} color={COLORS.primaryDark} />
+                <Text style={[styles.pillText, { color: COLORS.primaryDark }]}>Pasundo</Text>
               </View>
-              <View style={[styles.pill, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="cube-outline" size={14} color="#10B981" />
-                <Text style={[styles.pillText, { color: '#10B981' }]}>Pasugo</Text>
+              <View style={[styles.pill, { backgroundColor: COLORS.primaryBg }]}>
+                <Ionicons name="cube-outline" size={14} color={COLORS.primaryDark} />
+                <Text style={[styles.pillText, { color: COLORS.primaryDark }]}>Pasugo</Text>
               </View>
-              <View style={[styles.pill, { backgroundColor: '#F5F3FF' }]}>
-                <Ionicons name="people-outline" size={14} color="#8B5CF6" />
-                <Text style={[styles.pillText, { color: '#8B5CF6' }]}>Pasabay</Text>
+              <View style={[styles.pill, { backgroundColor: COLORS.primaryBg }]}>
+                <Ionicons name="people-outline" size={14} color={COLORS.primaryDark} />
+                <Text style={[styles.pillText, { color: COLORS.primaryDark }]}>Pasabay</Text>
               </View>
             </View>
           </Animated.View>

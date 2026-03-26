@@ -146,8 +146,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasugo',
       description: 'Delivery Service',
       icon: 'cube-outline',
-      color: COLORS.pasugo,
-      bg: COLORS.pasugoBg,
+      color: COLORS.primaryDark,
+      bg: COLORS.primaryBg,
       screen: 'Pasugo',
     },
     {
@@ -155,8 +155,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasabay',
       description: 'Ride Sharing',
       icon: 'bicycle-outline',
-      color: COLORS.pasabay,
-      bg: COLORS.pasabayBg,
+      color: COLORS.primaryDark,
+      bg: COLORS.primaryBg,
       screen: 'Pasabay',
     },
     {
@@ -164,8 +164,8 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Pasundo',
       description: 'Pick-up Service',
       icon: 'car-outline',
-      color: COLORS.accent,
-      bg: COLORS.accentBg,
+      color: COLORS.primaryDark,
+      bg: COLORS.primaryBg,
       screen: 'Pasundo',
     },
     {
@@ -173,17 +173,17 @@ export default function HomeScreen({ navigation }: any) {
       name: 'Stores',
       description: 'Shop & Deliver',
       icon: 'storefront-outline',
-      color: COLORS.primary,
+      color: COLORS.primaryDark,
       bg: COLORS.primaryBg,
       screen: 'Services',
     },
   ];
 
   const quickActions = [
-    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.accent, bg: COLORS.accentBg },
-    { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.pasabay, bg: COLORS.pasabayBg },
-    { icon: 'gift-outline', label: 'Promos', screen: 'Pasundo', color: COLORS.primary, bg: COLORS.primaryBg },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=OMJI%20Support'), color: COLORS.pasugo, bg: COLORS.pasugoBg },
+    { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.primaryDark, bg: COLORS.primaryBg },
+    { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.primaryDark, bg: COLORS.primaryBg },
+    { icon: 'gift-outline', label: 'Promos', screen: 'Pasundo', color: COLORS.primaryDark, bg: COLORS.primaryBg },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=OMJI%20Support'), color: COLORS.primaryDark, bg: COLORS.primaryBg },
   ];
 
   const STORE_CATEGORY_CONFIG: Record<string, { color: string; icon: string }> = {
