@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -4362,7 +4364,7 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// AdminUploadQRCode handles QR code image file uploads
+// AdminUploadQRCode handles QR code image file uploads, returns base64 data URL
 func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, err := c.FormFile("qr_image")
@@ -4379,38 +4381,34 @@ func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 
 		// Validate file type (only images)
 		ext := strings.ToLower(filepath.Ext(file.Filename))
-		allowedExts := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
-		if !allowedExts[ext] {
+		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+		mimeType, ok := mimeTypes[ext]
+		if !ok {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
 			return
 		}
 
-		// Generate unique filename
-		filename := fmt.Sprintf("qr_%d%s", time.Now().UnixNano(), ext)
-		uploadDir := getUploadDir()
-		uploadPath := filepath.Join(uploadDir, "qr", filename)
+		// Read file contents and encode as base64 data URL
+		src, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			return
+		}
+		defer src.Close()
 
-		// Ensure directory exists
-		os.MkdirAll(filepath.Join(uploadDir, "qr"), 0755)
-
-		// Save file
-		if err := c.SaveUploadedFile(file, uploadPath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save file"})
+		data, err := io.ReadAll(src)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
 			return
 		}
 
-		// Build URL
-		baseURL := os.Getenv("BASE_URL")
-		if baseURL == "" {
-			baseURL = "https://omji-backend.onrender.com"
-		}
-		imageURL := fmt.Sprintf("%s/uploads/qr/%s", baseURL, filename)
+		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
-				"url":      imageURL,
-				"filename": filename,
+				"url":      dataURL,
+				"filename": file.Filename,
 			},
 		})
 	}
