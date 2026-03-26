@@ -102,7 +102,7 @@ export default function LoginScreen({ navigation }: any) {
       await login(phone, password);
       showBanner('Login successful!', 'success');
     } catch (error: any) {
-      showBanner(error.message || 'Invalid credentials', 'error');
+      showBanner(error.response?.data?.error || error.message || 'Invalid credentials', 'error');
       triggerShake();
     } finally {
       setLoading(false);

@@ -50,7 +50,7 @@ export default function NearbyRiders({
   const [error, setError] = useState('');
 
   const fetchNearbyDrivers = useCallback(async () => {
-    if (!pickupLatitude || !pickupLongitude) return;
+    if (pickupLatitude == null || pickupLongitude == null) return;
     setLoading(true);
     setError('');
     try {
@@ -60,7 +60,7 @@ export default function NearbyRiders({
         vehicle_type: vehicleType,
         max_distance: 15,
       });
-      const data = res.data?.data || [];
+      const data = res.data?.data ?? [];
       setDrivers(Array.isArray(data) ? data : []);
     } catch {
       setError('Could not find nearby riders');
@@ -76,7 +76,7 @@ export default function NearbyRiders({
 
   // Auto-refresh every 15 seconds
   useEffect(() => {
-    if (!pickupLatitude || !pickupLongitude) return;
+    if (pickupLatitude == null || pickupLongitude == null) return;
     const interval = setInterval(fetchNearbyDrivers, 15000);
     return () => clearInterval(interval);
   }, [fetchNearbyDrivers, pickupLatitude, pickupLongitude]);
@@ -128,7 +128,7 @@ export default function NearbyRiders({
     );
   };
 
-  if (!pickupLatitude || !pickupLongitude) return null;
+  if (pickupLatitude == null || pickupLongitude == null) return null;
 
   return (
     <View style={styles.container}>

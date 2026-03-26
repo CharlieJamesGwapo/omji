@@ -73,6 +73,8 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
     }
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
+      progress.stopAnimation();
+      slideAnim.stopAnimation();
       slideAnim.setValue(0);
     };
   }, [visible, request]);

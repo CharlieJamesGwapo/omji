@@ -1746,7 +1746,10 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You are not available. Go online first."})
 			return
 		}
-		db.Preload("User").First(&driver, driver.ID)
+		if err := db.Preload("User").First(&driver, driver.ID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load driver details"})
+			return
+		}
 		requestID := c.Param("id")
 		// Try ride first
 		var ride models.Ride
@@ -3534,17 +3537,26 @@ func (t *RideTracker) Remove(rideID string, conn *websocket.Conn) {
 }
 
 func (t *RideTracker) Broadcast(rideID string, msg interface{}) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
 	data, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("WebSocket broadcast marshal error for ride #%s: %v", rideID, err)
 		return
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var active []*websocket.Conn
 	for _, conn := range t.rides[rideID] {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 			log.Printf("WebSocket write error for ride #%s: %v", rideID, err)
+			conn.Close()
+		} else {
+			active = append(active, conn)
 		}
+	}
+	if len(active) > 0 {
+		t.rides[rideID] = active
+	} else {
+		delete(t.rides, rideID)
 	}
 }
 

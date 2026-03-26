@@ -54,7 +54,7 @@ export function usePromoCode({
     setApplyingPromo(true);
     try {
       const res = await promoService.applyPromo(promoCode.trim(), baseFare, serviceType);
-      const discount = res.data?.data?.discount || 0;
+      const discount = res.data?.data?.discount ?? 0;
       if (discount > 0) {
         setPromoDiscount(discount);
         setPromoApplied(true);

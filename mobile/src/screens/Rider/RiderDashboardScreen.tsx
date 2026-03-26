@@ -243,10 +243,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
       };
       ws.onerror = () => {};
       ws.onclose = () => {
-        // Auto-reconnect after 5s if still online
-        if (isOnline) {
-          reconnectTimeout = setTimeout(connect, 5000);
-        }
+        // Auto-reconnect after 5s (effect cleanup handles going offline)
+        reconnectTimeout = setTimeout(connect, 5000);
       };
     };
 
@@ -362,9 +360,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
   };
 
   const handleAcceptJob = (request: DriverRequest) => {
-    const fareAmount = request.estimated_fare || request.delivery_fee || 0;
-    const pickupAddr = request.pickup_location || request.pickup || 'Pickup';
-    const dropoffAddr = request.dropoff_location || request.dropoff || 'Dropoff';
+    const fareAmount = request.estimated_fare ?? request.delivery_fee ?? 0;
+    const pickupAddr = request.pickup_location ?? request.pickup ?? 'Pickup';
+    const dropoffAddr = request.dropoff_location ?? request.dropoff ?? 'Dropoff';
     const isDelivery = request.type === 'delivery';
     const jobLabel = isDelivery ? 'Delivery' : 'Ride';
 
@@ -437,9 +435,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
       navigation.navigate('Tracking', {
         type: 'ride',
         rideId,
-        pickup: rideRequest?.pickup_location || '',
-        dropoff: rideRequest?.dropoff_location || '',
-        fare: rideRequest?.estimated_fare || 0,
+        pickup: rideRequest?.pickup_location ?? '',
+        dropoff: rideRequest?.dropoff_location ?? '',
+        fare: rideRequest?.estimated_fare ?? 0,
       });
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to accept ride', 'error');
@@ -512,7 +510,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
     } catch { return { bg: COLORS.gray100, text: COLORS.gray500 }; }
   };
 
-  const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? Math.round((earnings.completed_rides / Math.max(earnings.completed_rides + (earnings.cancelled_rides || 0), 1)) * 100) : 100);
+  const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? Math.round((earnings.completed_rides / Math.max(earnings.completed_rides + (earnings.cancelled_rides ?? 0), 1)) * 100) : 100);
   const riderName = user?.name?.split(' ')[0] || 'Rider';
   const avatarUri = user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=100`;
 
