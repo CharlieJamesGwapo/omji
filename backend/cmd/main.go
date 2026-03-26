@@ -90,6 +90,30 @@ func main() {
 		})
 	})
 
+	// Health check alias (Render dashboard may use /api/v1/health)
+	router.GET("/api/v1/health", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+
+		dbStatus := "connected"
+		statusCode := http.StatusOK
+		if err := sqlDB.PingContext(ctx); err != nil {
+			dbStatus = "disconnected"
+			statusCode = http.StatusServiceUnavailable
+		}
+
+		status := "healthy"
+		if statusCode != http.StatusOK {
+			status = "unhealthy"
+		}
+
+		c.JSON(statusCode, gin.H{
+			"status": status,
+			"db":     dbStatus,
+			"uptime": time.Since(startTime).Round(time.Second).String(),
+		})
+	})
+
 	// Public routes (no auth required)
 	public := router.Group("/api/v1/public")
 	public.Use(middleware.AuthRateLimitMiddleware(20))
