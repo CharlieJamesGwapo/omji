@@ -44,6 +44,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [selectedTipIndex, setSelectedTipIndex] = useState(0); // 0 = No tip
   const [customTip, setCustomTip] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const isLeavingRef = useRef(false);
 
   const isGcash = type === 'gcash';
   const brandName = isGcash ? 'GCash' : 'Maya';
@@ -87,6 +88,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   }, []);
 
   const goHome = () => {
+    isLeavingRef.current = true;
     navigation.reset({
       index: 0,
       routes: [{ name: 'Main' }],
@@ -107,6 +109,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   // Intercept hardware/gesture back to show confirmation
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (isLeavingRef.current) return;
       e.preventDefault();
       handleBack();
     });
@@ -137,36 +140,31 @@ export default function PaymentScreen({ route, navigation }: any) {
     }
   };
 
-  const openApp = () => {
+  const openApp = async () => {
     const deepLink = isGcash ? 'gcash://' : 'paymaya://';
-    Linking.canOpenURL(deepLink)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(deepLink);
-        } else {
-          const storeLink = isGcash
-            ? isIOS
-              ? 'https://apps.apple.com/ph/app/gcash/id520020791'
-              : 'https://play.google.com/store/apps/details?id=com.globe.gcash.android'
-            : isIOS
-              ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
-              : 'https://play.google.com/store/apps/details?id=com.paymaya';
-          Alert.alert(
-            `${brandName} Not Installed`,
-            `Please install ${brandName} to complete payment, or scan the QR code below.`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Get App', onPress: () => Linking.openURL(storeLink) },
-            ]
-          );
-        }
-      })
-      .catch(() => {
-        Alert.alert('Error', `Could not open ${brandName}`);
-      });
+    try {
+      await Linking.openURL(deepLink);
+    } catch {
+      const storeLink = isGcash
+        ? isIOS
+          ? 'https://apps.apple.com/ph/app/gcash/id520020791'
+          : 'https://play.google.com/store/apps/details?id=com.globe.gcash.android'
+        : isIOS
+          ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
+          : 'https://play.google.com/store/apps/details?id=com.paymaya';
+      Alert.alert(
+        `${brandName} Not Installed`,
+        `Please install ${brandName} to complete payment, or scan the QR code below.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Get App', onPress: () => Linking.openURL(storeLink) },
+        ]
+      );
+    }
   };
 
   const handleDone = () => {
+    isLeavingRef.current = true;
     if (serviceType === 'order') {
       navigation.navigate('Orders');
     } else if (rideId) {
