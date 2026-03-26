@@ -34,6 +34,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [referenceNo] = useState(() => `OMJI-${Date.now().toString(36).toUpperCase()}`);
   const [timeLeft, setTimeLeft] = useState(15 * 60);
@@ -55,7 +56,15 @@ export default function PaymentScreen({ route, navigation }: any) {
 
   useEffect(() => {
     fetchConfig();
+    // QR image timeout — if it doesn't load within 8s, show fallback
+    const qrTimeout = setTimeout(() => {
+      if (imageLoading) {
+        setImageLoading(false);
+        setImageError(true);
+      }
+    }, 8000);
     return () => {
+      clearTimeout(qrTimeout);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
   }, []);
@@ -67,7 +76,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         if (prev <= 1) {
           clearInterval(timer);
           Alert.alert('Session Expired', 'Payment session has expired. Please try again.', [
-            { text: 'Go Back', onPress: () => navigation.goBack() },
+            { text: 'Go Home', onPress: goHome },
           ]);
           return 0;
         }
@@ -77,16 +86,13 @@ export default function PaymentScreen({ route, navigation }: any) {
     return () => clearInterval(timer);
   }, []);
 
-  // Intercept back gesture to prompt payment confirmation
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
-      if (e.data.action.type === 'GO_BACK') {
-        e.preventDefault();
-        handleDone();
-      }
+  // Back button goes to home screen directly
+  const goHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Main' }],
     });
-    return unsubscribe;
-  }, [navigation, serviceType, rideId, totalAmount, pickup, dropoff]);
+  };
 
   const fetchConfig = async () => {
     try {
@@ -142,31 +148,19 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const handleDone = () => {
-    Alert.alert(
-      'Confirm Payment',
-      `Have you completed the ${brandName} payment of \u20B1${totalAmount.toFixed(2)}?`,
-      [
-        { text: 'Not Yet', style: 'cancel' },
-        {
-          text: 'Yes, I Paid',
-          onPress: () => {
-            if (serviceType === 'order') {
-              navigation.navigate('Orders');
-            } else if (rideId) {
-              navigation.replace('Tracking', {
-                type: serviceType === 'delivery' ? 'delivery' : 'ride',
-                rideId,
-                pickup: pickup || '',
-                dropoff: dropoff || '',
-                fare: totalAmount,
-              });
-            } else {
-              navigation.goBack();
-            }
-          },
-        },
-      ]
-    );
+    if (serviceType === 'order') {
+      navigation.navigate('Orders');
+    } else if (rideId) {
+      navigation.replace('Tracking', {
+        type: serviceType === 'delivery' ? 'delivery' : 'ride',
+        rideId,
+        pickup: pickup || '',
+        dropoff: dropoff || '',
+        fare: totalAmount,
+      });
+    } else {
+      goHome();
+    }
   };
 
   const handleSelectTip = (index: number) => {
@@ -194,10 +188,10 @@ export default function PaymentScreen({ route, navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={goHome}
           style={styles.backBtn}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel="Go back"
+          accessibilityLabel="Go home"
           accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={moderateScale(22)} color="#ffffff" />
@@ -387,7 +381,7 @@ export default function PaymentScreen({ route, navigation }: any) {
               <ActivityIndicator size="large" color="#DC2626" />
               <Text style={styles.loadingText}>Loading QR code...</Text>
             </View>
-          ) : config?.qr_code_url ? (
+          ) : config?.qr_code_url && !imageError ? (
             <View style={styles.qrContainer}>
               <View style={styles.qrBorder}>
                 {imageLoading && (
@@ -397,21 +391,22 @@ export default function PaymentScreen({ route, navigation }: any) {
                 )}
                 <Image
                   source={{ uri: config.qr_code_url }}
-                  style={styles.qrImage}
+                  style={[styles.qrImage, imageLoading && { opacity: 0 }]}
                   resizeMode="contain"
-                  onLoadStart={() => setImageLoading(true)}
+                  onLoadStart={() => { setImageLoading(true); setImageError(false); }}
                   onLoadEnd={() => setImageLoading(false)}
+                  onError={() => { setImageLoading(false); setImageError(true); }}
                 />
               </View>
               <Text style={styles.qrHint}>
-                Open {brandName} {'>'} Scan QR {'>'} Enter ₱{totalAmount.toFixed(2)}
+                Open {brandName} {'>'} Scan QR {'>'} Enter {'\u20B1'}{totalAmount.toFixed(2)}
               </Text>
             </View>
           ) : (
             <View style={styles.qrPlaceholder}>
               <Ionicons name="qr-code-outline" size={moderateScale(40)} color={COLORS.gray300} />
               <Text style={styles.noQrText}>
-                QR code not available.{'\n'}Use the pay button above.
+                QR code not available.{'\n'}Use the pay button above to send payment.
               </Text>
             </View>
           )}
