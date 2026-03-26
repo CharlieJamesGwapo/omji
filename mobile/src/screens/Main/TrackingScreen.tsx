@@ -368,8 +368,38 @@ export default function TrackingScreen({ route, navigation }: any) {
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const paymentInfo = PAYMENT_LABELS[paymentMethod] || PAYMENT_LABELS.cash;
 
-  // ETA estimation: average speed ~25 km/h for city rides
-  const estimatedEtaMinutes = rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0;
+  // Calculate live distance from driver to relevant point
+  const calculateHaversine = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const driverLat = driverInfo?.current_latitude || driverInfo?.latitude || 0;
+  const driverLng = driverInfo?.current_longitude || driverInfo?.longitude || 0;
+
+  // Driver heading to pickup (accepted/driver_arrived) or dropoff (in_progress/picked_up)
+  const isHeadingToPickup = status === 'accepted' || status === 'driver_arrived';
+  const isEnRoute = status === 'in_progress' || status === 'picked_up';
+  const targetLat = isHeadingToPickup ? pickupLat : dropoffLat;
+  const targetLng = isHeadingToPickup ? pickupLng : dropoffLng;
+  const driverDistanceKm = (driverLat && targetLat)
+    ? calculateHaversine(driverLat, driverLng, targetLat, targetLng)
+    : 0;
+  const driverDistanceRounded = Math.round(driverDistanceKm * 10) / 10;
+
+  // Dynamic ETA: ~20 km/h city average for approaching, 25 km/h en route
+  const avgSpeed = isHeadingToPickup ? 20 : 25;
+  const liveEtaMinutes = driverDistanceKm > 0 ? Math.max(1, Math.round((driverDistanceKm / avgSpeed) * 60)) : 0;
+
+  // Fallback to static ETA if no driver location
+  const estimatedEtaMinutes = liveEtaMinutes > 0 ? liveEtaMinutes : (rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0);
 
   // Send driver location to WebView map when ride data updates
   useEffect(() => {
@@ -529,8 +559,37 @@ export default function TrackingScreen({ route, navigation }: any) {
             )}
           </View>
 
-          {/* ETA Display */}
-          {estimatedEtaMinutes > 0 && status !== 'pending' && status !== 'completed' && status !== 'cancelled' && (
+          {/* Live Distance & ETA Card */}
+          {(isHeadingToPickup || isEnRoute) && driverDistanceRounded > 0 && (
+            <View style={styles.distanceCard}>
+              <View style={styles.distanceIconBox}>
+                <Ionicons
+                  name={isHeadingToPickup ? 'bicycle' : 'navigate'}
+                  size={moderateScale(20)}
+                  color={COLORS.white}
+                />
+              </View>
+              <View style={styles.distanceInfo}>
+                <Text style={styles.distanceLabel}>
+                  {isHeadingToPickup ? 'Rider is heading to you' : 'On the way to drop-off'}
+                </Text>
+                <View style={styles.distanceValueRow}>
+                  <Text style={styles.distanceValue}>{driverDistanceRounded} km</Text>
+                  <View style={styles.distanceDot} />
+                  <Text style={styles.distanceEta}>
+                    ~{estimatedEtaMinutes < 60 ? `${estimatedEtaMinutes} min` : `${Math.floor(estimatedEtaMinutes / 60)}h ${estimatedEtaMinutes % 60}m`}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.distanceBadge}>
+                <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.primaryDark} />
+                <Text style={styles.distanceBadgeText}>LIVE</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Static ETA fallback (no driver location yet) */}
+          {estimatedEtaMinutes > 0 && !driverDistanceRounded && status !== 'pending' && status !== 'completed' && status !== 'cancelled' && (
             <View style={styles.etaContainer}>
               <View style={styles.etaIconBox}>
                 <Ionicons name="time" size={moderateScale(16)} color={COLORS.accent} />
@@ -1109,6 +1168,73 @@ const styles = StyleSheet.create({
     color: COLORS.gray500,
     marginTop: verticalScale(2),
     lineHeight: fontScale(18),
+  },
+  // Live Distance Card
+  distanceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  distanceIconBox: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    backgroundColor: COLORS.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  distanceInfo: {
+    flex: 1,
+    marginLeft: moderateScale(12),
+  },
+  distanceLabel: {
+    fontSize: fontScale(12),
+    color: COLORS.gray600,
+    fontWeight: '500',
+  },
+  distanceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: verticalScale(3),
+    gap: moderateScale(8),
+  },
+  distanceValue: {
+    fontSize: fontScale(20),
+    fontWeight: '800',
+    color: COLORS.primaryDark,
+  },
+  distanceDot: {
+    width: moderateScale(4),
+    height: moderateScale(4),
+    borderRadius: moderateScale(2),
+    backgroundColor: COLORS.gray400,
+  },
+  distanceEta: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: COLORS.gray700,
+  },
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(10),
+    gap: moderateScale(3),
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  distanceBadgeText: {
+    fontSize: fontScale(9),
+    fontWeight: '800',
+    color: COLORS.primaryDark,
+    letterSpacing: 0.5,
   },
   // ETA
   etaContainer: {
