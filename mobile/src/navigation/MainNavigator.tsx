@@ -62,14 +62,14 @@ function MainTabs() {
                   width: 32,
                   height: 3,
                   borderRadius: 1.5,
-                  backgroundColor: '#3B82F6',
+                  backgroundColor: '#DC2626',
                 }} />
               )}
               <Ionicons name={iconName} size={22} color={color} />
             </View>
           );
         },
-        tabBarActiveTintColor: '#3B82F6',
+        tabBarActiveTintColor: '#DC2626',
         tabBarInactiveTintColor: '#B0B7C3',
         tabBarStyle: {
           backgroundColor: '#ffffff',
