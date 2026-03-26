@@ -4360,3 +4360,157 @@ func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": configs})
 	}
 }
+
+// AdminGetCommissionConfig returns the current commission config
+func AdminGetCommissionConfig(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var config models.CommissionConfig
+		if err := db.First(&config).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Commission config not found"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": config, "timestamp": time.Now()})
+	}
+}
+
+// AdminUpdateCommissionConfig updates the commission percentage
+func AdminUpdateCommissionConfig(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input struct {
+			Percentage float64 `json:"percentage" binding:"required,min=0,max=100"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Percentage must be between 0 and 100"})
+			return
+		}
+		var config models.CommissionConfig
+		if err := db.First(&config).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Commission config not found"})
+			return
+		}
+		config.Percentage = input.Percentage
+		if err := db.Save(&config).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update commission config"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": config, "timestamp": time.Now()})
+	}
+}
+
+// AdminGetCommissionRecords returns paginated commission records
+func AdminGetCommissionRecords(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 20
+		}
+		offset := (page - 1) * limit
+
+		query := db.Model(&models.CommissionRecord{})
+
+		if serviceType := c.Query("service_type"); serviceType != "" {
+			query = query.Where("service_type = ?", serviceType)
+		}
+		if status := c.Query("status"); status != "" {
+			query = query.Where("status = ?", status)
+		}
+		if paymentMethod := c.Query("payment_method"); paymentMethod != "" {
+			query = query.Where("payment_method = ?", paymentMethod)
+		}
+		if dateFrom := c.Query("date_from"); dateFrom != "" {
+			if t, err := time.Parse(time.RFC3339, dateFrom); err == nil {
+				query = query.Where("created_at >= ?", t)
+			}
+		}
+		if dateTo := c.Query("date_to"); dateTo != "" {
+			if t, err := time.Parse(time.RFC3339, dateTo); err == nil {
+				query = query.Where("created_at <= ?", t)
+			}
+		}
+
+		var total int64
+		query.Count(&total)
+
+		var records []models.CommissionRecord
+		if err := query.Preload("Driver.User").Order("created_at DESC").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch commission records"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"records": records,
+				"total":   total,
+				"page":    page,
+				"limit":   limit,
+			},
+			"timestamp": time.Now(),
+		})
+	}
+}
+
+// AdminGetCommissionSummary returns aggregate commission stats
+func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var summary struct {
+			TotalCommission        float64
+			TotalDeducted          float64
+			TotalPendingCollection float64
+			RideCommission         float64
+			DeliveryCommission     float64
+			OrderCommission        float64
+			CurrentMonthCommission float64
+		}
+
+		db.Model(&models.CommissionRecord{}).Select(
+			"COALESCE(SUM(commission_amount), 0) as total_commission, "+
+				"COALESCE(SUM(CASE WHEN status = 'deducted' THEN commission_amount ELSE 0 END), 0) as total_deducted, "+
+				"COALESCE(SUM(CASE WHEN status = 'pending_collection' THEN commission_amount ELSE 0 END), 0) as total_pending_collection, "+
+				"COALESCE(SUM(CASE WHEN service_type = 'ride' THEN commission_amount ELSE 0 END), 0) as ride_commission, "+
+				"COALESCE(SUM(CASE WHEN service_type = 'delivery' THEN commission_amount ELSE 0 END), 0) as delivery_commission, "+
+				"COALESCE(SUM(CASE WHEN service_type = 'order' THEN commission_amount ELSE 0 END), 0) as order_commission").
+			Row().Scan(
+			&summary.TotalCommission,
+			&summary.TotalDeducted,
+			&summary.TotalPendingCollection,
+			&summary.RideCommission,
+			&summary.DeliveryCommission,
+			&summary.OrderCommission,
+		)
+
+		// Current month commission
+		now := time.Now()
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		db.Model(&models.CommissionRecord{}).
+			Where("created_at >= ?", monthStart).
+			Select("COALESCE(SUM(commission_amount), 0)").
+			Row().Scan(&summary.CurrentMonthCommission)
+
+		// Get current percentage
+		var config models.CommissionConfig
+		var currentPercentage float64
+		if db.First(&config).Error == nil {
+			currentPercentage = config.Percentage
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"total_commission":         summary.TotalCommission,
+				"total_deducted":           summary.TotalDeducted,
+				"total_pending_collection": summary.TotalPendingCollection,
+				"ride_commission":          summary.RideCommission,
+				"delivery_commission":      summary.DeliveryCommission,
+				"order_commission":         summary.OrderCommission,
+				"current_month_commission": summary.CurrentMonthCommission,
+				"current_percentage":       currentPercentage,
+			},
+			"timestamp": time.Now(),
+		})
+	}
+}
