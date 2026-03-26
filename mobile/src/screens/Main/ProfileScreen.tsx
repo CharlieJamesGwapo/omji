@@ -19,15 +19,15 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 import Toast, { ToastType } from '../../components/Toast';
 
 const SECTION_ACCENTS: Record<string, string> = {
-  Account: COLORS.accent,
-  Activity: COLORS.success,
-  Support: COLORS.info,
+  Account: COLORS.primaryDark,
+  Activity: COLORS.primaryDark,
+  Support: COLORS.primaryDark,
 };
 
 const SECTION_ICONS: Record<string, { bg: string }> = {
-  Account: { bg: COLORS.accentBg },
-  Activity: { bg: COLORS.successBg },
-  Support: { bg: COLORS.infoBg },
+  Account: { bg: COLORS.primaryBg },
+  Activity: { bg: COLORS.primaryBg },
+  Support: { bg: COLORS.primaryBg },
 };
 
 export default function ProfileScreen({ navigation }: any) {
@@ -102,7 +102,7 @@ export default function ProfileScreen({ navigation }: any) {
       const deliveriesSpent = deliveries.reduce((sum: number, delivery: any) => sum + (delivery.delivery_fee || 0), 0);
       const totalSpent = ridesSpent + ordersSpent + deliveriesSpent;
 
-      const rating = Number(user?.rating) || 5.0;
+      const rating = (user?.total_ratings ?? 0) > 0 ? Number(user?.rating) || 0 : 0;
 
       setStats({
         rides: totalCompleted,
@@ -234,7 +234,7 @@ export default function ProfileScreen({ navigation }: any) {
             <View style={styles.avatarContainer}>
               <Image
                 source={{
-                  uri: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=200`,
+                  uri: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=DC2626&color=fff&size=200`,
                 }}
                 style={styles.avatar}
               />
@@ -252,7 +252,7 @@ export default function ProfileScreen({ navigation }: any) {
               </View>
               {memberSince && (
                 <View style={styles.memberRow}>
-                  <Ionicons name="calendar-outline" size={moderateScale(13)} color={COLORS.accentLight} />
+                  <Ionicons name="calendar-outline" size={moderateScale(13)} color={COLORS.primaryLight} />
                   <Text style={styles.memberSince}>Member since {memberSince}</Text>
                 </View>
               )}
@@ -275,14 +275,14 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.statsContainer}>
           {loading ? (
             <View style={styles.statsLoading}>
-              <ActivityIndicator size="small" color={COLORS.accent} />
+              <ActivityIndicator size="small" color={COLORS.primaryDark} />
             </View>
           ) : (
             <>
-              {renderStatItem('car-outline', stats.rides, 'Trips', COLORS.accent)}
-              {renderStatItem('bag-check-outline', stats.orders, 'Orders', COLORS.success)}
-              {renderStatItem('star', stats.rating, 'Rating', COLORS.warning)}
-              {renderStatItem('trending-up-outline', `₱${stats.spent >= 1000 ? (stats.spent / 1000).toFixed(1) + 'k' : stats.spent.toLocaleString()}`, 'Spent', COLORS.info)}
+              {renderStatItem('car-outline', stats.rides, 'Trips', COLORS.primaryDark)}
+              {renderStatItem('bag-check-outline', stats.orders, 'Orders', COLORS.primaryDark)}
+              {renderStatItem('star', stats.rating > 0 ? stats.rating : '—', stats.rating > 0 ? 'Rating' : 'No ratings', COLORS.primaryDark)}
+              {renderStatItem('trending-up-outline', `₱${stats.spent >= 1000 ? (stats.spent / 1000).toFixed(1) + 'k' : stats.spent.toLocaleString()}`, 'Spent', COLORS.primaryDark)}
             </>
           )}
         </View>
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   memberSince: {
     fontSize: fontScale(11),
-    color: COLORS.accentLight,
+    color: COLORS.primaryLight,
     marginLeft: moderateScale(6),
     fontWeight: '500',
   },
@@ -565,14 +565,14 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(12),
     borderRadius: RESPONSIVE.borderRadius.large,
     overflow: 'hidden',
-    shadowColor: COLORS.accent,
+    shadowColor: COLORS.primaryDark,
     shadowOffset: { width: 0, height: verticalScale(4) },
     shadowOpacity: 0.2,
     shadowRadius: moderateScale(12),
     elevation: moderateScale(6),
   },
   walletGradient: {
-    backgroundColor: COLORS.accentDark,
+    backgroundColor: COLORS.primaryDark,
     padding: moderateScale(18),
   },
   walletTop: {
