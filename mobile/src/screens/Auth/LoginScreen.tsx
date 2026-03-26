@@ -117,8 +117,10 @@ export default function LoginScreen({ navigation }: any) {
 
           {/* Logo */}
           <Animated.View style={[styles.logoSection, { transform: [{ scale: logoAnim }] }]}>
-            <View style={styles.logoBox}>
-              <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="cover" />
+            <View style={styles.logoShadow}>
+              <View style={styles.logoBox}>
+                <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="cover" />
+              </View>
             </View>
             <Text style={styles.appName}>OMJI</Text>
             <Text style={styles.tagline}>Your Ride. Your Delivery. Your Way.</Text>
@@ -267,17 +269,20 @@ const styles = StyleSheet.create({
 
   // Logo
   logoSection: { alignItems: 'center', paddingTop: verticalScale(60), marginBottom: verticalScale(32) },
-  logoBox: {
-    width: moderateScale(96),
-    height: moderateScale(96),
-    borderRadius: moderateScale(24),
-    overflow: 'hidden',
+  logoShadow: {
     marginBottom: verticalScale(14),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
+  },
+  logoBox: {
+    width: moderateScale(96),
+    height: moderateScale(96),
+    borderRadius: moderateScale(24),
+    overflow: 'hidden',
+    backgroundColor: COLORS.white,
   },
   logo: { width: '100%', height: '100%' },
   appName: { fontSize: fontScale(30), fontWeight: '800', color: COLORS.gray900, letterSpacing: 4 },
