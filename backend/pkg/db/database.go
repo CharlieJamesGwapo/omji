@@ -176,6 +176,21 @@ func seedData(db *gorm.DB) {
 		}
 		slog.Info("Sample promos created")
 	}
+
+	// Seed default commission config if none exists
+	var commissionCount int64
+	db.Model(&models.CommissionConfig{}).Count(&commissionCount)
+	if commissionCount == 0 {
+		defaultCommission := models.CommissionConfig{
+			Percentage: 10.0,
+			IsActive:   true,
+		}
+		if err := db.Create(&defaultCommission).Error; err != nil {
+			slog.Error("Failed to create default commission config", "error", err)
+		} else {
+			slog.Info("Default commission config created", "percentage", 10.0)
+		}
+	}
 }
 
 func GetDB() *gorm.DB {
