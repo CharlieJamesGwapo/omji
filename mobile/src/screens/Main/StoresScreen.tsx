@@ -30,10 +30,10 @@ interface StoreItem {
 }
 
 const CATEGORY_STYLES: Record<string, { gradient: string; icon: string; emoji: string }> = {
-  restaurant: { gradient: COLORS.primary, icon: 'fast-food', emoji: '' },
-  grocery: { gradient: COLORS.success, icon: 'cart', emoji: '' },
-  pharmacy: { gradient: COLORS.accent, icon: 'medical', emoji: '' },
-  retail: { gradient: COLORS.pasabay, icon: 'bag', emoji: '' },
+  restaurant: { gradient: COLORS.primaryDark, icon: 'fast-food', emoji: '' },
+  grocery: { gradient: COLORS.primaryDark, icon: 'cart', emoji: '' },
+  pharmacy: { gradient: COLORS.primaryDark, icon: 'medical', emoji: '' },
+  retail: { gradient: COLORS.primaryDark, icon: 'bag', emoji: '' },
 };
 
 // Check store open/closed based on current hour (6am-11pm operating hours)
@@ -81,7 +81,7 @@ export default function StoresScreen({ navigation }: any) {
 
   const searchBorderColor = searchBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [COLORS.gray200, COLORS.accent],
+    outputRange: [COLORS.gray200, COLORS.primaryDark],
   });
 
   const fetchStores = useCallback(async () => {
@@ -176,7 +176,7 @@ export default function StoresScreen({ navigation }: any) {
             <Ionicons
               name="search"
               size={moderateScale(18)}
-              color={searchFocused ? COLORS.accent : COLORS.gray400}
+              color={searchFocused ? COLORS.primaryDark : COLORS.gray400}
             />
           </View>
           <TextInput
@@ -268,7 +268,7 @@ export default function StoresScreen({ navigation }: any) {
                 <Text style={styles.sectionSubtitle}>Verified and highly rated</Text>
               </View>
               <View style={styles.featuredCountBadge}>
-                <Ionicons name="shield-checkmark" size={moderateScale(12)} color={COLORS.success} />
+                <Ionicons name="shield-checkmark" size={moderateScale(12)} color={COLORS.primaryDark} />
                 <Text style={styles.featuredCountText}>{featuredStores.length}</Text>
               </View>
             </View>
@@ -291,9 +291,9 @@ export default function StoresScreen({ navigation }: any) {
                     {/* Featured Image placeholder */}
                     <View style={[
                       styles.featuredImageContainer,
-                      { backgroundColor: catStyle?.gradient ? `${catStyle.gradient}12` : COLORS.accentBg },
+                      { backgroundColor: catStyle?.gradient ? `${catStyle.gradient}12` : COLORS.primaryBg },
                     ]}>
-                      <View style={[styles.featuredImageIcon, { backgroundColor: catStyle?.gradient || COLORS.accent }]}>
+                      <View style={[styles.featuredImageIcon, { backgroundColor: catStyle?.gradient || COLORS.primaryDark }]}>
                         <Ionicons
                           name={(catStyle?.icon || 'storefront') as any}
                           size={moderateScale(28)}
@@ -373,7 +373,7 @@ export default function StoresScreen({ navigation }: any) {
               >
                 {/* Store Icon */}
                 <View style={[styles.storeIconArea, { backgroundColor: catStyle ? `${catStyle.gradient}12` : COLORS.gray100 }]}>
-                  <View style={[styles.storeIconCircle, { backgroundColor: catStyle?.gradient || COLORS.accent }]}>
+                  <View style={[styles.storeIconCircle, { backgroundColor: catStyle?.gradient || COLORS.primaryDark }]}>
                     <Ionicons
                       name={(catStyle?.icon || 'storefront') as any}
                       size={moderateScale(24)}
@@ -382,7 +382,7 @@ export default function StoresScreen({ navigation }: any) {
                   </View>
                   {storeOpen && (
                     <View style={styles.openDotSmall}>
-                      <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.success }} />
+                      <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.primaryDark }} />
                     </View>
                   )}
                 </View>
@@ -392,7 +392,7 @@ export default function StoresScreen({ navigation }: any) {
                   <View style={styles.storeNameRow}>
                     <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
                     {!!store.is_verified && (
-                      <Ionicons name="shield-checkmark" size={moderateScale(14)} color={COLORS.accent} style={{ marginLeft: moderateScale(4) }} />
+                      <Ionicons name="shield-checkmark" size={moderateScale(14)} color={COLORS.primaryDark} style={{ marginLeft: moderateScale(4) }} />
                     )}
                   </View>
 
@@ -453,7 +453,7 @@ export default function StoresScreen({ navigation }: any) {
               </Text>
               {selectedCategory !== 'all' && (
                 <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: COLORS.accent }]}
+                  style={[styles.retryButton, { backgroundColor: COLORS.primaryDark }]}
                   onPress={() => setSelectedCategory('all')}
                   activeOpacity={0.7}
                 >
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   featuredCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.successBg,
+    backgroundColor: COLORS.primaryBg,
     paddingHorizontal: moderateScale(10),
     paddingVertical: verticalScale(5),
     borderRadius: moderateScale(20),
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   featuredCountText: {
     fontSize: fontScale(12),
     fontWeight: '700',
-    color: COLORS.successDark,
+    color: COLORS.primaryDark,
   },
   // Featured Cards
   featuredContainer: {
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   openText: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: COLORS.success,
+    color: COLORS.primaryDark,
   },
   closedText: {
     fontSize: fontScale(11),
@@ -829,13 +829,13 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primaryDark,
     paddingHorizontal: moderateScale(20),
     paddingVertical: verticalScale(10),
     borderRadius: moderateScale(20),
     gap: moderateScale(6),
     marginTop: verticalScale(16),
-    ...SHADOWS.colored(COLORS.accent),
+    ...SHADOWS.colored(COLORS.primaryDark),
   },
   retryButtonText: {
     fontSize: RESPONSIVE.fontSize.medium,
