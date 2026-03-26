@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -16,6 +16,11 @@ import RatesPage from './pages/RatesPage';
 import PaymentConfigsPage from './pages/PaymentConfigsPage';
 import CommissionPage from './pages/CommissionPage';
 import { Toaster } from 'react-hot-toast';
+
+// ── Theme Context ────────────────────────────────────────────────────
+type Theme = 'light' | 'dark';
+const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void }>({ theme: 'light', toggleTheme: () => {} });
+export const useTheme = () => useContext(ThemeContext);
 
 const navGroups = [
   {
@@ -56,12 +61,15 @@ const navGroups = [
 
 const navItems = navGroups.flatMap(g => g.items);
 
+// ── Sidebar ──────────────────────────────────────────────────────────
 const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClose: () => void }> = ({ onLogout, user, open, onClose }) => {
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     <>
-      {/* Mobile overlay with fade animation */}
+      {/* Mobile overlay */}
       <div
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -71,36 +79,44 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
 
       <div className={`
         fixed lg:sticky top-0 left-0 z-50 h-screen
-        w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex flex-col
-        shadow-xl
-        transform transition-transform duration-300 ease-in-out
+        w-64 flex flex-col shadow-xl
+        transform transition-all duration-300 ease-in-out
         ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+        ${isDark
+          ? 'bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950'
+          : 'bg-white border-r border-gray-200'
+        }
       `}>
         {/* Brand */}
         <div className="px-5 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-emerald-500/20">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shadow-lg ${isDark ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-white shadow-gray-200'}`}>
               <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white tracking-tight">OMJI</h1>
-              <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-[0.2em]">Admin Panel</p>
+              <h1 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>OMJI</h1>
+              <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-emerald-400' : 'text-gray-400'}`}>Admin Panel</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200">
+          <button
+            onClick={onClose}
+            className={`lg:hidden p-2 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 ${
+              isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+            }`}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div className="mx-5 border-t border-white/10" />
+        <div className={`mx-5 border-t ${isDark ? 'border-white/10' : 'border-gray-100'}`} />
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
           {navGroups.map((group) => (
             <div key={group.label} className="mb-1">
-              <p className="px-3 pb-1.5 pt-4 first:pt-1 text-[10px] font-semibold text-gray-500 uppercase tracking-[0.15em]">{group.label}</p>
+              <p className={`px-3 pb-1.5 pt-4 first:pt-1 text-[10px] font-semibold uppercase tracking-[0.15em] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{group.label}</p>
               {group.items.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
@@ -110,15 +126,30 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
                     onClick={onClose}
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 relative ${
                       isActive
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                        ? isDark
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                        : isDark
+                          ? 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                          : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
                     }`}
                   >
-                    {/* Active indicator bar */}
-                    {isActive && (
+                    {/* Active indicator bar (dark mode only) */}
+                    {isActive && isDark && (
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-400 rounded-r-full" />
                     )}
-                    <svg className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-gray-500 group-hover:text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${
+                        isActive
+                          ? isDark ? 'text-emerald-400' : 'text-white'
+                          : isDark
+                            ? 'text-gray-500 group-hover:text-gray-300'
+                            : 'text-gray-400 group-hover:text-red-500'
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={item.icon} />
                     </svg>
                     <span>{item.label}</span>
@@ -130,14 +161,16 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
         </nav>
 
         {/* User card */}
-        <div className="p-3 border-t border-white/10">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5">
-            <div className="w-9 h-9 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 text-sm font-bold flex-shrink-0 ring-1 ring-emerald-500/30">
+        <div className={`p-3 border-t ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
+          <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ring-1 ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30' : 'bg-red-50 text-red-500 ring-red-200'
+            }`}>
               {(user?.name || 'A')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin'}</p>
-              <p className="text-[11px] text-gray-500 truncate">{user?.email || 'Administrator'}</p>
+              <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{user?.name || 'Admin'}</p>
+              <p className={`text-[11px] truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{user?.email || 'Administrator'}</p>
             </div>
           </div>
           <button
@@ -155,9 +188,39 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
   );
 };
 
+// ── Theme Toggle Button ──────────────────────────────────────────────
+const ThemeToggle: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className={`p-2 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 ${
+        isDark ? 'hover:bg-gray-700 text-gray-400 hover:text-yellow-400' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+      }`}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
+// ── Admin Layout ─────────────────────────────────────────────────────
 const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, user }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -167,49 +230,56 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
   const currentGroup = navGroups.find(g => g.items.some(i => i.path === location.pathname));
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className={`flex min-h-screen transition-colors duration-300 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
       <Sidebar onLogout={onLogout} user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div className={`sticky top-0 z-30 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between transition-colors duration-300 ${
+          isDark ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-gray-200/80'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
+              className={`lg:hidden p-2 -ml-2 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200 ${
+                isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+              }`}
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
             <div className="lg:hidden flex items-center gap-2">
-              <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center overflow-hidden">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden">
                 <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
               </div>
-              <span className="font-bold text-gray-900 text-sm">OMJI</span>
+              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>OMJI</span>
             </div>
-            {/* Breadcrumb area */}
+            {/* Breadcrumb */}
             <div className="hidden lg:flex items-center gap-2">
               {currentGroup && (
                 <>
-                  <span className="text-xs font-medium text-gray-400">{currentGroup.label}</span>
-                  <svg className="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{currentGroup.label}</span>
+                  <svg className={`w-3.5 h-3.5 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </>
               )}
-              <h2 className="text-sm font-semibold text-gray-900">{currentPage?.label || 'Dashboard'}</h2>
+              <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{currentPage?.label || 'Dashboard'}</h2>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <div className={`hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full ${
+              isDark ? 'text-gray-400 bg-gray-800' : 'text-gray-400 bg-gray-50'
+            }`}>
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Online
             </div>
           </div>
         </div>
 
-        {/* Page */}
+        {/* Page content */}
         <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 sm:pb-6 lg:pb-8 overflow-auto">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
@@ -234,10 +304,24 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
   );
 };
 
+// ── App with Theme Provider ──────────────────────────────────────────
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('adminTheme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('adminTheme', next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -275,7 +359,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-10 h-10 border-3 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>
       </div>
@@ -283,17 +367,30 @@ const App: React.FC = () => {
   }
 
   return (
-    <BrowserRouter>
-      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '10px', padding: '12px 16px', fontSize: '13px' } }} />
-      {isAuthenticated ? (
-        <AdminLayout onLogout={handleLogout} user={user} />
-      ) : (
-        <Routes>
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
-      )}
-    </BrowserRouter>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      <BrowserRouter>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              borderRadius: '10px',
+              padding: '12px 16px',
+              fontSize: '13px',
+              ...(theme === 'dark' ? { background: '#1f2937', color: '#f9fafb', border: '1px solid #374151' } : {}),
+            },
+          }}
+        />
+        {isAuthenticated ? (
+          <AdminLayout onLogout={handleLogout} user={user} />
+        ) : (
+          <Routes>
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+        )}
+      </BrowserRouter>
+    </ThemeContext.Provider>
   );
 };
 
