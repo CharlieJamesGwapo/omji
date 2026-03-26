@@ -264,6 +264,12 @@ func main() {
 		admin.POST("/payment-configs/upload-qr", handlers.AdminUploadQRCode(database))
 		admin.PUT("/payment-configs/:id", handlers.AdminUpdatePaymentConfig(database))
 		admin.DELETE("/payment-configs/:id", handlers.AdminDeletePaymentConfig(database))
+
+		// Commission management
+		admin.GET("/commission/config", handlers.AdminGetCommissionConfig(database))
+		admin.PUT("/commission/config", handlers.AdminUpdateCommissionConfig(database))
+		admin.GET("/commission/records", handlers.AdminGetCommissionRecords(database))
+		admin.GET("/commission/summary", handlers.AdminGetCommissionSummary(database))
 	}
 
 	// WebSocket routes
