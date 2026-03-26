@@ -141,26 +141,45 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const openApp = async () => {
-    const deepLink = isGcash ? 'gcash://' : 'paymaya://';
-    try {
-      await Linking.openURL(deepLink);
-    } catch {
-      const storeLink = isGcash
-        ? isIOS
-          ? 'https://apps.apple.com/ph/app/gcash/id520020791'
-          : 'https://play.google.com/store/apps/details?id=com.globe.gcash.android'
-        : isIOS
-          ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
-          : 'https://play.google.com/store/apps/details?id=com.paymaya';
-      Alert.alert(
-        `${brandName} Not Installed`,
-        `Please install ${brandName} to complete payment, or scan the QR code below.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Get App', onPress: () => Linking.openURL(storeLink) },
-        ]
-      );
+    const gcashPkg = 'com.globe.gcash.android';
+    const mayaPkg = 'com.paymaya';
+    const pkg = isGcash ? gcashPkg : mayaPkg;
+
+    if (isIOS) {
+      // iOS: use custom scheme directly
+      const deepLink = isGcash ? 'gcash://' : 'paymaya://';
+      try {
+        await Linking.openURL(deepLink);
+        return;
+      } catch {
+        // fall through to store link
+      }
+    } else {
+      // Android: use intent URL to bypass <queries> restriction
+      const intentUrl = `intent://#Intent;package=${pkg};launchFlags=0x10000000;end`;
+      try {
+        await Linking.openURL(intentUrl);
+        return;
+      } catch {
+        // fall through to store link
+      }
     }
+
+    const storeLink = isGcash
+      ? isIOS
+        ? 'https://apps.apple.com/ph/app/gcash/id520020791'
+        : `https://play.google.com/store/apps/details?id=${gcashPkg}`
+      : isIOS
+        ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
+        : `https://play.google.com/store/apps/details?id=${mayaPkg}`;
+    Alert.alert(
+      `${brandName} Not Installed`,
+      `Please install ${brandName} to complete payment, or scan the QR code below.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Get App', onPress: () => Linking.openURL(storeLink) },
+      ]
+    );
   };
 
   const handleDone = () => {
