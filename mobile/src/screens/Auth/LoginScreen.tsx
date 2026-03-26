@@ -12,11 +12,16 @@ import {
   StatusBar,
   Animated,
   Alert,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, isTablet } from '../../utils/responsive';
+import { RESPONSIVE, fontScale, verticalScale, moderateScale } from '../../utils/responsive';
 import { COLORS } from '../../constants/theme';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type BannerType = 'error' | 'success';
 
@@ -47,7 +52,34 @@ export default function LoginScreen({ navigation }: any) {
   const bannerSlideAnim = useRef(new Animated.Value(-100)).current;
   const bannerOpacityAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(40)).current;
+  const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+
+  // Entrance animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(logoScaleAnim, {
+        toValue: 1,
+        tension: 60,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideUpAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -60,14 +92,12 @@ export default function LoginScreen({ navigation }: any) {
 
   const showBanner = useCallback(
     (message: string, type: BannerType) => {
-      // Clear any existing dismiss timer
       if (dismissTimer.current) {
         clearTimeout(dismissTimer.current);
       }
 
       setBanner({ visible: true, message, type });
 
-      // Reset and animate in
       bannerSlideAnim.setValue(-100);
       bannerOpacityAnim.setValue(0);
 
@@ -85,7 +115,6 @@ export default function LoginScreen({ navigation }: any) {
         }),
       ]).start();
 
-      // Auto-dismiss after 4 seconds
       dismissTimer.current = setTimeout(() => {
         hideBanner();
       }, 4000);
@@ -113,36 +142,12 @@ export default function LoginScreen({ navigation }: any) {
   const triggerShake = useCallback(() => {
     shakeAnim.setValue(0);
     Animated.sequence([
-      Animated.timing(shakeAnim, {
-        toValue: 10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: -10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: 8,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: -8,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: 4,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: 0,
-        duration: 50,
-        useNativeDriver: true,
-      }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 4, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
   }, [shakeAnim]);
 
@@ -154,7 +159,6 @@ export default function LoginScreen({ navigation }: any) {
   const handleLogin = async () => {
     clearFieldErrors();
 
-    // Inline field validation
     let hasError = false;
     if (!phone.trim()) {
       setPhoneError('Phone number or email is required');
@@ -172,7 +176,6 @@ export default function LoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       await login(phone, password);
-      // Show success banner briefly before navigation handles the transition
       showBanner('Login successful! Redirecting...', 'success');
     } catch (error: any) {
       const message = error.message || 'Invalid credentials';
@@ -190,37 +193,56 @@ export default function LoginScreen({ navigation }: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <View style={styles.content}>
-          {/* Minimal Logo Section */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={require('../../../assets/icon.png')}
-                style={styles.logo}
-                resizeMode="cover"
-              />
-            </View>
-            <Text style={styles.appName}>OMJI</Text>
-            <Text style={styles.tagline}>One App. All Rides. All Services.</Text>
-          </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Hero Section with Gradient */}
+          <LinearGradient
+            colors={['#DC2626', '#B91C1C', '#991B1B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroSection}
+          >
+            {/* Decorative circles */}
+            <View style={styles.decorCircle1} />
+            <View style={styles.decorCircle2} />
+            <View style={styles.decorCircle3} />
 
-          {/* Compact Login Form */}
+            <Animated.View style={[styles.logoArea, { transform: [{ scale: logoScaleAnim }] }]}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../../assets/icon.png')}
+                  style={styles.logo}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.appName}>OMJI</Text>
+              <Text style={styles.tagline}>One App. All Rides. All Services.</Text>
+            </Animated.View>
+          </LinearGradient>
+
+          {/* Form Card */}
           <Animated.View
             style={[
-              styles.formContainer,
-              { transform: [{ translateX: shakeAnim }] },
+              styles.formCard,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideUpAnim }, { translateX: shakeAnim }],
+              },
             ]}
           >
             <Text style={styles.welcomeText}>Welcome Back!</Text>
+            <Text style={styles.welcomeSub}>Sign in to continue your journey</Text>
 
             {/* Toast Banner */}
             {banner.visible && (
               <Animated.View
                 style={[
                   styles.banner,
-                  banner.type === 'error'
-                    ? styles.bannerError
-                    : styles.bannerSuccess,
+                  banner.type === 'error' ? styles.bannerError : styles.bannerSuccess,
                   {
                     transform: [{ translateY: bannerSlideAnim }],
                     opacity: bannerOpacityAnim,
@@ -228,11 +250,7 @@ export default function LoginScreen({ navigation }: any) {
                 ]}
               >
                 <Ionicons
-                  name={
-                    banner.type === 'error'
-                      ? 'alert-circle'
-                      : 'checkmark-circle'
-                  }
+                  name={banner.type === 'error' ? 'alert-circle' : 'checkmark-circle'}
                   size={20}
                   color={banner.type === 'error' ? COLORS.primaryDark : COLORS.successDark}
                   style={styles.bannerIcon}
@@ -240,15 +258,18 @@ export default function LoginScreen({ navigation }: any) {
                 <Text
                   style={[
                     styles.bannerText,
-                    banner.type === 'error'
-                      ? styles.bannerTextError
-                      : styles.bannerTextSuccess,
+                    banner.type === 'error' ? styles.bannerTextError : styles.bannerTextSuccess,
                   ]}
                   numberOfLines={2}
                 >
                   {banner.message}
                 </Text>
-                <TouchableOpacity onPress={hideBanner} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Dismiss notification" accessibilityRole="button">
+                <TouchableOpacity
+                  onPress={hideBanner}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel="Dismiss notification"
+                  accessibilityRole="button"
+                >
                   <Ionicons
                     name="close"
                     size={18}
@@ -259,106 +280,135 @@ export default function LoginScreen({ navigation }: any) {
             )}
 
             {/* Phone/Email Input */}
-            <View
-              style={[
-                styles.inputWrapper,
-                phoneFocused && styles.inputWrapperFocused,
-                phoneError ? styles.inputWrapperError : null,
-              ]}
-            >
-              <Ionicons
-                name="person"
-                size={20}
-                color={phoneError ? COLORS.error : phoneFocused ? COLORS.primaryDark : COLORS.gray400}
-                style={styles.icon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number or Email"
-                placeholderTextColor={COLORS.gray400}
-                value={phone}
-                onChangeText={(text) => {
-                  setPhone(text);
-                  if (phoneError) setPhoneError('');
-                }}
-                onFocus={() => setPhoneFocused(true)}
-                onBlur={() => setPhoneFocused(false)}
-                autoCapitalize="none"
-                accessibilityLabel="Phone number or email"
-              />
-            </View>
-            {phoneError ? (
-              <Text style={styles.fieldError}>{phoneError}</Text>
-            ) : null}
-
-            {/* Password Input */}
-            <View
-              style={[
-                styles.inputWrapper,
-                passwordFocused && styles.inputWrapperFocused,
-                passwordError ? styles.inputWrapperError : null,
-              ]}
-            >
-              <Ionicons
-                name="lock-closed"
-                size={20}
-                color={passwordError ? COLORS.error : passwordFocused ? COLORS.primaryDark : COLORS.gray400}
-                style={styles.icon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={COLORS.gray400}
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (passwordError) setPasswordError('');
-                }}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                accessibilityLabel="Password"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                accessibilityRole="button"
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone or Email</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  phoneFocused && styles.inputWrapperFocused,
+                  phoneError ? styles.inputWrapperError : null,
+                ]}
               >
                 <Ionicons
-                  name={showPassword ? 'eye' : 'eye-off'}
+                  name="person-outline"
                   size={20}
-                  color={COLORS.gray400}
+                  color={phoneError ? COLORS.error : phoneFocused ? COLORS.primaryDark : COLORS.gray400}
+                  style={styles.icon}
                 />
-              </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your phone or email"
+                  placeholderTextColor={COLORS.gray400}
+                  value={phone}
+                  onChangeText={(text) => {
+                    setPhone(text);
+                    if (phoneError) setPhoneError('');
+                  }}
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordInputRef.current?.focus()}
+                  accessibilityLabel="Phone number or email"
+                />
+              </View>
+              {phoneError ? <Text style={styles.fieldError}>{phoneError}</Text> : null}
             </View>
-            {passwordError ? (
-              <Text style={styles.fieldError}>{passwordError}</Text>
-            ) : null}
 
-            {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotButton} onPress={() => Alert.alert('Reset Password', 'To reset your password, please contact support at support@omji.app or call +63 912 345 6789.')} accessibilityLabel="Forgot password" accessibilityRole="button">
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    Alert.alert(
+                      'Reset Password',
+                      'To reset your password, please contact support at support@omji.app or call +63 912 345 6789.',
+                    )
+                  }
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Forgot password"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.forgotText}>Forgot?</Text>
+                </TouchableOpacity>
+              </View>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  passwordFocused && styles.inputWrapperFocused,
+                  passwordError ? styles.inputWrapperError : null,
+                ]}
+              >
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={passwordError ? COLORS.error : passwordFocused ? COLORS.primaryDark : COLORS.gray400}
+                  style={styles.icon}
+                />
+                <TextInput
+                  ref={passwordInputRef}
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  placeholderTextColor={COLORS.gray400}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
+                  accessibilityLabel="Password"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  accessibilityRole="button"
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color={COLORS.gray400}
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
+            </View>
 
             {/* Login Button */}
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={loading}
-              activeOpacity={0.9}
+              activeOpacity={0.85}
               accessibilityLabel={loading ? 'Logging in' : 'Login'}
               accessibilityRole="button"
             >
-              {loading ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) }}>
-                  <ActivityIndicator color={COLORS.white} />
-                  <Text style={styles.loginText}>Logging in...</Text>
-                </View>
-              ) : (
-                <Text style={styles.loginText}>Login</Text>
-              )}
+              <LinearGradient
+                colors={loading ? ['#9CA3AF', '#6B7280'] : ['#DC2626', '#B91C1C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginGradient}
+              >
+                {loading ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color={COLORS.white} size="small" />
+                    <Text style={styles.loginText}>Signing in...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.loginText}>Sign In</Text>
+                    <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Divider */}
@@ -372,6 +422,7 @@ export default function LoginScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.signupButton}
               onPress={() => navigation.navigate('Register')}
+              activeOpacity={0.7}
               accessibilityLabel="Sign up for a new account"
               accessibilityRole="button"
             >
@@ -381,9 +432,9 @@ export default function LoginScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
 
-            {/* Driver Signup */}
+            {/* Driver CTA */}
             <TouchableOpacity
-              style={styles.driverSignupButton}
+              style={styles.driverButton}
               onPress={() => {
                 Alert.alert(
                   'Become a Driver',
@@ -391,20 +442,32 @@ export default function LoginScreen({ navigation }: any) {
                   [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Create Account', onPress: () => navigation.navigate('Register') },
-                  ]
+                  ],
                 );
               }}
+              activeOpacity={0.7}
               accessibilityLabel="Become a driver"
               accessibilityRole="button"
             >
-              <Ionicons name="car-sport" size={18} color={COLORS.success} />
-              <Text style={styles.driverSignupText}>
-                Want to earn?{' '}
-                <Text style={styles.driverSignupLink}>Become a Driver</Text>
+              <View style={styles.driverIconWrap}>
+                <Ionicons name="car-sport" size={16} color={COLORS.white} />
+              </View>
+              <Text style={styles.driverText}>
+                Want to earn? <Text style={styles.driverLink}>Become a Driver</Text>
               </Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.success} />
             </TouchableOpacity>
           </Animated.View>
-        </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By signing in, you agree to our{' '}
+              <Text style={styles.footerLink}>Terms</Text> &{' '}
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+            </Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </>
   );
@@ -413,96 +476,134 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.gray50,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+  scrollContent: {
+    flexGrow: 1,
   },
 
-  // Header Section
-  header: {
+  // Hero Section
+  heroSection: {
+    paddingTop: verticalScale(60),
+    paddingBottom: verticalScale(50),
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  decorCircle1: {
+    position: 'absolute',
+    width: moderateScale(200),
+    height: moderateScale(200),
+    borderRadius: moderateScale(100),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -moderateScale(40),
+    right: -moderateScale(60),
+  },
+  decorCircle2: {
+    position: 'absolute',
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    bottom: -moderateScale(20),
+    left: -moderateScale(30),
+  },
+  decorCircle3: {
+    position: 'absolute',
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    top: moderateScale(20),
+    left: moderateScale(40),
+  },
+  logoArea: {
     alignItems: 'center',
-    marginBottom: verticalScale(28),
+    zIndex: 1,
   },
   logoContainer: {
-    width: moderateScale(88),
-    height: moderateScale(88),
-    borderRadius: moderateScale(24),
+    width: moderateScale(100),
+    height: moderateScale(100),
+    borderRadius: moderateScale(28),
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: verticalScale(12),
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: COLORS.accentBg,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(12),
-    elevation: moderateScale(6),
+    marginBottom: verticalScale(16),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
   appName: {
-    fontSize: RESPONSIVE.fontSize.heading,
-    fontWeight: 'bold',
-    color: COLORS.gray900,
-    letterSpacing: 1,
-    marginBottom: verticalScale(4),
+    fontSize: fontScale(32),
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 2,
+    marginBottom: verticalScale(6),
   },
   tagline: {
-    fontSize: RESPONSIVE.fontSize.small,
-    color: COLORS.gray400,
-    fontWeight: '400',
+    fontSize: fontScale(13),
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 
-  // Form Container
-  formContainer: {
+  // Form Card
+  formCard: {
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(24),
+    marginHorizontal: moderateScale(20),
+    marginTop: verticalScale(-28),
     padding: moderateScale(24),
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.06,
-    shadowRadius: moderateScale(16),
-    elevation: moderateScale(3),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
   },
   welcomeText: {
-    fontSize: fontScale(22),
-    fontWeight: 'bold',
+    fontSize: fontScale(24),
+    fontWeight: '700',
     color: COLORS.gray900,
-    marginBottom: verticalScale(16),
     textAlign: 'center',
+  },
+  welcomeSub: {
+    fontSize: fontScale(14),
+    color: COLORS.gray400,
+    textAlign: 'center',
+    marginTop: verticalScale(4),
+    marginBottom: verticalScale(24),
   },
 
   // Toast Banner
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: moderateScale(10),
+    borderRadius: moderateScale(12),
     borderWidth: 1,
     paddingHorizontal: moderateScale(12),
     paddingVertical: moderateScale(10),
-    marginBottom: verticalScale(12),
+    marginBottom: verticalScale(16),
   },
   bannerError: {
     backgroundColor: COLORS.errorBg,
-    borderColor: COLORS.primaryDark,
+    borderColor: COLORS.errorLight,
   },
   bannerSuccess: {
     backgroundColor: COLORS.successBg,
-    borderColor: COLORS.successDark,
+    borderColor: COLORS.successLight,
   },
   bannerIcon: {
     marginRight: moderateScale(8),
   },
   bannerText: {
     flex: 1,
-    fontSize: RESPONSIVE.fontSize.small,
+    fontSize: fontScale(13),
     fontWeight: '500',
   },
   bannerTextError: {
@@ -513,20 +614,39 @@ const styles = StyleSheet.create({
   },
 
   // Input Fields
+  inputGroup: {
+    marginBottom: verticalScale(16),
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(6),
+  },
+  inputLabel: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: COLORS.gray700,
+    marginBottom: verticalScale(6),
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.gray50,
-    borderRadius: RESPONSIVE.borderRadius.large,
-    borderWidth: 1,
+    borderRadius: moderateScale(14),
+    borderWidth: 1.5,
     borderColor: COLORS.gray200,
-    paddingHorizontal: moderateScale(16),
-    paddingVertical: moderateScale(15),
-    marginBottom: verticalScale(12),
+    paddingHorizontal: moderateScale(14),
+    height: verticalScale(52),
   },
   inputWrapperFocused: {
     borderColor: COLORS.primaryDark,
     backgroundColor: '#FFFBFB',
+    shadowColor: COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputWrapperError: {
     borderColor: COLORS.error,
@@ -537,62 +657,67 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: RESPONSIVE.fontSize.regular,
+    fontSize: fontScale(15),
     color: COLORS.gray900,
+    paddingVertical: 0,
   },
 
-  // Inline field error
+  // Field error
   fieldError: {
-    fontSize: RESPONSIVE.fontSize.small,
+    fontSize: fontScale(12),
     color: COLORS.error,
-    marginTop: verticalScale(-8),
-    marginBottom: verticalScale(8),
-    marginLeft: moderateScale(14),
+    marginTop: verticalScale(4),
+    marginLeft: moderateScale(4),
     fontWeight: '500',
   },
 
   // Forgot Password
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: verticalScale(16),
-    minHeight: 44,
-    justifyContent: 'center',
-  },
   forgotText: {
-    fontSize: RESPONSIVE.fontSize.small,
+    fontSize: fontScale(13),
     color: COLORS.primaryDark,
     fontWeight: '600',
   },
 
   // Login Button
   loginButton: {
-    backgroundColor: COLORS.primaryDark,
-    borderRadius: RESPONSIVE.borderRadius.xlarge,
-    paddingVertical: verticalScale(16),
+    borderRadius: moderateScale(14),
+    overflow: 'hidden',
+    marginTop: verticalScale(8),
+    marginBottom: verticalScale(16),
+    shadowColor: COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  loginGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(12),
-    shadowColor: COLORS.primaryDark,
-    shadowOffset: { width: 0, height: verticalScale(4) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(8),
-    elevation: moderateScale(5),
+    paddingVertical: verticalScale(16),
+    gap: moderateScale(8),
   },
   buttonDisabled: {
-    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
   },
   loginText: {
-    fontSize: RESPONSIVE.fontSize.regular,
-    fontWeight: 'bold',
+    fontSize: fontScale(16),
+    fontWeight: '700',
     color: COLORS.white,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 
   // Divider
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: verticalScale(12),
+    marginVertical: verticalScale(8),
   },
   line: {
     flex: 1,
@@ -600,10 +725,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray200,
   },
   dividerText: {
-    marginHorizontal: moderateScale(12),
-    fontSize: RESPONSIVE.fontSize.small,
+    marginHorizontal: moderateScale(16),
+    fontSize: fontScale(12),
     color: COLORS.gray400,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 1,
   },
 
   // Sign Up
@@ -611,36 +737,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 44,
     justifyContent: 'center',
+    marginBottom: verticalScale(12),
   },
   signupText: {
-    fontSize: RESPONSIVE.fontSize.medium,
+    fontSize: fontScale(14),
     color: COLORS.gray500,
   },
   signupLink: {
     color: COLORS.primaryDark,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 
-  // Driver Signup
-  driverSignupButton: {
+  // Driver CTA
+  driverButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: verticalScale(12),
-    paddingVertical: moderateScale(12),
-    paddingHorizontal: RESPONSIVE.paddingHorizontal,
     backgroundColor: COLORS.successBg,
-    borderRadius: moderateScale(10),
+    borderRadius: moderateScale(12),
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
   },
-  driverSignupText: {
-    fontSize: RESPONSIVE.fontSize.medium,
-    color: COLORS.gray500,
-    marginLeft: moderateScale(8),
+  driverIconWrap: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(10),
+    backgroundColor: COLORS.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(10),
   },
-  driverSignupLink: {
-    color: COLORS.success,
-    fontWeight: 'bold',
+  driverText: {
+    flex: 1,
+    fontSize: fontScale(13),
+    color: COLORS.gray600,
+  },
+  driverLink: {
+    color: COLORS.successDark,
+    fontWeight: '700',
+  },
+
+  // Footer
+  footer: {
+    paddingVertical: verticalScale(20),
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(40),
+  },
+  footerText: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+    textAlign: 'center',
+    lineHeight: fontScale(16),
+  },
+  footerLink: {
+    color: COLORS.primaryDark,
+    fontWeight: '600',
   },
 });
