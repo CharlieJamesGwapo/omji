@@ -224,6 +224,31 @@ export const adminService = {
       timeout: 30000,
     });
   },
+
+  // Commission
+  getCommissionConfig: () => cachedGet('/admin/commission/config'),
+  updateCommissionConfig: (data: { percentage: number }) => API.put('/admin/commission/config', data),
+  getCommissionRecords: (params?: {
+    page?: number;
+    limit?: number;
+    service_type?: string;
+    status?: string;
+    payment_method?: string;
+    date_from?: string;
+    date_to?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '' && value !== 'all') {
+          query.set(key, String(value));
+        }
+      });
+    }
+    const qs = query.toString();
+    return cachedGet(`/admin/commission/records${qs ? `?${qs}` : ''}`);
+  },
+  getCommissionSummary: () => cachedGet('/admin/commission/summary'),
 };
 
 // Utility to clear all cache (useful for manual refresh)
