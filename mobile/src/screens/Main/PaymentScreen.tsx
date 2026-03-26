@@ -35,6 +35,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const imageLoadingRef = useRef(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [referenceNo] = useState(() => `OMJI-${Date.now().toString(36).toUpperCase()}`);
   const [timeLeft, setTimeLeft] = useState(15 * 60);
@@ -57,13 +58,14 @@ export default function PaymentScreen({ route, navigation }: any) {
 
   useEffect(() => {
     fetchConfig();
-    // QR image timeout — if it doesn't load within 8s, show fallback
+    // QR image timeout — if it doesn't load within 15s, show fallback
     const qrTimeout = setTimeout(() => {
-      if (imageLoading) {
+      if (imageLoadingRef.current) {
         setImageLoading(false);
+        imageLoadingRef.current = false;
         setImageError(true);
       }
-    }, 8000);
+    }, 15000);
     return () => {
       clearTimeout(qrTimeout);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
@@ -429,9 +431,9 @@ export default function PaymentScreen({ route, navigation }: any) {
                   source={{ uri: config.qr_code_url }}
                   style={[styles.qrImage, imageLoading && { opacity: 0 }]}
                   resizeMode="contain"
-                  onLoadStart={() => { setImageLoading(true); setImageError(false); }}
-                  onLoadEnd={() => setImageLoading(false)}
-                  onError={() => { setImageLoading(false); setImageError(true); }}
+                  onLoadStart={() => { setImageLoading(true); imageLoadingRef.current = true; setImageError(false); }}
+                  onLoadEnd={() => { setImageLoading(false); imageLoadingRef.current = false; }}
+                  onError={() => { setImageLoading(false); imageLoadingRef.current = false; setImageError(true); }}
                 />
               </View>
               <Text style={styles.qrHint}>
