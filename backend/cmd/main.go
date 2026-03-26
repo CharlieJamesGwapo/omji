@@ -66,53 +66,27 @@ func main() {
 	os.MkdirAll(uploadDir, 0755)
 	router.Static("/uploads", uploadDir)
 
-	// Health check with DB validation
-	router.GET("/health", func(c *gin.Context) {
+	// Health check handler — always returns 200 so Render considers the
+	// service healthy even while the DB is warming up (Supabase cold starts).
+	// DB status is included in the response body for debugging.
+	healthHandler := func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 
 		dbStatus := "connected"
-		statusCode := http.StatusOK
 		if err := sqlDB.PingContext(ctx); err != nil {
 			dbStatus = "disconnected"
-			statusCode = http.StatusServiceUnavailable
 		}
 
-		status := "healthy"
-		if statusCode != http.StatusOK {
-			status = "unhealthy"
-		}
-
-		c.JSON(statusCode, gin.H{
-			"status": status,
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
 			"db":     dbStatus,
 			"uptime": time.Since(startTime).Round(time.Second).String(),
 		})
-	})
+	}
 
-	// Health check alias (Render dashboard may use /api/v1/health)
-	router.GET("/api/v1/health", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
-
-		dbStatus := "connected"
-		statusCode := http.StatusOK
-		if err := sqlDB.PingContext(ctx); err != nil {
-			dbStatus = "disconnected"
-			statusCode = http.StatusServiceUnavailable
-		}
-
-		status := "healthy"
-		if statusCode != http.StatusOK {
-			status = "unhealthy"
-		}
-
-		c.JSON(statusCode, gin.H{
-			"status": status,
-			"db":     dbStatus,
-			"uptime": time.Since(startTime).Round(time.Second).String(),
-		})
-	})
+	router.GET("/health", healthHandler)
+	router.GET("/api/v1/health", healthHandler)
 
 	// Public routes (no auth required)
 	public := router.Group("/api/v1/public")
