@@ -23,6 +23,8 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
   const wsRef = useRef<WebSocket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusRef = useRef(status);
+  statusRef.current = status;
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
 
   // Pulse animation for the waiting indicator
@@ -62,7 +64,10 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
   }, []);
 
   const handleResponse = useCallback((type: string) => {
-    if (status !== 'waiting') return;
+    if (statusRef.current !== 'waiting') return;
+    // Stop polling and countdown immediately
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
     if (type === 'ride_accepted') {
       setStatus('accepted');
       setTimeout(() => {
@@ -85,7 +90,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
         });
       }, 1500);
     }
-  }, [status, navigation, rideId, bookingData, excludeDriverIds]);
+  }, [navigation, rideId, bookingData, excludeDriverIds]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {

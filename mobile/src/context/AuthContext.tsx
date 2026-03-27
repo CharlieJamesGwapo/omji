@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Corrupted user data - clear storage and force re-login
           await AsyncStorage.removeItem('token');
           await AsyncStorage.removeItem('user');
+          setUser(null);
         }
       }
     } catch (error) {

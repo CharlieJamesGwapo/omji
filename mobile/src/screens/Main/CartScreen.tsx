@@ -220,7 +220,7 @@ export default function CartScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Store Info */}
         {!!store && (
           <View style={styles.storeCard}>

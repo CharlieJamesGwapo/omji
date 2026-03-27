@@ -22,7 +22,14 @@ interface NearbyDriver {
 }
 
 export default function RiderSelectionScreen({ navigation, route }: any) {
-  const { bookingData } = route.params;
+  const bookingData = route.params?.bookingData;
+  if (!bookingData) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 16, color: '#6B7280' }}>Missing booking data</Text>
+      </View>
+    );
+  }
   const insets = useSafeAreaInsets();
   const [drivers, setDrivers] = useState<NearbyDriver[]>([]);
   const [loading, setLoading] = useState(true);

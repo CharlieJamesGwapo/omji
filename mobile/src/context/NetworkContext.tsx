@@ -24,6 +24,15 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // Fetch real state immediately instead of assuming connected
+    NetInfo.fetch().then((netState) => {
+      setState({
+        isConnected: netState.isConnected ?? true,
+        isInternetReachable: netState.isInternetReachable,
+        connectionType: netState.type,
+      });
+    });
+
     const unsubscribe = NetInfo.addEventListener((netState: NetInfoState) => {
       setState({
         isConnected: netState.isConnected ?? true,

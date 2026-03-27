@@ -283,6 +283,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
                   value={withdrawAmount}
                   onChangeText={setWithdrawAmount}
                   keyboardType="numeric"
+                  returnKeyType="done"
                 />
               </View>
               <TouchableOpacity

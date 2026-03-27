@@ -411,7 +411,7 @@ export default function TrackingScreen({ route, navigation }: any) {
   const [liveEtaMinutes, setLiveEtaMinutes] = useState(0);
 
   useEffect(() => {
-    if (!driverLat || !targetLat) {
+    if (driverLat == null || targetLat == null || (driverLat === 0 && driverLng === 0)) {
       setLiveDistanceKm(0);
       setLiveEtaMinutes(0);
       return;

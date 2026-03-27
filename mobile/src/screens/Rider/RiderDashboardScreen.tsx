@@ -58,6 +58,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [togglingOnline, setTogglingOnline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [acceptingJobId, setAcceptingJobId] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [earnings, setEarnings] = useState<any>({ today_earnings: 0, total_earnings: 0, completed_rides: 0 });
   const [requests, setRequests] = useState<DriverRequest[]>([]);
@@ -361,6 +362,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   };
 
   const handleAcceptJob = (request: DriverRequest) => {
+    if (acceptingJobId !== null) return; // Prevent double-tap
     const fareAmount = request.estimated_fare ?? request.delivery_fee ?? 0;
     const pickupAddr = request.pickup_location ?? request.pickup ?? 'Pickup';
     const dropoffAddr = request.dropoff_location ?? request.dropoff ?? 'Dropoff';
@@ -376,6 +378,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
       {
         text: 'Accept',
         onPress: async () => {
+          setAcceptingJobId(request.id);
           try {
             await driverService.acceptRequest(request.id);
             showToast(`${jobLabel} accepted!`, 'success');
@@ -395,6 +398,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
               showToast(error.response?.data?.error || 'Failed to accept', 'error');
             }
             fetchData();
+          } finally {
+            setAcceptingJobId(null);
           }
         },
       },
@@ -800,13 +805,13 @@ export default function RiderDashboardScreen({ navigation }: any) {
           <View style={styles.statsRow}>
             <View style={styles.statChip}>
               <Ionicons name="bicycle" size={moderateScale(16)} color={COLORS.warning} />
-              <Text style={styles.statChipValue}>{earnings.completed_rides || 0}</Text>
+              <Text style={styles.statChipValue}>{earnings.completed_rides ?? 0}</Text>
               <Text style={styles.statChipLabel}>Rides</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statChip}>
               <Ionicons name="star" size={moderateScale(16)} color={COLORS.warning} />
-              <Text style={styles.statChipValue}>{(earnings.total_ratings || 0) > 0 ? Number(earnings.rating || 0).toFixed(1) : 'New'}</Text>
+              <Text style={styles.statChipValue}>{(earnings.total_ratings ?? 0) > 0 ? Number(earnings.rating ?? 0).toFixed(1) : 'New'}</Text>
               <Text style={styles.statChipLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
