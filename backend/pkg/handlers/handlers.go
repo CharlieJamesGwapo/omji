@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -2377,6 +2378,28 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 			"message":     msg.Message,
 			"created_at":  msg.CreatedAt,
 		})
+
+		// Send push notification to receiver
+		var receiverToken models.PushToken
+		if err := db.Where("user_id = ?", input.ReceiverID).First(&receiverToken).Error; err == nil {
+			// Look up sender name
+			var sender models.User
+			senderName := "New message"
+			if err := db.Select("name").First(&sender, userID).Error; err == nil && sender.Name != "" {
+				senderName = sender.Name
+			}
+			// Truncate message to 100 chars
+			notifBody := input.Message
+			if len(notifBody) > 100 {
+				notifBody = notifBody[:100] + "..."
+			}
+			sendExpoPushNotification(receiverToken.Token, senderName, notifBody, map[string]interface{}{
+				"type":     "chat",
+				"rideId":   rideIDUint,
+				"senderId": userID,
+			})
+		}
+
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": msg, "timestamp": time.Now()})
 	}
 }
@@ -4839,5 +4862,72 @@ func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
 			},
 			"timestamp": time.Now(),
 		})
+	}
+}
+
+// ===== PUSH NOTIFICATION HANDLERS =====
+
+// sendExpoPushNotification sends a push notification via Expo's push API.
+// Fire-and-forget: runs in a goroutine, logs errors but never blocks.
+func sendExpoPushNotification(token, title, body string, data map[string]interface{}) {
+	go func() {
+		payload := map[string]interface{}{
+			"to":    token,
+			"title": title,
+			"body":  body,
+			"sound": "default",
+		}
+		if data != nil {
+			payload["data"] = data
+		}
+		jsonData, err := json.Marshal(payload)
+		if err != nil {
+			log.Printf("Push notification marshal error: %v", err)
+			return
+		}
+		resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewReader(jsonData))
+		if err != nil {
+			log.Printf("Push notification send error: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			respBody, _ := io.ReadAll(resp.Body)
+			log.Printf("Push notification API error (status %d): %s", resp.StatusCode, string(respBody))
+		}
+	}()
+}
+
+// RegisterPushToken upserts the authenticated user's Expo push token.
+func RegisterPushToken(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var input struct {
+			Token    string `json:"token" binding:"required"`
+			Platform string `json:"platform" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		var pushToken models.PushToken
+		result := db.Where(models.PushToken{UserID: userID}).Assign(models.PushToken{Token: input.Token, Platform: input.Platform}).FirstOrCreate(&pushToken)
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to register push token"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": pushToken, "timestamp": time.Now()})
+	}
+}
+
+// RemovePushToken deletes the authenticated user's push token (e.g. on logout).
+func RemovePushToken(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		if err := db.Where("user_id = ?", userID).Delete(&models.PushToken{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to remove push token"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Push token removed"}, "timestamp": time.Now()})
 	}
 }

@@ -250,6 +250,16 @@ type ChatMessage struct {
 	CreatedAt time.Time `gorm:"index:idx_chat_sender_created,priority:2;index:idx_chat_receiver_created,priority:2" json:"created_at"`
 }
 
+// PushToken model
+type PushToken struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"uniqueIndex" json:"user_id"`
+	Token     string    `json:"token"`
+	Platform  string    `json:"platform"` // "android" or "ios"
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Notification model
 type Notification struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
@@ -364,6 +374,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&PaymentConfig{},
 		&CommissionConfig{},
 		&CommissionRecord{},
+		&PushToken{},
 	)
 }
 

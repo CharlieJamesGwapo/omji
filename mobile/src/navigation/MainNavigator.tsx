@@ -4,7 +4,9 @@ import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // Main Tab Screens
 import HomeScreen from '../screens/Main/HomeScreen';
@@ -102,6 +104,9 @@ function MainTabs() {
 }
 
 export default function MainNavigator() {
+  const navigation = useNavigation();
+  usePushNotifications(navigation);
+
   return (
     <Stack.Navigator
       screenOptions={{

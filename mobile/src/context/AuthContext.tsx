@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService, userService, setOnUnauthorized } from '../services/api';
+import { authService, userService, pushService, setOnUnauthorized } from '../services/api';
 
 interface User {
   id: number;
@@ -109,6 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      try { await pushService.removeToken(); } catch {}
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
       setUser(null);

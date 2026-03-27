@@ -183,6 +183,10 @@ func main() {
 		protected.POST("/chats/:id/message", handlers.SendChatMessage(database))
 		protected.POST("/chats/:id/image", handlers.ChatImageUpload(database))
 
+		// Push token routes
+		protected.POST("/push-token", handlers.RegisterPushToken(database))
+		protected.DELETE("/push-token", handlers.RemovePushToken(database))
+
 		// Notification routes
 		protected.GET("/notifications", handlers.GetUserNotifications(database))
 		protected.PUT("/notifications/:id/read", handlers.MarkNotificationRead(database))

@@ -30,6 +30,7 @@
         "backgroundColor": "#3B82F6"
       },
       "package": "com.omji.balingasag",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

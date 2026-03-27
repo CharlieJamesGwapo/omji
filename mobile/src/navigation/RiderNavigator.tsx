@@ -4,8 +4,10 @@ import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 import RiderDashboardScreen from '../screens/Rider/RiderDashboardScreen';
 import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
@@ -80,6 +82,9 @@ function RiderTabs() {
 }
 
 export default function RiderNavigator() {
+  const navigation = useNavigation();
+  usePushNotifications(navigation);
+
   return (
     <Stack.Navigator
       screenOptions={{

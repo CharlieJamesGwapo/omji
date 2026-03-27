@@ -261,4 +261,11 @@ export const chatService = {
   },
 };
 
+// Push Notification Services
+export const pushService = {
+  registerToken: (token: string, platform: string) =>
+    api.post('/push-token', { token, platform }),
+  removeToken: () => api.delete('/push-token'),
+};
+
 export default api;
