@@ -349,24 +349,26 @@ export default function EditProfileScreen({ navigation }: any) {
                 styles.floatingInputWrapper,
                 nameFocused && styles.floatingInputFocused,
               ]}>
-                <Animated.Text
-                  style={[
-                    styles.floatingLabel,
-                    {
-                      top: nameLabelAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [verticalScale(18), verticalScale(6)],
-                      }),
-                      fontSize: nameLabelAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
-                      }),
-                      color: nameFocused ? COLORS.accent : COLORS.gray500,
-                    },
-                  ]}
-                >
-                  Full Name
-                </Animated.Text>
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                  <Animated.Text
+                    style={[
+                      styles.floatingLabel,
+                      {
+                        top: nameLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [verticalScale(18), verticalScale(6)],
+                        }),
+                        fontSize: nameLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
+                        }),
+                        color: nameFocused ? COLORS.accent : COLORS.gray500,
+                      },
+                    ]}
+                  >
+                    Full Name
+                  </Animated.Text>
+                </View>
                 <View style={styles.inputRow}>
                   <Ionicons
                     name="person-outline"
@@ -433,24 +435,26 @@ export default function EditProfileScreen({ navigation }: any) {
                 styles.floatingInputWrapper,
                 phoneFocused && styles.floatingInputFocused,
               ]}>
-                <Animated.Text
-                  style={[
-                    styles.floatingLabel,
-                    {
-                      top: phoneLabelAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [verticalScale(18), verticalScale(6)],
-                      }),
-                      fontSize: phoneLabelAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
-                      }),
-                      color: phoneFocused ? COLORS.accent : COLORS.gray500,
-                    },
-                  ]}
-                >
-                  Phone Number
-                </Animated.Text>
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                  <Animated.Text
+                    style={[
+                      styles.floatingLabel,
+                      {
+                        top: phoneLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [verticalScale(18), verticalScale(6)],
+                        }),
+                        fontSize: phoneLabelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
+                        }),
+                        color: phoneFocused ? COLORS.accent : COLORS.gray500,
+                      },
+                    ]}
+                  >
+                    Phone Number
+                  </Animated.Text>
+                </View>
                 <View style={styles.inputRow}>
                   <Ionicons
                     name="call-outline"
@@ -466,7 +470,6 @@ export default function EditProfileScreen({ navigation }: any) {
                     accessibilityLabel="Phone number"
                     onBlur={() => {
                       handlePhoneBlur();
-                      // Auto-format on blur
                       if (phone.trim()) {
                         setPhone(formatPhoneNumber(phone));
                       }
