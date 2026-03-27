@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import { getRoadDistance } from '../../hooks/useDistance';
 
 const { width, height } = Dimensions.get('window');
 
@@ -354,63 +355,63 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   const pickupLabel = rideData?.pickup_location || rideData?.pickup || pickup || 'Pickup';
   const dropoffLabel = rideData?.dropoff_location || rideData?.dropoff || dropoff || 'Dropoff';
-  const rideFare = rideData?.final_fare || rideData?.estimated_fare || rideData?.delivery_fee || rideData?.fare || fare || 0;
-  const rideDistance = rideData?.distance_km || rideData?.distance || 0;
-  const paymentMethod = rideData?.payment_method || 'cash';
-  const pickupLat = rideData?.pickup_latitude || rideData?.pickup_lat || 0;
-  const pickupLng = rideData?.pickup_longitude || rideData?.pickup_lng || 0;
-  const dropoffLat = rideData?.dropoff_latitude || rideData?.dropoff_lat || 0;
-  const dropoffLng = rideData?.dropoff_longitude || rideData?.dropoff_lng || 0;
-  const driverInfo = rideData?.driver || rideData?.Driver;
-  const driverVehicle = rideData?.driver || rideData?.Driver;
+  const rideFare = rideData?.final_fare ?? rideData?.estimated_fare ?? rideData?.delivery_fee ?? rideData?.fare ?? fare ?? 0;
+  const rideDistance = rideData?.distance_km ?? rideData?.distance ?? 0;
+  const paymentMethod = rideData?.payment_method ?? 'cash';
+  const pickupLat = rideData?.pickup_latitude ?? rideData?.pickup_lat ?? 0;
+  const pickupLng = rideData?.pickup_longitude ?? rideData?.pickup_lng ?? 0;
+  const dropoffLat = rideData?.dropoff_latitude ?? rideData?.dropoff_lat ?? 0;
+  const dropoffLng = rideData?.dropoff_longitude ?? rideData?.dropoff_lng ?? 0;
+  const driverInfo = rideData?.driver ?? rideData?.Driver;
+  const driverVehicle = rideData?.driver ?? rideData?.Driver;
   // For driver→passenger chat, we need the passenger info
   const passengerInfo = rideData?.user || rideData?.User;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const paymentInfo = PAYMENT_LABELS[paymentMethod] || PAYMENT_LABELS.cash;
 
-  // Calculate live distance from driver to relevant point
-  const calculateHaversine = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  };
-
-  const driverLat = driverInfo?.current_latitude || driverInfo?.latitude || 0;
-  const driverLng = driverInfo?.current_longitude || driverInfo?.longitude || 0;
+  const driverLat = driverInfo?.current_latitude ?? driverInfo?.latitude ?? 0;
+  const driverLng = driverInfo?.current_longitude ?? driverInfo?.longitude ?? 0;
 
   // Driver heading to pickup (accepted/driver_arrived) or dropoff (in_progress/picked_up)
   const isHeadingToPickup = status === 'accepted' || status === 'driver_arrived';
   const isEnRoute = status === 'in_progress' || status === 'picked_up';
   const targetLat = isHeadingToPickup ? pickupLat : dropoffLat;
   const targetLng = isHeadingToPickup ? pickupLng : dropoffLng;
-  const driverDistanceKm = (driverLat && targetLat)
-    ? calculateHaversine(driverLat, driverLng, targetLat, targetLng)
-    : 0;
-  const driverDistanceRounded = Math.round(driverDistanceKm * 10) / 10;
 
-  // Dynamic ETA: ~20 km/h city average for approaching, 25 km/h en route
-  const avgSpeed = isHeadingToPickup ? 20 : 25;
-  const liveEtaMinutes = driverDistanceKm > 0 ? Math.max(1, Math.round((driverDistanceKm / avgSpeed) * 60)) : 0;
+  // Live road distance & ETA from OSRM
+  const [liveDistanceKm, setLiveDistanceKm] = useState(0);
+  const [liveEtaMinutes, setLiveEtaMinutes] = useState(0);
+
+  useEffect(() => {
+    if (!driverLat || !targetLat) {
+      setLiveDistanceKm(0);
+      setLiveEtaMinutes(0);
+      return;
+    }
+    let cancelled = false;
+    getRoadDistance(
+      { latitude: driverLat, longitude: driverLng, address: '' },
+      { latitude: targetLat, longitude: targetLng, address: '' },
+    ).then(result => {
+      if (!cancelled) {
+        setLiveDistanceKm(result.distance);
+        setLiveEtaMinutes(Math.max(1, result.duration));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [driverLat, driverLng, targetLat, targetLng]);
+
+  const driverDistanceRounded = Math.round(liveDistanceKm * 10) / 10;
 
   // Fallback to static ETA if no driver location
   const estimatedEtaMinutes = liveEtaMinutes > 0 ? liveEtaMinutes : (rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0);
 
-  // Send driver location to WebView map when ride data updates
+  // Send driver location to WebView map on every position update
   useEffect(() => {
-    if (rideData && webRef.current && driverInfo && status !== 'pending') {
-      const dLat = driverInfo?.current_latitude || driverInfo?.latitude;
-      const dLng = driverInfo?.current_longitude || driverInfo?.longitude;
-      if (dLat && dLng) {
-        webRef.current.postMessage(JSON.stringify({ type: 'driverLocation', lat: dLat, lng: dLng }));
-      }
+    if (rideData && webRef.current && status !== 'pending' && driverLat && driverLng) {
+      webRef.current.postMessage(JSON.stringify({ type: 'driverLocation', lat: driverLat, lng: driverLng }));
     }
-  }, [rideData?.id, rideData?.driver, status]);
+  }, [driverLat, driverLng, status]);
 
   // Auto-show rating when ride completes (for users only)
   useEffect(() => {
