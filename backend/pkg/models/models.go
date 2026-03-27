@@ -379,6 +379,17 @@ type WithdrawalRequest struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// Announcement model for in-app news/announcements
+type Announcement struct {
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	Title     string     `json:"title"`
+	Message   string     `json:"message"`
+	Type      string     `gorm:"default:info" json:"type"` // info, warning, promo, update
+	IsActive  bool       `gorm:"default:true" json:"is_active"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
@@ -405,6 +416,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&PushToken{},
 		&WithdrawalRequest{},
 		&Referral{},
+		&Announcement{},
 	)
 }
 

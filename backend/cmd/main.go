@@ -200,6 +200,9 @@ func main() {
 		protected.POST("/referral/apply", handlers.ApplyReferralCode(database))
 		protected.GET("/referral/stats", handlers.GetReferralStats(database))
 
+		// Announcements (for mobile)
+		protected.GET("/announcements", handlers.GetAnnouncements(database))
+
 		// Public rate configs (for mobile fare estimation)
 		protected.GET("/rates", handlers.GetPublicRates(database))
 
@@ -282,6 +285,10 @@ func main() {
 		admin.PUT("/commission/config", handlers.AdminUpdateCommissionConfig(database))
 		admin.GET("/commission/records", handlers.AdminGetCommissionRecords(database))
 		admin.GET("/commission/summary", handlers.AdminGetCommissionSummary(database))
+
+		// Announcement management
+		admin.POST("/announcements", handlers.AdminCreateAnnouncement(database))
+		admin.DELETE("/announcements/:id", handlers.AdminDeleteAnnouncement(database))
 
 		// Scheduled rides processing
 		admin.GET("/process-scheduled", handlers.ProcessScheduledRides(database))

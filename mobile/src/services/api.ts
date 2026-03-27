@@ -197,6 +197,11 @@ export const ratesService = {
   getRates: () => api.get('/rates'),
 };
 
+// Announcement Services
+export const announcementService = {
+  getAnnouncements: () => api.get('/announcements'),
+};
+
 // Promo Services
 export const promoService = {
   getAvailablePromos: () => api.get('/promos/available'),

@@ -513,6 +513,41 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
   const acceptanceRate = earnings.acceptance_rate ?? (earnings.completed_rides > 0 ? Math.round((earnings.completed_rides / Math.max(earnings.completed_rides + (earnings.cancelled_rides ?? 0), 1)) * 100) : 100);
   const riderName = user?.name?.split(' ')[0] || 'Rider';
+
+  // Performance analytics helpers
+  const getAcceptanceColor = (rate: number) => {
+    if (rate >= 80) return COLORS.success;
+    if (rate >= 60) return COLORS.warning;
+    return COLORS.error;
+  };
+
+  const onlineHours = onlineMinutes / 60;
+
+  const todayRides = earnings.today_rides ?? earnings.completed_rides_today ?? 0;
+  const todayEarnings = earnings.today_earnings ?? 0;
+
+  const thisWeekRides = earnings.this_week_rides ?? earnings.weekly_rides ?? todayRides;
+  const lastWeekRides = earnings.last_week_rides ?? earnings.previous_week_rides ?? 0;
+  const weeklyMax = Math.max(thisWeekRides, lastWeekRides, 1);
+
+  // Peak hours logic
+  const peakRanges = [
+    { start: 7, end: 9, label: '7-9 AM' },
+    { start: 11, end: 13, label: '11 AM-1 PM' },
+    { start: 17, end: 20, label: '5-8 PM' },
+  ];
+  const currentHour = new Date().getHours();
+  const isPeakNow = peakRanges.some(r => currentHour >= r.start && currentHour < r.end);
+  const getNextPeak = (): string => {
+    for (const range of peakRanges) {
+      if (currentHour < range.start) {
+        const h = range.start > 12 ? range.start - 12 : range.start;
+        const suffix = range.start >= 12 ? 'PM' : 'AM';
+        return `${h}:00 ${suffix}`;
+      }
+    }
+    return '7:00 AM';
+  };
   const avatarUri = user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=100`;
 
   // Loading state
@@ -784,6 +819,107 @@ export default function RiderDashboardScreen({ navigation }: any) {
               </View>
               <Text style={styles.statChipValue}>{acceptanceRate}%</Text>
               <Text style={styles.statChipLabel}>Accept</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Performance Analytics */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Performance</Text>
+
+          {/* Row 1 - Key Stats */}
+          <View style={styles.perfRow}>
+            <View style={styles.perfStatCard}>
+              <View style={[styles.perfStatDot, { backgroundColor: getAcceptanceColor(acceptanceRate) }]} />
+              <Text style={[styles.perfStatValue, { color: getAcceptanceColor(acceptanceRate) }]}>
+                {acceptanceRate}%
+              </Text>
+              <Text style={styles.perfStatLabel}>Acceptance</Text>
+            </View>
+            <View style={styles.perfStatDivider} />
+            <View style={styles.perfStatCard}>
+              <Ionicons name="star" size={moderateScale(14)} color={COLORS.warning} />
+              <Text style={styles.perfStatValue}>
+                {(earnings.total_ratings || 0) > 0 ? `${Number(earnings.rating || 0).toFixed(1)}/5.0` : 'New'}
+              </Text>
+              <Text style={styles.perfStatLabel}>Rating</Text>
+            </View>
+            <View style={styles.perfStatDivider} />
+            <View style={styles.perfStatCard}>
+              <Ionicons name="checkmark-done" size={moderateScale(14)} color={COLORS.success} />
+              <Text style={styles.perfStatValue}>{earnings.completed_rides || 0}</Text>
+              <Text style={styles.perfStatLabel}>Completed</Text>
+            </View>
+          </View>
+
+          {/* Row 2 - Today's Performance */}
+          <View style={styles.perfTodayCard}>
+            <View style={styles.perfTodayHeader}>
+              <Ionicons name="today-outline" size={moderateScale(16)} color={COLORS.successDark} />
+              <Text style={styles.perfTodayTitle}>Today's Performance</Text>
+            </View>
+            <View style={styles.perfTodayRow}>
+              <View style={styles.perfTodayItem}>
+                <Text style={styles.perfTodayValue}>{todayRides}</Text>
+                <Text style={styles.perfTodayLabel}>Rides</Text>
+              </View>
+              <View style={styles.perfTodayDivider} />
+              <View style={styles.perfTodayItem}>
+                <Text style={styles.perfTodayValue}>
+                  ₱{todayEarnings.toLocaleString()}
+                </Text>
+                <Text style={styles.perfTodayLabel}>Earnings</Text>
+              </View>
+              <View style={styles.perfTodayDivider} />
+              <View style={styles.perfTodayItem}>
+                <Text style={styles.perfTodayValue}>
+                  {onlineHours >= 1 ? `${onlineHours.toFixed(1)}h` : `${onlineMinutes}m`}
+                </Text>
+                <Text style={styles.perfTodayLabel}>Online</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Row 3 - Weekly Comparison */}
+          <View style={styles.perfWeeklyCard}>
+            <Text style={styles.perfWeeklyTitle}>Weekly Comparison</Text>
+            <View style={styles.perfBarRow}>
+              <Text style={styles.perfBarLabel}>This week</Text>
+              <View style={styles.perfBarTrack}>
+                <View
+                  style={[
+                    styles.perfBarFill,
+                    { width: `${Math.round((thisWeekRides / weeklyMax) * 100)}%`, backgroundColor: COLORS.success },
+                  ]}
+                />
+              </View>
+              <Text style={styles.perfBarValue}>{thisWeekRides}</Text>
+            </View>
+            <View style={styles.perfBarRow}>
+              <Text style={styles.perfBarLabel}>Last week</Text>
+              <View style={styles.perfBarTrack}>
+                <View
+                  style={[
+                    styles.perfBarFill,
+                    { width: `${Math.round((lastWeekRides / weeklyMax) * 100)}%`, backgroundColor: COLORS.gray400 },
+                  ]}
+                />
+              </View>
+              <Text style={styles.perfBarValue}>{lastWeekRides}</Text>
+            </View>
+          </View>
+
+          {/* Peak Hours */}
+          <View style={styles.perfPeakCard}>
+            <View style={styles.perfPeakHeader}>
+              <View style={[styles.perfPeakDot, { backgroundColor: isPeakNow ? COLORS.success : COLORS.gray400 }]} />
+              <Text style={styles.perfPeakStatus}>
+                {isPeakNow ? "It's peak time!" : `Next peak: ${getNextPeak()}`}
+              </Text>
+            </View>
+            <View style={styles.perfPeakTimes}>
+              <Ionicons name="time-outline" size={moderateScale(14)} color={COLORS.gray500} />
+              <Text style={styles.perfPeakTimesText}>Peak hours: 7-9 AM, 11 AM-1 PM, 5-8 PM</Text>
             </View>
           </View>
         </View>
@@ -1653,5 +1789,154 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.regular,
     fontWeight: '700',
     color: COLORS.white,
+  },
+  // Performance Analytics
+  perfRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    alignItems: 'center',
+    marginBottom: verticalScale(10),
+    ...SHADOWS.sm,
+  },
+  perfStatCard: {
+    flex: 1,
+    alignItems: 'center',
+    gap: verticalScale(4),
+  },
+  perfStatDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+  },
+  perfStatValue: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+  },
+  perfStatLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+  },
+  perfStatDivider: {
+    width: 1,
+    height: moderateScale(36),
+    backgroundColor: COLORS.gray200,
+  },
+  perfTodayCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(10),
+    ...SHADOWS.sm,
+  },
+  perfTodayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(6),
+    marginBottom: verticalScale(10),
+  },
+  perfTodayTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.successDark,
+  },
+  perfTodayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  perfTodayItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  perfTodayValue: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+  },
+  perfTodayLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
+  },
+  perfTodayDivider: {
+    width: 1,
+    height: moderateScale(28),
+    backgroundColor: COLORS.gray200,
+  },
+  perfWeeklyCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(10),
+    ...SHADOWS.sm,
+  },
+  perfWeeklyTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(10),
+  },
+  perfBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(6),
+  },
+  perfBarLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    width: moderateScale(70),
+  },
+  perfBarTrack: {
+    flex: 1,
+    height: moderateScale(8),
+    backgroundColor: COLORS.gray100,
+    borderRadius: moderateScale(4),
+    marginHorizontal: moderateScale(8),
+    overflow: 'hidden',
+  },
+  perfBarFill: {
+    height: '100%',
+    borderRadius: moderateScale(4),
+    minWidth: moderateScale(4),
+  },
+  perfBarValue: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    color: COLORS.gray700,
+    width: moderateScale(28),
+    textAlign: 'right',
+  },
+  perfPeakCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(12),
+    ...SHADOWS.sm,
+  },
+  perfPeakHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(6),
+  },
+  perfPeakDot: {
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
+  },
+  perfPeakStatus: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  perfPeakTimes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(6),
+  },
+  perfPeakTimesText: {
+    fontSize: fontScale(12),
+    color: COLORS.gray500,
   },
 });

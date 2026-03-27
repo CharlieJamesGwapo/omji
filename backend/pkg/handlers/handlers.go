@@ -5488,3 +5488,87 @@ func GetReferralStats(db *gorm.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+// ==================== Announcements ====================
+
+// GetAnnouncements returns active, non-expired announcements (public, for mobile)
+func GetAnnouncements(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var announcements []models.Announcement
+		if err := db.Session(&gorm.Session{SkipDefaultTransaction: true}).
+			Where("is_active = ? AND (expires_at IS NULL OR expires_at > ?)", true, time.Now()).
+			Order("created_at DESC").
+			Limit(10).
+			Find(&announcements).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch announcements"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": announcements})
+	}
+}
+
+// AdminCreateAnnouncement creates a new announcement (admin only)
+func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input struct {
+			Title     string     `json:"title" binding:"required"`
+			Message   string     `json:"message" binding:"required"`
+			Type      string     `json:"type"`
+			ExpiresAt *time.Time `json:"expires_at"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title and message are required"})
+			return
+		}
+
+		annType := input.Type
+		if annType == "" {
+			annType = "info"
+		}
+		validTypes := map[string]bool{"info": true, "warning": true, "promo": true, "update": true}
+		if !validTypes[annType] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type. Must be info, warning, promo, or update"})
+			return
+		}
+
+		announcement := models.Announcement{
+			Title:     input.Title,
+			Message:   input.Message,
+			Type:      annType,
+			IsActive:  true,
+			ExpiresAt: input.ExpiresAt,
+		}
+
+		if err := db.Create(&announcement).Error; err != nil {
+			log.Printf("Failed to create announcement: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create announcement"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"data": announcement})
+	}
+}
+
+// AdminDeleteAnnouncement soft-deletes an announcement by setting is_active = false
+func AdminDeleteAnnouncement(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid announcement ID"})
+			return
+		}
+
+		result := db.Model(&models.Announcement{}).Where("id = ?", id).Update("is_active", false)
+		if result.Error != nil {
+			log.Printf("Failed to delete announcement %d: %v", id, result.Error)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete announcement"})
+			return
+		}
+		if result.RowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Announcement not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Announcement deleted"})
+	}
+}

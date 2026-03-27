@@ -8,6 +8,7 @@ import { View, ActivityIndicator, LogBox, Text, TouchableOpacity, ScrollView } f
 // Context
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NetworkProvider, useNetwork } from './src/context/NetworkContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 
 // No Internet Screen
 import NoInternetScreen from './src/screens/NoInternetScreen';
@@ -123,9 +124,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <NetworkProvider>
-        <AuthProvider>
-          <RootNavigator />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
+        </LanguageProvider>
       </NetworkProvider>
     </ErrorBoundary>
   );

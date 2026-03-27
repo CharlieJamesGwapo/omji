@@ -18,6 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { chatService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { t } from '../../utils/i18n';
 import { getWebSocketUrl } from '../../utils/websocket';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
@@ -33,6 +35,7 @@ interface ChatMsg {
 
 export default function ChatScreen({ route, navigation }: any) {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const { rider: routeRider, rideId, deliveryId } = route.params || {};
   const chatId = rideId || deliveryId || 0;
   const receiverId = routeRider?.user_id || routeRider?.id || 0;
@@ -55,11 +58,11 @@ export default function ChatScreen({ route, navigation }: any) {
   const pollingIntervalRef = useRef(3000);
 
   const quickReplies = [
-    "I'm waiting outside",
-    'On my way!',
-    'Where are you?',
-    'Thanks!',
-    "I'm here",
+    t('chat.waiting_outside'),
+    t('chat.on_my_way'),
+    t('chat.where_are_you'),
+    t('chat.thanks'),
+    t('chat.im_here'),
   ];
 
   const mapServerMessage = useCallback((m: any): ChatMsg => ({

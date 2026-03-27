@@ -17,26 +17,29 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { t } from '../../utils/i18n';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
-import { rideService, deliveryService, notificationService, storeService, userService } from '../../services/api';
+import { rideService, deliveryService, notificationService, storeService, userService, announcementService } from '../../services/api';
 import type { SavedAddress, Ride } from '../../types';
 import Toast, { ToastType } from '../../components/Toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Dynamic greeting based on time of day
-const getGreeting = (): string => {
+const getGreetingKey = (): string => {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'home.greeting';
+  if (hour < 17) return 'home.greeting_afternoon';
+  return 'home.greeting_evening';
 };
 
 
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const insets = useSafeAreaInsets();
   const [activeRides, setActiveRides] = useState<any[]>([]);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
@@ -46,6 +49,8 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [recentTrips, setRecentTrips] = useState<Ride[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<number>>(new Set());
   const carouselScrollRef = useRef<FlatList>(null);
   const carouselIndex = useRef(0);
   const lastFetchRef = useRef<number>(0);
@@ -147,6 +152,17 @@ export default function HomeScreen({ navigation }: any) {
     } catch {
       // Non-critical
     }
+
+    // Fetch announcements
+    try {
+      const annRes = await announcementService.getAnnouncements();
+      const annData = annRes?.data?.data;
+      if (Array.isArray(annData)) {
+        setAnnouncements(annData);
+      }
+    } catch {
+      // Non-critical
+    }
   }, [fetchUnreadCount]);
 
   useEffect(() => {
@@ -166,7 +182,7 @@ export default function HomeScreen({ navigation }: any) {
     setRefreshing(false);
   }, [fetchAllData]);
 
-  const greeting = useMemo(() => getGreeting(), []);
+  const greeting = useMemo(() => t(getGreetingKey()), [language]);
 
   const services = [
     {
@@ -279,6 +295,46 @@ export default function HomeScreen({ navigation }: any) {
           />
         }
       >
+        {/* Announcement Banner */}
+        {announcements
+          .filter((ann: any) => !dismissedAnnouncements.has(ann.id))
+          .slice(0, 1)
+          .map((ann: any) => {
+            const typeColors: Record<string, { border: string; bg: string; icon: string }> = {
+              info: { border: COLORS.accent, bg: COLORS.accentBg, icon: 'information-circle' },
+              warning: { border: COLORS.warning, bg: COLORS.warningBg, icon: 'alert-circle' },
+              promo: { border: COLORS.success, bg: COLORS.successBg, icon: 'gift' },
+              update: { border: '#8B5CF6', bg: '#F5F3FF', icon: 'rocket' },
+            };
+            const colors = typeColors[ann.type] || typeColors.info;
+            return (
+              <View
+                key={`ann-${ann.id}`}
+                style={[
+                  styles.announcementCard,
+                  { borderLeftColor: colors.border, backgroundColor: colors.bg },
+                ]}
+              >
+                <View style={styles.announcementContent}>
+                  <Ionicons name={colors.icon as any} size={moderateScale(22)} color={colors.border} style={{ marginRight: moderateScale(10) }} />
+                  <View style={styles.announcementTextWrap}>
+                    <Text style={styles.announcementTitle} numberOfLines={1}>{ann.title}</Text>
+                    <Text style={styles.announcementMessage} numberOfLines={2}>{ann.message}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setDismissedAnnouncements(prev => new Set(prev).add(ann.id))}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.announcementDismiss}
+                    accessibilityLabel="Dismiss announcement"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="close" size={moderateScale(18)} color={COLORS.gray400} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+
         {/* Active Ride/Delivery Banners */}
         {activeRides.map((ride: any) => (
           <TouchableOpacity
@@ -425,7 +481,7 @@ export default function HomeScreen({ navigation }: any) {
           accessibilityRole="button"
         >
           <View style={styles.destinationDot} />
-          <Text style={styles.destinationText}>Where would you like to go?</Text>
+          <Text style={styles.destinationText}>{t('home.where_to')}</Text>
           <View style={styles.destinationArrow}>
             <Ionicons name="arrow-forward" size={moderateScale(16)} color={COLORS.accent} />
           </View>
@@ -507,7 +563,7 @@ export default function HomeScreen({ navigation }: any) {
         {savedAddresses.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick Book</Text>
+              <Text style={styles.sectionTitle}>{t('home.quick_book')}</Text>
               <Text style={styles.sectionSubtitle}>Your saved addresses</Text>
             </View>
             <ScrollView
@@ -552,7 +608,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.section}>
             <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
               <View>
-                <Text style={styles.sectionTitle}>Recent Trips</Text>
+                <Text style={styles.sectionTitle}>{t('home.recent_trips')}</Text>
                 <Text style={styles.sectionSubtitle}>Your last completed rides</Text>
               </View>
               <TouchableOpacity
@@ -563,7 +619,7 @@ export default function HomeScreen({ navigation }: any) {
                 accessibilityLabel="View all ride history"
                 accessibilityRole="button"
               >
-                <Text style={styles.recentTripsViewAll}>View All</Text>
+                <Text style={styles.recentTripsViewAll}>{t('home.view_all')}</Text>
               </TouchableOpacity>
             </View>
             {recentTrips.map((trip) => {
@@ -712,6 +768,38 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: RESPONSIVE.paddingHorizontal,
     paddingTop: verticalScale(16),
+  },
+
+  // --- Announcement Banner ---
+  announcementCard: {
+    borderLeftWidth: moderateScale(4),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    marginBottom: verticalScale(12),
+    overflow: 'hidden',
+  },
+  announcementContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: moderateScale(14),
+  },
+  announcementTextWrap: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
+  },
+  announcementMessage: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray600,
+    lineHeight: moderateScale(18),
+  },
+  announcementDismiss: {
+    marginLeft: moderateScale(8),
+    padding: moderateScale(4),
   },
 
   // --- Active Ride/Delivery Cards ---
