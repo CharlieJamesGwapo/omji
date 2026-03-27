@@ -32,3 +32,6 @@ node_modules/
 dist/
 build/
 .vercel
+omji-7774e-firebase-adminsdk-*.json
+.claude/
+.superpowers/
