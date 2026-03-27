@@ -90,8 +90,8 @@ export default function StoresPage() {
       case 'restaurant': return s.category === 'restaurant';
       case 'grocery': return s.category === 'grocery';
       case 'pharmacy': return s.category === 'pharmacy';
-      case 'verified': return s.is_active;
-      case 'unverified': return !s.is_active;
+      case 'verified': return s.is_verified;
+      case 'unverified': return !s.is_verified;
       default: return true;
     }
   });
@@ -101,7 +101,7 @@ export default function StoresPage() {
 
   // --- Stats ---
   const totalStores = stores.length;
-  const verifiedCount = stores.filter(s => s.is_active).length;
+  const verifiedCount = stores.filter(s => s.is_verified).length;
   const categoryBreakdown = {
     restaurant: stores.filter(s => s.category === 'restaurant').length,
     grocery: stores.filter(s => s.category === 'grocery').length,
@@ -136,8 +136,8 @@ export default function StoresPage() {
       address: store.address || '',
       phone: store.phone || '',
       description: store.description || '',
-      logo: store.image_url || '',
-      is_verified: store.is_active,
+      logo: store.logo || '',
+      is_verified: store.is_verified,
     });
     setShowStoreModal(true);
   };
@@ -189,9 +189,9 @@ export default function StoresPage() {
 
   const handleToggleVerified = async (store: Store) => {
     try {
-      await adminService.updateStore(store.id, { is_verified: !store.is_active });
-      toast.success(store.is_active ? 'Store unverified' : 'Store verified');
-      setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_active: !store.is_active } : s));
+      await adminService.updateStore(store.id, { is_verified: !store.is_verified });
+      toast.success(store.is_verified ? 'Store unverified' : 'Store verified');
+      setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_verified: !store.is_verified } : s));
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to update verification'));
     }
@@ -227,8 +227,8 @@ export default function StoresPage() {
       name: item.name || '',
       price: item.price || 0,
       category: item.category || 'food',
-      image: item.image_url || '',
-      available: item.is_available,
+      image: item.image || '',
+      available: item.available,
     });
     setShowMenuForm(true);
   };
@@ -286,8 +286,8 @@ export default function StoresPage() {
   const handleToggleAvailable = async (item: MenuItem) => {
     if (!menuStore) return;
     try {
-      await adminService.updateMenuItem(menuStore.id, item.id, { available: !item.is_available });
-      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i));
+      await adminService.updateMenuItem(menuStore.id, item.id, { available: !item.available });
+      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, available: !i.available } : i));
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to update availability'));
     }
@@ -438,8 +438,8 @@ export default function StoresPage() {
                     <tr key={store.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          {store.image_url ? (
-                            <img src={store.image_url} alt="" className="w-9 h-9 rounded-lg object-cover bg-gray-100" />
+                          {store.logo ? (
+                            <img src={store.logo} alt="" className="w-9 h-9 rounded-lg object-cover bg-gray-100" />
                           ) : (
                             <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
                               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -472,14 +472,14 @@ export default function StoresPage() {
                         <button
                           onClick={() => handleToggleVerified(store)}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
-                            store.is_active
+                            store.is_verified
                               ? 'bg-green-100 text-green-700 hover:bg-green-200'
                               : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                           }`}
-                          aria-label={store.is_active ? 'Unverify store' : 'Verify store'}
+                          aria-label={store.is_verified ? 'Unverify store' : 'Verify store'}
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full ${store.is_active ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                          {store.is_active ? 'Verified' : 'Unverified'}
+                          <div className={`w-1.5 h-1.5 rounded-full ${store.is_verified ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                          {store.is_verified ? 'Verified' : 'Unverified'}
                         </button>
                       </td>
                       <td className="px-5 py-3.5 text-right">
@@ -537,13 +537,13 @@ export default function StoresPage() {
                   <button
                     onClick={() => handleToggleVerified(store)}
                     className={`ml-2 flex-shrink-0 px-2.5 py-1 text-xs rounded-full font-bold cursor-pointer transition-colors ${
-                      store.is_active
+                      store.is_verified
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                         : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                     }`}
-                    aria-label={store.is_active ? 'Unverify store' : 'Verify store'}
+                    aria-label={store.is_verified ? 'Unverify store' : 'Verify store'}
                   >
-                    {store.is_active ? 'Verified' : 'Unverified'}
+                    {store.is_verified ? 'Verified' : 'Unverified'}
                   </button>
                 </div>
 
@@ -905,8 +905,8 @@ export default function StoresPage() {
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-all group"
                     >
                       {/* Image */}
-                      {item.image_url ? (
-                        <img src={item.image_url} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                      {item.image ? (
+                        <img src={item.image} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
                       ) : (
                         <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                           <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -932,13 +932,13 @@ export default function StoresPage() {
                       <button
                         onClick={() => handleToggleAvailable(item)}
                         className={`flex-shrink-0 px-2 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                          item.is_available
+                          item.available
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
-                        aria-label={item.is_available ? 'Mark as unavailable' : 'Mark as available'}
+                        aria-label={item.available ? 'Mark as unavailable' : 'Mark as available'}
                       >
-                        {item.is_available ? 'Available' : 'Unavailable'}
+                        {item.available ? 'Available' : 'Unavailable'}
                       </button>
 
                       {/* Actions */}

@@ -120,13 +120,12 @@ export interface Store {
   description: string;
   address: string;
   category: string;
-  image_url: string;
-  is_active: boolean;
+  logo: string;
+  is_verified: boolean;
   rating: number;
   total_ratings: number;
   latitude: number;
   longitude: number;
-  opening_hours?: string;
   phone: string;
   created_at: string;
   updated_at: string;
@@ -136,11 +135,10 @@ export interface MenuItem {
   id: number;
   store_id: number;
   name: string;
-  description?: string;
   price: number;
-  image_url?: string;
+  image?: string;
   category: string;
-  is_available: boolean;
+  available: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -170,6 +168,7 @@ export interface RateConfig {
   base_fare: number;
   rate_per_km: number;
   minimum_fare: number;
+  description: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
