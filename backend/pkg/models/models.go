@@ -26,8 +26,20 @@ type User struct {
 	RideHistory        []Ride
 	DeliveryHistory    []Delivery
 	OrderHistory       []Order
+	ReferralCode       string    `gorm:"uniqueIndex" json:"referral_code,omitempty"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// Referral model
+type Referral struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	ReferrerID    uint      `gorm:"index" json:"referrer_id"`
+	ReferredID    uint      `gorm:"index" json:"referred_id"`
+	ReferrerBonus float64   `gorm:"default:0" json:"referrer_bonus"`
+	ReferredBonus float64   `gorm:"default:0" json:"referred_bonus"`
+	Status        string    `gorm:"default:pending" json:"status"` // pending, completed
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // SavedAddress model
@@ -390,6 +402,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&CommissionRecord{},
 		&PushToken{},
 		&WithdrawalRequest{},
+		&Referral{},
 	)
 }
 

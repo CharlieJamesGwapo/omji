@@ -55,11 +55,22 @@ const EMPTY_STATES: Record<string, { icon: string; title: string; subtitle: stri
   },
 };
 
+// Order status steps for the inline timeline tracker
+const ORDER_STATUS_STEPS = [
+  { key: 'pending', label: 'Order Placed', icon: 'receipt-outline' },
+  { key: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle-outline' },
+  { key: 'preparing', label: 'Preparing', icon: 'restaurant-outline' },
+  { key: 'ready', label: 'Ready for Pickup', icon: 'bag-check-outline' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: 'bicycle-outline' },
+  { key: 'delivered', label: 'Delivered', icon: 'checkmark-done-circle-outline' },
+];
+
 export default function OrdersScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ongoing');
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const lastFetchRef = useRef<number>(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -250,6 +261,22 @@ export default function OrdersScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, fetchOrders]);
 
+  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'in_progress', 'preparing', 'picked_up', 'confirmed', 'ready', 'out_for_delivery'];
+  const completedStatuses = ['completed', 'delivered'];
+  const cancelledStatuses = ['cancelled'];
+
+  // Poll every 10 seconds when there are active (ongoing) orders
+  useEffect(() => {
+    const hasActiveOrders = orders.some((o) => ongoingStatuses.includes(o.status));
+    if (!hasActiveOrders) return;
+
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [orders, fetchOrders]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -258,10 +285,6 @@ export default function OrdersScreen({ navigation }: any) {
       setRefreshing(false);
     }
   };
-
-  const ongoingStatuses = ['pending', 'accepted', 'driver_arrived', 'in_progress', 'preparing', 'picked_up', 'confirmed', 'ready', 'out_for_delivery'];
-  const completedStatuses = ['completed', 'delivered'];
-  const cancelledStatuses = ['cancelled'];
 
   const ongoingOrders = orders.filter((o) => ongoingStatuses.includes(o.status));
   const completedOrders = orders.filter((o) => completedStatuses.includes(o.status));
@@ -322,19 +345,8 @@ export default function OrdersScreen({ navigation }: any) {
               fare: order.fare,
             });
           } else if (order.type === 'order') {
-            const actions: any[] = [{ text: 'Close', style: 'cancel' }];
-            if (isOngoing && order.status !== 'in_progress') {
-              actions.push({
-                text: 'Cancel Order',
-                style: 'destructive',
-                onPress: () => handleCancelOrder(order.id),
-              });
-            }
-            Alert.alert(
-              'Store Order',
-              `Store: ${order.from}\nDelivery: ${order.to || 'N/A'}\nTotal: \u20B1${(order.fare || 0).toFixed(0)}\nStatus: ${formatStatus(order.status)}`,
-              actions
-            );
+            const cardKey = `${order.type}-${order.id}`;
+            setExpandedOrderId(prev => prev === cardKey ? null : cardKey);
           }
         }}
       >
@@ -434,7 +446,89 @@ export default function OrdersScreen({ navigation }: any) {
               <Text style={styles.trackButtonText}>Track Live</Text>
             </TouchableOpacity>
           )}
+          {activeTab === 'ongoing' && order.type === 'order' && (
+            <TouchableOpacity
+              style={styles.trackButton}
+              activeOpacity={0.8}
+              accessibilityLabel="Track order status"
+              accessibilityRole="button"
+              onPress={() => {
+                const cardKey = `${order.type}-${order.id}`;
+                setExpandedOrderId(prev => prev === cardKey ? null : cardKey);
+              }}
+            >
+              <Ionicons name="list" size={moderateScale(16)} color={COLORS.white} />
+              <Text style={styles.trackButtonText}>Track Order</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Inline Order Status Timeline */}
+        {order.type === 'order' && expandedOrderId === `${order.type}-${order.id}` && (
+          <View style={styles.orderTimeline}>
+            <View style={styles.timelineHeader}>
+              <Ionicons name="storefront" size={moderateScale(16)} color={COLORS.store} />
+              <Text style={styles.timelineStoreName}>{order.from}</Text>
+            </View>
+            <View style={styles.timelineSteps}>
+              {ORDER_STATUS_STEPS.map((step, index) => {
+                const currentIdx = ORDER_STATUS_STEPS.findIndex(s => s.key === order.status);
+                const isCompleted = index <= currentIdx;
+                const isCurrent = index === currentIdx;
+                const isLast = index === ORDER_STATUS_STEPS.length - 1;
+                const stepColor = isCompleted ? COLORS.success : COLORS.gray300;
+
+                return (
+                  <View key={step.key} style={styles.timelineStep}>
+                    <View style={styles.timelineIconCol}>
+                      <View style={[
+                        styles.timelineCircle,
+                        { backgroundColor: isCompleted ? COLORS.success : COLORS.white, borderColor: stepColor },
+                        isCurrent && styles.timelineCircleCurrent,
+                      ]}>
+                        {isCompleted ? (
+                          <Ionicons name="checkmark" size={moderateScale(12)} color={COLORS.white} />
+                        ) : (
+                          <Ionicons name={step.icon as any} size={moderateScale(12)} color={COLORS.gray400} />
+                        )}
+                      </View>
+                      {!isLast && (
+                        <View style={[
+                          styles.timelineConnector,
+                          { backgroundColor: index < currentIdx ? COLORS.success : COLORS.gray200 },
+                        ]} />
+                      )}
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <Text style={[
+                        styles.timelineLabel,
+                        isCompleted && styles.timelineLabelCompleted,
+                        isCurrent && styles.timelineLabelCurrent,
+                      ]}>
+                        {step.label}
+                      </Text>
+                      {isCurrent && (
+                        <Animated.View style={{ opacity: pulseAnim }}>
+                          <Text style={styles.timelineCurrentBadge}>Current</Text>
+                        </Animated.View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+            {isOngoing && order.status !== 'out_for_delivery' && order.status !== 'in_progress' && (
+              <TouchableOpacity
+                style={styles.cancelOrderButton}
+                activeOpacity={0.7}
+                onPress={() => handleCancelOrder(order.id)}
+              >
+                <Ionicons name="close-circle-outline" size={moderateScale(16)} color={COLORS.error} />
+                <Text style={styles.cancelOrderText}>Cancel Order</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -860,5 +954,101 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: moderateScale(40),
     lineHeight: fontScale(20),
+  },
+  // Order Status Timeline
+  orderTimeline: {
+    marginTop: verticalScale(12),
+    paddingTop: verticalScale(12),
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(14),
+  },
+  timelineStoreName: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: COLORS.gray800,
+    flex: 1,
+  },
+  timelineSteps: {
+    paddingLeft: moderateScale(4),
+  },
+  timelineStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  timelineIconCol: {
+    alignItems: 'center',
+    width: moderateScale(28),
+  },
+  timelineCircle: {
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineCircleCurrent: {
+    borderColor: COLORS.success,
+    borderWidth: 2.5,
+    ...SHADOWS.colored(COLORS.success),
+  },
+  timelineConnector: {
+    width: moderateScale(2),
+    height: verticalScale(20),
+    marginVertical: verticalScale(2),
+  },
+  timelineContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: moderateScale(10),
+    minHeight: moderateScale(24),
+    gap: moderateScale(8),
+  },
+  timelineLabel: {
+    fontSize: fontScale(13),
+    color: COLORS.gray400,
+    fontWeight: '500',
+  },
+  timelineLabelCompleted: {
+    color: COLORS.gray700,
+    fontWeight: '600',
+  },
+  timelineLabelCurrent: {
+    color: COLORS.success,
+    fontWeight: '700',
+  },
+  timelineCurrentBadge: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    color: COLORS.white,
+    backgroundColor: COLORS.success,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: verticalScale(2),
+    borderRadius: moderateScale(10),
+    overflow: 'hidden',
+  },
+  cancelOrderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: moderateScale(6),
+    marginTop: verticalScale(14),
+    paddingVertical: verticalScale(10),
+    borderRadius: moderateScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.errorLight,
+    backgroundColor: COLORS.errorBg,
+  },
+  cancelOrderText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: COLORS.error,
   },
 });

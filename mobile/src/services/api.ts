@@ -268,6 +268,13 @@ export const chatService = {
   },
 };
 
+// Referral Services
+export const referralService = {
+  getCode: () => api.get('/referral/code'),
+  applyCode: (code: string) => api.post('/referral/apply', { code }),
+  getStats: () => api.get('/referral/stats'),
+};
+
 // Push Notification Services
 export const pushService = {
   registerToken: (token: string, platform: string) =>

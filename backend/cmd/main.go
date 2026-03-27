@@ -195,6 +195,11 @@ func main() {
 		protected.GET("/notifications", handlers.GetUserNotifications(database))
 		protected.PUT("/notifications/:id/read", handlers.MarkNotificationRead(database))
 
+		// Referral routes
+		protected.GET("/referral/code", handlers.GetReferralCode(database))
+		protected.POST("/referral/apply", handlers.ApplyReferralCode(database))
+		protected.GET("/referral/stats", handlers.GetReferralStats(database))
+
 		// Public rate configs (for mobile fare estimation)
 		protected.GET("/rates", handlers.GetPublicRates(database))
 

@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   StatusBar,
   Linking,
+  Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS } from '../../constants/theme';
-import { rideService, orderService, deliveryService, walletService, userService, driverService } from '../../services/api';
+import { rideService, orderService, deliveryService, walletService, userService, driverService, referralService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
 
@@ -36,6 +38,8 @@ export default function ProfileScreen({ navigation }: any) {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [driverStatus, setDriverStatus] = useState<'none' | 'pending' | 'verified'>('none');
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStats, setReferralStats] = useState({ total_referrals: 0, total_earned: 0 });
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -113,6 +117,21 @@ export default function ProfileScreen({ navigation }: any) {
 
       if (walletRes.status === 'fulfilled') {
         setWalletBalance(walletRes.value?.data?.data?.balance || 0);
+      }
+
+      // Fetch referral code
+      try {
+        const referralRes = await referralService.getCode();
+        const refData = referralRes?.data?.data;
+        if (refData) {
+          setReferralCode(refData.code || '');
+          setReferralStats({
+            total_referrals: refData.total_referrals ?? 0,
+            total_earned: refData.total_earned ?? 0,
+          });
+        }
+      } catch {
+        // Referral fetch is non-critical
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {
@@ -333,6 +352,67 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.walletDecorCircle1} />
           <View style={styles.walletDecorCircle2} />
         </TouchableOpacity>
+
+        {/* Refer & Earn Card */}
+        {referralCode ? (
+          <View style={styles.referralCard}>
+            <View style={styles.referralHeader}>
+              <View style={styles.referralIconContainer}>
+                <Ionicons name="gift" size={moderateScale(22)} color={COLORS.primaryDark} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.referralTitle}>Refer & Earn</Text>
+                <Text style={styles.referralSubtitle}>Invite friends, earn rewards!</Text>
+              </View>
+            </View>
+            <View style={styles.referralCodeRow}>
+              <TouchableOpacity
+                style={styles.referralCodeBox}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(referralCode);
+                  showToast('Referral code copied!', 'success');
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Copy referral code"
+                accessibilityRole="button"
+              >
+                <Text style={styles.referralCodeText}>{referralCode}</Text>
+                <Ionicons name="copy-outline" size={moderateScale(16)} color={COLORS.primaryDark} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.referralShareButton}
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      message: `Join OMJI and get a free ₱10 bonus! Use my referral code: ${referralCode}\n\nDownload OMJI now!`,
+                    });
+                  } catch {
+                    // User cancelled share
+                  }
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Share referral code"
+                accessibilityRole="button"
+              >
+                <Ionicons name="share-social" size={moderateScale(18)} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.referralStatsRow}>
+              <View style={styles.referralStatItem}>
+                <Text style={styles.referralStatValue}>{referralStats.total_referrals}</Text>
+                <Text style={styles.referralStatLabel}>Referrals</Text>
+              </View>
+              <View style={styles.referralStatDivider} />
+              <View style={styles.referralStatItem}>
+                <Text style={styles.referralStatValue}>₱{referralStats.total_earned.toFixed(0)}</Text>
+                <Text style={styles.referralStatLabel}>Earned</Text>
+              </View>
+            </View>
+            <Text style={styles.referralBonusText}>
+              You earn ₱20 per referral. Your friend gets ₱10!
+            </Text>
+          </View>
+        ) : null}
 
         {/* Menu Sections */}
         {menuSections.map((section) => {
@@ -736,6 +816,112 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.error,
     marginLeft: moderateScale(12),
+  },
+
+  // Referral Card
+  referralCard: {
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(12),
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(18),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: verticalScale(2) },
+    shadowOpacity: 0.06,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(3),
+    borderWidth: 1,
+    borderColor: COLORS.primaryBg,
+  },
+  referralHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(14),
+  },
+  referralIconContainer: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(12),
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
+  },
+  referralTitle: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  referralSubtitle: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
+  },
+  referralCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(14),
+  },
+  referralCodeBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: moderateScale(10),
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: moderateScale(12),
+    marginRight: moderateScale(10),
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight + '30',
+    borderStyle: 'dashed',
+  },
+  referralCodeText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.primaryDark,
+    letterSpacing: 1.2,
+  },
+  referralShareButton: {
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(12),
+    backgroundColor: COLORS.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referralStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(10),
+  },
+  referralStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: verticalScale(8),
+  },
+  referralStatValue: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  referralStatLabel: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
+    fontWeight: '500',
+  },
+  referralStatDivider: {
+    width: 1,
+    height: moderateScale(30),
+    backgroundColor: COLORS.gray200,
+  },
+  referralBonusText: {
+    fontSize: fontScale(11),
+    color: COLORS.gray500,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 
   // Version

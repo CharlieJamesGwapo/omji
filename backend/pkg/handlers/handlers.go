@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -5203,5 +5204,235 @@ func RemovePushToken(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Push token removed"}, "timestamp": time.Now()})
+	}
+}
+
+// ===== REFERRAL HANDLERS =====
+
+// generateReferralCode creates a referral code from the user's name + random digits
+func generateReferralCode(name string) string {
+	clean := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(name), " ", ""))
+	prefix := clean
+	if len(prefix) > 4 {
+		prefix = prefix[:4]
+	}
+	code := fmt.Sprintf("OMJI-%s%04d", prefix, rand.Intn(10000))
+	return code
+}
+
+// GetReferralCode returns (or generates) the user's referral code plus stats.
+func GetReferralCode(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+
+		// Generate code if user doesn't have one yet
+		if user.ReferralCode == "" {
+			for i := 0; i < 5; i++ {
+				code := generateReferralCode(user.Name)
+				user.ReferralCode = code
+				if err := db.Model(&user).Update("referral_code", code).Error; err != nil {
+					if i == 4 {
+						c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate referral code"})
+						return
+					}
+					continue // retry with different random digits
+				}
+				break
+			}
+		}
+
+		var totalReferrals int64
+		var totalEarned float64
+		db.Model(&models.Referral{}).Where("referrer_id = ?", userID).Count(&totalReferrals)
+		db.Model(&models.Referral{}).Where("referrer_id = ?", userID).Select("COALESCE(SUM(referrer_bonus), 0)").Scan(&totalEarned)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"code":            user.ReferralCode,
+				"total_referrals": totalReferrals,
+				"total_earned":    totalEarned,
+			},
+			"timestamp": time.Now(),
+		})
+	}
+}
+
+// ApplyReferralCode lets a user apply someone else's referral code to earn bonuses.
+func ApplyReferralCode(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+
+		var input struct {
+			Code string `json:"code" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Referral code is required"})
+			return
+		}
+
+		code := strings.ToUpper(strings.TrimSpace(input.Code))
+
+		// Find referrer by code
+		var referrer models.User
+		if err := db.Where("referral_code = ?", code).First(&referrer).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Invalid referral code"})
+			return
+		}
+
+		// Prevent self-referral
+		if referrer.ID == userID {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You cannot use your own referral code"})
+			return
+		}
+
+		// Check if user was already referred
+		var existingReferral models.Referral
+		if err := db.Where("referred_id = ?", userID).First(&existingReferral).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "You have already used a referral code"})
+			return
+		}
+
+		referrerBonus := 20.0
+		referredBonus := 10.0
+
+		dbTx := db.Begin()
+
+		// Create referral record
+		referral := models.Referral{
+			ReferrerID:    referrer.ID,
+			ReferredID:    userID,
+			ReferrerBonus: referrerBonus,
+			ReferredBonus: referredBonus,
+			Status:        "completed",
+		}
+		if err := dbTx.Create(&referral).Error; err != nil {
+			dbTx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to apply referral code"})
+			return
+		}
+
+		// Credit referrer wallet
+		var referrerWallet models.Wallet
+		if err := dbTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", referrer.ID).First(&referrerWallet).Error; err != nil {
+			referrerWallet = models.Wallet{UserID: referrer.ID, Balance: 0}
+			if err := dbTx.Create(&referrerWallet).Error; err != nil {
+				dbTx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to credit referrer wallet"})
+				return
+			}
+		}
+		referrerWallet.Balance += referrerBonus
+		if err := dbTx.Save(&referrerWallet).Error; err != nil {
+			dbTx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to credit referrer wallet"})
+			return
+		}
+		referrerTx := models.WalletTransaction{
+			WalletID:    referrerWallet.ID,
+			UserID:      referrer.ID,
+			Type:        "referral_bonus",
+			Amount:      referrerBonus,
+			Description: "Referral bonus - new user joined",
+			Reference:   fmt.Sprintf("referral_%d", referral.ID),
+		}
+		if err := dbTx.Create(&referrerTx).Error; err != nil {
+			log.Printf("Failed to create referrer wallet transaction: %v", err)
+		}
+
+		// Credit referred user wallet
+		var referredWallet models.Wallet
+		if err := dbTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&referredWallet).Error; err != nil {
+			referredWallet = models.Wallet{UserID: userID, Balance: 0}
+			if err := dbTx.Create(&referredWallet).Error; err != nil {
+				dbTx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to credit your wallet"})
+				return
+			}
+		}
+		referredWallet.Balance += referredBonus
+		if err := dbTx.Save(&referredWallet).Error; err != nil {
+			dbTx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to credit your wallet"})
+			return
+		}
+		referredTxn := models.WalletTransaction{
+			WalletID:    referredWallet.ID,
+			UserID:      userID,
+			Type:        "referral_bonus",
+			Amount:      referredBonus,
+			Description: "Welcome bonus from referral",
+			Reference:   fmt.Sprintf("referral_%d", referral.ID),
+		}
+		if err := dbTx.Create(&referredTxn).Error; err != nil {
+			log.Printf("Failed to create referred wallet transaction: %v", err)
+		}
+
+		if err := dbTx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to apply referral code"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"message":        "Referral code applied successfully!",
+				"referrer_bonus": referrerBonus,
+				"referred_bonus": referredBonus,
+			},
+			"timestamp": time.Now(),
+		})
+	}
+}
+
+// GetReferralStats returns the user's referral statistics and recent referrals.
+func GetReferralStats(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+
+		var totalReferrals int64
+		var totalEarned float64
+		db.Model(&models.Referral{}).Where("referrer_id = ?", userID).Count(&totalReferrals)
+		db.Model(&models.Referral{}).Where("referrer_id = ?", userID).Select("COALESCE(SUM(referrer_bonus), 0)").Scan(&totalEarned)
+
+		// Get recent referrals with referred user names
+		type ReferralInfo struct {
+			ID            uint      `json:"id"`
+			ReferredName  string    `json:"referred_name"`
+			ReferrerBonus float64   `json:"referrer_bonus"`
+			Status        string    `json:"status"`
+			CreatedAt     time.Time `json:"created_at"`
+		}
+		var recentReferrals []ReferralInfo
+		db.Model(&models.Referral{}).
+			Select("referrals.id, users.name as referred_name, referrals.referrer_bonus, referrals.status, referrals.created_at").
+			Joins("JOIN users ON users.id = referrals.referred_id").
+			Where("referrals.referrer_id = ?", userID).
+			Order("referrals.created_at DESC").
+			Limit(20).
+			Scan(&recentReferrals)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"referral_code":    user.ReferralCode,
+				"total_referrals":  totalReferrals,
+				"total_earned":     totalEarned,
+				"recent_referrals": recentReferrals,
+			},
+			"timestamp": time.Now(),
+		})
 	}
 }
