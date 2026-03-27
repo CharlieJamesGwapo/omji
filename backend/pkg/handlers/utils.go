@@ -106,6 +106,17 @@ func updateDriverRating(tx *gorm.DB, driverID uint, newRating float64) error {
 	return tx.Model(&driver).Updates(map[string]interface{}{"rating": avgRating, "total_ratings": newTotal}).Error
 }
 
+// updateUserRating recalculates and saves a user's average rating (for passenger ratings)
+func updateUserRating(tx *gorm.DB, userID uint, newRating float64) error {
+	var user models.User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+		return nil // user not found, skip silently
+	}
+	newTotal := user.TotalRatings + 1
+	avgRating := ((user.Rating * float64(user.TotalRatings)) + newRating) / float64(newTotal)
+	return tx.Model(&user).Updates(map[string]interface{}{"rating": avgRating, "total_ratings": newTotal}).Error
+}
+
 // freeDriver sets a driver as available
 func freeDriver(db *gorm.DB, driverID *uint) {
 	if driverID == nil {

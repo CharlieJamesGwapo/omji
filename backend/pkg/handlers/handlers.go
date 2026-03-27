@@ -746,6 +746,83 @@ func RateRide(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// RatePassenger allows a driver to rate a passenger after a completed ride or delivery.
+// It stores the rating on the ride/delivery's user_rating field and updates the user's average rating.
+func RatePassenger(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint) // the driver's user ID
+		var input struct {
+			Rating  float64 `json:"rating" binding:"required,min=1,max=5"`
+			Comment string  `json:"comment"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+
+		// Find the driver record for this user
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "You must be a registered driver"})
+			return
+		}
+
+		serviceID := c.Param("id")
+		path := c.FullPath()
+
+		// Determine if this is a ride or delivery based on route path
+		if strings.Contains(path, "/deliveries/") {
+			var d models.Delivery
+			if err := db.Where("id = ? AND driver_id = ? AND status = ?", serviceID, driver.ID, "completed").First(&d).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Completed delivery not found"})
+				return
+			}
+			if d.UserRating != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You have already rated this passenger"})
+				return
+			}
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&d).Update("user_rating", input.Rating).Error; err != nil {
+					return err
+				}
+				if err := updateUserRating(tx, d.UserID, input.Rating); err != nil {
+					return err
+				}
+				return nil
+			})
+			if txErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save rating"})
+				return
+			}
+		} else {
+			var ride models.Ride
+			if err := db.Where("id = ? AND driver_id = ? AND status = ?", serviceID, driver.ID, "completed").First(&ride).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Completed ride not found"})
+				return
+			}
+			if ride.UserRating != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "You have already rated this passenger"})
+				return
+			}
+			txErr := db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&ride).Updates(map[string]interface{}{"user_rating": input.Rating, "user_review": input.Comment}).Error; err != nil {
+					return err
+				}
+				if err := updateUserRating(tx, ride.UserID, input.Rating); err != nil {
+					return err
+				}
+				return nil
+			})
+			if txErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to save rating"})
+				return
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Passenger rating submitted"}, "timestamp": time.Now()})
+	}
+}
+
 // ===== RIDESHARE HANDLERS =====
 
 func CreateRideShare(db *gorm.DB) gin.HandlerFunc {
@@ -3527,6 +3604,186 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "transaction": transaction}, "timestamp": time.Now()})
+	}
+}
+
+// ===== WITHDRAWAL REQUEST HANDLERS =====
+
+// RequestWithdrawal creates a withdrawal request and deducts from wallet
+func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var input struct {
+			Amount        float64 `json:"amount" binding:"required"`
+			Method        string  `json:"method" binding:"required"`
+			AccountNumber string  `json:"account_number" binding:"required"`
+			AccountName   string  `json:"account_name" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		if input.Amount < 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum withdrawal is ₱100"})
+			return
+		}
+		if input.Method != "gcash" && input.Method != "maya" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Method must be gcash or maya"})
+			return
+		}
+		// Verify user is a driver
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Only drivers can request withdrawals"})
+			return
+		}
+		tx := db.Begin()
+		var wallet models.Wallet
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&wallet).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Wallet not found"})
+			return
+		}
+		if wallet.Balance < input.Amount {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Insufficient balance"})
+			return
+		}
+		wallet.Balance -= input.Amount
+		if err := tx.Save(&wallet).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
+			return
+		}
+		transaction := models.WalletTransaction{
+			WalletID: wallet.ID, UserID: userID, Type: "withdrawal",
+			Amount: input.Amount, Description: "Withdrawal to " + input.Method + " (" + input.AccountNumber + ")",
+			Reference: "WD-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
+		}
+		if err := tx.Create(&transaction).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
+			return
+		}
+		withdrawal := models.WithdrawalRequest{
+			DriverID:      driver.ID,
+			Amount:        input.Amount,
+			Method:        input.Method,
+			AccountNumber: input.AccountNumber,
+			AccountName:   input.AccountName,
+			Status:        "pending",
+		}
+		if err := tx.Create(&withdrawal).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
+			return
+		}
+		if err := tx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "withdrawal": withdrawal}})
+	}
+}
+
+// GetWithdrawals returns all withdrawal requests for the current driver
+func GetWithdrawals(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var driver models.Driver
+		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Driver not found"})
+			return
+		}
+		var withdrawals []models.WithdrawalRequest
+		if err := db.Where("driver_id = ?", driver.ID).Order("created_at DESC").Find(&withdrawals).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch withdrawals"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawals})
+	}
+}
+
+// AdminUpdateWithdrawal allows admin to approve/reject/complete withdrawal requests
+func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var input struct {
+			Status string `json:"status" binding:"required"`
+			Note   string `json:"note"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+		validStatuses := map[string]bool{"approved": true, "rejected": true, "completed": true}
+		if !validStatuses[input.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Status must be approved, rejected, or completed"})
+			return
+		}
+		tx := db.Begin()
+		var withdrawal models.WithdrawalRequest
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&withdrawal, id).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Withdrawal request not found"})
+			return
+		}
+		// Validate state transitions
+		validTransition := false
+		switch {
+		case withdrawal.Status == "pending" && (input.Status == "approved" || input.Status == "rejected"):
+			validTransition = true
+		case withdrawal.Status == "approved" && input.Status == "completed":
+			validTransition = true
+		}
+		if !validTransition {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("Cannot transition from %s to %s", withdrawal.Status, input.Status)})
+			return
+		}
+		// If rejected, refund the amount back to driver's wallet
+		if input.Status == "rejected" {
+			var driver models.Driver
+			if err := tx.First(&driver, withdrawal.DriverID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Driver not found"})
+				return
+			}
+			var wallet models.Wallet
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", driver.UserID).First(&wallet).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Wallet not found"})
+				return
+			}
+			wallet.Balance += withdrawal.Amount
+			if err := tx.Save(&wallet).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to refund"})
+				return
+			}
+			refundTxn := models.WalletTransaction{
+				WalletID: wallet.ID, UserID: driver.UserID, Type: "refund",
+				Amount: withdrawal.Amount, Description: "Withdrawal rejected - refund",
+				Reference: "WD-REFUND-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
+			}
+			if err := tx.Create(&refundTxn).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create refund transaction"})
+				return
+			}
+		}
+		withdrawal.Status = input.Status
+		withdrawal.Note = input.Note
+		if err := tx.Save(&withdrawal).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update withdrawal"})
+			return
+		}
+		if err := tx.Commit().Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update withdrawal"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawal})
 	}
 }
 

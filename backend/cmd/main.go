@@ -117,6 +117,7 @@ func main() {
 		protected.GET("/rides/:id", handlers.GetRideDetails(database))
 		protected.PUT("/rides/:id/cancel", handlers.CancelRide(database))
 		protected.POST("/rides/:id/rate", handlers.RateRide(database))
+		protected.POST("/rides/:id/rate-passenger", handlers.RatePassenger(database))
 
 		// Ride sharing routes (Pasabay)
 		protected.POST("/rideshare/create", handlers.CreateRideShare(database))
@@ -129,6 +130,7 @@ func main() {
 		protected.GET("/deliveries/:id", handlers.GetDeliveryDetails(database))
 		protected.PUT("/deliveries/:id/cancel", handlers.CancelDelivery(database))
 		protected.POST("/deliveries/:id/rate", handlers.RateDelivery(database))
+		protected.POST("/deliveries/:id/rate-passenger", handlers.RatePassenger(database))
 
 		// Food & Store orders
 		protected.GET("/stores", handlers.GetStores(database))
@@ -157,6 +159,8 @@ func main() {
 		protected.POST("/driver/requests/:id/reject", handlers.RejectRequest(database))
 		protected.POST("/driver/requests/:id/decline-ride", handlers.DeclineRideRequest(database))
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
+		protected.POST("/driver/withdraw", handlers.RequestWithdrawal(database))
+		protected.GET("/driver/withdrawals", handlers.GetWithdrawals(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
 		// Intentional: UpdateRideStatus handles both ride and delivery status updates
@@ -273,6 +277,9 @@ func main() {
 		admin.PUT("/commission/config", handlers.AdminUpdateCommissionConfig(database))
 		admin.GET("/commission/records", handlers.AdminGetCommissionRecords(database))
 		admin.GET("/commission/summary", handlers.AdminGetCommissionSummary(database))
+
+		// Withdrawal management
+		admin.PUT("/withdrawals/:id", handlers.AdminUpdateWithdrawal(database))
 	}
 
 	// WebSocket routes

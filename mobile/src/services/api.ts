@@ -95,6 +95,8 @@ export const rideService = {
   cancelRide: (id: number) => api.put(`/rides/${id}/cancel`),
   rateRide: (id: number, rating: number, review: string) =>
     api.post(`/rides/${id}/rate`, { rating, review }),
+  ratePassenger: (id: number, rating: number, comment?: string) =>
+    api.post(`/rides/${id}/rate-passenger`, { rating, comment }),
   getRideHistory: () => api.get('/rides/history'),
 };
 
@@ -133,6 +135,8 @@ export const deliveryService = {
   cancelDelivery: (id: number) => api.put(`/deliveries/${id}/cancel`),
   rateDelivery: (id: number, rating: number) =>
     api.post(`/deliveries/${id}/rate`, { rating }),
+  rateDeliveryPassenger: (id: number, rating: number, comment?: string) =>
+    api.post(`/deliveries/${id}/rate-passenger`, { rating, comment }),
   getDeliveryHistory: () => api.get('/deliveries/history'),
 };
 
@@ -235,6 +239,9 @@ export const driverService = {
   rejectRequest: (id: number) => api.post(`/driver/requests/${id}/reject`),
   declineRideRequest: (id: number) => api.post(`/driver/requests/${id}/decline-ride`),
   getEarnings: () => api.get('/driver/earnings'),
+  requestWithdrawal: (data: { amount: number; method: string; account_number: string; account_name: string }) =>
+    api.post('/driver/withdraw', data),
+  getWithdrawals: () => api.get('/driver/withdrawals'),
   setAvailability: (data: { available: boolean; latitude?: number; longitude?: number }) =>
     api.post('/driver/availability', data),
   updateRideStatus: (id: number, status: string) =>

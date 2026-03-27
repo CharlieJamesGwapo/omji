@@ -413,22 +413,36 @@ export default function TrackingScreen({ route, navigation }: any) {
     }
   }, [driverLat, driverLng, status]);
 
-  // Auto-show rating when ride completes (for users only)
+  // Auto-show rating when ride completes (for both passengers and drivers)
   useEffect(() => {
-    if (status === 'completed' && !isDriver && !hasRated && driverInfo) {
-      const timer = setTimeout(() => setShowRating(true), 800);
-      return () => clearTimeout(timer);
+    if (status === 'completed' && !hasRated) {
+      // Passengers rate drivers, drivers rate passengers
+      const canRate = isDriver ? !!(passengerInfo || rideData?.user_id) : !!driverInfo;
+      if (canRate) {
+        const timer = setTimeout(() => setShowRating(true), 800);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [status, isDriver, hasRated, driverInfo]);
+  }, [status, isDriver, hasRated, driverInfo, passengerInfo]);
 
   const handleSubmitRating = async () => {
     if (!rideId) return;
     setSubmittingRating(true);
     try {
-      if (type === 'delivery') {
-        await deliveryService.rateDelivery(rideId, rating);
+      if (isDriver) {
+        // Driver rates passenger
+        if (type === 'delivery') {
+          await deliveryService.rateDeliveryPassenger(rideId, rating, review);
+        } else {
+          await rideService.ratePassenger(rideId, rating, review);
+        }
       } else {
-        await rideService.rateRide(rideId, rating, review);
+        // Passenger rates driver
+        if (type === 'delivery') {
+          await deliveryService.rateDelivery(rideId, rating);
+        } else {
+          await rideService.rateRide(rideId, rating, review);
+        }
       }
       setHasRated(true);
       setShowRating(false);
@@ -900,14 +914,29 @@ export default function TrackingScreen({ route, navigation }: any) {
           )}
 
           {status === 'completed' && isDriver && (
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="checkmark-circle" size={moderateScale(20)} color={COLORS.white} />
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
+            <View>
+              {!hasRated && !!(passengerInfo || rideData?.user_id) && (
+                <TouchableOpacity
+                  style={styles.rateButton}
+                  onPress={() => setShowRating(true)}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Rate your passenger"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="star" size={moderateScale(20)} color={COLORS.warningDark} />
+                  <Text style={styles.rateButtonText}>Rate Your Passenger</Text>
+                  <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.warningDark} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="checkmark-circle" size={moderateScale(20)} color={COLORS.white} />
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           <View style={{ height: isIOS ? verticalScale(32) : verticalScale(40) }} />
@@ -931,11 +960,11 @@ export default function TrackingScreen({ route, navigation }: any) {
               <Ionicons name="close" size={moderateScale(22)} color={COLORS.gray500} />
             </TouchableOpacity>
 
-            {/* Driver avatar in modal */}
-            {!!driverInfo && (
+            {/* Avatar in modal (driver or passenger depending on who is rating) */}
+            {!!(isDriver ? passengerInfo : driverInfo) && (
               <View style={styles.ratingDriverAvatar}>
-                {driverInfo.profile_image ? (
-                  <Image source={{ uri: driverInfo.profile_image }} style={styles.ratingDriverImage} />
+                {(isDriver ? passengerInfo?.profile_image : driverInfo?.profile_image) ? (
+                  <Image source={{ uri: isDriver ? passengerInfo.profile_image : driverInfo.profile_image }} style={styles.ratingDriverImage} />
                 ) : (
                   <View style={[styles.ratingDriverImage, styles.ratingDriverImagePlaceholder]}>
                     <Ionicons name="person" size={moderateScale(30)} color={COLORS.gray400} />
@@ -944,9 +973,13 @@ export default function TrackingScreen({ route, navigation }: any) {
               </View>
             )}
 
-            <Text style={styles.ratingTitle}>How was your trip?</Text>
-            {!!driverInfo && (
-              <Text style={styles.ratingDriverName}>with {driverInfo.name || 'Driver'}</Text>
+            <Text style={styles.ratingTitle}>{isDriver ? 'Rate Your Passenger' : 'How was your trip?'}</Text>
+            {!!(isDriver ? passengerInfo : driverInfo) && (
+              <Text style={styles.ratingDriverName}>
+                {isDriver
+                  ? (passengerInfo?.name || 'Passenger')
+                  : `with ${driverInfo?.name || 'Driver'}`}
+              </Text>
             )}
 
             {/* Star rating with bounce animation */}
@@ -985,10 +1018,10 @@ export default function TrackingScreen({ route, navigation }: any) {
               </Text>
             </View>
 
-            {type !== 'delivery' && (
+            {(isDriver || type !== 'delivery') && (
               <TextInput
                 style={styles.reviewInput}
-                placeholder="Share your experience (optional)"
+                placeholder={isDriver ? 'Leave a comment (optional)' : 'Share your experience (optional)'}
                 placeholderTextColor={COLORS.gray400}
                 value={review}
                 onChangeText={setReview}

@@ -351,6 +351,20 @@ type CommissionRecord struct {
 	CreatedAt            time.Time `json:"created_at"`
 }
 
+// WithdrawalRequest model for driver cash-out requests
+type WithdrawalRequest struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	DriverID      uint      `gorm:"index" json:"driver_id"`
+	Amount        float64   `json:"amount"`
+	Method        string    `json:"method"` // "gcash" or "maya"
+	AccountNumber string    `json:"account_number"`
+	AccountName   string    `json:"account_name"`
+	Status        string    `gorm:"default:pending" json:"status"` // pending, approved, rejected, completed
+	Note          string    `json:"note,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
@@ -375,6 +389,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&CommissionConfig{},
 		&CommissionRecord{},
 		&PushToken{},
+		&WithdrawalRequest{},
 	)
 }
 

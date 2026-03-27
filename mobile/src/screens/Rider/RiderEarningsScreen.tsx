@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   Animated,
   RefreshControl,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService, walletService } from '../../services/api';
@@ -29,6 +32,12 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
+
+  // Withdrawal modal state
+  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+  const [withdrawMethod, setWithdrawMethod] = useState<'gcash' | 'maya'>('gcash');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
@@ -145,34 +154,33 @@ export default function RiderEarningsScreen({ navigation }: any) {
       return;
     }
 
-    // Let user select withdrawal method
-    Alert.alert(
-      'Withdraw To',
-      `Amount: ₱${amount}\nSelect your payout method:`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'GCash',
-          onPress: () => processWithdraw(amount, 'gcash'),
-        },
-        {
-          text: 'Maya',
-          onPress: () => processWithdraw(amount, 'maya'),
-        },
-        {
-          text: 'Bank Transfer',
-          onPress: () => processWithdraw(amount, 'bank'),
-        },
-      ]
-    );
+    // Open the withdrawal modal
+    setWithdrawModalVisible(true);
   };
 
-  const processWithdraw = async (amount: number, method: string) => {
+  const processWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!accountNumber.trim()) {
+      Alert.alert('Missing Info', 'Please enter your account number.');
+      return;
+    }
+    if (!accountName.trim()) {
+      Alert.alert('Missing Info', 'Please enter the account holder name.');
+      return;
+    }
     setWithdrawLoading(true);
     try {
-      await walletService.withdraw({ amount, payment_method: method });
+      await driverService.requestWithdrawal({
+        amount,
+        method: withdrawMethod,
+        account_number: accountNumber.trim(),
+        account_name: accountName.trim(),
+      });
       setWithdrawAmount('');
-      Alert.alert('Success', `Withdrawal of ₱${amount} via ${method.toUpperCase()} submitted! Processing within 1-3 business days.`);
+      setAccountNumber('');
+      setAccountName('');
+      setWithdrawModalVisible(false);
+      showToast(`Withdrawal of ₱${amount} via ${withdrawMethod.toUpperCase()} submitted!`, 'success');
       fetchEarnings();
     } catch (error: any) {
       const msg = error.code === 'ECONNABORTED'
@@ -518,6 +526,123 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
+      {/* Withdrawal Modal */}
+      <Modal
+        visible={withdrawModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !withdrawLoading && setWithdrawModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Withdraw Funds</Text>
+              <TouchableOpacity
+                onPress={() => !withdrawLoading && setWithdrawModalVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="close" size={moderateScale(24)} color={COLORS.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Amount Display */}
+            <View style={styles.modalAmountBox}>
+              <Text style={styles.modalAmountLabel}>Amount</Text>
+              <Text style={styles.modalAmountValue}>₱{parseFloat(withdrawAmount || '0').toLocaleString()}</Text>
+            </View>
+
+            {/* Method Selector */}
+            <Text style={styles.modalFieldLabel}>Payout Method</Text>
+            <View style={styles.methodSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.methodButton,
+                  withdrawMethod === 'gcash' && styles.methodButtonActive,
+                ]}
+                onPress={() => setWithdrawMethod('gcash')}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={moderateScale(18)}
+                  color={withdrawMethod === 'gcash' ? COLORS.white : COLORS.gray600}
+                />
+                <Text style={[
+                  styles.methodButtonText,
+                  withdrawMethod === 'gcash' && styles.methodButtonTextActive,
+                ]}>GCash</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.methodButton,
+                  withdrawMethod === 'maya' && styles.methodButtonActive,
+                ]}
+                onPress={() => setWithdrawMethod('maya')}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="wallet-outline"
+                  size={moderateScale(18)}
+                  color={withdrawMethod === 'maya' ? COLORS.white : COLORS.gray600}
+                />
+                <Text style={[
+                  styles.methodButtonText,
+                  withdrawMethod === 'maya' && styles.methodButtonTextActive,
+                ]}>Maya</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Account Number */}
+            <Text style={styles.modalFieldLabel}>Account Number</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. 09171234567"
+              placeholderTextColor={COLORS.gray400}
+              value={accountNumber}
+              onChangeText={setAccountNumber}
+              keyboardType="phone-pad"
+              maxLength={13}
+            />
+
+            {/* Account Name */}
+            <Text style={styles.modalFieldLabel}>Account Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Full name on the account"
+              placeholderTextColor={COLORS.gray400}
+              value={accountName}
+              onChangeText={setAccountName}
+              autoCapitalize="words"
+            />
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.modalSubmitButton, withdrawLoading && { opacity: 0.6 }]}
+              onPress={processWithdraw}
+              disabled={withdrawLoading}
+              activeOpacity={0.8}
+            >
+              {withdrawLoading ? (
+                <ActivityIndicator color={COLORS.white} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="arrow-up-circle" size={moderateScale(20)} color={COLORS.white} />
+                  <Text style={styles.modalSubmitText}>Submit Withdrawal</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.modalHint}>
+              Processing takes 1-3 business days. Amount will be deducted from your balance immediately.
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </Animated.View>
   );
@@ -1076,5 +1201,117 @@ const styles = StyleSheet.create({
     fontSize: fontScale(13),
     color: '#1E40AF',
     lineHeight: fontScale(18),
+  },
+  // Withdrawal Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: moderateScale(24),
+    borderTopRightRadius: moderateScale(24),
+    padding: moderateScale(24),
+    paddingBottom: verticalScale(40),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(20),
+  },
+  modalTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  modalAmountBox: {
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(16),
+    alignItems: 'center',
+    marginBottom: verticalScale(20),
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  modalAmountLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginBottom: verticalScale(4),
+  },
+  modalAmountValue: {
+    fontSize: fontScale(28),
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  modalFieldLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.gray700,
+    marginBottom: verticalScale(8),
+  },
+  methodSelector: {
+    flexDirection: 'row',
+    gap: moderateScale(10),
+    marginBottom: verticalScale(16),
+  },
+  methodButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(12),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    backgroundColor: COLORS.gray100,
+    gap: moderateScale(6),
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
+  },
+  methodButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  methodButtonText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+  methodButtonTextActive: {
+    color: COLORS.white,
+  },
+  modalInput: {
+    backgroundColor: COLORS.gray50,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: verticalScale(12),
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray800,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    marginBottom: verticalScale(16),
+  },
+  modalSubmitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: verticalScale(14),
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    gap: moderateScale(8),
+    marginTop: verticalScale(4),
+    ...SHADOWS.md,
+  },
+  modalSubmitText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  modalHint: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+    textAlign: 'center',
+    marginTop: verticalScale(12),
+    lineHeight: fontScale(16),
   },
 });
