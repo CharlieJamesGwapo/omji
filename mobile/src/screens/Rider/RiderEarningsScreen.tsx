@@ -127,7 +127,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const earningsBreakdown = getBreakdown();
 
   // Calculate max for bar chart proportional display
-  const maxBreakdownEarnings = Math.max(...earningsBreakdown.map(b => b.earnings), 1);
+  const maxBreakdownEarnings = Math.max(...(earningsBreakdown || []).map(b => b.earnings ?? 0), 1);
 
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
@@ -403,7 +403,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
                   <View style={styles.barChartLabel}>
                     <View style={[styles.barChartDot, { backgroundColor: item.color }]} />
                     <Text style={styles.barChartService} numberOfLines={1}>
-                      {item.service.split('(')[0].trim()}
+                      {(item.service || '').split('(')[0].trim()}
                     </Text>
                   </View>
                   <View style={styles.barChartBarContainer}>
@@ -415,7 +415,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
                         ]}
                       />
                     </View>
-                    <Text style={styles.barChartAmount}>₱{item.earnings.toLocaleString()}</Text>
+                    <Text style={styles.barChartAmount}>₱{(item.earnings ?? 0).toLocaleString()}</Text>
                   </View>
                   <Text style={styles.barChartPercent}>{percentage}%</Text>
                 </View>
@@ -442,7 +442,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
                     <Text style={styles.breakdownRides}>{item.rides} trip{item.rides !== 1 ? 's' : ''}</Text>
                   </View>
                   <View style={styles.breakdownEarnings}>
-                    <Text style={[styles.breakdownAmount, { color: item.color }]}>₱{item.earnings.toLocaleString()}</Text>
+                    <Text style={[styles.breakdownAmount, { color: item.color }]}>₱{(item.earnings ?? 0).toLocaleString()}</Text>
                     <Text style={styles.breakdownPercentage}>{percentage}%</Text>
                   </View>
                 </View>
@@ -499,7 +499,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
                   <Text style={styles.earningService}>{item.service}</Text>
                   <Text style={styles.earningDate}>{item.rides} trip{item.rides !== 1 ? 's' : ''} completed</Text>
                 </View>
-                <Text style={[styles.earningAmount, { color: item.color }]}>₱{item.earnings.toLocaleString()}</Text>
+                <Text style={[styles.earningAmount, { color: item.color }]}>₱{(item.earnings ?? 0).toLocaleString()}</Text>
               </View>
             ))
           )}

@@ -320,7 +320,7 @@ export default function RideHistoryScreen({ navigation }: any) {
                         {!!((ride.driver || ride.Driver)?.rating) && (
                           <View style={styles.ratingBadge}>
                             <Ionicons name="star" size={moderateScale(10)} color={COLORS.warning} />
-                            <Text style={styles.riderRating}>{Number((ride.driver || ride.Driver)?.rating).toFixed(1)}</Text>
+                            <Text style={styles.riderRating}>{Number((ride.driver || ride.Driver)?.rating ?? 0).toFixed(1)}</Text>
                           </View>
                         )}
                       </View>

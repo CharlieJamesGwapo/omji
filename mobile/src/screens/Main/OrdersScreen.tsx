@@ -400,7 +400,7 @@ export default function OrdersScreen({ navigation }: any) {
             {!!order.driverRating && (
               <View style={styles.driverRatingContainer}>
                 <Ionicons name="star" size={moderateScale(12)} color={COLORS.warningDark} />
-                <Text style={styles.driverRating}>{Number(order.driverRating).toFixed(1)}</Text>
+                <Text style={styles.driverRating}>{Number(order.driverRating ?? 0).toFixed(1)}</Text>
               </View>
             )}
           </View>

@@ -460,7 +460,9 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		// Send targeted WebSocket notification and start expiry timer for driver-specific requests
 		if input.DriverID != nil {
 			var passenger models.User
-			db.First(&passenger, userID)
+			if err := db.First(&passenger, userID).Error; err != nil {
+				log.Printf("Failed to fetch passenger %d for ride notification: %v", userID, err)
+			}
 
 			driverIDStr := fmt.Sprintf("%d", *input.DriverID)
 			wsMsg := map[string]interface{}{
@@ -2128,13 +2130,17 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 								if err := tx.Save(&wallet).Error; err != nil {
 									log.Printf("Failed to save wallet for ride %d: %v", ride.ID, err)
 									updates["payment_method"] = "cash"
-								} else if err := tx.Create(&models.WalletTransaction{
-									WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
-									Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
-									Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
-								}).Error; err != nil {
-									log.Printf("Failed to create wallet tx for ride %d: %v", ride.ID, err)
-									updates["payment_method"] = "cash"
+								} else {
+									if err := tx.Create(&models.WalletTransaction{
+										WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
+										Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
+										Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
+									}).Error; err != nil {
+										log.Printf("Failed to create wallet tx for ride %d, rolling back wallet: %v", ride.ID, err)
+										wallet.Balance += fare
+										tx.Save(&wallet)
+										updates["payment_method"] = "cash"
+									}
 								}
 							} else {
 								updates["payment_method"] = "cash"
@@ -2233,13 +2239,17 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 								if err := tx.Save(&wallet).Error; err != nil {
 									log.Printf("Failed to save wallet for delivery %d: %v", delivery.ID, err)
 									updates["payment_method"] = "cash"
-								} else if err := tx.Create(&models.WalletTransaction{
-									WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
-									Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
-									Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
-								}).Error; err != nil {
-									log.Printf("Failed to create wallet tx for delivery %d: %v", delivery.ID, err)
-									updates["payment_method"] = "cash"
+								} else {
+									if err := tx.Create(&models.WalletTransaction{
+										WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
+										Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
+										Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
+									}).Error; err != nil {
+										log.Printf("Failed to create wallet tx for delivery %d, rolling back wallet: %v", delivery.ID, err)
+										wallet.Balance += fee
+										tx.Save(&wallet)
+										updates["payment_method"] = "cash"
+									}
 								}
 							} else {
 								updates["payment_method"] = "cash"
@@ -3841,6 +3851,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 										if err := tx.Save(&wallet).Error; err == nil {
 											if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"}).Error; err != nil {
 												log.Printf("Failed to create wallet transaction for WS ride payment: %v", err)
+												return err
 											}
 										}
 									} else {
@@ -3906,6 +3917,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 											if err := tx.Save(&wallet).Error; err == nil {
 												if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"}).Error; err != nil {
 													log.Printf("Failed to create wallet transaction for WS delivery payment: %v", err)
+													return err
 												}
 											}
 										} else {
@@ -4040,7 +4052,12 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid claims"})
 			return
 		}
-		userID := uint(claims["user_id"].(float64))
+		userIDVal, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid user_id in token"})
+			return
+		}
+		userID := uint(userIDVal)
 
 		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {

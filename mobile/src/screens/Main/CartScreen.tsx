@@ -402,7 +402,7 @@ export default function CartScreen({ route, navigation }: any) {
                 size={moderateScale(14)}
                 color={COLORS.accent}
               />
-              <Text style={styles.footerPaymentText}>{paymentMethod === 'gcash' ? 'GCash' : paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</Text>
+              <Text style={styles.footerPaymentText}>{paymentMethod === 'gcash' ? 'GCash' : (paymentMethod || 'cash').charAt(0).toUpperCase() + (paymentMethod || 'cash').slice(1)}</Text>
             </View>
           </View>
           <TouchableOpacity
