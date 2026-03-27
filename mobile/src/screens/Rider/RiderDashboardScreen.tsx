@@ -12,6 +12,7 @@ import {
   Vibration,
   Animated,
   Image,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -803,8 +804,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
               requests.map((request) => {
                 const timeAgo = getTimeAgo(request.created_at);
                 const timeBadge = getTimeBadgeStyle(request.created_at);
-                const fare = request.estimated_fare || request.delivery_fee || 0;
-                const customerName = request.passenger_name || request.user?.name || request.User?.name;
+                const fare = request.estimated_fare ?? request.delivery_fee ?? 0;
+                const customerName = request.passenger_name ?? request.user?.name ?? request.User?.name;
+                const customerPhone = request.passenger_phone;
 
                 return (
                   <View key={`${request.type || 'ride'}-${request.id}`} style={[styles.requestCard, { borderLeftWidth: moderateScale(3), borderLeftColor: getJobColor(request) }]}>
@@ -817,7 +819,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
                         <Text style={styles.requestType}>{getJobLabel(request)}</Text>
                         <View style={styles.requestMeta}>
                           <Text style={styles.requestDistance}>
-                            {(request.distance_km || request.distance || 0).toFixed(1)} km
+                            {(request.distance_km ?? request.distance ?? 0).toFixed(1)} km
                           </Text>
                           {timeAgo && (
                             <View style={[styles.requestTimeBadge, { backgroundColor: timeBadge.bg }]}>
@@ -851,30 +853,38 @@ export default function RiderDashboardScreen({ navigation }: any) {
                     </View>
 
                     {/* Customer & item info */}
-                    {(customerName || (request.type === 'delivery' && request.item_description)) && (
-                      <View style={styles.requestDetails}>
-                        {!!customerName && (
-                          <View style={styles.detailChip}>
-                            <Ionicons name="person" size={fontScale(13)} color={COLORS.gray500} />
-                            <Text style={styles.detailChipText}>{customerName}</Text>
-                          </View>
-                        )}
-                        {request.type === 'delivery' && !!request.item_description && (
-                          <View style={styles.detailChip}>
-                            <Ionicons name="cube-outline" size={fontScale(13)} color={COLORS.accent} />
-                            <Text style={[styles.detailChipText, { color: COLORS.accent }]} numberOfLines={1}>
-                              {request.item_description}
-                            </Text>
-                          </View>
-                        )}
-                        {!!request.payment_method && (
-                          <View style={styles.detailChip}>
-                            <Ionicons name="card-outline" size={fontScale(13)} color={COLORS.gray500} />
-                            <Text style={styles.detailChipText}>{request.payment_method}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
+                    <View style={styles.requestDetails}>
+                      {!!customerName && (
+                        <View style={styles.detailChip}>
+                          <Ionicons name="person" size={fontScale(13)} color={COLORS.gray500} />
+                          <Text style={styles.detailChipText}>{customerName}</Text>
+                        </View>
+                      )}
+                      {!!customerPhone && (
+                        <TouchableOpacity
+                          style={styles.detailChip}
+                          onPress={() => Linking.openURL(`tel:${customerPhone}`)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="call" size={fontScale(13)} color={COLORS.success} />
+                          <Text style={[styles.detailChipText, { color: COLORS.success }]}>{customerPhone}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {request.type === 'delivery' && !!request.item_description && (
+                        <View style={styles.detailChip}>
+                          <Ionicons name="cube-outline" size={fontScale(13)} color={COLORS.accent} />
+                          <Text style={[styles.detailChipText, { color: COLORS.accent }]} numberOfLines={1}>
+                            {request.item_description}
+                          </Text>
+                        </View>
+                      )}
+                      {!!request.payment_method && (
+                        <View style={styles.detailChip}>
+                          <Ionicons name="card-outline" size={fontScale(13)} color={COLORS.gray500} />
+                          <Text style={styles.detailChipText}>{request.payment_method.toUpperCase()}</Text>
+                        </View>
+                      )}
+                    </View>
 
                     {/* Action buttons */}
                     <View style={styles.requestActions}>

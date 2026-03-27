@@ -470,6 +470,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 				"vehicle_type":     ride.VehicleType,
 				"payment_method":   ride.PaymentMethod,
 				"passenger_name":   passenger.Name,
+				"passenger_phone":  passenger.Phone,
 				"expires_at":       time.Now().Add(30 * time.Second).Unix(),
 			}
 			if err := driverTracker.Send(driverIDStr, wsMsg); err != nil {

@@ -687,19 +687,28 @@ export default function TrackingScreen({ route, navigation }: any) {
                   <Text style={styles.driverName}>
                     {isDriver ? (passengerInfo?.name || 'Passenger') : (driverInfo?.name || 'Driver')}
                   </Text>
+                  {/* Show phone number for both rider and passenger */}
+                  {!!(isDriver ? passengerInfo?.phone : driverInfo?.phone) && (
+                    <View style={styles.vehicleRow}>
+                      <Ionicons name="call-outline" size={moderateScale(13)} color={COLORS.gray500} />
+                      <Text style={styles.driverVehicle}>
+                        {isDriver ? passengerInfo.phone : driverInfo.phone}
+                      </Text>
+                    </View>
+                  )}
                   {!isDriver && (
                     <View style={styles.driverMeta}>
                       <View style={styles.starsContainer}>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Ionicons
                             key={`driver-star-${star}`}
-                            name={star <= Math.round(Number(driverInfo?.rating || driverVehicle?.rating || 5)) ? 'star' : 'star-outline'}
+                            name={star <= Math.round(Number(driverInfo?.rating ?? driverVehicle?.rating ?? 5)) ? 'star' : 'star-outline'}
                             size={moderateScale(14)}
-                            color={star <= Math.round(Number(driverInfo?.rating || driverVehicle?.rating || 5)) ? COLORS.warningDark : COLORS.gray300}
+                            color={star <= Math.round(Number(driverInfo?.rating ?? driverVehicle?.rating ?? 5)) ? COLORS.warningDark : COLORS.gray300}
                           />
                         ))}
                         <Text style={styles.driverRatingNum}>
-                          {Number(driverInfo?.rating || driverVehicle?.rating || 5.0).toFixed(1)}
+                          {Number(driverInfo?.rating ?? driverVehicle?.rating ?? 5.0).toFixed(1)}
                         </Text>
                       </View>
                     </View>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Easing, Vibration, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Easing, Vibration, ActivityIndicator, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS } from '../constants/theme';
@@ -15,6 +15,7 @@ interface RideRequestData {
   vehicle_type: string;
   payment_method: string;
   passenger_name: string;
+  passenger_phone?: string;
   expires_at: number;
 }
 
@@ -116,7 +117,21 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
                   {(request.passenger_name || 'P').charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.passengerName}>{request.passenger_name || 'Passenger'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.passengerName}>{request.passenger_name || 'Passenger'}</Text>
+                {!!request.passenger_phone && (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(`tel:${request.passenger_phone}`)}
+                    activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(2) }}
+                  >
+                    <Ionicons name="call-outline" size={fontScale(12)} color={COLORS.success} />
+                    <Text style={{ fontSize: fontScale(12), color: COLORS.success, marginLeft: moderateScale(4) }}>
+                      {request.passenger_phone}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Route */}
