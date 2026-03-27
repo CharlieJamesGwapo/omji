@@ -304,32 +304,36 @@ export default function TrackingScreen({ route, navigation }: any) {
     ]);
   };
 
-  const handleCancel = async () => {
+  const performCancel = async (reason: string) => {
     if (!rideId) return;
     const itemType = type === 'delivery' ? 'delivery' : 'ride';
-    Alert.alert(`Cancel ${itemType === 'delivery' ? 'Delivery' : 'Ride'}`, `Are you sure you want to cancel this ${itemType}?`, [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel',
-        style: 'destructive',
-        onPress: async () => {
-          setCancelling(true);
-          try {
-            if (type === 'delivery') {
-              await deliveryService.cancelDelivery(rideId);
-            } else {
-              await rideService.cancelRide(rideId);
-            }
-            showToast(`Your ${itemType} has been cancelled.`, 'success');
-            setTimeout(() => navigation.goBack(), 1000);
-          } catch (error: any) {
-            const msg = error.response?.data?.error || `Failed to cancel ${itemType}`;
-            showToast(msg, 'error');
-          } finally {
-            setCancelling(false);
-          }
-        },
-      },
+    setCancelling(true);
+    try {
+      if (type === 'delivery') {
+        await deliveryService.cancelDelivery(rideId, reason);
+      } else {
+        await rideService.cancelRide(rideId, reason);
+      }
+      showToast(`Your ${itemType} has been cancelled.`, 'success');
+      setTimeout(() => navigation.goBack(), 1000);
+    } catch (error: any) {
+      const msg = error.response?.data?.error || `Failed to cancel ${itemType}`;
+      showToast(msg, 'error');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (!rideId) return;
+    const label = type === 'delivery' ? 'Delivery' : 'Ride';
+    Alert.alert(`Cancel ${label}`, 'Why are you cancelling?', [
+      { text: 'Changed my mind', onPress: () => performCancel('Changed my mind') },
+      { text: 'Driver is taking too long', onPress: () => performCancel('Driver is taking too long') },
+      { text: 'Booked by mistake', onPress: () => performCancel('Booked by mistake') },
+      { text: 'Found another ride', onPress: () => performCancel('Found another ride') },
+      { text: 'Other', onPress: () => performCancel('Other') },
+      { text: 'Go Back', style: 'cancel' },
     ]);
   };
 
@@ -368,6 +372,30 @@ export default function TrackingScreen({ route, navigation }: any) {
   const passengerInfo = rideData?.user || rideData?.User;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const paymentInfo = PAYMENT_LABELS[paymentMethod] || PAYMENT_LABELS.cash;
+
+  const isActiveRide = ['accepted', 'driver_arrived', 'picked_up', 'in_progress'].includes(status);
+
+  const handleSOS = () => {
+    const lat = pickupLat || 0;
+    const lng = pickupLng || 0;
+    Alert.alert(
+      'Emergency SOS',
+      'Choose an emergency action:',
+      [
+        { text: 'Call Emergency (911)', style: 'destructive', onPress: () => Linking.openURL('tel:911') },
+        { text: 'Call OMJI Support', onPress: () => Linking.openURL('tel:09123456789') },
+        {
+          text: 'Share Live Location',
+          onPress: async () => {
+            try {
+              await Share.share({ message: `I need help! My current location: https://maps.google.com/?q=${lat},${lng}` });
+            } catch (_) {}
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  };
 
   const driverLat = driverInfo?.current_latitude ?? driverInfo?.latitude ?? 0;
   const driverLng = driverInfo?.current_longitude ?? driverInfo?.longitude ?? 0;
@@ -524,6 +552,11 @@ export default function TrackingScreen({ route, navigation }: any) {
           <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
         </TouchableOpacity>
         <View style={styles.topBarRight}>
+          {isActiveRide && (
+            <TouchableOpacity style={styles.sosButton} onPress={handleSOS} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Emergency SOS" accessibilityRole="button">
+              <Ionicons name="shield" size={moderateScale(20)} color={COLORS.white} />
+            </TouchableOpacity>
+          )}
           {status !== 'completed' && status !== 'cancelled' && (
             <TouchableOpacity style={styles.topBarButton} onPress={handleShareTrip} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Share trip" accessibilityRole="button">
               <Ionicons name="share-outline" size={moderateScale(20)} color={COLORS.gray800} />
@@ -1279,6 +1312,15 @@ const styles = StyleSheet.create({
     height: moderateScale(42),
     borderRadius: moderateScale(21),
     backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.md,
+  },
+  sosButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    backgroundColor: COLORS.error,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.md,

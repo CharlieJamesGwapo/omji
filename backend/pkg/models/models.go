@@ -112,6 +112,7 @@ type Ride struct {
 	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
 	ScheduledAt         *time.Time `json:"scheduled_at,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
+	CancellationReason  string     `json:"cancellation_reason,omitempty"`
 	CompletedAt         *time.Time `json:"completed_at,omitempty"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
@@ -167,6 +168,7 @@ type Delivery struct {
 	ScheduledAt         *time.Time `json:"scheduled_at,omitempty"`
 	UserRating          *float64  `json:"user_rating,omitempty"`
 	DriverRating        *float64  `json:"driver_rating,omitempty"`
+	CancellationReason  string     `json:"cancellation_reason,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CompletedAt         *time.Time `json:"completed_at,omitempty"`
 	CreatedAt           time.Time `json:"created_at"`

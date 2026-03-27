@@ -703,6 +703,10 @@ func GetRideDetails(db *gorm.DB) gin.HandlerFunc {
 func CancelRide(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		var input struct {
+			Reason string `json:"reason"`
+		}
+		c.ShouldBindJSON(&input)
 		var ride models.Ride
 		if err := db.Where("id = ? AND user_id = ?", c.Param("id"), userID).First(&ride).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ride not found"})
@@ -713,7 +717,11 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		freeDriver(db, ride.DriverID)
-		if err := db.Model(&ride).Update("status", "cancelled").Error; err != nil {
+		updates := map[string]interface{}{"status": "cancelled"}
+		if input.Reason != "" {
+			updates["cancellation_reason"] = input.Reason
+		}
+		if err := db.Model(&ride).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel ride"})
 			return
 		}
@@ -1186,13 +1194,21 @@ func GetDeliveryDetails(db *gorm.DB) gin.HandlerFunc {
 func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		var input struct {
+			Reason string `json:"reason"`
+		}
+		c.ShouldBindJSON(&input)
 		var d models.Delivery
 		if err := db.Where("id = ? AND user_id = ? AND status IN ?", c.Param("id"), userID, []string{"pending", "accepted", "driver_arrived"}).First(&d).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivery not found or cannot cancel"})
 			return
 		}
 		freeDriver(db, d.DriverID)
-		if err := db.Model(&d).Update("status", "cancelled").Error; err != nil {
+		updates := map[string]interface{}{"status": "cancelled"}
+		if input.Reason != "" {
+			updates["cancellation_reason"] = input.Reason
+		}
+		if err := db.Model(&d).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel delivery"})
 			return
 		}

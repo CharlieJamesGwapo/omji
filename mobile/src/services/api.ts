@@ -92,7 +92,7 @@ export const rideService = {
     api.get('/rides/nearby-drivers', { params }),
   getActiveRides: () => api.get('/rides/active'),
   getRideDetails: (id: number) => api.get(`/rides/${id}`),
-  cancelRide: (id: number) => api.put(`/rides/${id}/cancel`),
+  cancelRide: (id: number, reason?: string) => api.put(`/rides/${id}/cancel`, reason ? { reason } : undefined),
   rateRide: (id: number, rating: number, review: string) =>
     api.post(`/rides/${id}/rate`, { rating, review }),
   ratePassenger: (id: number, rating: number, comment?: string) =>
@@ -132,7 +132,7 @@ export const deliveryService = {
   },
   getActiveDeliveries: () => api.get('/deliveries/active'),
   getDeliveryDetails: (id: number) => api.get(`/deliveries/${id}`),
-  cancelDelivery: (id: number) => api.put(`/deliveries/${id}/cancel`),
+  cancelDelivery: (id: number, reason?: string) => api.put(`/deliveries/${id}/cancel`, reason ? { reason } : undefined),
   rateDelivery: (id: number, rating: number) =>
     api.post(`/deliveries/${id}/rate`, { rating }),
   rateDeliveryPassenger: (id: number, rating: number, comment?: string) =>

@@ -136,9 +136,9 @@ export default function PasugoScreen({ navigation }: any) {
   }, [navigation]);
 
   const sizeOptions = [
-    { id: 'small' as const, label: 'Small', desc: 'Documents, envelope', icon: 'document-text', weight: 1 },
-    { id: 'medium' as const, label: 'Medium', desc: 'Box, bag', icon: 'cube', weight: 5 },
-    { id: 'large' as const, label: 'Large', desc: 'Large parcel', icon: 'cube-outline', weight: 15 },
+    { id: 'small' as const, label: 'Small', desc: 'Documents, envelope', icon: 'document-text', weight: 1, surcharge: 0 },
+    { id: 'medium' as const, label: 'Medium', desc: 'Box, bag', icon: 'cube', weight: 5, surcharge: 20 },
+    { id: 'large' as const, label: 'Large', desc: 'Large parcel', icon: 'cube-outline', weight: 15, surcharge: 50 },
   ];
 
   const pickImage = async () => {
@@ -168,7 +168,8 @@ export default function PasugoScreen({ navigation }: any) {
   };
 
   const { distance, duration: roadDuration } = useRoadDistance(pickupLocation, dropoffLocation);
-  const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate) * 100) / 100 : 0;
+  const sizeSurcharge = sizeOptions.find(s => s.id === itemSize)?.surcharge ?? 0;
+  const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate + sizeSurcharge) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
 
   // Calculate estimated delivery time from road duration
@@ -188,7 +189,7 @@ export default function PasugoScreen({ navigation }: any) {
       setPromoDiscount(0);
       setPromoApplied(false);
     }
-  }, [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude]);
+  }, [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude, itemSize]);
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -288,7 +289,7 @@ export default function PasugoScreen({ navigation }: any) {
 
     Alert.alert(
       'Confirm Delivery',
-      `Item: ${itemDescription}\nSize: ${itemSize}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\n${recipientName ? `Recipient: ${recipientName}\n` : ''}Distance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}\nPayment: ${paymentMethod.toUpperCase()}`,
+      `Item: ${itemDescription}\nSize: ${itemSize}${sizeSurcharge > 0 ? ` (+₱${sizeSurcharge})` : ''}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\n${recipientName ? `Recipient: ${recipientName}\n` : ''}Distance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}${promoDiscount > 0 ? ` (₱${promoDiscount.toFixed(0)} off)` : ''}\nPayment: ${paymentMethod.toUpperCase()}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -460,6 +461,9 @@ export default function PasugoScreen({ navigation }: any) {
                 <Ionicons name={opt.icon as any} size={24} color={itemSize === opt.id ? '#DC2626' : '#6B7280'} />
                 <Text style={[styles.sizeName, itemSize === opt.id && { color: '#DC2626' }]}>{opt.label}</Text>
                 <Text style={styles.sizeDesc}>{opt.desc}</Text>
+                <Text style={[styles.sizeSurcharge, itemSize === opt.id && { color: '#DC2626' }]}>
+                  {opt.surcharge > 0 ? `+₱${opt.surcharge}` : 'Free'}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -543,24 +547,31 @@ export default function PasugoScreen({ navigation }: any) {
 
         {/* Price Breakdown */}
         <View style={styles.priceCard}>
+          <Text style={styles.priceCardTitle}>Fare Estimate</Text>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Base Fare</Text>
             <Text style={styles.priceValue}>₱{baseFare}</Text>
           </View>
           {distance > 0 && (
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱{perKmRate})</Text>
+              <Text style={styles.priceLabel}>Distance ({distance.toFixed(1)} km x ₱{perKmRate}/km)</Text>
               <Text style={styles.priceValue}>₱{(distance * perKmRate).toFixed(0)}</Text>
+            </View>
+          )}
+          {sizeSurcharge > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Size Surcharge ({itemSize})</Text>
+              <Text style={styles.priceValue}>+₱{sizeSurcharge}</Text>
             </View>
           )}
           {promoDiscount > 0 && (
             <View style={styles.priceRow}>
-              <Text style={[styles.priceLabel, { color: '#DC2626' }]}>Promo Discount</Text>
-              <Text style={[styles.priceValue, { color: '#DC2626' }]}>-₱{promoDiscount.toFixed(0)}</Text>
+              <Text style={[styles.priceLabel, { color: '#16A34A' }]}>Promo Discount</Text>
+              <Text style={[styles.priceValue, { color: '#16A34A' }]}>-₱{promoDiscount.toFixed(0)}</Text>
             </View>
           )}
           <View style={styles.priceDivider} />
-          <View style={styles.priceRow}>
+          <View style={[styles.priceRow, { marginBottom: 0 }]}>
             <Text style={styles.priceTotalLabel}>Total</Text>
             <Text style={styles.priceTotalValue}>{estimatedFare > 0 ? `₱${estimatedFare.toFixed(0)}` : 'Select locations'}</Text>
           </View>
@@ -661,11 +672,13 @@ const styles = StyleSheet.create({
   sizeCardActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
   sizeName: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#374151', marginTop: verticalScale(6) },
   sizeDesc: { fontSize: fontScale(11), color: '#9CA3AF', marginTop: verticalScale(2), textAlign: 'center' },
+  sizeSurcharge: { fontSize: fontScale(10), color: '#6B7280', marginTop: verticalScale(2), fontWeight: '500' },
   photoButton: { borderRadius: RESPONSIVE.borderRadius.medium, overflow: 'hidden', borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: moderateScale(32), backgroundColor: '#F9FAFB' },
   photoText: { marginTop: verticalScale(8), fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
   photoPreview: { width: '100%', height: verticalScale(160), resizeMode: 'cover' },
   priceCard: { backgroundColor: '#ffffff', marginHorizontal: RESPONSIVE.marginHorizontal, marginTop: verticalScale(14), borderRadius: moderateScale(14), padding: moderateScale(16), borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  priceCardTitle: { fontSize: RESPONSIVE.fontSize.medium, fontWeight: '700', color: '#374151', marginBottom: verticalScale(10) },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: verticalScale(6) },
   priceLabel: { fontSize: RESPONSIVE.fontSize.medium, color: '#6B7280' },
   priceValue: { fontSize: RESPONSIVE.fontSize.medium, color: '#1F2937', fontWeight: '600' },
