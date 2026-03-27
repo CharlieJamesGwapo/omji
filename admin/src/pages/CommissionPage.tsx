@@ -70,8 +70,8 @@ const CommissionPage: React.FC = () => {
       setConfig(configRes.data?.data || null);
       setSummary(summaryRes.data?.data || null);
       const recordsData = recordsRes.data?.data;
-      setRecords(recordsData?.records || []);
-      setTotal(recordsData?.total || 0);
+      setRecords(Array.isArray(recordsData) ? recordsData : recordsData?.records || []);
+      setTotal(Array.isArray(recordsData) ? recordsData.length : recordsData?.total || 0);
     } catch {
       toast.error('Failed to load maintenance rate data');
     } finally {

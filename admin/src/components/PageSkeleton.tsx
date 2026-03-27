@@ -29,13 +29,16 @@ const PageSkeleton: React.FC<PageSkeletonProps> = ({
       </div>
 
       {/* Stat cards */}
-      {statCards > 0 && (
-        <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-${Math.min(statCards, 5)} gap-3 sm:gap-4`}>
+      {statCards > 0 && (() => {
+        const gridCols = statCards >= 5 ? 'lg:grid-cols-5' : statCards >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3';
+        return (
+        <div className={`grid grid-cols-2 sm:grid-cols-3 ${gridCols} gap-3 sm:gap-4`}>
           {Array.from({ length: statCards }, (_, i) => (
             <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-xl" />
           ))}
         </div>
-      )}
+        );
+      })()}
 
       {/* Filter buttons */}
       {filterButtons > 0 && (

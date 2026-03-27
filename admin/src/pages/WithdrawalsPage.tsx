@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
@@ -18,6 +18,7 @@ const WithdrawalsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [actionNote, setActionNote] = useState('');
+  const actionNoteRef = useRef('');
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -51,6 +52,7 @@ const WithdrawalsPage: React.FC = () => {
     const labels: Record<string, string> = { approved: 'Approve', rejected: 'Reject', completed: 'Mark Completed' };
     const variants: Record<string, 'default' | 'danger' | 'warning'> = { approved: 'default', rejected: 'danger', completed: 'warning' };
     setActionNote('');
+    actionNoteRef.current = '';
     setConfirmDialog({
       open: true,
       title: `${labels[status]} Withdrawal #${id}`,
@@ -60,8 +62,9 @@ const WithdrawalsPage: React.FC = () => {
         setConfirmDialog(prev => ({ ...prev, open: false }));
         setUpdatingId(id);
         try {
-          await adminService.updateWithdrawal(id, { status, note: actionNote || undefined });
-          setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status, note: actionNote || w.note } : w));
+          const note = actionNoteRef.current;
+          await adminService.updateWithdrawal(id, { status, note: note || undefined });
+          setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status, note: note || w.note } : w));
           toast.success(`Withdrawal #${id} ${formatStatus(status).toLowerCase()}`);
         } catch (err) {
           toast.error(getErrorMessage(err, `Failed to ${labels[status].toLowerCase()} withdrawal`));
@@ -70,7 +73,7 @@ const WithdrawalsPage: React.FC = () => {
         }
       },
     });
-  }, [actionNote]);
+  }, []);
 
   const filtered = useMemo(() => withdrawals.filter((w) => {
     const driverName = (w.Driver?.User?.name || '').toLowerCase();
@@ -388,7 +391,7 @@ const WithdrawalsPage: React.FC = () => {
               <label className="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
               <textarea
                 value={actionNote}
-                onChange={(e) => setActionNote(e.target.value)}
+                onChange={(e) => { setActionNote(e.target.value); actionNoteRef.current = e.target.value; }}
                 placeholder="Add a note..."
                 rows={2}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"

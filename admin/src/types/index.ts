@@ -126,7 +126,7 @@ export interface Store {
   total_ratings: number;
   latitude: number;
   longitude: number;
-  opening_hours: string;
+  opening_hours?: string;
   phone: string;
   created_at: string;
   updated_at: string;
@@ -136,9 +136,9 @@ export interface MenuItem {
   id: number;
   store_id: number;
   name: string;
-  description: string;
+  description?: string;
   price: number;
-  image_url: string;
+  image_url?: string;
   category: string;
   is_available: boolean;
   created_at: string;
@@ -213,9 +213,10 @@ export interface ActivityLog {
   type: string;
   action: string;
   description: string;
+  details: string;
   status: string;
   user_name: string;
-  driver_name: string;
+  user_email: string;
   amount: number;
   created_at: string;
 }
@@ -240,7 +241,7 @@ export interface WithdrawalRequest {
   account_number: string;
   account_name: string;
   status: string;
-  note: string;
+  note?: string;
   created_at: string;
   updated_at: string;
   Driver?: { id: number; user_id: number; User?: { name: string; phone: string } };

@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface EmptyStateProps {
-  icon?: string;
   title: string;
   description?: string;
   action?: { label: string; onClick: () => void };

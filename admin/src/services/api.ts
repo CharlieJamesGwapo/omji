@@ -72,6 +72,10 @@ API.interceptors.response.use(
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');
       window.location.href = '/login';
+    } else if (!error.response) {
+      console.error('Network error:', error.message);
+    } else if (error.response.status >= 500) {
+      console.error('Server error:', error.response.status);
     }
     return Promise.reject(error);
   }
@@ -169,6 +173,13 @@ export const adminService = {
   refreshRides: () => freshGet('/admin/rides'),
   refreshDeliveries: () => freshGet('/admin/deliveries'),
   refreshOrders: () => freshGet('/admin/orders'),
+  refreshStores: () => freshGet('/admin/stores'),
+  refreshPromos: () => freshGet('/admin/promos'),
+  refreshRates: () => freshGet('/admin/rates'),
+  refreshPaymentConfigs: () => freshGet('/admin/payment-configs'),
+  refreshWithdrawals: () => freshGet('/admin/withdrawals'),
+  refreshAnnouncements: () => freshGet('/announcements'),
+  refreshReferrals: () => freshGet('/admin/referrals'),
   refreshDashboard: () => {
     // Actually fetch fresh data for all dashboard endpoints
     return Promise.all([

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
@@ -31,6 +31,11 @@ const DriversPage: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+
+  const handleImageError = useCallback((src: string) => {
+    setFailedImages(prev => new Set(prev).add(src));
+  }, []);
 
   // Confirm dialog
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
@@ -443,8 +448,8 @@ const DriversPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       {(() => {
                         const docs = getDocuments(driver);
-                        return docs.profile_photo ? (
-                          <img src={docs.profile_photo} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.insertAdjacentHTML('afterbegin', '<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs font-bold">' + (driver.User?.name?.[0] || 'D') + '</div>'); }} />
+                        return docs.profile_photo && !failedImages.has(docs.profile_photo) ? (
+                          <img src={docs.profile_photo} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" onError={() => handleImageError(docs.profile_photo!)} />
                         ) : (
                           <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center font-bold flex-shrink-0">
                             {(driver.User?.name || 'D').charAt(0).toUpperCase()}
@@ -607,8 +612,8 @@ const DriversPage: React.FC = () => {
             <div className="flex items-center gap-3 sm:gap-4 -mt-2">
               {(() => {
                 const docs = getDocuments(selectedDriver);
-                return docs.profile_photo ? (
-                  <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                return docs.profile_photo && !failedImages.has(docs.profile_photo) ? (
+                  <img src={docs.profile_photo} alt="Profile" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" onError={() => handleImageError(docs.profile_photo!)} />
                 ) : (
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-xl sm:text-2xl font-bold flex-shrink-0">
                     {(selectedDriver.User?.name || 'D').charAt(0).toUpperCase()}
@@ -724,21 +729,18 @@ const DriversPage: React.FC = () => {
                             className="w-full cursor-pointer hover:opacity-90 transition-opacity relative group"
                             aria-label={`View ${DOC_LABELS[docKey]}`}
                           >
-                            <img
-                              src={url}
-                              alt={DOC_LABELS[docKey]}
-                              className="w-full h-40 object-cover"
-                              onError={(e) => {
-                                const img = e.target as HTMLImageElement;
-                                const parent = img.parentElement;
-                                if (parent) {
-                                  const fallback = document.createElement('div');
-                                  fallback.className = 'h-40 flex items-center justify-center text-gray-400 text-sm';
-                                  fallback.textContent = 'Failed to load image';
-                                  parent.replaceChildren(fallback);
-                                }
-                              }}
-                            />
+                            {failedImages.has(url) ? (
+                              <div className="h-40 flex items-center justify-center text-gray-400 text-sm">
+                                Failed to load image
+                              </div>
+                            ) : (
+                              <img
+                                src={url}
+                                alt={DOC_LABELS[docKey]}
+                                className="w-full h-40 object-cover"
+                                onError={() => handleImageError(url)}
+                              />
+                            )}
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
                               <div className="bg-white bg-opacity-90 rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium text-gray-700">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

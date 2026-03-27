@@ -276,13 +276,13 @@ const PaymentConfigsPage: React.FC = () => {
       {/* Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setForm(EMPTY_FORM); setEditId(null); setModalOpen(false); }}
         title={`${editId ? 'Edit' : 'Configure'} ${THEME[form.type]?.label || form.type} Payment`}
         size="lg"
         footer={
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => setModalOpen(false)}
+              onClick={() => { setForm(EMPTY_FORM); setEditId(null); setModalOpen(false); }}
               className="px-5 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
