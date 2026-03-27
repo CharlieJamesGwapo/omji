@@ -252,7 +252,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Pasugo: undefined;
   Pasabay: undefined;
-  Pasundo: undefined;
+  Pasundo: undefined | { dropoff?: { address: string; latitude: number; longitude: number } };
   StoreDetail: { storeId: number; storeName?: string };
   Cart: { storeId: number; storeName: string; items: any[] };
   Tracking: {

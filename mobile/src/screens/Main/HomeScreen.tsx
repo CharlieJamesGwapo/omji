@@ -19,7 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
-import { rideService, deliveryService, notificationService, storeService } from '../../services/api';
+import { rideService, deliveryService, notificationService, storeService, userService } from '../../services/api';
+import type { SavedAddress, Ride } from '../../types';
 import Toast, { ToastType } from '../../components/Toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -43,6 +44,8 @@ export default function HomeScreen({ navigation }: any) {
   const [featuredStores, setFeaturedStores] = useState<any[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [recentTrips, setRecentTrips] = useState<Ride[]>([]);
   const carouselScrollRef = useRef<FlatList>(null);
   const carouselIndex = useRef(0);
   const lastFetchRef = useRef<number>(0);
@@ -118,6 +121,31 @@ export default function HomeScreen({ navigation }: any) {
       // Non-critical
     } finally {
       setStoresLoading(false);
+    }
+
+    // Fetch saved addresses
+    try {
+      const addrRes = await userService.getSavedAddresses();
+      const addrData = addrRes?.data?.data;
+      if (Array.isArray(addrData)) {
+        setSavedAddresses(addrData);
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // Fetch recent trips (ride history, take last 3 completed)
+    try {
+      const histRes = await rideService.getRideHistory();
+      const histData = histRes?.data?.data;
+      if (Array.isArray(histData)) {
+        const completed = histData
+          .filter((r: Ride) => r.status === 'completed')
+          .slice(0, 3);
+        setRecentTrips(completed);
+      }
+    } catch {
+      // Non-critical
     }
   }, [fetchUnreadCount]);
 
@@ -474,6 +502,93 @@ export default function HomeScreen({ navigation }: any) {
             ))}
           </View>
         </View>
+
+        {/* Quick Book - Saved Addresses */}
+        {savedAddresses.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick Book</Text>
+              <Text style={styles.sectionSubtitle}>Your saved addresses</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.savedAddressesList}
+            >
+              {savedAddresses.map((addr) => {
+                const iconName = addr.label === 'Home' ? 'home' : addr.label === 'Work' ? 'briefcase' : 'location';
+                return (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={styles.savedAddressCard}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('Pasundo', {
+                      dropoff: {
+                        address: addr.address,
+                        latitude: addr.latitude,
+                        longitude: addr.longitude,
+                      },
+                    })}
+                    accessibilityLabel={`Book ride to ${addr.label}: ${addr.address}`}
+                    accessibilityRole="button"
+                  >
+                    <View style={styles.savedAddressIconWrap}>
+                      <Ionicons name={iconName} size={moderateScale(20)} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.savedAddressInfo}>
+                      <Text style={styles.savedAddressLabel} numberOfLines={1}>{addr.label}</Text>
+                      <Text style={styles.savedAddressText} numberOfLines={2}>{addr.address}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Recent Trips */}
+        {recentTrips.length > 0 && (
+          <View style={styles.section}>
+            <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+              <View>
+                <Text style={styles.sectionTitle}>Recent Trips</Text>
+                <Text style={styles.sectionSubtitle}>Your last completed rides</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('RideHistory')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ minHeight: 44, justifyContent: 'center' }}
+                accessibilityLabel="View all ride history"
+                accessibilityRole="button"
+              >
+                <Text style={styles.recentTripsViewAll}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            {recentTrips.map((trip) => {
+              const date = trip.completed_at || trip.created_at;
+              const formattedDate = date
+                ? new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+                : '';
+              return (
+                <View key={trip.id} style={styles.recentTripCard}>
+                  <View style={styles.recentTripIconWrap}>
+                    <Ionicons name="car-outline" size={moderateScale(18)} color={COLORS.accent} />
+                  </View>
+                  <View style={styles.recentTripInfo}>
+                    <Text style={styles.recentTripRoute} numberOfLines={1}>
+                      {(trip.pickup_location || '').split(',')[0]} → {(trip.dropoff_location || '').split(',')[0]}
+                    </Text>
+                    <Text style={styles.recentTripMeta}>
+                      {formattedDate}{trip.final_fare != null || trip.estimated_fare != null ? ` · ₱${(trip.final_fare ?? trip.estimated_fare ?? 0).toFixed(0)}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Promo Banner */}
         <TouchableOpacity
@@ -985,6 +1100,86 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     color: '#047857',
     marginTop: verticalScale(1),
+  },
+
+  // --- Saved Addresses (Quick Book) ---
+  savedAddressesList: {
+    paddingRight: moderateScale(4),
+  },
+  savedAddressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(14),
+    marginRight: moderateScale(12),
+    width: moderateScale(240),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.sm,
+  },
+  savedAddressIconWrap: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(10),
+  },
+  savedAddressInfo: {
+    flex: 1,
+    marginRight: moderateScale(6),
+  },
+  savedAddressLabel: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600',
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
+  },
+  savedAddressText: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    lineHeight: moderateScale(18),
+  },
+
+  // --- Recent Trips ---
+  recentTripsViewAll: {
+    fontSize: RESPONSIVE.fontSize.small,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  recentTripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    padding: moderateScale(14),
+    marginBottom: verticalScale(8),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  recentTripIconWrap: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    backgroundColor: COLORS.accentBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
+  },
+  recentTripInfo: {
+    flex: 1,
+  },
+  recentTripRoute: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600',
+    color: COLORS.gray900,
+    marginBottom: verticalScale(2),
+  },
+  recentTripMeta: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
   },
 
   // --- Location Tag ---

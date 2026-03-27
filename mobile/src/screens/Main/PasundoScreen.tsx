@@ -21,7 +21,8 @@ import Toast, { ToastType } from '../../components/Toast';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import { useRoadDistance } from '../../hooks/useDistance';
 
-export default function PasundoScreen({ navigation }: any) {
+export default function PasundoScreen({ navigation, route }: any) {
+  const initialDropoff = route?.params?.dropoff;
   const [showPickupMap, setShowPickupMap] = useState(false);
   const [showDropoffMap, setShowDropoffMap] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(true);
@@ -33,9 +34,9 @@ export default function PasundoScreen({ navigation }: any) {
   });
 
   const [dropoffLocation, setDropoffLocation] = useState({
-    address: '',
-    latitude: 0,
-    longitude: 0,
+    address: initialDropoff?.address || '',
+    latitude: initialDropoff?.latitude || 0,
+    longitude: initialDropoff?.longitude || 0,
   });
 
   useEffect(() => {
@@ -85,10 +86,61 @@ export default function PasundoScreen({ navigation }: any) {
   const [promoApplied, setPromoApplied] = useState(false);
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(true);
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now');
+  const [scheduleDateIndex, setScheduleDateIndex] = useState(0);
+  const [scheduleHour, setScheduleHour] = useState<number | null>(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const lastFetchRef = useRef<number>(0);
+
+  // Schedule date options: today, tomorrow, day after tomorrow
+  const getScheduleDates = () => {
+    const now = new Date();
+    const dates = [];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      dates.push({ label, date: d });
+    }
+    return dates;
+  };
+
+  // Schedule time slots: hourly from now+1h to 10 PM
+  const getScheduleTimeSlots = () => {
+    const now = new Date();
+    const isToday = scheduleDateIndex === 0;
+    const startHour = isToday ? now.getHours() + 2 : 6; // at least 2 hours from now if today, else 6 AM
+    const endHour = 22; // 10 PM
+    const slots: number[] = [];
+    for (let h = startHour; h <= endHour; h++) {
+      slots.push(h);
+    }
+    return slots;
+  };
+
+  const formatHour = (h: number) => {
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:00 ${suffix}`;
+  };
+
+  const getScheduledAtISO = (): string | null => {
+    if (scheduleMode !== 'schedule' || scheduleHour === null) return null;
+    const dates = getScheduleDates();
+    const selectedDate = dates[scheduleDateIndex]?.date;
+    if (!selectedDate) return null;
+    const scheduled = new Date(selectedDate);
+    scheduled.setHours(scheduleHour, 0, 0, 0);
+    return scheduled.toISOString();
+  };
+
+  const getScheduleLabel = (): string => {
+    if (scheduleMode !== 'schedule' || scheduleHour === null) return '';
+    const dates = getScheduleDates();
+    return `${dates[scheduleDateIndex]?.label} at ${formatHour(scheduleHour)}`;
+  };
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -279,6 +331,12 @@ export default function PasundoScreen({ navigation }: any) {
       return;
     }
 
+    // Validate schedule selection
+    if (scheduleMode === 'schedule' && scheduleHour === null) {
+      showToast('Please select a time for your scheduled ride.', 'warning');
+      return;
+    }
+
     // Check wallet balance if paying with wallet
     if (paymentMethod === 'wallet') {
       try {
@@ -295,14 +353,16 @@ export default function PasundoScreen({ navigation }: any) {
     }
 
     const pickupLabel = buildPickupLabel();
+    const scheduledAtISO = getScheduledAtISO();
+    const scheduleInfo = scheduleMode === 'schedule' ? `\nScheduled: ${getScheduleLabel()}` : '';
 
     Alert.alert(
-      'Confirm Pickup',
-      `${pickupType === 'person' ? `Person: ${personName}\n` : `Type: ${pickupType}\n`}Vehicle: ${selectedVehicle.name}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nDistance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}\nPayment: ${paymentMethod.toUpperCase()}`,
+      scheduleMode === 'schedule' ? 'Confirm Scheduled Pickup' : 'Confirm Pickup',
+      `${pickupType === 'person' ? `Person: ${personName}\n` : `Type: ${pickupType}\n`}Vehicle: ${selectedVehicle.name}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nDistance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}\nPayment: ${paymentMethod.toUpperCase()}${scheduleInfo}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Find Rider',
+          text: scheduleMode === 'schedule' ? 'Schedule Ride' : 'Find Rider',
           onPress: () => {
             navigation.navigate('RiderSelection', {
               bookingData: {
@@ -316,6 +376,7 @@ export default function PasundoScreen({ navigation }: any) {
                 payment_method: paymentMethod,
                 estimated_fare: estimatedFare,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
+                ...(scheduledAtISO ? { scheduled_at: scheduledAtISO } : {}),
               },
             });
           },
@@ -434,6 +495,67 @@ export default function PasundoScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Schedule Ride */}
+        <View style={styles.section}>
+          <Text style={styles.label}>When?</Text>
+          <View style={{ flexDirection: 'row', gap: moderateScale(8) }}>
+            <TouchableOpacity
+              style={[styles.scheduleChip, scheduleMode === 'now' && styles.scheduleChipActive]}
+              onPress={() => { setScheduleMode('now'); setScheduleHour(null); }}
+              accessibilityLabel="Book now"
+              accessibilityRole="button"
+            >
+              <Ionicons name="flash" size={16} color={scheduleMode === 'now' ? '#ffffff' : '#6B7280'} />
+              <Text style={[styles.scheduleChipText, scheduleMode === 'now' && styles.scheduleChipTextActive]}>Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.scheduleChip, scheduleMode === 'schedule' && styles.scheduleChipActive]}
+              onPress={() => setScheduleMode('schedule')}
+              accessibilityLabel="Schedule for later"
+              accessibilityRole="button"
+            >
+              <Ionicons name="calendar" size={16} color={scheduleMode === 'schedule' ? '#ffffff' : '#6B7280'} />
+              <Text style={[styles.scheduleChipText, scheduleMode === 'schedule' && styles.scheduleChipTextActive]}>Schedule</Text>
+            </TouchableOpacity>
+          </View>
+          {scheduleMode === 'schedule' && (
+            <View style={{ marginTop: verticalScale(10) }}>
+              <Text style={[styles.label, { fontSize: RESPONSIVE.fontSize.small, marginBottom: verticalScale(6) }]}>Date</Text>
+              <View style={{ flexDirection: 'row', gap: moderateScale(8) }}>
+                {getScheduleDates().map((d, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={[styles.scheduleChip, scheduleDateIndex === i && styles.scheduleChipActive, { flex: 1 }]}
+                    onPress={() => { setScheduleDateIndex(i); setScheduleHour(null); }}
+                    accessibilityLabel={d.label}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.scheduleChipText, scheduleDateIndex === i && styles.scheduleChipTextActive]}>{d.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.label, { fontSize: RESPONSIVE.fontSize.small, marginTop: verticalScale(10), marginBottom: verticalScale(6) }]}>Time</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: moderateScale(-4) }}>
+                <View style={{ flexDirection: 'row', gap: moderateScale(8), paddingHorizontal: moderateScale(4) }}>
+                  {getScheduleTimeSlots().length > 0 ? getScheduleTimeSlots().map((h) => (
+                    <TouchableOpacity
+                      key={h}
+                      style={[styles.scheduleChip, scheduleHour === h && styles.scheduleChipActive, { paddingHorizontal: moderateScale(14) }]}
+                      onPress={() => setScheduleHour(h)}
+                      accessibilityLabel={formatHour(h)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.scheduleChipText, scheduleHour === h && styles.scheduleChipTextActive]}>{formatHour(h)}</Text>
+                    </TouchableOpacity>
+                  )) : (
+                    <Text style={{ color: '#9CA3AF', fontSize: RESPONSIVE.fontSize.small, paddingVertical: verticalScale(8) }}>No time slots available today. Try tomorrow.</Text>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+        </View>
+
         {/* Vehicle Type */}
         <View style={styles.section}>
           <Text style={styles.label}>Vehicle Type</Text>
@@ -550,9 +672,24 @@ export default function PasundoScreen({ navigation }: any) {
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#DC2626" />
           <Text style={styles.infoText}>
-            Nearby riders will be notified when you book
+            {scheduleMode === 'schedule'
+              ? 'Your ride will be queued and matched with a rider when the scheduled time arrives.'
+              : 'Nearby riders will be notified when you book'}
           </Text>
         </View>
+
+        {/* Schedule Summary */}
+        {scheduleMode === 'schedule' && scheduleHour !== null && (
+          <View style={[styles.etaCard, { borderColor: '#DC2626' }]}>
+            <View style={styles.etaIconContainer}>
+              <Ionicons name="calendar" size={20} color="#DC2626" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.etaLabel}>Scheduled Pickup</Text>
+              <Text style={styles.etaValue}>{getScheduleLabel()}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Book Button */}
         <TouchableOpacity
@@ -560,7 +697,7 @@ export default function PasundoScreen({ navigation }: any) {
           onPress={handleBookPickup}
           disabled={loading || !!activeRide}
           activeOpacity={0.85}
-          accessibilityLabel={`Book pickup service${estimatedFare > 0 ? `, estimated fare ${estimatedFare.toFixed(0)} pesos` : ''}`}
+          accessibilityLabel={`${scheduleMode === 'schedule' ? 'Schedule' : 'Book'} pickup service${estimatedFare > 0 ? `, estimated fare ${estimatedFare.toFixed(0)} pesos` : ''}`}
           accessibilityRole="button"
         >
           {loading ? (
@@ -568,11 +705,13 @@ export default function PasundoScreen({ navigation }: any) {
           ) : (
             <View style={styles.bookButtonContent}>
               <View>
-                <Text style={styles.bookButtonText}>Book Pickup Service</Text>
+                <Text style={styles.bookButtonText}>
+                  {scheduleMode === 'schedule' ? 'Schedule Pickup' : 'Book Pickup Service'}
+                </Text>
                 {estimatedFare > 0 && <Text style={styles.bookButtonFare}>₱{estimatedFare.toFixed(0)}</Text>}
               </View>
               <View style={styles.bookButtonArrow}>
-                <Ionicons name="arrow-forward" size={20} color="#DC2626" />
+                <Ionicons name={scheduleMode === 'schedule' ? 'calendar' : 'arrow-forward'} size={20} color="#DC2626" />
               </View>
             </View>
           )}
@@ -662,4 +801,8 @@ const styles = StyleSheet.create({
   bookButtonArrow: { width: moderateScale(40), height: moderateScale(40), borderRadius: moderateScale(20), backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: isIOS ? verticalScale(50) : verticalScale(35), paddingBottom: verticalScale(12), backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   modalTitle: { fontSize: RESPONSIVE.fontSize.large, fontWeight: 'bold', color: '#1F2937' },
+  scheduleChip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(6), backgroundColor: '#ffffff', borderRadius: RESPONSIVE.borderRadius.medium, paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(10), borderWidth: 2, borderColor: '#E5E7EB' },
+  scheduleChipActive: { borderColor: '#DC2626', backgroundColor: '#DC2626' },
+  scheduleChipText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#6B7280' },
+  scheduleChipTextActive: { color: '#ffffff' },
 });

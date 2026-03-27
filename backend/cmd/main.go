@@ -283,6 +283,9 @@ func main() {
 		admin.GET("/commission/records", handlers.AdminGetCommissionRecords(database))
 		admin.GET("/commission/summary", handlers.AdminGetCommissionSummary(database))
 
+		// Scheduled rides processing
+		admin.GET("/process-scheduled", handlers.ProcessScheduledRides(database))
+
 		// Withdrawal management
 		admin.PUT("/withdrawals/:id", handlers.AdminUpdateWithdrawal(database))
 	}

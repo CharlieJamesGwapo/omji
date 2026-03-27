@@ -395,6 +395,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			PaymentMethod    string  `json:"payment_method"`
 			EstimatedFare    float64 `json:"estimated_fare"`
 			DriverID         *uint   `json:"driver_id"`
+			ScheduledAt      string  `json:"scheduled_at"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -440,7 +441,21 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 		rideStatus := "pending"
-		if input.DriverID != nil {
+		var scheduledAt *time.Time
+		if input.ScheduledAt != "" {
+			parsed, parseErr := time.Parse(time.RFC3339, input.ScheduledAt)
+			if parseErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid scheduled_at format. Use ISO 8601 (RFC3339)."})
+				return
+			}
+			if parsed.Before(time.Now().Add(15 * time.Minute)) {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Scheduled time must be at least 15 minutes in the future."})
+				return
+			}
+			scheduledAt = &parsed
+			rideStatus = "scheduled"
+		}
+		if input.DriverID != nil && rideStatus != "scheduled" {
 			var targetDriver models.Driver
 			if err := db.Where("id = ? AND is_verified = ? AND is_available = ?", *input.DriverID, true, true).First(&targetDriver).Error; err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Selected rider is no longer available"})
@@ -452,7 +467,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			UserID: userID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: rideStatus, PromoID: promoID, PaymentMethod: input.PaymentMethod,
-			DriverID: input.DriverID,
+			DriverID: input.DriverID, ScheduledAt: scheduledAt,
 		}
 		if err := db.Create(&ride).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ride"})
@@ -647,13 +662,13 @@ func GetActiveRides(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var rides []models.Ride
-		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"pending", "accepted", "driver_arrived", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&rides).Error; err != nil {
+		if err := db.Where("user_id = ? AND status IN ?", userID, []string{"scheduled", "pending", "accepted", "driver_arrived", "in_progress"}).Preload("Driver").Preload("Driver.User").Order("created_at DESC").Find(&rides).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch active rides"})
 			return
 		}
 		results := make([]gin.H, len(rides))
 		for i, r := range rides {
-			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "created_at": r.CreatedAt}
+			result := gin.H{"id": r.ID, "status": r.Status, "pickup_location": r.PickupLocation, "pickup_latitude": r.PickupLatitude, "pickup_longitude": r.PickupLongitude, "dropoff_location": r.DropoffLocation, "dropoff_latitude": r.DropoffLatitude, "dropoff_longitude": r.DropoffLongitude, "distance": r.Distance, "estimated_fare": r.EstimatedFare, "final_fare": r.FinalFare, "vehicle_type": r.VehicleType, "payment_method": r.PaymentMethod, "scheduled_at": r.ScheduledAt, "created_at": r.CreatedAt}
 			if r.Driver != nil {
 				result["driver"] = gin.H{"id": r.Driver.ID, "user_id": r.Driver.UserID, "name": r.Driver.User.Name, "phone": r.Driver.User.Phone, "profile_image": r.Driver.User.ProfileImage, "vehicle_type": r.Driver.VehicleType, "vehicle_plate": r.Driver.VehiclePlate, "rating": r.Driver.Rating, "current_latitude": r.Driver.CurrentLatitude, "current_longitude": r.Driver.CurrentLongitude}
 			}
@@ -705,6 +720,27 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 		notifyDriver(db, ride.DriverID, "Ride Cancelled", "The passenger cancelled the ride from "+ride.PickupLocation+".", "ride_cancelled")
 		notifyUser(db, ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
+	}
+}
+
+// ProcessScheduledRides finds all rides with status "scheduled" where scheduled_at <= now
+// and updates their status to "pending" so they enter the normal ride flow.
+// Called periodically via GET /admin/process-scheduled.
+func ProcessScheduledRides(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+		result := db.Model(&models.Ride{}).
+			Where("status = ? AND scheduled_at IS NOT NULL AND scheduled_at <= ?", "scheduled", now).
+			Update("status", "pending")
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to process scheduled rides"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success":   true,
+			"data":      gin.H{"processed": result.RowsAffected},
+			"timestamp": time.Now(),
+		})
 	}
 }
 
@@ -3329,9 +3365,9 @@ func AdminUpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		validRideStatuses := map[string]bool{"pending": true, "accepted": true, "driver_arrived": true, "in_progress": true, "completed": true, "cancelled": true}
+		validRideStatuses := map[string]bool{"scheduled": true, "pending": true, "accepted": true, "driver_arrived": true, "in_progress": true, "completed": true, "cancelled": true}
 		if !validRideStatuses[input.Status] {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: pending, accepted, driver_arrived, in_progress, completed, cancelled"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Must be one of: scheduled, pending, accepted, driver_arrived, in_progress, completed, cancelled"})
 			return
 		}
 		// Prevent modifying terminal statuses

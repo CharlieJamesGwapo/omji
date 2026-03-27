@@ -887,6 +887,152 @@ export default function TrackingScreen({ route, navigation }: any) {
             </View>
           )}
 
+          {/* Trip Receipt Summary - shown on completion */}
+          {status === 'completed' && (
+            <View style={styles.receiptCard}>
+              {/* Receipt Header */}
+              <View style={styles.receiptHeader}>
+                <View style={styles.receiptCheckCircle}>
+                  <Ionicons name="checkmark" size={moderateScale(24)} color={COLORS.white} />
+                </View>
+                <Text style={styles.receiptTitle}>Trip Complete</Text>
+                <Text style={styles.receiptSubtitle}>
+                  {rideData?.created_at
+                    ? new Date(rideData.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                    : 'Today'}
+                </Text>
+                <Text style={styles.receiptTime}>
+                  {rideData?.created_at
+                    ? new Date(rideData.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    : ''}
+                </Text>
+              </View>
+
+              <View style={styles.receiptDashedDivider} />
+
+              {/* Route Summary */}
+              <View style={styles.receiptSection}>
+                <View style={styles.receiptRouteRow}>
+                  <View style={[styles.receiptRouteDot, { backgroundColor: COLORS.success }]} />
+                  <View style={styles.receiptRouteTextContainer}>
+                    <Text style={styles.receiptRouteLabel}>From</Text>
+                    <Text style={styles.receiptRouteText} numberOfLines={2}>{pickupLabel}</Text>
+                  </View>
+                </View>
+                <View style={styles.receiptRouteLine} />
+                <View style={styles.receiptRouteRow}>
+                  <View style={[styles.receiptRouteDot, { backgroundColor: COLORS.primary }]} />
+                  <View style={styles.receiptRouteTextContainer}>
+                    <Text style={styles.receiptRouteLabel}>To</Text>
+                    <Text style={styles.receiptRouteText} numberOfLines={2}>{dropoffLabel}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.receiptDashedDivider} />
+
+              {/* Trip Details */}
+              <View style={styles.receiptSection}>
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name="speedometer-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                  <Text style={styles.receiptDetailLabel}>Distance</Text>
+                  <Text style={styles.receiptDetailValue}>{rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}</Text>
+                </View>
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name="time-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                  <Text style={styles.receiptDetailLabel}>Duration</Text>
+                  <Text style={styles.receiptDetailValue}>
+                    {(() => {
+                      if (rideData?.created_at && rideData?.updated_at) {
+                        const mins = Math.round((new Date(rideData.updated_at).getTime() - new Date(rideData.created_at).getTime()) / 60000);
+                        if (mins < 1) return '< 1 min';
+                        if (mins < 60) return `${mins} min`;
+                        return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                      }
+                      return '--';
+                    })()}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.receiptDashedDivider} />
+
+              {/* Fare Breakdown */}
+              <View style={styles.receiptSection}>
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name="car-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                  <Text style={styles.receiptDetailLabel}>Base Fare</Text>
+                  <Text style={styles.receiptDetailValue}>
+                    {'\u20B1'}{Number((rideData?.tip ? (rideFare - Number(rideData.tip)) : rideFare) || 0).toFixed(2)}
+                  </Text>
+                </View>
+                {!!rideData?.tip && Number(rideData.tip) > 0 && (
+                  <View style={styles.receiptDetailRow}>
+                    <Ionicons name="heart-outline" size={moderateScale(16)} color={COLORS.success} />
+                    <Text style={[styles.receiptDetailLabel, { color: COLORS.success }]}>Tip</Text>
+                    <Text style={[styles.receiptDetailValue, { color: COLORS.success }]}>
+                      {'\u20B1'}{Number(rideData.tip).toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.receiptTotalDivider} />
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name="cash" size={moderateScale(18)} color={COLORS.primary} />
+                  <Text style={styles.receiptTotalLabel}>Total</Text>
+                  <Text style={styles.receiptTotalValue}>
+                    {'\u20B1'}{Number(rideFare || 0).toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.receiptDashedDivider} />
+
+              {/* Payment & Reference */}
+              <View style={styles.receiptSection}>
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name={paymentInfo.icon as any} size={moderateScale(16)} color={paymentInfo.color} />
+                  <Text style={styles.receiptDetailLabel}>Payment</Text>
+                  <Text style={[styles.receiptDetailValue, { color: paymentInfo.color, fontWeight: '700' }]}>{paymentInfo.name}</Text>
+                </View>
+                <View style={styles.receiptDetailRow}>
+                  <Ionicons name="document-text-outline" size={moderateScale(16)} color={COLORS.gray500} />
+                  <Text style={styles.receiptDetailLabel}>Reference</Text>
+                  <Text style={styles.receiptDetailValue}>#{String(rideId).slice(-8).toUpperCase()}</Text>
+                </View>
+              </View>
+
+              {/* Share Receipt Button */}
+              <TouchableOpacity
+                style={styles.shareReceiptButton}
+                activeOpacity={0.7}
+                onPress={async () => {
+                  const dateStr = rideData?.created_at
+                    ? new Date(rideData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                    : 'Today';
+                  const durationMins = (rideData?.created_at && rideData?.updated_at)
+                    ? Math.round((new Date(rideData.updated_at).getTime() - new Date(rideData.created_at).getTime()) / 60000)
+                    : 0;
+                  const durationStr = durationMins > 0
+                    ? (durationMins < 60 ? `${durationMins} min` : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`)
+                    : '--';
+                  const tipLine = (rideData?.tip && Number(rideData.tip) > 0) ? `Tip: \u20B1${Number(rideData.tip).toFixed(2)}\n` : '';
+                  try {
+                    await Share.share({
+                      message: `OMJI Trip Receipt\nDate: ${dateStr}\nFrom: ${pickupLabel}\nTo: ${dropoffLabel}\nDistance: ${rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}\nDuration: ${durationStr}\n${tipLine}Fare: \u20B1${Number(rideFare || 0).toFixed(2)}\nPayment: ${paymentInfo.name}\nRef: #${String(rideId).slice(-8).toUpperCase()}\n\nThank you for riding with OMJI!`,
+                    });
+                  } catch {
+                    // User cancelled share
+                  }
+                }}
+                accessibilityLabel="Share receipt"
+                accessibilityRole="button"
+              >
+                <Ionicons name="share-outline" size={moderateScale(18)} color={COLORS.accent} />
+                <Text style={styles.shareReceiptText}>Share Receipt</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {status === 'completed' && !isDriver && (
             <View>
               {!hasRated && !!driverInfo && (
@@ -1837,5 +1983,135 @@ const styles = StyleSheet.create({
     fontSize: RESPONSIVE.fontSize.regular,
     color: COLORS.gray400,
     fontWeight: '500',
+  },
+  // Trip Receipt
+  receiptCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    padding: moderateScale(20),
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    ...SHADOWS.md,
+  },
+  receiptHeader: {
+    alignItems: 'center' as const,
+    marginBottom: verticalScale(4),
+  },
+  receiptCheckCircle: {
+    width: moderateScale(48),
+    height: moderateScale(48),
+    borderRadius: moderateScale(24),
+    backgroundColor: COLORS.success,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: verticalScale(10),
+  },
+  receiptTitle: {
+    fontSize: RESPONSIVE.fontSize.xlarge,
+    fontWeight: '800' as const,
+    color: COLORS.gray900,
+  },
+  receiptSubtitle: {
+    fontSize: fontScale(13),
+    color: COLORS.gray500,
+    marginTop: verticalScale(2),
+  },
+  receiptTime: {
+    fontSize: fontScale(12),
+    color: COLORS.gray400,
+    marginTop: verticalScale(1),
+  },
+  receiptDashedDivider: {
+    borderStyle: 'dashed' as const,
+    borderWidth: 0,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray200,
+    marginVertical: verticalScale(12),
+  },
+  receiptSection: {
+    gap: verticalScale(8),
+  },
+  receiptRouteRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: moderateScale(10),
+  },
+  receiptRouteDot: {
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
+    marginTop: verticalScale(4),
+  },
+  receiptRouteTextContainer: {
+    flex: 1,
+  },
+  receiptRouteLabel: {
+    fontSize: fontScale(10),
+    fontWeight: '600' as const,
+    color: COLORS.gray400,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  receiptRouteText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray800,
+    fontWeight: '500' as const,
+    marginTop: verticalScale(1),
+    lineHeight: fontScale(20),
+  },
+  receiptRouteLine: {
+    width: moderateScale(1),
+    height: verticalScale(12),
+    backgroundColor: COLORS.gray300,
+    marginLeft: moderateScale(4.5),
+  },
+  receiptDetailRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: moderateScale(8),
+  },
+  receiptDetailLabel: {
+    flex: 1,
+    fontSize: RESPONSIVE.fontSize.medium,
+    color: COLORS.gray500,
+  },
+  receiptDetailValue: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600' as const,
+    color: COLORS.gray800,
+  },
+  receiptTotalDivider: {
+    height: 1,
+    backgroundColor: COLORS.gray100,
+    marginVertical: verticalScale(4),
+  },
+  receiptTotalLabel: {
+    flex: 1,
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '800' as const,
+    color: COLORS.gray900,
+  },
+  receiptTotalValue: {
+    fontSize: fontScale(22),
+    fontWeight: '800' as const,
+    color: COLORS.primary,
+  },
+  shareReceiptButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: COLORS.accentBg,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingVertical: moderateScale(12),
+    marginTop: verticalScale(12),
+    gap: moderateScale(8),
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
+  },
+  shareReceiptText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '600' as const,
+    color: COLORS.accent,
   },
 });
