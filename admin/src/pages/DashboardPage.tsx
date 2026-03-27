@@ -21,6 +21,16 @@ const DashboardPage: React.FC = () => {
     orderRevenue: 0,
     pendingDrivers: 0,
   });
+  const [extendedStats, setExtendedStats] = useState({
+    totalReferrals: 0,
+    referralBonusesPaid: 0,
+    pendingWithdrawals: 0,
+    pendingWithdrawalAmount: 0,
+    totalWithdrawn: 0,
+    scheduledRides: 0,
+    activeAnnouncements: 0,
+    totalChatMessages: 0,
+  });
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
   const [recentDrivers, setRecentDrivers] = useState<any[]>([]);
   const [monthlyRevenueData, setMonthlyRevenueData] = useState<any[]>([]);
@@ -35,18 +45,20 @@ const DashboardPage: React.FC = () => {
       await adminService.refreshDashboard();
     }
     try {
-      const [usersRes, driversRes, ridesRes, earningsRes, monthlyRevenueRes] = await Promise.all([
+      const [usersRes, driversRes, ridesRes, earningsRes, monthlyRevenueRes, extendedRes] = await Promise.all([
         adminService.getUsers().catch(() => ({ data: { data: [] } })),
         adminService.getDrivers().catch(() => ({ data: { data: [] } })),
         adminService.getRidesAnalytics().catch(() => ({ data: { data: {} } })),
         adminService.getEarningsAnalytics().catch(() => ({ data: { data: {} } })),
         adminService.getMonthlyRevenue().catch(() => ({ data: { data: [] } })),
+        adminService.getExtendedAnalytics().catch(() => ({ data: { data: {} } })),
       ]);
 
       const users = usersRes.data.data || [];
       const drivers = driversRes.data.data || [];
       const ridesData = ridesRes.data.data || {};
       const earningsData = earningsRes.data.data || {};
+      const extData = extendedRes.data.data || {};
 
       const pendingDrivers = drivers.filter((d: any) => !d.is_verified).length;
 
@@ -59,6 +71,17 @@ const DashboardPage: React.FC = () => {
         deliveryRevenue: earningsData.delivery_revenue || 0,
         orderRevenue: earningsData.order_revenue || 0,
         pendingDrivers,
+      });
+
+      setExtendedStats({
+        totalReferrals: extData.total_referrals || 0,
+        referralBonusesPaid: extData.referral_bonuses_paid || 0,
+        pendingWithdrawals: extData.pending_withdrawals || 0,
+        pendingWithdrawalAmount: extData.pending_withdrawal_amount || 0,
+        totalWithdrawn: extData.total_withdrawn || 0,
+        scheduledRides: extData.scheduled_rides || 0,
+        activeAnnouncements: extData.active_announcements || 0,
+        totalChatMessages: extData.total_chat_messages || 0,
       });
 
       setRecentUsers(Array.isArray(users) ? [...users].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5) : []);
@@ -188,6 +211,89 @@ const DashboardPage: React.FC = () => {
               <p className="text-xs font-semibold text-gray-600">{action.label}</p>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Platform Activity */}
+      <div>
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Platform Activity</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Total Referrals */}
+          <div className="bg-white rounded-xl border border-gray-100 border-l-4 border-l-indigo-500 p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Total Referrals</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1.5">{extendedStats.totalReferrals}</p>
+                <p className="text-[10px] text-gray-400 mt-1">{'\u20B1'}{extendedStats.referralBonusesPaid.toLocaleString()} bonuses</p>
+              </div>
+              <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Withdrawals */}
+          <div className="bg-white rounded-xl border border-gray-100 border-l-4 border-l-orange-500 p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Pending Withdrawals</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1.5">{extendedStats.pendingWithdrawals}</p>
+                <p className="text-[10px] text-gray-400 mt-1">{'\u20B1'}{extendedStats.pendingWithdrawalAmount.toLocaleString()} amount</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Scheduled Rides */}
+          <div className="bg-white rounded-xl border border-gray-100 border-l-4 border-l-cyan-500 p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Scheduled Rides</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1.5">{extendedStats.scheduledRides}</p>
+              </div>
+              <div className="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <svg className="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Chat Messages */}
+          <div className="bg-white rounded-xl border border-gray-100 border-l-4 border-l-pink-500 p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Today's Messages</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1.5">{extendedStats.totalChatMessages}</p>
+              </div>
+              <div className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Announcements */}
+          <div className="bg-white rounded-xl border border-gray-100 border-l-4 border-l-yellow-500 p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Announcements</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1.5">{extendedStats.activeAnnouncements}</p>
+              </div>
+              <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

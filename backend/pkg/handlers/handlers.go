@@ -2986,6 +2986,54 @@ func GetGrowthAnalytics(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// ===== EXTENDED ANALYTICS =====
+
+func AdminGetExtendedAnalytics(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var totalReferrals int64
+		db.Model(&models.Referral{}).Count(&totalReferrals)
+
+		type bonusSum struct {
+			Total float64
+		}
+		var bs bonusSum
+		db.Model(&models.Referral{}).Select("COALESCE(SUM(referrer_bonus + referred_bonus), 0) as total").Scan(&bs)
+
+		var pendingWithdrawals int64
+		db.Model(&models.WithdrawalRequest{}).Where("status = ?", "pending").Count(&pendingWithdrawals)
+
+		var pendingWithdrawalAmount float64
+		db.Model(&models.WithdrawalRequest{}).Where("status = ?", "pending").Select("COALESCE(SUM(amount), 0)").Scan(&pendingWithdrawalAmount)
+
+		var totalWithdrawn float64
+		db.Model(&models.WithdrawalRequest{}).Where("status = ?", "completed").Select("COALESCE(SUM(amount), 0)").Scan(&totalWithdrawn)
+
+		var scheduledRides int64
+		db.Model(&models.Ride{}).Where("scheduled_at IS NOT NULL AND status = ?", "scheduled").Count(&scheduledRides)
+
+		var activeAnnouncements int64
+		db.Model(&models.Announcement{}).Where("is_active = ?", true).Count(&activeAnnouncements)
+
+		todayStart := time.Now().Truncate(24 * time.Hour)
+		var todayChatMessages int64
+		db.Model(&models.ChatMessage{}).Where("created_at >= ?", todayStart).Count(&todayChatMessages)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"total_referrals":           totalReferrals,
+				"referral_bonuses_paid":     bs.Total,
+				"pending_withdrawals":       pendingWithdrawals,
+				"pending_withdrawal_amount": pendingWithdrawalAmount,
+				"total_withdrawn":           totalWithdrawn,
+				"scheduled_rides":           scheduledRides,
+				"active_announcements":      activeAnnouncements,
+				"total_chat_messages":       todayChatMessages,
+			},
+		})
+	}
+}
+
 // ===== PROMO ADMIN HANDLERS =====
 
 func GetAllPromos(db *gorm.DB) gin.HandlerFunc {
@@ -3750,6 +3798,21 @@ func GetWithdrawals(db *gorm.DB) gin.HandlerFunc {
 		}
 		var withdrawals []models.WithdrawalRequest
 		if err := db.Where("driver_id = ?", driver.ID).Order("created_at DESC").Find(&withdrawals).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch withdrawals"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawals})
+	}
+}
+
+// AdminGetWithdrawals returns all withdrawal requests with driver info for admin
+func AdminGetWithdrawals(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var withdrawals []models.WithdrawalRequest
+		if err := db.Session(&gorm.Session{SkipDefaultTransaction: true}).
+			Preload("Driver").Preload("Driver.User").
+			Order("created_at DESC").
+			Find(&withdrawals).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch withdrawals"})
 			return
 		}

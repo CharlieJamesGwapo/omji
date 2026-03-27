@@ -12,6 +12,8 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; label: st
   in_progress: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'In Progress' },
   completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
   cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
+  approved: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Approved' },
+  rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' },
   // Delivery-specific
   picked_up: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'Picked Up' },
   // Order-specific

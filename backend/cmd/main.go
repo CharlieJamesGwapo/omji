@@ -245,6 +245,7 @@ func main() {
 		admin.GET("/analytics/earnings", handlers.GetEarningsAnalytics(database))
 		admin.GET("/analytics/monthly-revenue", handlers.GetMonthlyRevenue(database))
 		admin.GET("/analytics/growth", handlers.GetGrowthAnalytics(database))
+		admin.GET("/analytics/extended", handlers.AdminGetExtendedAnalytics(database))
 
 		// Promo management
 		admin.GET("/promos", handlers.GetAllPromos(database))
@@ -294,6 +295,7 @@ func main() {
 		admin.GET("/process-scheduled", handlers.ProcessScheduledRides(database))
 
 		// Withdrawal management
+		admin.GET("/withdrawals", handlers.AdminGetWithdrawals(database))
 		admin.PUT("/withdrawals/:id", handlers.AdminUpdateWithdrawal(database))
 	}
 

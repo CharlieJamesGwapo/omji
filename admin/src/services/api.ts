@@ -161,6 +161,7 @@ export const adminService = {
   getEarningsAnalytics: () => cachedGet('/admin/analytics/earnings'),
   getMonthlyRevenue: () => cachedGet('/admin/analytics/monthly-revenue'),
   getGrowthAnalytics: () => cachedGet('/admin/analytics/growth'),
+  getExtendedAnalytics: () => cachedGet('/admin/analytics/extended'),
 
   // Fresh versions for explicit refresh
   refreshUsers: () => freshGet('/admin/users'),
@@ -176,6 +177,7 @@ export const adminService = {
       freshGet('/admin/analytics/rides'),
       freshGet('/admin/analytics/earnings'),
       freshGet('/admin/analytics/monthly-revenue'),
+      freshGet('/admin/analytics/extended'),
     ]);
   },
 
@@ -205,6 +207,12 @@ export const adminService = {
   sendNotification: (data: { title: string; message: string; type?: string; target_type: string }) =>
     API.post('/admin/notifications', data),
 
+  // Announcements
+  getAnnouncements: () => cachedGet('/announcements'),
+  createAnnouncement: (data: { title: string; message: string; type: string; expires_at?: string }) =>
+    API.post('/admin/announcements', data),
+  deleteAnnouncement: (id: number) => API.delete(`/admin/announcements/${id}`),
+
   // Rates
   getRates: () => cachedGet('/admin/rates'),
   createRate: (data: any) => API.post('/admin/rates', data),
@@ -224,6 +232,11 @@ export const adminService = {
       timeout: 30000,
     });
   },
+
+  // Withdrawals
+  getWithdrawals: () => cachedGet('/admin/withdrawals'),
+  updateWithdrawal: (id: number, data: { status: string; note?: string }) =>
+    API.put(`/admin/withdrawals/${id}`, data),
 
   // Commission
   getCommissionConfig: () => cachedGet('/admin/commission/config'),

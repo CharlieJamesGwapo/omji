@@ -369,6 +369,7 @@ type CommissionRecord struct {
 type WithdrawalRequest struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	DriverID      uint      `gorm:"index" json:"driver_id"`
+	Driver        Driver    `gorm:"foreignKey:DriverID" json:"Driver,omitempty"`
 	Amount        float64   `json:"amount"`
 	Method        string    `json:"method"` // "gcash" or "maya"
 	AccountNumber string    `json:"account_number"`

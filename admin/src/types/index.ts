@@ -197,6 +197,16 @@ export interface Notification {
   User?: { name: string; email: string };
 }
 
+export interface Announcement {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+
 export interface ActivityLog {
   id: number;
   type: string;
@@ -207,4 +217,18 @@ export interface ActivityLog {
   driver_name: string;
   amount: number;
   created_at: string;
+}
+
+export interface WithdrawalRequest {
+  id: number;
+  driver_id: number;
+  amount: number;
+  method: string;
+  account_number: string;
+  account_name: string;
+  status: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+  Driver?: { id: number; user_id: number; User?: { name: string; phone: string } };
 }
