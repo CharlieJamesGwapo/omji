@@ -240,7 +240,6 @@ export const adminService = {
     const formData = new FormData();
     formData.append('qr_image', file);
     return API.post('/admin/payment-configs/upload-qr', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });
   },

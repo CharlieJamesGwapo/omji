@@ -118,11 +118,15 @@ const PaymentConfigsPage: React.FC = () => {
       if (url) {
         setForm(prev => ({ ...prev, qr_code_url: url }));
         toast.success('QR code uploaded successfully');
+      } else {
+        toast.error('Upload succeeded but no URL returned');
       }
     } catch (err: any) {
       toast.error(getErrorMessage(err, 'Failed to upload QR code'));
     } finally {
       setUploadingQR(false);
+      // Reset file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
