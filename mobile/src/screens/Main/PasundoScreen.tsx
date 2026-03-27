@@ -213,7 +213,7 @@ export default function PasundoScreen({ navigation, route }: any) {
     setShowDropoffMap(false);
   };
 
-  const { distance, duration: roadDuration } = useRoadDistance(pickupLocation, dropoffLocation);
+  const { distance, duration: roadDuration, isRoad } = useRoadDistance(pickupLocation, dropoffLocation);
   const baseFareCalc = distance > 0
     ? Math.round((selectedVehicle.base + distance * selectedVehicle.rate) * 100) / 100
     : 0;
@@ -375,6 +375,7 @@ export default function PasundoScreen({ navigation, route }: any) {
                 vehicle_type: vehicleType,
                 payment_method: paymentMethod,
                 estimated_fare: estimatedFare,
+                distance: distance,
                 ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
                 ...(scheduledAtISO ? { scheduled_at: scheduledAtISO } : {}),
               },

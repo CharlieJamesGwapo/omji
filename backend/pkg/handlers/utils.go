@@ -156,3 +156,22 @@ func GetDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return math.Round(R*c*100) / 100
 }
+
+// GetRoadDistance returns the client-provided road distance if it's plausible
+// (between 1x and 2.5x the straight-line Haversine distance), otherwise
+// falls back to Haversine × 1.4 road factor.
+func GetRoadDistance(clientDistance, lat1, lon1, lat2, lon2 float64) float64 {
+	haversine := GetDistance(lat1, lon1, lat2, lon2)
+	if haversine < 0.1 {
+		haversine = 0.1
+	}
+	// Client sent a road distance — validate it's reasonable
+	if clientDistance > 0 {
+		ratio := clientDistance / haversine
+		if ratio >= 0.9 && ratio <= 3.0 {
+			return math.Round(clientDistance*10) / 10
+		}
+	}
+	// Fallback: Haversine × 1.4 road factor
+	return math.Round(haversine*1.4*10) / 10
+}

@@ -394,6 +394,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			PromoCode        string  `json:"promo_code"`
 			PaymentMethod    string  `json:"payment_method"`
 			EstimatedFare    float64 `json:"estimated_fare"`
+			Distance         float64 `json:"distance"`
 			DriverID         *uint   `json:"driver_id"`
 			ScheduledAt      string  `json:"scheduled_at"`
 		}
@@ -404,7 +405,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		if input.PaymentMethod == "" {
 			input.PaymentMethod = "cash"
 		}
-		distance := GetDistance(input.PickupLatitude, input.PickupLongitude, input.DropoffLatitude, input.DropoffLongitude)
+		distance := GetRoadDistance(input.Distance, input.PickupLatitude, input.PickupLongitude, input.DropoffLatitude, input.DropoffLongitude)
 		if distance < 0.1 {
 			distance = 1.0
 		}
@@ -1021,7 +1022,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 		userID := c.MustGet("userID").(uint)
 
 		var pickupLocation, dropoffLocation, itemDescription, itemPhoto, notes, paymentMethod, promoCode string
-		var pickupLat, pickupLng, dropoffLat, dropoffLng, weight float64
+		var pickupLat, pickupLng, dropoffLat, dropoffLng, weight, clientDistance float64
 
 		contentType := c.ContentType()
 		isMultipart := len(contentType) >= 9 && contentType[:9] == "multipart"
@@ -1038,6 +1039,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			dropoffLat, _ = strconv.ParseFloat(c.PostForm("dropoff_latitude"), 64)
 			dropoffLng, _ = strconv.ParseFloat(c.PostForm("dropoff_longitude"), 64)
 			weight, _ = strconv.ParseFloat(c.PostForm("weight"), 64)
+			clientDistance, _ = strconv.ParseFloat(c.PostForm("distance"), 64)
 
 			// Handle file upload
 			file, err := c.FormFile("item_photo")
@@ -1073,6 +1075,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 				Weight           float64 `json:"weight"`
 				PaymentMethod    string  `json:"payment_method"`
 				PromoCode        string  `json:"promo_code"`
+				Distance         float64 `json:"distance"`
 			}
 			if err := c.ShouldBindJSON(&input); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
@@ -1090,12 +1093,13 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			weight = input.Weight
 			paymentMethod = input.PaymentMethod
 			promoCode = input.PromoCode
+			clientDistance = input.Distance
 		}
 
 		if paymentMethod == "" {
 			paymentMethod = "cash"
 		}
-		distance := GetDistance(pickupLat, pickupLng, dropoffLat, dropoffLng)
+		distance := GetRoadDistance(clientDistance, pickupLat, pickupLng, dropoffLat, dropoffLng)
 		if distance < 0.1 {
 			distance = 1.0
 		}

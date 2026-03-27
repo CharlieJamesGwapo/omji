@@ -237,9 +237,25 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
     Keyboard.dismiss();
     setSearching(true);
     try {
+      // Try expo geocoding first
       const results = await Location.geocodeAsync(searchQuery.trim());
       if (results?.[0]) {
         const { latitude, longitude } = results[0];
+        setCoords({ latitude, longitude });
+        webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', latitude, longitude }));
+        resolveAddress(latitude, longitude);
+        return;
+      }
+      // Fallback: Nominatim (better for Philippine addresses)
+      const query = encodeURIComponent(searchQuery.trim());
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=ph&limit=1`,
+        { headers: { 'User-Agent': 'OMJI-App/1.0' } }
+      );
+      const data = await res.json();
+      if (data?.[0]) {
+        const latitude = parseFloat(data[0].lat);
+        const longitude = parseFloat(data[0].lon);
         setCoords({ latitude, longitude });
         webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', latitude, longitude }));
         resolveAddress(latitude, longitude);
@@ -247,7 +263,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         Alert.alert('Not Found', 'Try a more specific address or place name.');
       }
     } catch {
-      Alert.alert('Error', 'Search failed. Try again.');
+      Alert.alert('Error', 'Search failed. Check your connection and try again.');
     } finally {
       setSearching(false);
     }

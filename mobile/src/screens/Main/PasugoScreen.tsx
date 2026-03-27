@@ -167,7 +167,7 @@ export default function PasugoScreen({ navigation }: any) {
     setShowDropoffMap(false);
   };
 
-  const { distance, duration: roadDuration } = useRoadDistance(pickupLocation, dropoffLocation);
+  const { distance, duration: roadDuration, isRoad } = useRoadDistance(pickupLocation, dropoffLocation);
   const sizeSurcharge = sizeOptions.find(s => s.id === itemSize)?.surcharge ?? 0;
   const baseFareCalc = distance > 0 ? Math.round((baseFare + distance * perKmRate + sizeSurcharge) * 100) / 100 : 0;
   const estimatedFare = Math.max(0, baseFareCalc - promoDiscount);
@@ -318,6 +318,7 @@ export default function PasugoScreen({ navigation }: any) {
                 notes: notes,
                 weight: weight,
                 payment_method: paymentMethod,
+                distance: distance,
               };
               if (promoApplied && promoCode.trim()) {
                 deliveryData.promo_code = promoCode.trim();
