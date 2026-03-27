@@ -5635,3 +5635,106 @@ func AdminDeleteAnnouncement(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "Announcement deleted"})
 	}
 }
+
+// ===== ADMIN REFERRAL HANDLERS =====
+
+// AdminGetReferrals returns all referrals with referrer/referred user info and summary stats.
+func AdminGetReferrals(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		type ReferralResponse struct {
+			ID            uint    `json:"id"`
+			ReferrerID    uint    `json:"referrer_id"`
+			ReferredID    uint    `json:"referred_id"`
+			ReferrerBonus float64 `json:"referrer_bonus"`
+			ReferredBonus float64 `json:"referred_bonus"`
+			Status        string  `json:"status"`
+			CreatedAt     string  `json:"created_at"`
+			Referrer      *struct {
+				ID    uint   `json:"id"`
+				Name  string `json:"name"`
+				Phone string `json:"phone"`
+			} `json:"Referrer"`
+			Referred *struct {
+				ID    uint   `json:"id"`
+				Name  string `json:"name"`
+				Phone string `json:"phone"`
+			} `json:"Referred"`
+		}
+
+		var referrals []models.Referral
+		if err := db.Order("created_at DESC").Find(&referrals).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load referrals"})
+			return
+		}
+
+		// Collect unique user IDs
+		userIDSet := make(map[uint]bool)
+		for _, r := range referrals {
+			userIDSet[r.ReferrerID] = true
+			userIDSet[r.ReferredID] = true
+		}
+		userIDs := make([]uint, 0, len(userIDSet))
+		for id := range userIDSet {
+			userIDs = append(userIDs, id)
+		}
+
+		// Batch fetch users
+		var users []models.User
+		if len(userIDs) > 0 {
+			db.Where("id IN ?", userIDs).Find(&users)
+		}
+		userMap := make(map[uint]models.User)
+		for _, u := range users {
+			userMap[u.ID] = u
+		}
+
+		// Build response
+		result := make([]ReferralResponse, 0, len(referrals))
+		for _, r := range referrals {
+			item := ReferralResponse{
+				ID:            r.ID,
+				ReferrerID:    r.ReferrerID,
+				ReferredID:    r.ReferredID,
+				ReferrerBonus: r.ReferrerBonus,
+				ReferredBonus: r.ReferredBonus,
+				Status:        r.Status,
+				CreatedAt:     r.CreatedAt.Format(time.RFC3339),
+			}
+			if referrer, ok := userMap[r.ReferrerID]; ok {
+				item.Referrer = &struct {
+					ID    uint   `json:"id"`
+					Name  string `json:"name"`
+					Phone string `json:"phone"`
+				}{ID: referrer.ID, Name: referrer.Name, Phone: referrer.Phone}
+			}
+			if referred, ok := userMap[r.ReferredID]; ok {
+				item.Referred = &struct {
+					ID    uint   `json:"id"`
+					Name  string `json:"name"`
+					Phone string `json:"phone"`
+				}{ID: referred.ID, Name: referred.Name, Phone: referred.Phone}
+			}
+			result = append(result, item)
+		}
+
+		// Summary stats
+		var totalReferrals int64
+		db.Model(&models.Referral{}).Count(&totalReferrals)
+
+		var totalBonuses float64
+		db.Model(&models.Referral{}).Select("COALESCE(SUM(referrer_bonus + referred_bonus), 0)").Scan(&totalBonuses)
+
+		var activeReferrers int64
+		db.Model(&models.Referral{}).Distinct("referrer_id").Count(&activeReferrers)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"referrals":        result,
+				"total_referrals":  totalReferrals,
+				"total_bonuses":    totalBonuses,
+				"active_referrers": activeReferrers,
+			},
+		})
+	}
+}

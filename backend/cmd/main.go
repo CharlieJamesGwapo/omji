@@ -297,6 +297,9 @@ func main() {
 		// Withdrawal management
 		admin.GET("/withdrawals", handlers.AdminGetWithdrawals(database))
 		admin.PUT("/withdrawals/:id", handlers.AdminUpdateWithdrawal(database))
+
+		// Referral management
+		admin.GET("/referrals", handlers.AdminGetReferrals(database))
 	}
 
 	// WebSocket routes

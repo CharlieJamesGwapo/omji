@@ -7,7 +7,7 @@ import { ITEMS_PER_PAGE, RIDE_STATUS_OPTIONS } from '../constants';
 import { formatStatus, formatCurrency, formatDateTime, formatDate, getErrorMessage } from '../utils';
 import { Pagination, ConfirmDialog, StatusBadge, SearchInput, EmptyState, Modal, PageSkeleton } from '../components';
 
-type FilterType = 'all' | 'pending' | 'active' | 'completed' | 'cancelled';
+type FilterType = 'all' | 'pending' | 'active' | 'completed' | 'cancelled' | 'scheduled';
 
 const RidesPage: React.FC = () => {
   const [rides, setRides] = useState<Ride[]>([]);
@@ -19,6 +19,7 @@ const RidesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [processingScheduled, setProcessingScheduled] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
     open: false, title: '', message: '', onConfirm: () => {},
   });
@@ -80,10 +81,11 @@ const RidesPage: React.FC = () => {
     const matchesSearch = !q || userName.includes(q) || userEmail.includes(q) || pickup.includes(q) || dropoff.includes(q) || driverName.includes(q);
 
     let matchesFilter = true;
-    if (filter === 'pending') matchesFilter = r.status === 'pending';
+    if (filter === 'pending') matchesFilter = r.status === 'pending' && !r.scheduled_at;
     else if (filter === 'active') matchesFilter = r.status === 'accepted' || r.status === 'driver_arrived' || r.status === 'in_progress';
     else if (filter === 'completed') matchesFilter = r.status === 'completed';
     else if (filter === 'cancelled') matchesFilter = r.status === 'cancelled';
+    else if (filter === 'scheduled') matchesFilter = !!r.scheduled_at && r.status === 'pending';
 
     return matchesSearch && matchesFilter;
   }), [rides, debouncedSearch, filter]);
@@ -100,21 +102,37 @@ const RidesPage: React.FC = () => {
     active: rides.filter((r) => r.status === 'accepted' || r.status === 'driver_arrived' || r.status === 'in_progress').length,
     completed: rides.filter((r) => r.status === 'completed').length,
     cancelled: rides.filter((r) => r.status === 'cancelled').length,
+    scheduled: rides.filter((r) => !!r.scheduled_at && r.status === 'pending').length,
     revenue: rides
       .filter((r) => r.status === 'completed')
       .reduce((sum, r) => sum + (r.final_fare || r.estimated_fare || 0), 0),
   }), [rides]);
 
+  const handleProcessScheduled = useCallback(async () => {
+    setProcessingScheduled(true);
+    try {
+      const res = await adminService.processScheduledRides();
+      const count = res.data.data?.processed_count ?? res.data.processed_count ?? 0;
+      toast.success(`Processed ${count} scheduled ride${count !== 1 ? 's' : ''}`);
+      await loadRides();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to process scheduled rides'));
+    } finally {
+      setProcessingScheduled(false);
+    }
+  }, [loadRides]);
+
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: rides.length },
-    { key: 'pending', label: 'Pending', count: rides.filter((r) => r.status === 'pending').length },
+    { key: 'pending', label: 'Pending', count: rides.filter((r) => r.status === 'pending' && !r.scheduled_at).length },
+    { key: 'scheduled', label: 'Scheduled', count: stats.scheduled },
     { key: 'active', label: 'Active', count: stats.active },
     { key: 'completed', label: 'Completed', count: stats.completed },
     { key: 'cancelled', label: 'Cancelled', count: stats.cancelled },
   ];
 
   if (loading) {
-    return <PageSkeleton statCards={5} filterButtons={5} tableRows={8} />;
+    return <PageSkeleton statCards={5} filterButtons={6} tableRows={8} />;
   }
 
   return (
@@ -169,7 +187,7 @@ const RidesPage: React.FC = () => {
       </div>
 
       {/* Filter Buttons */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {filterButtons.map((fb) => (
           <button
             key={fb.key}
@@ -183,6 +201,31 @@ const RidesPage: React.FC = () => {
             {fb.label} ({fb.count})
           </button>
         ))}
+        {filter === 'scheduled' && stats.scheduled > 0 && (
+          <button
+            onClick={handleProcessScheduled}
+            disabled={processingScheduled}
+            className="flex-shrink-0 ml-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {processingScheduled ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Processing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Process Now
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Results count */}
@@ -241,6 +284,15 @@ const RidesPage: React.FC = () => {
                 <p className="font-medium text-gray-900">{ride.final_fare ? formatCurrency(ride.final_fare) : '--'}</p>
               </div>
             </div>
+
+            {ride.scheduled_at && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 rounded-lg mb-3">
+                <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-medium text-blue-700">Scheduled: {formatDateTime(ride.scheduled_at)}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-3 border-t border-gray-100">
               <span className="text-xs text-gray-400">
@@ -343,6 +395,14 @@ const RidesPage: React.FC = () => {
                     <div className="text-xs text-gray-500">
                       {new Date(ride.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+                    {ride.scheduled_at && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <svg className="w-3 h-3 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs text-blue-600 font-medium">{formatDateTime(ride.scheduled_at)}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <select
@@ -573,13 +633,21 @@ const RidesPage: React.FC = () => {
             )}
 
             {/* Timestamps */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className={`grid grid-cols-1 ${selectedRide.scheduled_at ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3 sm:gap-4`}>
               <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Created</div>
                 <div className="text-sm font-medium text-gray-900">
                   {formatDateTime(selectedRide.created_at)}
                 </div>
               </div>
+              {selectedRide.scheduled_at && (
+                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs text-blue-600 mb-1 font-semibold">Scheduled For</div>
+                  <div className="text-sm font-medium text-blue-900">
+                    {formatDateTime(selectedRide.scheduled_at)}
+                  </div>
+                </div>
+              )}
               <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Started</div>
                 <div className="text-sm font-medium text-gray-900">

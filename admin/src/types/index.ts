@@ -58,6 +58,7 @@ export interface Ride {
   driver_rating: number | null;
   user_review: string | null;
   driver_review: string | null;
+  scheduled_at: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -217,6 +218,18 @@ export interface ActivityLog {
   driver_name: string;
   amount: number;
   created_at: string;
+}
+
+export interface Referral {
+  id: number;
+  referrer_id: number;
+  referred_id: number;
+  referrer_bonus: number;
+  referred_bonus: number;
+  status: string;
+  created_at: string;
+  Referrer?: { id: number; name: string; phone: string };
+  Referred?: { id: number; name: string; phone: string };
 }
 
 export interface WithdrawalRequest {

@@ -190,6 +190,7 @@ export const adminService = {
   // Rides
   getRides: () => cachedGet('/admin/rides'),
   updateRideStatus: (id: number, status: string) => API.put(`/admin/rides/${id}/status`, { status }),
+  processScheduledRides: () => API.get('/admin/process-scheduled'),
 
   // Deliveries
   getDeliveries: () => cachedGet('/admin/deliveries'),
@@ -237,6 +238,9 @@ export const adminService = {
   getWithdrawals: () => cachedGet('/admin/withdrawals'),
   updateWithdrawal: (id: number, data: { status: string; note?: string }) =>
     API.put(`/admin/withdrawals/${id}`, data),
+
+  // Referrals
+  getReferrals: () => cachedGet('/admin/referrals'),
 
   // Commission
   getCommissionConfig: () => cachedGet('/admin/commission/config'),
