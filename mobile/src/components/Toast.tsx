@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RESPONSIVE, verticalScale, moderateScale, isIOS } from '../utils/responsive';
@@ -24,6 +24,13 @@ export default function Toast({ visible, message, type = 'info', duration = 3500
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
+  const dismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: -100, duration: 250, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => onDismiss());
+  }, [onDismiss, translateY, opacity]);
+
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -31,22 +38,13 @@ export default function Toast({ visible, message, type = 'info', duration = 3500
         Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
 
-      const timer = setTimeout(() => {
-        dismiss();
-      }, duration);
+      const timer = setTimeout(dismiss, duration);
       return () => clearTimeout(timer);
     } else {
       translateY.setValue(-100);
       opacity.setValue(0);
     }
-  }, [visible, duration]);
-
-  const dismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, { toValue: -100, duration: 250, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-    ]).start(() => onDismiss());
-  };
+  }, [visible, duration, dismiss, translateY, opacity]);
 
   if (!visible) return null;
 

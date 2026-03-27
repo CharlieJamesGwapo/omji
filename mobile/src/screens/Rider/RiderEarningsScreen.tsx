@@ -160,6 +160,14 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
   const processWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid withdrawal amount.');
+      return;
+    }
+    if (amount > walletBalance) {
+      Alert.alert('Insufficient Balance', 'Withdrawal amount exceeds your available balance.');
+      return;
+    }
     if (!accountNumber.trim()) {
       Alert.alert('Missing Info', 'Please enter your account number.');
       return;
