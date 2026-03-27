@@ -242,9 +242,9 @@ export const driverService = {
   getProfile: () => api.get('/driver/profile'),
   updateProfile: (data: any) => api.put('/driver/profile', data),
   getRequests: () => api.get('/driver/requests'),
-  acceptRequest: (id: number) => api.post(`/driver/requests/${id}/accept`),
-  rejectRequest: (id: number) => api.post(`/driver/requests/${id}/reject`),
-  declineRideRequest: (id: number) => api.post(`/driver/requests/${id}/decline-ride`),
+  acceptRequest: (id: number) => api.post(`/driver/requests/${id}/accept`, {}),
+  rejectRequest: (id: number) => api.post(`/driver/requests/${id}/reject`, {}),
+  declineRideRequest: (id: number) => api.post(`/driver/requests/${id}/decline-ride`, {}),
   getEarnings: () => api.get('/driver/earnings'),
   requestWithdrawal: (data: { amount: number; method: string; account_number: string; account_name: string }) =>
     api.post('/driver/withdraw', data),

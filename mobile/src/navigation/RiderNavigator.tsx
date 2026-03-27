@@ -97,9 +97,6 @@ export default function RiderNavigator() {
       }}
     >
       <Stack.Screen name="RiderTabs" component={RiderTabs} options={{ headerShown: false }} />
-      <Stack.Screen name="RiderDashboard" component={RiderDashboardScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="RiderEarnings" component={RiderEarningsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="RiderProfile" component={RiderProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Tracking" component={TrackingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

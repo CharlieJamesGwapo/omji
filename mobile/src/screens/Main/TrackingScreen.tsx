@@ -367,7 +367,7 @@ export default function TrackingScreen({ route, navigation }: any) {
   const dropoffLat = rideData?.dropoff_latitude ?? rideData?.dropoff_lat ?? 0;
   const dropoffLng = rideData?.dropoff_longitude ?? rideData?.dropoff_lng ?? 0;
   const driverInfo = rideData?.driver ?? rideData?.Driver;
-  const driverVehicle = rideData?.driver ?? rideData?.Driver;
+  const driverVehicle = rideData; // vehicle_type/model/plate are on the ride, not the driver
   // For driver→passenger chat, we need the passenger info
   const passengerInfo = rideData?.user || rideData?.User;
   const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
