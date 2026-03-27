@@ -226,10 +226,12 @@ export const driverService = {
     photoFields.forEach(({ key, field }) => {
       const uri = photos[key];
       if (uri) {
-        const filename = uri.split('/').pop() || 'photo.jpg';
+        const uriStr = typeof uri === 'string' ? uri : (uri as any)?.uri;
+        if (!uriStr) return;
+        const filename = uriStr.split('/').pop() || 'photo.jpg';
         const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
         const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-        formData.append(field, { uri, name: filename, type: mimeType } as any);
+        formData.append(field, { uri: uriStr, name: filename, type: mimeType } as any);
       }
     });
     return api.post('/driver/register', formData, {

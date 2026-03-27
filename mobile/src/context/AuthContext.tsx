@@ -80,7 +80,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userData);
     } catch (error: any) {
-      const message = error.response?.data?.error || error.message || 'Login failed';
+      await AsyncStorage.removeItem('token').catch(() => {});
+      await AsyncStorage.removeItem('user').catch(() => {});
+      const message = error?.response?.data?.error || error?.message || 'Login failed';
       throw new Error(message);
     }
   };

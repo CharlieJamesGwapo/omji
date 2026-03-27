@@ -54,6 +54,10 @@ export function usePromoCode({
     setApplyingPromo(true);
     try {
       const res = await promoService.applyPromo(promoCode.trim(), baseFare, serviceType);
+      if (!res.data?.success) {
+        showToast(res.data?.error || 'Invalid promo code', 'error');
+        return;
+      }
       const discount = res.data?.data?.discount ?? 0;
       if (discount > 0) {
         setPromoDiscount(discount);

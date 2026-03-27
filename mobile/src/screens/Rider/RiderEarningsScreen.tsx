@@ -82,9 +82,9 @@ export default function RiderEarningsScreen({ navigation }: any) {
 
   const quickAmounts = [100, 500, 1000];
 
-  const totalRides = earningsApiData.completed_rides || 0;
-  const dailyEarnings = earningsApiData.today_earnings || 0;
-  const totalEarnings = earningsApiData.total_earnings || 0;
+  const totalRides = earningsApiData.completed_rides ?? 0;
+  const dailyEarnings = earningsApiData.today_earnings ?? 0;
+  const totalEarnings = earningsApiData.total_earnings ?? 0;
 
   // Real per-service data from backend
   const rideEarnings = earningsApiData.ride_earnings || 0;

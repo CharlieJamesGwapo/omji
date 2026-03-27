@@ -105,7 +105,7 @@ export default function NearbyRiders({
             <View style={styles.detailsRow}>
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={12} color="#F59E0B" />
-                <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '5.0'}</Text>
+                <Text style={styles.ratingText}>{(item.rating ?? 5).toFixed(1)}</Text>
               </View>
               <Text style={styles.dotSep}>·</Text>
               <Text style={styles.ridesText}>{item.completed_rides ?? 0} rides</Text>

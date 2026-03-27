@@ -149,7 +149,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
           <View style={styles.storeMetrics}>
             <View style={styles.metricItem}>
               <Ionicons name="star" size={moderateScale(16)} color={COLORS.warningDark} />
-              <Text style={styles.metricText}>{store?.rating ? Number(store.rating).toFixed(1) : 'N/A'}</Text>
+              <Text style={styles.metricText}>{store?.rating != null ? Number(store.rating).toFixed(1) : 'N/A'}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>

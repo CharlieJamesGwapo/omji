@@ -61,9 +61,9 @@ export default function RiderProfileScreen({ navigation }: any) {
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'R')}&background=10B981&color=fff&size=200`,
-    rating: (user?.total_ratings || earningsData.total_ratings) ? Number(user?.rating ?? earningsData.rating ?? 0) : 0,
-    hasRatings: !!(user?.total_ratings || earningsData.total_ratings),
-    totalRides: earningsData.completed_rides || 0,
+    rating: (user?.total_ratings || earningsData?.total_ratings) ? Number(user?.rating ?? earningsData?.rating ?? 0) : 0,
+    hasRatings: !!(user?.total_ratings || earningsData?.total_ratings),
+    totalRides: earningsData?.completed_rides || 0,
     vehicleType: driverData.vehicle_type || 'Motorcycle',
     plateNumber: driverData.vehicle_plate || '-',
     licenseNumber: driverData.license_number || '-',
@@ -75,8 +75,8 @@ export default function RiderProfileScreen({ navigation }: any) {
   const stats = [
     { label: 'Total Rides', value: `${totalRides}`, icon: 'bicycle', color: COLORS.accent, bg: COLORS.accentBg },
     { label: 'Rating', value: riderProfile.hasRatings ? `${riderProfile.rating.toFixed(1)}` : 'New', icon: 'star', color: COLORS.warning, bg: COLORS.warningBg },
-    { label: 'Acceptance', value: earningsData.acceptance_rate != null ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
-    { label: 'Completion', value: earningsData.completion_rate != null ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
+    { label: 'Acceptance', value: earningsData?.acceptance_rate != null ? `${earningsData.acceptance_rate}%` : '-', icon: 'checkmark-circle', color: COLORS.success, bg: COLORS.successBg },
+    { label: 'Completion', value: earningsData?.completion_rate != null ? `${earningsData.completion_rate}%` : '-', icon: 'checkmark-done', color: COLORS.success, bg: COLORS.successBg },
   ];
 
   const achievements = [

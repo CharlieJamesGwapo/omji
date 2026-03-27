@@ -281,7 +281,7 @@ export default function PaymentScreen({ route, navigation }: any) {
           <View style={styles.amountSection}>
             <Text style={styles.amountLabel}>TOTAL AMOUNT</Text>
             <Text style={styles.amountValue}>
-              {'\u20B1'}{totalAmount.toFixed(2)}
+              {'\u20B1'}{(isFinite(totalAmount) ? totalAmount : 0).toFixed(2)}
             </Text>
             {tipAmount > 0 && (
               <Text style={styles.amountBreakdown}>

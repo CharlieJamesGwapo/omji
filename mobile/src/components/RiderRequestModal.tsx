@@ -34,14 +34,11 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT);
   const progress = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const onDeclineRef = useRef(onDecline);
-  onDeclineRef.current = onDecline;
-  const requestRef = useRef(request);
-  requestRef.current = request;
-
   useEffect(() => {
     if (visible && request) {
+      const localRideId = request.ride_id;
+      const localOnDecline = onDecline;
+
       // Calculate remaining time from server expires_at
       const now = Math.floor(Date.now() / 1000);
       const remaining = Math.max(1, (request.expires_at || now + TIMEOUT) - now);
@@ -60,24 +57,24 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
       }).start();
 
       // Countdown
-      countdownRef.current = setInterval(() => {
+      const interval = setInterval(() => {
         setSecondsLeft(prev => {
           if (prev <= 1) {
-            if (countdownRef.current) clearInterval(countdownRef.current);
-            // Use refs to avoid stale closure
-            if (requestRef.current) onDeclineRef.current(requestRef.current.ride_id);
+            clearInterval(interval);
+            localOnDecline(localRideId);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+
+      return () => {
+        clearInterval(interval);
+        progress.stopAnimation();
+        slideAnim.stopAnimation();
+        slideAnim.setValue(0);
+      };
     }
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      progress.stopAnimation();
-      slideAnim.stopAnimation();
-      slideAnim.setValue(0);
-    };
   }, [visible, request]);
 
   if (!visible || !request) return null;

@@ -5,7 +5,7 @@ import { LocationData } from '../types';
  * Calculates straight-line distance using the Haversine formula (fallback).
  */
 export function calculateDistance(point1: LocationData, point2: LocationData): number {
-  if (!point1.latitude || !point2.latitude) return 0;
+  if (point1.latitude == null || point2.latitude == null) return 0;
 
   const R = 6371;
   const dLat = ((point2.latitude - point1.latitude) * Math.PI) / 180;
@@ -28,7 +28,7 @@ export async function getRoadDistance(
   point1: LocationData,
   point2: LocationData,
 ): Promise<{ distance: number; duration: number }> {
-  if (!point1.latitude || !point2.latitude) return { distance: 0, duration: 0 };
+  if (point1.latitude == null || point2.latitude == null) return { distance: 0, duration: 0 };
 
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${point1.longitude},${point1.latitude};${point2.longitude},${point2.latitude}?overview=false`;
@@ -64,7 +64,7 @@ export function useRoadDistance(pickup: LocationData, dropoff: LocationData) {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!pickup.latitude || !dropoff.latitude) {
+    if (pickup.latitude == null || dropoff.latitude == null) {
       setDistance(0);
       setDuration(0);
       return;

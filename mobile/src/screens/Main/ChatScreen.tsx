@@ -77,7 +77,7 @@ export default function ChatScreen({ route, navigation }: any) {
 
   // Fetch messages on mount, poll with adaptive interval, WebSocket for real-time
   useEffect(() => {
-    if (!chatId) { setLoading(false); return; }
+    if (!chatId || !currentUserId) { setLoading(false); return; }
     let interval: ReturnType<typeof setInterval> | null = null;
     let mounted = true;
     let ws: WebSocket | null = null;
