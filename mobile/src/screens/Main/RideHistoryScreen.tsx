@@ -81,7 +81,7 @@ export default function RideHistoryScreen({ navigation }: any) {
           _type: 'order',
           _key: `order-${o.id}`,
         })) : []),
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      ].sort((a, b) => (new Date(b.created_at || 0).getTime() || 0) - (new Date(a.created_at || 0).getTime() || 0));
 
       setRides(allRides);
     } catch (error) {

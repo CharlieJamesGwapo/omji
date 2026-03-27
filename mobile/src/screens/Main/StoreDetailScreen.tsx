@@ -117,7 +117,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView keyboardShouldPersistTaps="handled">
         <View style={styles.storeHeader}>
           <View style={[styles.headerImage, { backgroundColor: COLORS.storeBg, alignItems: 'center', justifyContent: 'center' }]}>
             <View style={{ width: moderateScale(80), height: moderateScale(80), borderRadius: moderateScale(40), backgroundColor: COLORS.store, alignItems: 'center', justifyContent: 'center', ...SHADOWS.lg }}>

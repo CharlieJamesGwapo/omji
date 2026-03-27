@@ -467,6 +467,7 @@ export default function PasabayScreen({ navigation }: any) {
             vehicle_type: selectedType.vehicleType,
             payment_method: paymentMethod,
             estimated_fare: totalFare,
+            distance: distance,
             ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
           });
           const ride = response.data?.data || {};

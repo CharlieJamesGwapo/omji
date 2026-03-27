@@ -239,7 +239,7 @@ export default function OrdersScreen({ navigation }: any) {
       }
 
       // Sort by date descending
-      allOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      allOrders.sort((a, b) => (new Date(b.createdAt || 0).getTime() || 0) - (new Date(a.createdAt || 0).getTime() || 0));
       setOrders(allOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
