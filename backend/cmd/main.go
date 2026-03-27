@@ -181,6 +181,7 @@ func main() {
 		// Chat routes
 		protected.GET("/chats/:id/messages", handlers.GetChatMessages(database))
 		protected.POST("/chats/:id/message", handlers.SendChatMessage(database))
+		protected.POST("/chats/:id/image", handlers.ChatImageUpload(database))
 
 		// Notification routes
 		protected.GET("/notifications", handlers.GetUserNotifications(database))
@@ -273,6 +274,7 @@ func main() {
 	// WebSocket routes
 	router.GET("/ws/tracking/:rideId", handlers.WebSocketTrackingHandler(database))
 	router.GET("/ws/driver/:driverId", handlers.WebSocketDriverHandler(database))
+	router.GET("/ws/chat/:rideId", handlers.WebSocketChatHandler(database))
 
 	// Start server with graceful shutdown
 	port := os.Getenv("PORT")

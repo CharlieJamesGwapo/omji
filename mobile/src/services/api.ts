@@ -248,6 +248,17 @@ export const chatService = {
   getMessages: (id: number) => api.get(`/chats/${id}/messages`),
   sendMessage: (id: number, receiverId: number, message: string) =>
     api.post(`/chats/${id}/message`, { receiver_id: receiverId, message }),
+  uploadImage: (id: number, uri: string) => {
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'photo.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+    const type = ext === 'png' ? 'image/png' : 'image/jpeg';
+    formData.append('image', { uri, name: filename, type } as any);
+    return api.post(`/chats/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
 };
 
 export default api;

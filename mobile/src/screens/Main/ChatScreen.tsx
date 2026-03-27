@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,11 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { chatService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { getWebSocketUrl } from '../../utils/websocket';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
@@ -25,6 +28,7 @@ interface ChatMsg {
   sender: 'me' | 'them';
   time: string;
   pending?: boolean;
+  imageUrl?: string;
 }
 
 export default function ChatScreen({ route, navigation }: any) {
@@ -41,10 +45,14 @@ export default function ChatScreen({ route, navigation }: any) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const prevMessageCount = useRef(0);
   const shouldAutoScroll = useRef(true);
   const pendingIds = useRef<Set<string>>(new Set());
+  const wsRef = useRef<WebSocket | null>(null);
+  const wsConnected = useRef(false);
+  const pollingIntervalRef = useRef(3000);
 
   const quickReplies = [
     "I'm waiting outside",
@@ -54,11 +62,22 @@ export default function ChatScreen({ route, navigation }: any) {
     "I'm here",
   ];
 
-  // Fetch messages on mount, poll every 3s, stop on blur
+  const mapServerMessage = useCallback((m: any): ChatMsg => ({
+    id: m.id?.toString() || `srv-${m.created_at}`,
+    text: m.message || m.text || '',
+    sender: (m.sender_id === currentUserId ? 'me' : 'them') as 'me' | 'them',
+    time: m.created_at
+      ? new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+      : '',
+    imageUrl: m.image_url || undefined,
+  }), [currentUserId]);
+
+  // Fetch messages on mount, poll with adaptive interval, WebSocket for real-time
   useEffect(() => {
     if (!chatId) { setLoading(false); return; }
     let interval: ReturnType<typeof setInterval> | null = null;
     let mounted = true;
+    let ws: WebSocket | null = null;
 
     const stopPolling = () => {
       if (interval) { clearInterval(interval); interval = null; }
@@ -70,19 +89,11 @@ export default function ChatScreen({ route, navigation }: any) {
         if (!mounted) return;
         const raw = response.data?.data;
         const msgs: ChatMsg[] = Array.isArray(raw)
-          ? raw.map((m: any) => ({
-              id: m.id?.toString() || `srv-${m.created_at}`,
-              text: m.message || m.text || '',
-              sender: (m.sender_id === currentUserId ? 'me' : 'them') as 'me' | 'them',
-              time: m.created_at
-                ? new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-                : '',
-            }))
+          ? raw.map(mapServerMessage)
           : [];
 
         // Merge: keep pending (unsent) messages, replace with server versions
         setMessages(prev => {
-          // Find pending messages not yet confirmed by server
           const stillPending = prev.filter(
             p => p.pending && !msgs.some(s => s.text === p.text && s.sender === 'me')
           );
@@ -98,14 +109,94 @@ export default function ChatScreen({ route, navigation }: any) {
     const startPolling = () => {
       stopPolling();
       fetchMessages();
-      interval = setInterval(fetchMessages, 3000);
+      interval = setInterval(fetchMessages, pollingIntervalRef.current);
+    };
+
+    // Connect WebSocket
+    const connectWebSocket = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token || !mounted) return;
+
+        const url = getWebSocketUrl(`/ws/chat/${chatId}`, token);
+        ws = new WebSocket(url);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (!mounted) return;
+          wsConnected.current = true;
+          // Reduce polling to fallback interval
+          pollingIntervalRef.current = 15000;
+          stopPolling();
+          interval = setInterval(fetchMessages, 15000);
+        };
+
+        ws.onmessage = (event) => {
+          if (!mounted) return;
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'chat_message') {
+              const newMsg = mapServerMessage(data.data || data);
+              setMessages(prev => {
+                // Avoid duplicates by checking id
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                // Also remove pending messages that match this text from same sender
+                const filtered = prev.filter(
+                  p => !(p.pending && p.text === newMsg.text && p.sender === newMsg.sender)
+                );
+                return [...filtered, newMsg];
+              });
+              shouldAutoScroll.current = true;
+            }
+          } catch {
+            // Ignore non-JSON or unexpected messages
+          }
+        };
+
+        ws.onclose = () => {
+          if (!mounted) return;
+          wsConnected.current = false;
+          wsRef.current = null;
+          // Increase polling back to 3s
+          pollingIntervalRef.current = 3000;
+          stopPolling();
+          interval = setInterval(fetchMessages, 3000);
+        };
+
+        ws.onerror = () => {
+          // onclose will fire after onerror
+        };
+      } catch {
+        // WebSocket connection failed, polling continues as fallback
+      }
     };
 
     startPolling();
-    const unsubBlur = navigation.addListener('blur', stopPolling);
-    const unsubFocus = navigation.addListener('focus', startPolling);
-    return () => { mounted = false; stopPolling(); unsubBlur(); unsubFocus(); };
-  }, [chatId, currentUserId, navigation]);
+    connectWebSocket();
+
+    const unsubBlur = navigation.addListener('blur', () => {
+      stopPolling();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    });
+    const unsubFocus = navigation.addListener('focus', () => {
+      startPolling();
+      connectWebSocket();
+    });
+
+    return () => {
+      mounted = false;
+      stopPolling();
+      if (ws) {
+        ws.close();
+        wsRef.current = null;
+        wsConnected.current = false;
+      }
+      unsubBlur();
+      unsubFocus();
+    };
+  }, [chatId, currentUserId, navigation, mapServerMessage]);
 
   const sendMessage = async (text?: string) => {
     const messageText = (text || message).trim();
@@ -132,14 +223,75 @@ export default function ChatScreen({ route, navigation }: any) {
 
     setSending(true);
     try {
-      await chatService.sendMessage(chatId, receiverId, messageText);
-      // Mark as no longer pending — next poll will replace with server version
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+      // Try WebSocket first, fall back to REST
+      if (wsConnected.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'message',
+          receiver_id: receiverId,
+          message: messageText,
+        }));
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+      } else {
+        await chatService.sendMessage(chatId, receiverId, messageText);
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+      }
     } catch {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       Alert.alert('Send Failed', 'Message could not be sent. Please try again.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const pickImage = async () => {
+    if (!chatId || !receiverId) {
+      Alert.alert('Chat Unavailable', 'Cannot send images right now.');
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to send images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const imageUri = result.assets[0].uri;
+      setUploadingImage(true);
+
+      // Add a pending image message
+      const tempId = `pending-img-${Date.now()}`;
+      const tempMessage: ChatMsg = {
+        id: tempId,
+        text: '[image]',
+        sender: 'me',
+        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        pending: true,
+        imageUrl: imageUri,
+      };
+      setMessages(prev => [...prev, tempMessage]);
+      shouldAutoScroll.current = true;
+
+      try {
+        await chatService.uploadImage(chatId, imageUri);
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+      } catch {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        Alert.alert('Upload Failed', 'Image could not be sent. Please try again.');
+      } finally {
+        setUploadingImage(false);
+      }
+    } catch {
+      setUploadingImage(false);
+      Alert.alert('Error', 'Could not open image picker.');
     }
   };
 
@@ -157,9 +309,17 @@ export default function ChatScreen({ route, navigation }: any) {
           )
         )}
         <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
-          <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.theirMessageText]}>
-            {item.text}
-          </Text>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={{ width: moderateScale(200), height: moderateScale(150), borderRadius: moderateScale(12) }}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.theirMessageText]}>
+              {item.text}
+            </Text>
+          )}
           <View style={styles.messageFooter}>
             {!!item.time && (
               <Text style={[styles.messageTime, isMe ? styles.myMessageTime : styles.theirMessageTime]}>
@@ -283,6 +443,19 @@ export default function ChatScreen({ route, navigation }: any) {
 
       {/* Input */}
       <View style={styles.inputContainer}>
+        <TouchableOpacity
+          onPress={pickImage}
+          style={styles.imageBtn}
+          disabled={uploadingImage}
+          accessibilityLabel="Send image"
+          accessibilityRole="button"
+        >
+          {uploadingImage ? (
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          ) : (
+            <Ionicons name="image-outline" size={moderateScale(22)} color={COLORS.accent} />
+          )}
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -488,6 +661,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.gray200,
     paddingBottom: isIOS ? verticalScale(24) : verticalScale(10),
+  },
+  imageBtn: {
+    width: moderateScale(38),
+    height: moderateScale(38),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(4),
   },
   input: {
     flex: 1,

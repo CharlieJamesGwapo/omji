@@ -246,6 +246,7 @@ type ChatMessage struct {
 	ReceiverID uint     `gorm:"index;index:idx_chat_receiver_created,priority:1" json:"receiver_id"`
 	RideID    *uint     `gorm:"index" json:"ride_id,omitempty"`
 	Message   string    `json:"message"`
+	ImageURL  string    `json:"image_url,omitempty"`
 	CreatedAt time.Time `gorm:"index:idx_chat_sender_created,priority:2;index:idx_chat_receiver_created,priority:2" json:"created_at"`
 }
 

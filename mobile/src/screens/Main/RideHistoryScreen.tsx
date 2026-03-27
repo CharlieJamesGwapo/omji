@@ -28,8 +28,10 @@ interface RideItem {
   distance?: number;
   distance_km?: number;
   created_at: string;
-  driver?: { name: string; rating: number };
-  Driver?: { name: string; rating: number };
+  driver?: { name: string; rating: number; phone?: string };
+  Driver?: { name: string; rating: number; phone?: string };
+  driver_name?: string;
+  driver_phone?: string;
   _type?: string;
   _key?: string;
 }
@@ -324,6 +326,25 @@ export default function RideHistoryScreen({ navigation }: any) {
                       </View>
                     )}
                     <View style={styles.rideMetrics}>
+                      {ride._type !== 'order' && (ride.status === 'completed' || ride.status === 'cancelled') && (
+                        <TouchableOpacity
+                          style={styles.chatBtn}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            navigation.navigate('Chat', {
+                              rider: ride.driver || ride.Driver || { name: ride.driver_name || 'Driver', phone: ride.driver_phone },
+                              rideId: ride._type === 'ride' ? ride.id : undefined,
+                              deliveryId: ride._type === 'delivery' ? ride.id : undefined,
+                            });
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="View chat history"
+                          accessibilityRole="button"
+                        >
+                          <Ionicons name="chatbubble-outline" size={moderateScale(12)} color={COLORS.gray600} />
+                          <Text style={styles.chatBtnText}>Chat</Text>
+                        </TouchableOpacity>
+                      )}
                       <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
                         <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
                         <Text style={[styles.statusText, { color: statusColor }]}>{formatStatus(ride.status)}</Text>
@@ -637,6 +658,21 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: fontScale(11),
     fontWeight: '600',
+  },
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+    borderRadius: moderateScale(6),
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    gap: moderateScale(4),
+  },
+  chatBtnText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: COLORS.gray600,
   },
   distanceBadge: {
     flexDirection: 'row',

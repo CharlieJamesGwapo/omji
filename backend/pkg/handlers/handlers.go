@@ -17,9 +17,11 @@ import (
 	"sync"
 	"time"
 
+	"omji/config"
 	"omji/pkg/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
@@ -2366,6 +2368,15 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send message"})
 			return
 		}
+		// Broadcast to WebSocket chat room
+		chatTracker.Broadcast(rideIDStr, gin.H{
+			"type":        "chat_message",
+			"id":          msg.ID,
+			"sender_id":   msg.SenderID,
+			"receiver_id": msg.ReceiverID,
+			"message":     msg.Message,
+			"created_at":  msg.CreatedAt,
+		})
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": msg, "timestamp": time.Now()})
 	}
 }
@@ -3628,10 +3639,78 @@ func (dt *DriverTracker) CloseAll() {
 	}
 }
 
+// ChatTracker manages WebSocket connections per ride for chat rooms
+type ChatTracker struct {
+	mu    sync.RWMutex
+	rooms map[string][]*websocket.Conn
+}
+
+var chatTracker = &ChatTracker{rooms: make(map[string][]*websocket.Conn)}
+
+func (ct *ChatTracker) Add(rideID string, conn *websocket.Conn) {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ct.rooms[rideID] = append(ct.rooms[rideID], conn)
+}
+
+func (ct *ChatTracker) Remove(rideID string, conn *websocket.Conn) {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	conns := ct.rooms[rideID]
+	for i, c := range conns {
+		if c == conn {
+			ct.rooms[rideID] = append(conns[:i], conns[i+1:]...)
+			break
+		}
+	}
+	if len(ct.rooms[rideID]) == 0 {
+		delete(ct.rooms, rideID)
+	}
+}
+
+func (ct *ChatTracker) Broadcast(rideID string, msg interface{}) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Chat broadcast marshal error for ride #%s: %v", rideID, err)
+		return
+	}
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	var active []*websocket.Conn
+	for _, conn := range ct.rooms[rideID] {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			log.Printf("Chat write error for ride #%s: %v", rideID, err)
+			conn.Close()
+		} else {
+			active = append(active, conn)
+		}
+	}
+	if len(active) > 0 {
+		ct.rooms[rideID] = active
+	} else {
+		delete(ct.rooms, rideID)
+	}
+}
+
+func (ct *ChatTracker) CloseAll() {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	for rideID, conns := range ct.rooms {
+		for _, conn := range conns {
+			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			conn.WriteMessage(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseGoingAway, "server shutting down"))
+			conn.Close()
+		}
+		delete(ct.rooms, rideID)
+	}
+}
+
 // CloseAllWebSockets closes all WebSocket connections (called during graceful shutdown)
 func CloseAllWebSockets() {
 	tracker.CloseAll()
 	driverTracker.CloseAll()
+	chatTracker.CloseAll()
 }
 
 func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
@@ -3908,6 +3987,188 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 				}
 			}
 		}
+	}
+}
+
+// ===== WEBSOCKET CHAT HANDLER =====
+
+func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rideID := c.Param("rideId")
+		tokenStr := c.Query("token")
+		if tokenStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Missing token"})
+			return
+		}
+
+		// Validate JWT token
+		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return []byte(config.GetJWTSecret()), nil
+		})
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid token"})
+			return
+		}
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid claims"})
+			return
+		}
+		userID := uint(claims["user_id"].(float64))
+
+		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Printf("Chat WebSocket upgrade error: %v", err)
+			return
+		}
+		defer conn.Close()
+		chatTracker.Add(rideID, conn)
+		defer chatTracker.Remove(rideID, conn)
+		log.Printf("Chat WebSocket connected for ride #%s by user #%d", rideID, userID)
+
+		// Keepalive: ping every 30s, timeout after 45s
+		conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+			return nil
+		})
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+						return
+					}
+				}
+			}
+		}()
+
+		// Parse rideID to uint for DB storage
+		rideIDParsed, _ := strconv.ParseUint(rideID, 10, 64)
+		rideIDUint := uint(rideIDParsed)
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			var input struct {
+				Type       string `json:"type"`
+				ReceiverID uint   `json:"receiver_id"`
+				Message    string `json:"message"`
+				ImageURL   string `json:"image_url"`
+			}
+			if json.Unmarshal(message, &input) != nil {
+				continue
+			}
+
+			switch input.Type {
+			case "message":
+				if input.Message == "" || input.ReceiverID == 0 {
+					continue
+				}
+				msg := models.ChatMessage{
+					SenderID:   userID,
+					ReceiverID: input.ReceiverID,
+					RideID:     &rideIDUint,
+					Message:    input.Message,
+				}
+				if err := db.Create(&msg).Error; err != nil {
+					log.Printf("Failed to save chat message via WS: %v", err)
+					continue
+				}
+				chatTracker.Broadcast(rideID, gin.H{
+					"type":        "chat_message",
+					"id":          msg.ID,
+					"sender_id":   userID,
+					"receiver_id": input.ReceiverID,
+					"message":     input.Message,
+					"created_at":  msg.CreatedAt,
+				})
+
+			case "image":
+				if input.ImageURL == "" || input.ReceiverID == 0 {
+					continue
+				}
+				msg := models.ChatMessage{
+					SenderID:   userID,
+					ReceiverID: input.ReceiverID,
+					RideID:     &rideIDUint,
+					Message:    "[image]",
+					ImageURL:   input.ImageURL,
+				}
+				if err := db.Create(&msg).Error; err != nil {
+					log.Printf("Failed to save chat image via WS: %v", err)
+					continue
+				}
+				chatTracker.Broadcast(rideID, gin.H{
+					"type":        "chat_message",
+					"id":          msg.ID,
+					"sender_id":   userID,
+					"receiver_id": input.ReceiverID,
+					"message":     "[image]",
+					"image_url":   input.ImageURL,
+					"created_at":  msg.CreatedAt,
+				})
+			}
+		}
+	}
+}
+
+// ChatImageUpload handles uploading chat images and returns a base64 data URL
+func ChatImageUpload(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("image")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No file uploaded"})
+			return
+		}
+
+		// Validate file size (max 5MB)
+		if file.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
+			return
+		}
+
+		// Validate file type
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+		mimeType, ok := mimeTypes[ext]
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
+			return
+		}
+
+		src, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			return
+		}
+		defer src.Close()
+
+		data, err := io.ReadAll(src)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			return
+		}
+
+		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"url": dataURL,
+			},
+		})
 	}
 }
 
