@@ -20,6 +20,8 @@ import { useAuth } from '../../context/AuthContext';
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
+import ConfirmBookingModal from '../../components/ConfirmBookingModal';
+import type { BookingDetail } from '../../components/ConfirmBookingModal';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import { useRoadDistance } from '../../hooks/useDistance';
 
@@ -90,6 +92,10 @@ export default function PasabayScreen({ navigation }: any) {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
   const [applyingPromo, setApplyingPromo] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    visible: boolean; title: string; subtitle?: string; details: BookingDetail[];
+    fare?: number; fareLabel?: string; discount?: number; confirmLabel: string; onConfirm: () => void;
+  }>({ visible: false, title: '', details: [], confirmLabel: '', onConfirm: () => {} });
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -190,52 +196,50 @@ export default function PasabayScreen({ navigation }: any) {
       }
     }
 
-    Alert.alert(
-      'Join Ride Share',
-      `Route: ${ride.pickup_location} → ${ride.dropoff_location}\nFare: ₱${ride.base_fare || 0}\nSeats left: ${ride.available_seats}\n${ride.driver?.name ? `Driver: ${ride.driver.name}` : ''}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Join Ride',
-          onPress: async () => {
-            try {
-              setJoiningRideId(ride.id);
-              const response = await rideShareService.joinRideShare(ride.id, paymentMethod);
-              const data = response.data?.data;
-              fetchAvailableRides();
-              const joinedRideId = data?.ride_id || data?.id || ride.id;
-              const joinedFare = data?.fare || ride.base_fare || 0;
-              const joinedPickup = data?.pickup || ride.pickup_location;
-              const joinedDropoff = data?.dropoff || ride.dropoff_location;
+    setConfirmModal({
+      visible: true,
+      title: 'Join Ride Share',
+      subtitle: 'Pasabay Shared Ride',
+      details: [
+        { icon: 'location-outline', label: 'Pickup', value: ride.pickup_location, color: '#3B82F6' },
+        { icon: 'flag-outline', label: 'Dropoff', value: ride.dropoff_location, color: '#EF4444' },
+        { icon: 'people-outline', label: 'Seats Left', value: `${ride.available_seats}` },
+        ...(ride.driver?.name ? [{ icon: 'person-circle-outline', label: 'Driver', value: ride.driver.name }] as BookingDetail[] : []),
+        { icon: 'card-outline', label: 'Payment', value: paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : paymentMethod === 'wallet' ? 'Wallet' : 'Cash' },
+      ],
+      fare: ride.base_fare || 0,
+      confirmLabel: 'Join Ride',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        try {
+          setJoiningRideId(ride.id);
+          const response = await rideShareService.joinRideShare(ride.id, paymentMethod);
+          const data = response.data?.data;
+          fetchAvailableRides();
+          const joinedRideId = data?.ride_id || data?.id || ride.id;
+          const joinedFare = data?.fare || ride.base_fare || 0;
+          const joinedPickup = data?.pickup || ride.pickup_location;
+          const joinedDropoff = data?.dropoff || ride.dropoff_location;
 
-              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-                navigation.navigate('Payment', {
-                  type: paymentMethod,
-                  amount: joinedFare,
-                  serviceType: 'ride',
-                  rideId: joinedRideId,
-                  pickup: joinedPickup,
-                  dropoff: joinedDropoff,
-                });
-              } else {
-                navigation.navigate('Tracking', {
-                  type: 'ride',
-                  rideId: joinedRideId,
-                  pickup: joinedPickup,
-                  dropoff: joinedDropoff,
-                  fare: joinedFare,
-                });
-              }
-            } catch (error: any) {
-              const msg = error.response?.data?.error || 'Failed to join ride share';
-              showToast(msg, 'error');
-            } finally {
-              setJoiningRideId(null);
-            }
-          },
-        },
-      ]
-    );
+          if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+            navigation.navigate('Payment', {
+              type: paymentMethod, amount: joinedFare, serviceType: 'ride',
+              rideId: joinedRideId, pickup: joinedPickup, dropoff: joinedDropoff,
+            });
+          } else {
+            navigation.navigate('Tracking', {
+              type: 'ride', rideId: joinedRideId,
+              pickup: joinedPickup, dropoff: joinedDropoff, fare: joinedFare,
+            });
+          }
+        } catch (error: any) {
+          const msg = error.response?.data?.error || 'Failed to join ride share';
+          showToast(msg, 'error');
+        } finally {
+          setJoiningRideId(null);
+        }
+      },
+    });
   };
 
   const [rideTypes, setRideTypes] = useState([
@@ -373,40 +377,44 @@ export default function PasabayScreen({ navigation }: any) {
 
     // Driver flow: create a rideshare offering
     if (isDriver) {
-      Alert.alert(
-        'Offer Ride Share',
-        `You are offering a shared ride.\n\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nSeats: ${passengers}\nFare per passenger: ₱${totalFare.toFixed(0)}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Create Ride Share',
-            onPress: async () => {
-              setLoading(true);
-              try {
-                const departureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min from now
-                await rideShareService.createRideShare({
-                  pickup_location: pickupLocation.address,
-                  pickup_latitude: pickupLocation.latitude,
-                  pickup_longitude: pickupLocation.longitude,
-                  dropoff_location: dropoffLocation.address,
-                  dropoff_latitude: dropoffLocation.latitude,
-                  dropoff_longitude: dropoffLocation.longitude,
-                  total_seats: passengers,
-                  base_fare: totalFare,
-                  departure_time: departureTime,
-                });
-                Alert.alert('Ride Share Created!', 'Passengers can now see and join your ride. You can check your active rideshares from the Driver Dashboard.');
-                fetchAvailableRides();
-              } catch (error: any) {
-                const msg = error.response?.data?.error || 'Failed to create ride share';
-                showToast(msg, 'error');
-              } finally {
-                setLoading(false);
-              }
-            },
-          },
-        ]
-      );
+      setConfirmModal({
+        visible: true,
+        title: 'Offer Ride Share',
+        subtitle: 'You are offering a shared ride',
+        details: [
+          { icon: 'location-outline', label: 'Pickup', value: pickupLocation.address, color: '#3B82F6' },
+          { icon: 'flag-outline', label: 'Dropoff', value: dropoffLocation.address, color: '#EF4444' },
+          { icon: 'people-outline', label: 'Seats', value: `${passengers}` },
+        ],
+        fare: totalFare,
+        fareLabel: 'Fare per Passenger',
+        confirmLabel: 'Create Ride Share',
+        onConfirm: async () => {
+          setConfirmModal(prev => ({ ...prev, visible: false }));
+          setLoading(true);
+          try {
+            const departureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+            await rideShareService.createRideShare({
+              pickup_location: pickupLocation.address,
+              pickup_latitude: pickupLocation.latitude,
+              pickup_longitude: pickupLocation.longitude,
+              dropoff_location: dropoffLocation.address,
+              dropoff_latitude: dropoffLocation.latitude,
+              dropoff_longitude: dropoffLocation.longitude,
+              total_seats: passengers,
+              base_fare: totalFare,
+              departure_time: departureTime,
+            });
+            showToast('Ride share created! Passengers can now join your ride.', 'success');
+            fetchAvailableRides();
+          } catch (error: any) {
+            const msg = error.response?.data?.error || 'Failed to create ride share';
+            showToast(msg, 'error');
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
       return;
     }
 
@@ -430,64 +438,65 @@ export default function PasabayScreen({ navigation }: any) {
       ? `${pickupLocation.address} [${passengers} passengers]${notes.trim() ? ` (${notes.trim()})` : ''}`
       : notes.trim() ? `${pickupLocation.address} (${notes.trim()})` : pickupLocation.address;
 
-    Alert.alert(
-      'Confirm Ride',
-      `Type: ${selectedType.name}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nDistance: ${distance.toFixed(1)} km\nPassengers: ${passengers}\nFare: ₱${totalFare.toFixed(0)}\nPayment: ${paymentMethod.toUpperCase()}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Book Now',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const response = await rideService.createRide({
-                pickup_location: pickupLabel,
-                pickup_latitude: pickupLocation.latitude,
-                pickup_longitude: pickupLocation.longitude,
-                dropoff_location: dropoffLocation.address,
-                dropoff_latitude: dropoffLocation.latitude,
-                dropoff_longitude: dropoffLocation.longitude,
-                vehicle_type: selectedType.vehicleType,
-                payment_method: paymentMethod,
-                estimated_fare: totalFare,
-                ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
-                // driver_id intentionally not sent — rider must accept from their app
-              });
-              const ride = response.data?.data || {};
-              const rideIdNum = Number(ride.id);
-              if (!rideIdNum || rideIdNum <= 0) {
-                setLoading(false);
-                Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
-                return;
-              }
-              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-                navigation.navigate('Payment', {
-                  type: paymentMethod,
-                  amount: ride.estimated_fare || totalFare,
-                  serviceType: 'ride',
-                  rideId: rideIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                });
-              } else {
-                navigation.navigate('Tracking', {
-                  type: 'ride',
-                  rideId: rideIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                  fare: ride.estimated_fare || totalFare,
-                });
-              }
-            } catch (error: any) {
-              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
-              Alert.alert('Booking Failed', msg);
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    setConfirmModal({
+      visible: true,
+      title: 'Confirm Ride',
+      subtitle: 'Pasabay Ride Service',
+      details: [
+        { icon: 'car-sport-outline', label: 'Type', value: selectedType.name },
+        { icon: 'location-outline', label: 'Pickup', value: pickupLocation.address, color: '#3B82F6' },
+        { icon: 'flag-outline', label: 'Dropoff', value: dropoffLocation.address, color: '#EF4444' },
+        { icon: 'navigate-outline', label: 'Distance', value: `${distance.toFixed(1)} km` },
+        { icon: 'people-outline', label: 'Passengers', value: `${passengers}` },
+        { icon: 'card-outline', label: 'Payment', value: paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : paymentMethod === 'wallet' ? 'Wallet' : 'Cash' },
+      ],
+      fare: totalFare,
+      discount: promoDiscount > 0 ? promoDiscount : undefined,
+      confirmLabel: 'Book Now',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        setLoading(true);
+        try {
+          const response = await rideService.createRide({
+            pickup_location: pickupLabel,
+            pickup_latitude: pickupLocation.latitude,
+            pickup_longitude: pickupLocation.longitude,
+            dropoff_location: dropoffLocation.address,
+            dropoff_latitude: dropoffLocation.latitude,
+            dropoff_longitude: dropoffLocation.longitude,
+            vehicle_type: selectedType.vehicleType,
+            payment_method: paymentMethod,
+            estimated_fare: totalFare,
+            ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
+          });
+          const ride = response.data?.data || {};
+          const rideIdNum = Number(ride.id);
+          if (!rideIdNum || rideIdNum <= 0) {
+            setLoading(false);
+            Alert.alert('Booking Error', 'Ride was created but we could not get the booking ID. Please check your active rides.');
+            return;
+          }
+          if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+            navigation.navigate('Payment', {
+              type: paymentMethod, amount: ride.estimated_fare || totalFare,
+              serviceType: 'ride', rideId: rideIdNum,
+              pickup: pickupLocation.address, dropoff: dropoffLocation.address,
+            });
+          } else {
+            navigation.navigate('Tracking', {
+              type: 'ride', rideId: rideIdNum,
+              pickup: pickupLocation.address, dropoff: dropoffLocation.address,
+              fare: ride.estimated_fare || totalFare,
+            });
+          }
+        } catch (error: any) {
+          const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book ride. Please check your connection and try again.');
+          Alert.alert('Booking Failed', msg);
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   return (
@@ -871,6 +880,21 @@ export default function PasabayScreen({ navigation }: any) {
           <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
       </Modal>
+
+      <ConfirmBookingModal
+        visible={confirmModal.visible}
+        title={confirmModal.title}
+        subtitle={confirmModal.subtitle}
+        details={confirmModal.details}
+        fare={confirmModal.fare}
+        fareLabel={confirmModal.fareLabel}
+        discount={confirmModal.discount}
+        confirmLabel={confirmModal.confirmLabel}
+        accentColor="#DC2626"
+        loading={loading}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+      />
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </KeyboardAvoidingView>

@@ -21,6 +21,8 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } 
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
+import ConfirmBookingModal from '../../components/ConfirmBookingModal';
+import type { BookingDetail } from '../../components/ConfirmBookingModal';
 import { useRoadDistance } from '../../hooks/useDistance';
 
 export default function PasugoScreen({ navigation }: any) {
@@ -90,6 +92,7 @@ export default function PasugoScreen({ navigation }: any) {
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [baseFare, setBaseFare] = useState(50);
   const [perKmRate, setPerKmRate] = useState(15);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -285,83 +288,85 @@ export default function PasugoScreen({ navigation }: any) {
       }
     }
 
-    const weight = sizeOptions.find(s => s.id === itemSize)?.weight || 1;
+    setShowConfirmModal(true);
+  };
 
-    Alert.alert(
-      'Confirm Delivery',
-      `Item: ${itemDescription}\nSize: ${itemSize}${sizeSurcharge > 0 ? ` (+₱${sizeSurcharge})` : ''}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\n${recipientName ? `Recipient: ${recipientName}\n` : ''}Distance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}${promoDiscount > 0 ? ` (₱${promoDiscount.toFixed(0)} off)` : ''}\nPayment: ${paymentMethod.toUpperCase()}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Book Now',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              let pickupLabel = pickupLocation.address;
-              if (notes.trim()) {
-                pickupLabel += ` (${notes.trim()})`;
-              }
-              let dropoffLabel = dropoffLocation.address;
-              if (recipientName.trim()) {
-                dropoffLabel += ` [To: ${recipientName.trim()}`;
-                if (recipientPhone.trim()) dropoffLabel += `, ${recipientPhone.trim()}`;
-                dropoffLabel += ']';
-              }
-              const deliveryData: any = {
-                pickup_location: pickupLabel,
-                pickup_latitude: pickupLocation.latitude,
-                pickup_longitude: pickupLocation.longitude,
-                dropoff_location: dropoffLabel,
-                dropoff_latitude: dropoffLocation.latitude,
-                dropoff_longitude: dropoffLocation.longitude,
-                item_description: `[${itemSize.toUpperCase()}] ${itemDescription}`,
-                notes: notes,
-                weight: weight,
-                payment_method: paymentMethod,
-                distance: distance,
-              };
-              if (promoApplied && promoCode.trim()) {
-                deliveryData.promo_code = promoCode.trim();
-              }
-              // driver_id intentionally not sent — rider must accept from their app
-              const response = itemPhoto
-                ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
-                : await deliveryService.createDelivery(deliveryData);
-              const delivery = response.data?.data || {};
-              const deliveryIdNum = Number(delivery.id);
-              if (!deliveryIdNum || deliveryIdNum <= 0) {
-                setLoading(false);
-                Alert.alert('Booking Error', 'Delivery was created but we could not get the booking ID. Please check your active deliveries.');
-                return;
-              }
-              if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-                navigation.navigate('Payment', {
-                  type: paymentMethod,
-                  amount: delivery.delivery_fee || estimatedFare,
-                  serviceType: 'delivery',
-                  rideId: deliveryIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                });
-              } else {
-                navigation.navigate('Tracking', {
-                  type: 'delivery',
-                  rideId: deliveryIdNum,
-                  pickup: pickupLocation.address,
-                  dropoff: dropoffLocation.address,
-                  fare: delivery.delivery_fee || estimatedFare,
-                });
-              }
-            } catch (error: any) {
-              const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book delivery. Please check your connection and try again.');
-              Alert.alert('Booking Failed', msg);
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const confirmBookingDetails: BookingDetail[] = [
+    { icon: 'cube-outline', label: 'Item', value: `${itemDescription} (${itemSize})${sizeSurcharge > 0 ? ` +₱${sizeSurcharge}` : ''}` },
+    { icon: 'location-outline', label: 'Pickup', value: pickupLocation.address, color: '#3B82F6' },
+    { icon: 'flag-outline', label: 'Dropoff', value: dropoffLocation.address, color: '#EF4444' },
+    ...(recipientName ? [{ icon: 'person-outline', label: 'Recipient', value: `${recipientName}${recipientPhone ? ` (${recipientPhone})` : ''}` }] as BookingDetail[] : []),
+    { icon: 'navigate-outline', label: 'Distance', value: `${distance.toFixed(1)} km` },
+    { icon: 'time-outline', label: 'Est. Time', value: estimatedTime || '...' },
+    { icon: 'card-outline', label: 'Payment', value: paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : paymentMethod === 'wallet' ? 'Wallet' : 'Cash' },
+  ];
+
+  const executeBooking = async () => {
+    const weight = sizeOptions.find(s => s.id === itemSize)?.weight || 1;
+    setLoading(true);
+    try {
+      let pickupLabel = pickupLocation.address;
+      if (notes.trim()) {
+        pickupLabel += ` (${notes.trim()})`;
+      }
+      let dropoffLabel = dropoffLocation.address;
+      if (recipientName.trim()) {
+        dropoffLabel += ` [To: ${recipientName.trim()}`;
+        if (recipientPhone.trim()) dropoffLabel += `, ${recipientPhone.trim()}`;
+        dropoffLabel += ']';
+      }
+      const deliveryData: any = {
+        pickup_location: pickupLabel,
+        pickup_latitude: pickupLocation.latitude,
+        pickup_longitude: pickupLocation.longitude,
+        dropoff_location: dropoffLabel,
+        dropoff_latitude: dropoffLocation.latitude,
+        dropoff_longitude: dropoffLocation.longitude,
+        item_description: `[${itemSize.toUpperCase()}] ${itemDescription}`,
+        notes: notes,
+        weight: weight,
+        payment_method: paymentMethod,
+        distance: distance,
+      };
+      if (promoApplied && promoCode.trim()) {
+        deliveryData.promo_code = promoCode.trim();
+      }
+      const response = itemPhoto
+        ? await deliveryService.createDeliveryWithPhoto(deliveryData, itemPhoto)
+        : await deliveryService.createDelivery(deliveryData);
+      const delivery = response.data?.data || {};
+      const deliveryIdNum = Number(delivery.id);
+      setShowConfirmModal(false);
+      if (!deliveryIdNum || deliveryIdNum <= 0) {
+        setLoading(false);
+        Alert.alert('Booking Error', 'Delivery was created but we could not get the booking ID. Please check your active deliveries.');
+        return;
+      }
+      if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+        navigation.navigate('Payment', {
+          type: paymentMethod,
+          amount: delivery.delivery_fee || estimatedFare,
+          serviceType: 'delivery',
+          rideId: deliveryIdNum,
+          pickup: pickupLocation.address,
+          dropoff: dropoffLocation.address,
+        });
+      } else {
+        navigation.navigate('Tracking', {
+          type: 'delivery',
+          rideId: deliveryIdNum,
+          pickup: pickupLocation.address,
+          dropoff: dropoffLocation.address,
+          fare: delivery.delivery_fee || estimatedFare,
+        });
+      }
+    } catch (error: any) {
+      setShowConfirmModal(false);
+      const msg = error.response?.data?.error || (error.code === 'ECONNABORTED' ? 'Request timed out. The server may be starting up — please try again.' : 'Failed to book delivery. Please check your connection and try again.');
+      Alert.alert('Booking Failed', msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -646,6 +651,20 @@ export default function PasugoScreen({ navigation }: any) {
           <MapPicker title="Select Dropoff Location" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
       </Modal>
+
+      <ConfirmBookingModal
+        visible={showConfirmModal}
+        title="Confirm Delivery"
+        subtitle="Pasugo Delivery Service"
+        details={confirmBookingDetails}
+        fare={estimatedFare}
+        discount={promoDiscount > 0 ? promoDiscount : undefined}
+        confirmLabel="Book Delivery"
+        accentColor="#DC2626"
+        loading={loading}
+        onConfirm={executeBooking}
+        onCancel={() => setShowConfirmModal(false)}
+      />
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </KeyboardAvoidingView>

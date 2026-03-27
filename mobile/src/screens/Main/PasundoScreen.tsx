@@ -18,6 +18,8 @@ import { rideService, walletService, promoService, ratesService } from '../../se
 import MapPicker from '../../components/MapPicker';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import Toast, { ToastType } from '../../components/Toast';
+import ConfirmBookingModal from '../../components/ConfirmBookingModal';
+import type { BookingDetail } from '../../components/ConfirmBookingModal';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import { useRoadDistance } from '../../hooks/useDistance';
 
@@ -89,6 +91,7 @@ export default function PasundoScreen({ navigation, route }: any) {
   const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now');
   const [scheduleDateIndex, setScheduleDateIndex] = useState(0);
   const [scheduleHour, setScheduleHour] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -352,38 +355,39 @@ export default function PasundoScreen({ navigation, route }: any) {
       }
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmBookingDetails: BookingDetail[] = [
+    ...(pickupType === 'person' ? [{ icon: 'person-outline', label: 'Person', value: personName }] as BookingDetail[] : []),
+    { icon: 'car-sport-outline', label: 'Vehicle', value: selectedVehicle.name },
+    { icon: 'location-outline', label: 'Pickup', value: pickupLocation.address, color: '#3B82F6' },
+    { icon: 'flag-outline', label: 'Dropoff', value: dropoffLocation.address, color: '#EF4444' },
+    { icon: 'navigate-outline', label: 'Distance', value: `${distance.toFixed(1)} km` },
+    { icon: 'time-outline', label: scheduleMode === 'schedule' ? 'Scheduled' : 'Est. Time', value: scheduleMode === 'schedule' ? getScheduleLabel() : (estimatedTime || '...') },
+    { icon: 'card-outline', label: 'Payment', value: paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : paymentMethod === 'wallet' ? 'Wallet' : 'Cash' },
+  ];
+
+  const executePasundoBooking = () => {
+    setShowConfirmModal(false);
     const pickupLabel = buildPickupLabel();
     const scheduledAtISO = getScheduledAtISO();
-    const scheduleInfo = scheduleMode === 'schedule' ? `\nScheduled: ${getScheduleLabel()}` : '';
-
-    Alert.alert(
-      scheduleMode === 'schedule' ? 'Confirm Scheduled Pickup' : 'Confirm Pickup',
-      `${pickupType === 'person' ? `Person: ${personName}\n` : `Type: ${pickupType}\n`}Vehicle: ${selectedVehicle.name}\nPickup: ${pickupLocation.address}\nDropoff: ${dropoffLocation.address}\nDistance: ${distance.toFixed(1)} km\nEstimated Fare: ₱${estimatedFare.toFixed(0)}\nPayment: ${paymentMethod.toUpperCase()}${scheduleInfo}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: scheduleMode === 'schedule' ? 'Schedule Ride' : 'Find Rider',
-          onPress: () => {
-            navigation.navigate('RiderSelection', {
-              bookingData: {
-                pickup_location: pickupLabel,
-                pickup_latitude: pickupLocation.latitude,
-                pickup_longitude: pickupLocation.longitude,
-                dropoff_location: dropoffLocation.address,
-                dropoff_latitude: dropoffLocation.latitude,
-                dropoff_longitude: dropoffLocation.longitude,
-                vehicle_type: vehicleType,
-                payment_method: paymentMethod,
-                estimated_fare: estimatedFare,
-                distance: distance,
-                ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
-                ...(scheduledAtISO ? { scheduled_at: scheduledAtISO } : {}),
-              },
-            });
-          },
-        },
-      ]
-    );
+    navigation.navigate('RiderSelection', {
+      bookingData: {
+        pickup_location: pickupLabel,
+        pickup_latitude: pickupLocation.latitude,
+        pickup_longitude: pickupLocation.longitude,
+        dropoff_location: dropoffLocation.address,
+        dropoff_latitude: dropoffLocation.latitude,
+        dropoff_longitude: dropoffLocation.longitude,
+        vehicle_type: vehicleType,
+        payment_method: paymentMethod,
+        estimated_fare: estimatedFare,
+        distance: distance,
+        ...(promoApplied && promoCode.trim() ? { promo_code: promoCode.trim() } : {}),
+        ...(scheduledAtISO ? { scheduled_at: scheduledAtISO } : {}),
+      },
+    });
   };
 
   return (
@@ -746,6 +750,19 @@ export default function PasundoScreen({ navigation, route }: any) {
           <MapPicker title="Where to drop off?" onLocationSelect={handleDropoffSelect} initialLocation={dropoffLocation.latitude ? dropoffLocation : pickupLocation.latitude ? pickupLocation : undefined} />
         </View>
       </Modal>
+
+      <ConfirmBookingModal
+        visible={showConfirmModal}
+        title={scheduleMode === 'schedule' ? 'Confirm Scheduled Pickup' : 'Confirm Pickup'}
+        subtitle="Pasundo Ride Service"
+        details={confirmBookingDetails}
+        fare={estimatedFare}
+        discount={promoDiscount > 0 ? promoDiscount : undefined}
+        confirmLabel={scheduleMode === 'schedule' ? 'Schedule Ride' : 'Find Rider'}
+        accentColor="#DC2626"
+        onConfirm={executePasundoBooking}
+        onCancel={() => setShowConfirmModal(false)}
+      />
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </KeyboardAvoidingView>
