@@ -34,7 +34,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3B82F6"
       },
-      "versionCode": 1,
       "package": "com.omji.balingasag",
       "googleServicesFile": "./google-services.json",
       "permissions": [
@@ -83,8 +82,7 @@
             "deploymentTarget": "15.1"
           }
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "updates": {
       "enabled": true,
