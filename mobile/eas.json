@@ -6,19 +6,13 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_SENTRY_DSN": ""
-      }
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
-      },
-      "env": {
-        "EXPO_PUBLIC_SENTRY_DSN": ""
       }
     },
     "production": {
@@ -27,11 +21,7 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "simulator": false,
-        "autoCredentials": true
-      },
-      "env": {
-        "EXPO_PUBLIC_SENTRY_DSN": ""
+        "simulator": false
       }
     },
     "apk": {
@@ -47,10 +37,6 @@
       "android": {
         "serviceAccountKeyPath": "./google-play-key.json",
         "track": "internal"
-      },
-      "ios": {
-        "ascAppId": "",
-        "appleTeamId": ""
       }
     }
   }
