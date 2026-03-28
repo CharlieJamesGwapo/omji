@@ -55,7 +55,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'profile.refer_earn': { en: 'Refer & Earn', ceb: 'Mag-refer ug Kita' },
   'profile.settings': { en: 'Settings', ceb: 'Settings' },
   'profile.language': { en: 'Language', ceb: 'Pinulongan' },
-  'profile.logout': { en: 'Logout', ceb: 'Logout' },
+  'profile.logout': { en: 'Logout', ceb: 'Gawas' },
 
   // Rating
   'rating.rate_rider': { en: 'Rate Your Rider', ceb: 'I-rate ang Rider' },
@@ -85,6 +85,74 @@ const translations: Record<string, Record<Lang, string>> = {
   'sos.call_911': { en: 'Call Emergency (911)', ceb: 'Tawag sa 911' },
   'sos.call_support': { en: 'Call OMJI Support', ceb: 'Tawag sa OMJI Support' },
   'sos.share_location': { en: 'Share Live Location', ceb: 'I-share ang Location' },
+
+  // Auth
+  'auth.login_title': { en: 'Sign In', ceb: 'Sulod' },
+  'auth.register_title': { en: 'Create Account', ceb: 'Paghimo og Account' },
+  'auth.full_name': { en: 'Full Name', ceb: 'Tibuok Ngalan' },
+  'auth.email': { en: 'Email Address', ceb: 'Email Address' },
+  'auth.phone': { en: 'Phone Number', ceb: 'Numero sa Telepono' },
+  'auth.password': { en: 'Password', ceb: 'Password' },
+  'auth.confirm_password': { en: 'Confirm Password', ceb: 'Kumpirma Password' },
+  'auth.login_button': { en: 'Sign In', ceb: 'Sulod' },
+  'auth.register_button': { en: 'Create Account', ceb: 'Paghimo og Account' },
+  'auth.have_account': { en: 'Already have an account?', ceb: 'Naa na kay account?' },
+  'auth.no_account': { en: "Don't have an account?", ceb: 'Wala pa kay account?' },
+  'auth.terms_agree': { en: 'I agree to the', ceb: 'Uyon ko sa' },
+  'auth.terms_of_service': { en: 'Terms of Service', ceb: 'Mga Kasabutan sa Serbisyo' },
+  'auth.privacy_policy': { en: 'Privacy Policy', ceb: 'Polisiya sa Privacy' },
+
+  // Orders
+  'orders.title': { en: 'My Orders', ceb: 'Akong mga Order' },
+  'orders.ongoing': { en: 'Ongoing', ceb: 'Padayon' },
+  'orders.completed': { en: 'Completed', ceb: 'Nahuman' },
+  'orders.cancelled': { en: 'Cancelled', ceb: 'Gikansel' },
+  'orders.no_active': { en: 'No active orders', ceb: 'Walay aktibo nga order' },
+  'orders.track': { en: 'Track Order', ceb: 'Track ang Order' },
+  'orders.cancel': { en: 'Cancel Order', ceb: 'Kansel ang Order' },
+
+  // Wallet
+  'wallet.title': { en: 'My Wallet', ceb: 'Akong Wallet' },
+  'wallet.balance': { en: 'Available Balance', ceb: 'Balanse' },
+  'wallet.top_up': { en: 'Top Up', ceb: 'Dugang Kwarta' },
+  'wallet.withdraw': { en: 'Withdraw', ceb: 'Kuha og Kwarta' },
+  'wallet.transactions': { en: 'Recent Transactions', ceb: 'Bag-o nga Transaksyon' },
+  'wallet.no_transactions': { en: 'No transactions yet', ceb: 'Wala pay transaksyon' },
+
+  // Notifications
+  'notifications.title': { en: 'Notifications', ceb: 'Mga Notipikasyon' },
+  'notifications.empty': { en: 'No notifications', ceb: 'Walay notipikasyon' },
+  'notifications.mark_all_read': { en: 'Read all', ceb: 'Basaha tanan' },
+  'notifications.today': { en: 'Today', ceb: 'Karon' },
+  'notifications.yesterday': { en: 'Yesterday', ceb: 'Gahapon' },
+  'notifications.earlier': { en: 'Earlier', ceb: 'Sauna' },
+
+  // Favorites
+  'favorites.title': { en: 'Favorites', ceb: 'Mga Paborito' },
+  'favorites.empty': { en: 'No favorites yet', ceb: 'Wala pay paborito' },
+  'favorites.remove': { en: 'Remove from favorites', ceb: 'Tangtanga sa paborito' },
+
+  // Cart & Stores
+  'cart.title': { en: 'My Cart', ceb: 'Akong Cart' },
+  'cart.empty': { en: 'Your cart is empty', ceb: 'Walay sulod ang imong cart' },
+  'cart.checkout': { en: 'Place Order', ceb: 'Ibutang ang Order' },
+  'cart.total': { en: 'Total Amount', ceb: 'Total nga Kantidad' },
+  'stores.title': { en: 'Stores', ceb: 'Mga Tindahan' },
+  'stores.search': { en: 'Search stores...', ceb: 'Pangita og tindahan...' },
+  'stores.no_results': { en: 'No stores found', ceb: 'Walay nakita nga tindahan' },
+
+  // Error states
+  'error.no_connection': { en: 'Could not load data', ceb: 'Dili ma-load ang datos' },
+  'error.try_again': { en: 'Try Again', ceb: 'Sulayi Pag-usab' },
+  'error.check_connection': { en: 'Check your connection and try again', ceb: 'Susiha ang imong koneksyon ug sulayi pag-usab' },
+  'error.no_internet': { en: 'No Internet Connection', ceb: 'Walay Internet' },
+
+  // Profile (additional)
+  'profile.edit': { en: 'Edit Profile', ceb: 'Usba ang Profile' },
+  'profile.saved_addresses': { en: 'Saved Addresses', ceb: 'Mga Na-save nga Address' },
+  'profile.payment_methods': { en: 'Payment Methods', ceb: 'Mga Paagi sa Pagbayad' },
+  'profile.ride_history': { en: 'Ride History', ceb: 'Kasaysayan sa Pagsakay' },
+  'profile.help': { en: 'Help & Support', ceb: 'Tabang ug Suporta' },
 };
 
 let currentLang: Lang = 'en';

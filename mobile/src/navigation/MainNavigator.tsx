@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
 
 // Main Tab Screens
 import HomeScreen from '../screens/Main/HomeScreen';
@@ -106,6 +107,7 @@ function MainTabs() {
 export default function MainNavigator() {
   const navigation = useNavigation();
   usePushNotifications(navigation);
+  useOfflineQueue();
 
   return (
     <Stack.Navigator

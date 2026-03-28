@@ -15,6 +15,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { driverService, walletService } from '../../services/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
@@ -138,6 +140,100 @@ export default function RiderEarningsScreen({ navigation }: any) {
   // Calculate max for bar chart proportional display
   const maxBreakdownEarnings = Math.max(...(earningsBreakdown || []).map(b => b.earnings ?? 0), 1);
 
+  const generateEarningsReport = async () => {
+    try {
+      const periodLabel = selectedPeriod === 'today' ? 'Today' : selectedPeriod === 'week' ? 'This Week' : 'This Month';
+      const rideEarn = selectedPeriod === 'today' ? todayRideEarnings : selectedPeriod === 'week' ? weekRideEarnings : rideEarnings;
+      const delEarn = selectedPeriod === 'today' ? todayDeliveryEarnings : selectedPeriod === 'week' ? weekDeliveryEarnings : deliveryEarnings;
+      const rideTrips = selectedPeriod === 'today' ? todayRideCount : selectedPeriod === 'week' ? weekRideCount : rideCount;
+      const delTrips = selectedPeriod === 'today' ? todayDeliveryCount : selectedPeriod === 'week' ? weekDeliveryCount : deliveryCount;
+      const totalEarn = rideEarn + delEarn;
+      const totalTrips = rideTrips + delTrips;
+      const avgPerTrip = totalTrips > 0 ? totalEarn / totalTrips : 0;
+      const dateStr = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const html = `
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, Arial, sans-serif; padding: 40px; color: #1F2937; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3B82F6; padding-bottom: 20px; }
+            .header h1 { color: #3B82F6; margin: 0; font-size: 24px; }
+            .header p { color: #6B7280; margin: 5px 0 0; font-size: 14px; }
+            .period { background: #EFF6FF; border-radius: 8px; padding: 12px 20px; text-align: center; margin-bottom: 24px; }
+            .period h2 { margin: 0; color: #1D4ED8; font-size: 18px; }
+            .summary { display: flex; justify-content: space-between; margin-bottom: 24px; gap: 12px; }
+            .stat-card { flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; text-align: center; }
+            .stat-card .value { font-size: 22px; font-weight: bold; color: #111827; }
+            .stat-card .label { font-size: 12px; color: #6B7280; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background: #3B82F6; color: white; padding: 12px; text-align: left; font-size: 13px; }
+            td { padding: 12px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
+            tr:nth-child(even) { background: #F9FAFB; }
+            .footer { margin-top: 30px; text-align: center; color: #9CA3AF; font-size: 11px; border-top: 1px solid #E5E7EB; padding-top: 16px; }
+            .total-row { font-weight: bold; background: #EFF6FF !important; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>OMJI Earnings Report</h1>
+            <p>Generated on ${dateStr}</p>
+          </div>
+          <div class="period"><h2>${periodLabel} Earnings</h2></div>
+          <div class="summary">
+            <div class="stat-card">
+              <div class="value">\u20B1${totalEarn.toFixed(2)}</div>
+              <div class="label">Total Earnings</div>
+            </div>
+            <div class="stat-card">
+              <div class="value">${totalTrips}</div>
+              <div class="label">Total Trips</div>
+            </div>
+            <div class="stat-card">
+              <div class="value">\u20B1${avgPerTrip.toFixed(2)}</div>
+              <div class="label">Avg per Trip</div>
+            </div>
+          </div>
+          <table>
+            <tr><th>Service</th><th>Trips</th><th>Earnings</th><th>Share</th></tr>
+            <tr>
+              <td>Pasundo (Rides)</td>
+              <td>${rideTrips}</td>
+              <td>\u20B1${rideEarn.toFixed(2)}</td>
+              <td>${totalEarn > 0 ? ((rideEarn / totalEarn) * 100).toFixed(1) : '0'}%</td>
+            </tr>
+            <tr>
+              <td>Pasugo (Deliveries)</td>
+              <td>${delTrips}</td>
+              <td>\u20B1${delEarn.toFixed(2)}</td>
+              <td>${totalEarn > 0 ? ((delEarn / totalEarn) * 100).toFixed(1) : '0'}%</td>
+            </tr>
+            <tr class="total-row">
+              <td>Total</td>
+              <td>${totalTrips}</td>
+              <td>\u20B1${totalEarn.toFixed(2)}</td>
+              <td>100%</td>
+            </tr>
+          </table>
+          <div style="margin-top: 24px;">
+            <p style="font-size: 13px;"><strong>Wallet Balance:</strong> \u20B1${balance.toFixed(2)}</p>
+          </div>
+          <div class="footer">
+            <p>OMJI - Balingasag Transport & Delivery Platform</p>
+            <p>This report was automatically generated by OMJI App</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'OMJI Earnings Report' });
+    } catch (error) {
+      Alert.alert('Export Failed', 'Could not generate the earnings report. Please try again.');
+    }
+  };
+
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
 
@@ -207,7 +303,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>Earnings</Text>
         <TouchableOpacity
           style={styles.downloadButton}
-          onPress={() => Alert.alert('Download Report', 'Coming soon! Earnings report download will be available in a future update.')}
+          onPress={generateEarningsReport}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityLabel="Download earnings report"
           accessibilityRole="button"

@@ -356,7 +356,7 @@ describe('usePromoCode', () => {
 
       let deps = [10.0, 124.0];
       const { result, rerender } = renderHook(
-        (props) => usePromoCode(props),
+        (props: any) => usePromoCode(props),
         { initialProps: { ...defaultOptions, resetDeps: deps } },
       );
 
@@ -385,7 +385,7 @@ describe('usePromoCode', () => {
     it('does not reset when promo is not applied and deps change', () => {
       let deps = [10.0, 124.0];
       const { result, rerender } = renderHook(
-        (props) => usePromoCode(props),
+        (props: any) => usePromoCode(props),
         { initialProps: { ...defaultOptions, resetDeps: deps } },
       );
 

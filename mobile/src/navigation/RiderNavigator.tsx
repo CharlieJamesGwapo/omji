@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
 
 import RiderDashboardScreen from '../screens/Rider/RiderDashboardScreen';
 import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
@@ -84,6 +85,7 @@ function RiderTabs() {
 export default function RiderNavigator() {
   const navigation = useNavigation();
   usePushNotifications(navigation);
+  useOfflineQueue();
 
   return (
     <Stack.Navigator

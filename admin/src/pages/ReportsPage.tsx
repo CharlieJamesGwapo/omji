@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   LineChart, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar,
 } from 'recharts';
 import toast from 'react-hot-toast';
 import { adminService } from '../services/api';
@@ -79,6 +80,14 @@ const ReportsPage: React.FC = () => {
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const dayOfMonth = now.getDate();
   const avgDailyRevenue = dayOfMonth > 0 ? thisMonthRevenue / dayOfMonth : 0;
+
+  const growth = useMemo(() => {
+    if (monthlyData.length < 2) return 0;
+    const current = monthlyData[monthlyData.length - 1]?.revenue || 0;
+    const previous = monthlyData[monthlyData.length - 2]?.revenue || 0;
+    if (previous === 0) return 0;
+    return ((current - previous) / previous) * 100;
+  }, [monthlyData]);
 
   const formatCurrency = (val: number) =>
     `\u20B1${(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -173,7 +182,7 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {metricCards.map((card) => (
           <div
             key={card.label}
@@ -195,6 +204,20 @@ const ReportsPage: React.FC = () => {
             </div>
           </div>
         ))}
+        {/* Month-over-Month Growth */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-teal-500 p-4 sm:p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Month-over-Month</p>
+              <p className={`text-xl sm:text-2xl font-bold mt-1.5 ${growth >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
+              </p>
+            </div>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex ${growth >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+              <span className="text-lg">{growth >= 0 ? '\u{1F4C8}' : '\u{1F4C9}'}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}
@@ -283,6 +306,75 @@ const ReportsPage: React.FC = () => {
                 No revenue data to display
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Bar Chart & Service Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Revenue by Month (Bar View) */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Revenue by Month (Bar View)</h2>
+              <p className="text-[11px] text-gray-400 mt-0.5">Monthly revenue as bars</p>
+            </div>
+            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
+          <div className="p-5">
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `\u20B1${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: 12 }}
+                    formatter={(value: number) => [`\u20B1${value.toLocaleString()}`, 'Revenue']}
+                  />
+                  <Bar dataKey="revenue" fill="#10B981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-gray-400 text-sm">
+                No monthly revenue data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Service Performance */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Service Performance</h2>
+              <p className="text-[11px] text-gray-400 mt-0.5">Revenue breakdown by service type</p>
+            </div>
+            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <p className="text-2xl font-bold text-blue-600">{formatCurrency(earnings.ride_revenue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Rides (Pasundo)</p>
+              </div>
+              <div className="text-center p-4 bg-emerald-50 rounded-lg">
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(earnings.delivery_revenue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Deliveries (Pasugo)</p>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <p className="text-2xl font-bold text-purple-600">{formatCurrency(earnings.order_revenue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Store Orders</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

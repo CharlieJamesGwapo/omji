@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -49,6 +50,8 @@ export default function ChatScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [peerTyping, setPeerTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const prevMessageCount = useRef(0);
   const shouldAutoScroll = useRef(true);
@@ -56,6 +59,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const wsRef = useRef<WebSocket | null>(null);
   const wsConnected = useRef(false);
   const pollingIntervalRef = useRef(3000);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quickReplies = [
     t('chat.waiting_outside'),
@@ -147,6 +151,11 @@ export default function ChatScreen({ route, navigation }: any) {
           if (!mountedRef.current) return;
           try {
             const data = JSON.parse(event.data);
+            if (data.type === 'typing' && data.sender_id !== currentUserId) {
+              setPeerTyping(true);
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => setPeerTyping(false), 3000);
+            }
             if (data.type === 'chat_message') {
               const newMsg = mapServerMessage(data.data || data);
               setMessages(prev => {
@@ -204,6 +213,7 @@ export default function ChatScreen({ route, navigation }: any) {
         wsRef.current = null;
         wsConnected.current = false;
       }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       unsubBlur();
       unsubFocus();
     };
@@ -322,11 +332,13 @@ export default function ChatScreen({ route, navigation }: any) {
         )}
         <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
           {item.imageUrl ? (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={{ width: moderateScale(200), height: moderateScale(150), borderRadius: moderateScale(12) }}
-              resizeMode="cover"
-            />
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setPreviewImage(item.imageUrl!)}>
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: moderateScale(200), height: moderateScale(150), borderRadius: moderateScale(12) }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
           ) : (
             <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.theirMessageText]}>
               {item.text}
@@ -432,6 +444,13 @@ export default function ChatScreen({ route, navigation }: any) {
         />
       )}
 
+      {/* Typing Indicator */}
+      {peerTyping && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingVertical: verticalScale(4) }}>
+          <Text style={{ fontSize: fontScale(12), color: COLORS.gray400, fontStyle: 'italic' }}>{rider.name} is typing...</Text>
+        </View>
+      )}
+
       {/* Quick Replies */}
       <View style={styles.quickRepliesContainer}>
         <FlatList
@@ -473,7 +492,12 @@ export default function ChatScreen({ route, navigation }: any) {
           placeholder="Type a message..."
           placeholderTextColor={COLORS.gray400}
           value={message}
-          onChangeText={setMessage}
+          onChangeText={(text) => {
+            setMessage(text);
+            if (wsConnected.current && wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'typing', sender_id: currentUserId }));
+            }
+          }}
           multiline
           maxLength={500}
         />
@@ -491,6 +515,16 @@ export default function ChatScreen({ route, navigation }: any) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Full-screen image preview */}
+      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity style={{ position: 'absolute', top: isIOS ? verticalScale(50) : verticalScale(35), right: moderateScale(16), zIndex: 10 }} onPress={() => setPreviewImage(null)}>
+            <Ionicons name="close-circle" size={moderateScale(36)} color="#fff" />
+          </TouchableOpacity>
+          {previewImage && <Image source={{ uri: previewImage }} style={{ width: '90%', height: '70%' }} resizeMode="contain" />}
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
