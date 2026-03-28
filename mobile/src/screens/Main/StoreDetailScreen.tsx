@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import CachedImage from '../../components/CachedImage';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { storeService, favoritesService } from '../../services/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -243,7 +243,7 @@ export default function StoreDetailScreen({ route, navigation }: any) {
             return (
               <View key={product.id} style={styles.productCard}>
                 {product.image ? (
-                  <Image source={{ uri: product.image }} style={styles.productImage} />
+                  <CachedImage uri={product.image} style={styles.productImage} />
                 ) : (
                   <View style={[styles.productImage, { backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' }]}>
                     <Ionicons name="fast-food-outline" size={moderateScale(32)} color={COLORS.gray300} />

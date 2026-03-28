@@ -81,7 +81,9 @@
       ]
     ],
     "updates": {
-      "enabled": false,
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000,
       "url": "https://u.expo.dev/58003a41-a27a-47ac-b17a-886e1f190db9"
     },
     "owner": "bboydevzxczc",

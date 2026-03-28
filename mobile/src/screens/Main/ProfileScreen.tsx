@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/i18n';
 import { COLORS } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { rideService, orderService, deliveryService, walletService, userService, driverService, referralService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
@@ -36,6 +37,15 @@ const SECTION_ICONS: Record<string, { bg: string }> = {
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout, updateUser } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+
+  const cycleThemeMode = () => {
+    const next = themeMode === 'system' ? 'light' : themeMode === 'light' ? 'dark' : 'system';
+    setThemeMode(next);
+  };
+
+  const themeModeLabel = themeMode === 'system' ? 'System' : themeMode === 'light' ? 'Light' : 'Dark';
+  const themeModeIcon = themeMode === 'dark' ? 'moon-outline' : themeMode === 'light' ? 'sunny-outline' : 'phone-portrait-outline';
   const [stats, setStats] = useState({ rides: 0, orders: 0, rating: 0, spent: 0 });
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -176,10 +186,12 @@ export default function ProfileScreen({ navigation }: any) {
       title: 'Account',
       items: [
         { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
+        { icon: 'gift-outline', label: 'Refer & Earn', screen: 'Referral' },
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
         { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
         { icon: 'language-outline', label: `${t('profile.language')}: ${language === 'en' ? 'English' : 'Bisaya'}`, screen: null, action: () => setLanguage(language === 'en' ? 'ceb' : 'en') },
+        { icon: themeModeIcon, label: `Dark Mode: ${themeModeLabel}`, screen: null, action: cycleThemeMode },
         ...(!user?.role || user.role === 'user' ? (
           driverStatus === 'pending' ? [
             { icon: 'hourglass-outline', label: 'Rider Application (Pending)', screen: null, action: () => {

@@ -293,6 +293,16 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </Animated.View>
 
+      {/* Search Bar */}
+      <TouchableOpacity
+        style={styles.fakeSearchBar}
+        onPress={() => navigation.navigate('Search')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="search-outline" size={moderateScale(18)} color={COLORS.gray400} />
+        <Text style={styles.fakeSearchText}>Search stores, services...</Text>
+      </TouchableOpacity>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, {
@@ -756,6 +766,22 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: RESPONSIVE.borderRadius.xlarge,
     borderBottomRightRadius: RESPONSIVE.borderRadius.xlarge,
     ...SHADOWS.md,
+  },
+  fakeSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray100,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(12),
+    marginBottom: verticalScale(4),
+    paddingHorizontal: moderateScale(14),
+    height: moderateScale(42),
+    borderRadius: moderateScale(12),
+  },
+  fakeSearchText: {
+    fontSize: fontScale(14),
+    color: COLORS.gray400,
+    marginLeft: moderateScale(10),
   },
   headerContent: {
     flexDirection: 'row',

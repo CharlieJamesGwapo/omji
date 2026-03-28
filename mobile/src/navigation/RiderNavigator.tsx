@@ -9,6 +9,7 @@ import { COLORS } from '../constants/theme';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useAppUpdates } from '../hooks/useAppUpdates';
 
 import RiderDashboardScreen from '../screens/Rider/RiderDashboardScreen';
 import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
@@ -86,6 +87,7 @@ export default function RiderNavigator() {
   const navigation = useNavigation();
   usePushNotifications(navigation);
   useOfflineQueue();
+  useAppUpdates();
 
   return (
     <Stack.Navigator

@@ -9,6 +9,7 @@ import { View, ActivityIndicator, LogBox, Text, TouchableOpacity, ScrollView } f
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NetworkProvider, useNetwork } from './src/context/NetworkContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 // No Internet Screen
 import NoInternetScreen from './src/screens/NoInternetScreen';
@@ -123,13 +124,15 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 export default function App() {
   return (
     <ErrorBoundary>
-      <NetworkProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </LanguageProvider>
-      </NetworkProvider>
+      <ThemeProvider>
+        <NetworkProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </LanguageProvider>
+        </NetworkProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

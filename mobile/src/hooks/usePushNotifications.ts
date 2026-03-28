@@ -5,6 +5,64 @@ import * as Device from 'expo-device';
 import type { EventSubscription } from 'expo-modules-core';
 import { pushService } from '../services/api';
 
+// Set up Android notification channels (Android 8+ requirement)
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('rides', {
+    name: 'Ride Updates',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#3B82F6',
+    sound: 'default',
+    description: 'Notifications about your ride requests and status updates',
+  });
+
+  Notifications.setNotificationChannelAsync('deliveries', {
+    name: 'Delivery Updates',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#10B981',
+    sound: 'default',
+    description: 'Notifications about your delivery status and updates',
+  });
+
+  Notifications.setNotificationChannelAsync('orders', {
+    name: 'Order Updates',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#F59E0B',
+    sound: 'default',
+    description: 'Notifications about your store orders',
+  });
+
+  Notifications.setNotificationChannelAsync('chat', {
+    name: 'Messages',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 200, 100, 200],
+    lightColor: '#8B5CF6',
+    sound: 'default',
+    description: 'Chat messages from riders and drivers',
+  });
+
+  Notifications.setNotificationChannelAsync('wallet', {
+    name: 'Wallet & Payments',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lightColor: '#06B6D4',
+    description: 'Wallet top-ups, withdrawals, and payment confirmations',
+  });
+
+  Notifications.setNotificationChannelAsync('promo', {
+    name: 'Promotions',
+    importance: Notifications.AndroidImportance.LOW,
+    description: 'Promotional offers and discounts',
+  });
+
+  Notifications.setNotificationChannelAsync('general', {
+    name: 'General',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    description: 'General app notifications and announcements',
+  });
+}
+
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

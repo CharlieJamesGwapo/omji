@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { verticalScale, fontScale, moderateScale } from '../utils/responsive';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useAppUpdates } from '../hooks/useAppUpdates';
 
 // Main Tab Screens
 import HomeScreen from '../screens/Main/HomeScreen';
@@ -31,9 +32,11 @@ import PaymentMethodsScreen from '../screens/Main/PaymentMethodsScreen';
 import FavoritesScreen from '../screens/Main/FavoritesScreen';
 import NotificationsScreen from '../screens/Main/NotificationsScreen';
 import PaymentScreen from '../screens/Main/PaymentScreen';
+import SearchScreen from '../screens/Main/SearchScreen';
 import RiderRegistrationScreen from '../screens/Auth/RiderRegistrationScreen';
 import RiderSelectionScreen from '../screens/Main/RiderSelectionScreen';
 import RiderWaitingScreen from '../screens/Main/RiderWaitingScreen';
+import ReferralScreen from '../screens/Main/ReferralScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -108,6 +111,7 @@ export default function MainNavigator() {
   const navigation = useNavigation();
   usePushNotifications(navigation);
   useOfflineQueue();
+  useAppUpdates();
 
   return (
     <Stack.Navigator
@@ -139,6 +143,8 @@ export default function MainNavigator() {
       <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Payment" component={PaymentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false, cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
     </Stack.Navigator>
   );
 }
