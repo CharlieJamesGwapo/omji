@@ -77,6 +77,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [rideRequest, setRideRequest] = useState<any>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const driverWsRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const MAX_RECONNECTS = 5;
   const driverProfileId = useRef<number | null>(null);
   const [driverProfileIdState, setDriverProfileIdState] = useState<number | null>(null);
 
@@ -243,10 +245,16 @@ export default function RiderDashboardScreen({ navigation }: any) {
           }
         } catch {}
       };
+      ws.onopen = () => {
+        reconnectAttemptsRef.current = 0;
+      };
       ws.onerror = () => {};
       ws.onclose = () => {
-        // Auto-reconnect after 5s (effect cleanup handles going offline)
-        reconnectTimeout = setTimeout(connect, 5000);
+        if (reconnectAttemptsRef.current < MAX_RECONNECTS) {
+          const delay = Math.min(5000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          reconnectAttemptsRef.current++;
+          reconnectTimeout = setTimeout(connect, delay);
+        }
       };
     };
 
@@ -432,7 +440,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
     ]);
   };
 
-  const handleAcceptRideRequest = async (rideId: number) => {
+  const handleAcceptRideRequest = async (rideId: number, requestData?: any) => {
     setShowRequestModal(false);
     try {
       await driverService.acceptRequest(rideId);
@@ -441,9 +449,9 @@ export default function RiderDashboardScreen({ navigation }: any) {
       navigation.navigate('Tracking', {
         type: 'ride',
         rideId,
-        pickup: rideRequest?.pickup_location ?? '',
-        dropoff: rideRequest?.dropoff_location ?? '',
-        fare: rideRequest?.estimated_fare ?? 0,
+        pickup: requestData?.pickup_location ?? rideRequest?.pickup_location ?? '',
+        dropoff: requestData?.dropoff_location ?? rideRequest?.dropoff_location ?? '',
+        fare: requestData?.estimated_fare ?? rideRequest?.estimated_fare ?? 0,
       });
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to accept ride', 'error');

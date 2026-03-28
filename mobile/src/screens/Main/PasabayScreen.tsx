@@ -289,7 +289,7 @@ export default function PasabayScreen({ navigation }: any) {
   const selectedType = rideTypes.find(r => r.id === rideType) || rideTypes[0];
   const passengerCharge = passengers > 1 ? (passengers - 1) * 20 : 0;
   const distanceCharge = distance * selectedType.ratePerKm;
-  const baseFareCalc = selectedType.basePrice + passengerCharge + distanceCharge;
+  const baseFareCalc = distance > 0 ? selectedType.basePrice + passengerCharge + distanceCharge : 0;
   const totalFare = Math.max(0, baseFareCalc - promoDiscount);
 
   // Reset promo when fare basis changes

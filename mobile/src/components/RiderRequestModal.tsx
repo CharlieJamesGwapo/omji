@@ -22,7 +22,7 @@ interface RideRequestData {
 interface Props {
   visible: boolean;
   request: RideRequestData | null;
-  onAccept: (rideId: number) => void;
+  onAccept: (rideId: number, requestData?: any) => void;
   onDecline: (rideId: number) => void;
   acceptLoading?: boolean;
   declineLoading?: boolean;
@@ -169,7 +169,7 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
             {/* Buttons */}
             <TouchableOpacity
               style={[styles.acceptBtn, acceptLoading && { opacity: 0.7 }]}
-              onPress={() => onAccept(request.ride_id)}
+              onPress={() => onAccept(request.ride_id, request)}
               activeOpacity={0.8}
               disabled={acceptLoading || declineLoading}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

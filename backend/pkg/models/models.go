@@ -114,7 +114,7 @@ type Ride struct {
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CancellationReason  string     `json:"cancellation_reason,omitempty"`
 	CompletedAt         *time.Time `json:"completed_at,omitempty"`
-	CreatedAt           time.Time `json:"created_at"`
+	CreatedAt           time.Time `gorm:"index" json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
@@ -171,7 +171,7 @@ type Delivery struct {
 	CancellationReason  string     `json:"cancellation_reason,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CompletedAt         *time.Time `json:"completed_at,omitempty"`
-	CreatedAt           time.Time `json:"created_at"`
+	CreatedAt           time.Time `gorm:"index" json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
@@ -312,7 +312,7 @@ type WalletTransaction struct {
 	Amount      float64   `json:"amount"`
 	Description string    `json:"description"`
 	Reference   string    `json:"reference"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time `gorm:"index" json:"created_at"`
 }
 
 // RateConfig model for admin-managed pricing

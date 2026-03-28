@@ -19,11 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"omji/config"
 	"omji/pkg/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
@@ -717,7 +715,6 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot cancel ride in " + ride.Status + " status"})
 			return
 		}
-		freeDriver(db, ride.DriverID)
 		updates := map[string]interface{}{"status": "cancelled"}
 		if input.Reason != "" {
 			updates["cancellation_reason"] = input.Reason
@@ -726,6 +723,7 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel ride"})
 			return
 		}
+		freeDriver(db, ride.DriverID)
 		notifyDriver(db, ride.DriverID, "Ride Cancelled", "The passenger cancelled the ride from "+ride.PickupLocation+".", "ride_cancelled")
 		notifyUser(db, ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
@@ -1207,7 +1205,6 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivery not found or cannot cancel"})
 			return
 		}
-		freeDriver(db, d.DriverID)
 		updates := map[string]interface{}{"status": "cancelled"}
 		if input.Reason != "" {
 			updates["cancellation_reason"] = input.Reason
@@ -1216,6 +1213,7 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to cancel delivery"})
 			return
 		}
+		freeDriver(db, d.DriverID)
 		notifyDriver(db, d.DriverID, "Delivery Cancelled", "The customer cancelled the delivery from "+d.PickupLocation+".", "delivery_cancelled")
 		notifyUser(db, d.UserID, "Delivery Cancelled", "Your delivery has been cancelled.", "delivery_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
@@ -2739,14 +2737,20 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
 			return
 		}
-		if err := c.ShouldBindJSON(&store); err != nil {
+		var input map[string]interface{}
+		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		if err := db.Save(&store).Error; err != nil {
+		// Remove protected fields to prevent mass assignment
+		for _, f := range []string{"id", "ID", "created_at", "CreatedAt", "user_id", "UserID"} {
+			delete(input, f)
+		}
+		if err := db.Model(&store).Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update store"})
 			return
 		}
+		db.First(&store, store.ID)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -3099,14 +3103,20 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo not found"})
 			return
 		}
-		if err := c.ShouldBindJSON(&promo); err != nil {
+		var input map[string]interface{}
+		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		if err := db.Save(&promo).Error; err != nil {
+		// Remove protected fields to prevent mass assignment
+		for _, f := range []string{"id", "ID", "created_at", "CreatedAt", "usage_count", "UsageCount"} {
+			delete(input, f)
+		}
+		if err := db.Model(&promo).Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update promo"})
 			return
 		}
+		db.First(&promo, promo.ID)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -3574,13 +3584,9 @@ func GetWalletBalance(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var wallet models.Wallet
-		if err := db.Where("user_id = ?", userID).First(&wallet).Error; err != nil {
-			// Create wallet if not exists
-			wallet = models.Wallet{UserID: userID, Balance: 0}
-			if err := db.Create(&wallet).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create wallet"})
-				return
-			}
+		if err := db.Where("user_id = ?", userID).FirstOrCreate(&wallet, models.Wallet{UserID: userID}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to get or create wallet"})
+			return
 		}
 		var transactions []models.WalletTransaction
 		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Limit(20).Find(&transactions).Error; err != nil {
@@ -4126,6 +4132,21 @@ func CloseAllWebSockets() {
 func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rideID := c.Param("rideId")
+
+		// Verify the user is authorized for this ride/delivery
+		userID := c.GetUint("userID")
+		userRole := c.GetString("role")
+
+		var rideCount int64
+		db.Table("rides").Where("id = ? AND (user_id = ? OR driver_id = ?)", rideID, userID, userID).Count(&rideCount)
+		var deliveryCount int64
+		db.Table("deliveries").Where("id = ? AND (user_id = ? OR driver_id = ?)", rideID, userID, userID).Count(&deliveryCount)
+
+		if rideCount == 0 && deliveryCount == 0 && userRole != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized for this ride"})
+			return
+		}
+
 		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			log.Printf("WebSocket upgrade error: %v", err)
@@ -4339,12 +4360,28 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		driverID := c.Param("driverId")
-		// Validate driver exists
+
+		// Verify the connecting user IS this driver
+		userID := c.GetUint("userID")
+		driverIdParsed, err := strconv.ParseUint(driverID, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid driver ID"})
+			return
+		}
+		// Look up the driver record to check user_id matches
 		var driver models.Driver
-		if err := db.First(&driver, driverID).Error; err != nil {
+		if err := db.First(&driver, driverIdParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
+		if driver.UserID != userID {
+			userRole := c.GetString("role")
+			if userRole != "admin" {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Not authorized"})
+				return
+			}
+		}
+
 		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
@@ -4407,34 +4444,19 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rideID := c.Param("rideId")
-		tokenStr := c.Query("token")
-		if tokenStr == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Missing token"})
-			return
-		}
 
-		// Validate JWT token
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(config.GetJWTSecret()), nil
-		})
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid token"})
+		// Auth is handled by AuthMiddleware (supports ?token= query param for WebSocket)
+		userID := c.GetUint("userID")
+
+		// Verify user is part of this ride/delivery chat
+		var chatRideCount int64
+		db.Table("rides").Where("id = ? AND (user_id = ? OR driver_id = ?)", rideID, userID, userID).Count(&chatRideCount)
+		var chatDeliveryCount int64
+		db.Table("deliveries").Where("id = ? AND (user_id = ? OR driver_id = ?)", rideID, userID, userID).Count(&chatDeliveryCount)
+		if chatRideCount == 0 && chatDeliveryCount == 0 {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Not authorized for this chat"})
 			return
 		}
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid claims"})
-			return
-		}
-		userIDVal, ok := claims["user_id"].(float64)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid user_id in token"})
-			return
-		}
-		userID := uint(userIDVal)
 
 		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -4650,6 +4672,10 @@ func AdminUpdateRate(db *gorm.DB) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid input"})
 			return
+		}
+		// Remove protected fields to prevent mass assignment
+		for _, f := range []string{"id", "ID", "created_at", "CreatedAt", "service_type", "ServiceType", "vehicle_type", "VehicleType"} {
+			delete(input, f)
 		}
 		// Validate numeric fields are not negative
 		for _, field := range []string{"base_fare", "rate_per_km", "minimum_fare"} {
