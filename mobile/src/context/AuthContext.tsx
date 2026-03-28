@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService, userService, pushService, setOnUnauthorized } from '../services/api';
+import { setUser as setSentryUser } from '../utils/sentry';
 
 interface User {
   id: number;
@@ -80,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
 
       setUser(userData);
+      setSentryUser(userData);
     } catch (error: any) {
       await AsyncStorage.removeItem('token').catch(() => {});
       await AsyncStorage.removeItem('user').catch(() => {});
@@ -103,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
 
       setUser(userData);
+      setSentryUser(userData);
     } catch (error: any) {
       await AsyncStorage.removeItem('token').catch(() => {});
       await AsyncStorage.removeItem('user').catch(() => {});
@@ -117,6 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
       setUser(null);
+      setSentryUser(null);
     } catch (error) {
       console.error('Error logging out:', error);
     }

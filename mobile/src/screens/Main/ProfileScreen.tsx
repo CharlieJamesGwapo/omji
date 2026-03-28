@@ -21,6 +21,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { rideService, orderService, deliveryService, walletService, userService, driverService, referralService } from '../../services/api';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
+import { haptic } from '../../utils/haptics';
+import SkeletonBox from '../../components/SkeletonBox';
 
 const SECTION_ACCENTS: Record<string, string> = {
   Account: COLORS.primaryDark,
@@ -190,6 +192,7 @@ export default function ProfileScreen({ navigation }: any) {
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
         { icon: 'card-outline', label: 'Payment Methods', screen: 'PaymentMethods' },
+        { icon: 'shield-checkmark-outline', label: 'Privacy & Data', screen: 'Privacy' },
         { icon: 'language-outline', label: `${t('profile.language')}: ${language === 'en' ? 'English' : 'Bisaya'}`, screen: null, action: () => setLanguage(language === 'en' ? 'ceb' : 'en') },
         { icon: themeModeIcon, label: `Dark Mode: ${themeModeLabel}`, screen: null, action: cycleThemeMode },
         ...(!user?.role || user.role === 'user' ? (
@@ -314,9 +317,9 @@ export default function ProfileScreen({ navigation }: any) {
             <View style={styles.statsContainer}>
               {[1, 2, 3, 4].map((i) => (
                 <View key={i} style={styles.statItem}>
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(18), height: moderateScale(36), width: moderateScale(36), opacity: 0.5, marginBottom: verticalScale(6) }} />
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(30), opacity: 0.5, marginBottom: verticalScale(4) }} />
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(10), width: moderateScale(40), opacity: 0.5 }} />
+                  <SkeletonBox width={moderateScale(36)} height={moderateScale(36)} borderRadius={moderateScale(18)} style={{ marginBottom: verticalScale(6) }} />
+                  <SkeletonBox width={moderateScale(30)} height={verticalScale(14)} borderRadius={moderateScale(4)} style={{ marginBottom: verticalScale(4) }} />
+                  <SkeletonBox width={moderateScale(40)} height={verticalScale(10)} borderRadius={moderateScale(4)} />
                 </View>
               ))}
             </View>
@@ -325,15 +328,15 @@ export default function ProfileScreen({ navigation }: any) {
             <View style={[styles.walletCard, { overflow: 'hidden' }]}>
               <View style={[styles.walletGradient, { backgroundColor: COLORS.gray300 }]}>
                 <View style={styles.walletTop}>
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(14), height: moderateScale(48), width: moderateScale(48), opacity: 0.5 }} />
+                  <SkeletonBox width={moderateScale(48)} height={moderateScale(48)} borderRadius={moderateScale(14)} />
                   <View style={{ flex: 1, marginLeft: moderateScale(14) }}>
-                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(12), width: moderateScale(90), opacity: 0.5, marginBottom: verticalScale(6) }} />
-                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(22), width: moderateScale(120), opacity: 0.5 }} />
+                    <SkeletonBox width={moderateScale(90)} height={verticalScale(12)} borderRadius={moderateScale(4)} style={{ marginBottom: verticalScale(6) }} />
+                    <SkeletonBox width={moderateScale(120)} height={verticalScale(22)} borderRadius={moderateScale(4)} />
                   </View>
                 </View>
                 <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: verticalScale(12), flexDirection: 'row', justifyContent: 'space-around' }}>
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(60), opacity: 0.5 }} />
-                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(80), opacity: 0.5 }} />
+                  <SkeletonBox width={moderateScale(60)} height={verticalScale(14)} borderRadius={moderateScale(4)} />
+                  <SkeletonBox width={moderateScale(80)} height={verticalScale(14)} borderRadius={moderateScale(4)} />
                 </View>
               </View>
             </View>
@@ -341,15 +344,15 @@ export default function ProfileScreen({ navigation }: any) {
             {/* Menu Items Skeleton */}
             <View style={{ marginTop: verticalScale(24), paddingHorizontal: RESPONSIVE.paddingHorizontal }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) }}>
-                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(2), height: moderateScale(18), width: moderateScale(4), opacity: 0.5, marginRight: moderateScale(8) }} />
-                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(70), opacity: 0.5 }} />
+                <SkeletonBox width={moderateScale(4)} height={moderateScale(18)} borderRadius={moderateScale(2)} style={{ marginRight: moderateScale(8) }} />
+                <SkeletonBox width={moderateScale(70)} height={verticalScale(14)} borderRadius={moderateScale(4)} />
               </View>
               <View style={styles.menuCard}>
                 {[1, 2, 3, 4, 5].map((i) => (
                   <View key={i} style={[styles.menuItem, i < 5 && styles.menuItemBorder]}>
-                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(10), height: moderateScale(36), width: moderateScale(36), opacity: 0.5 }} />
+                    <SkeletonBox width={moderateScale(36)} height={moderateScale(36)} borderRadius={moderateScale(10)} />
                     <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-                      <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: `${60 + (i * 5)}%` as any, opacity: 0.5 }} />
+                      <SkeletonBox width={`${60 + (i * 5)}%`} height={verticalScale(14)} borderRadius={moderateScale(4)} />
                     </View>
                   </View>
                 ))}
@@ -359,15 +362,15 @@ export default function ProfileScreen({ navigation }: any) {
             {/* Second section skeleton */}
             <View style={{ marginTop: verticalScale(24), paddingHorizontal: RESPONSIVE.paddingHorizontal }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) }}>
-                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(2), height: moderateScale(18), width: moderateScale(4), opacity: 0.5, marginRight: moderateScale(8) }} />
-                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(60), opacity: 0.5 }} />
+                <SkeletonBox width={moderateScale(4)} height={moderateScale(18)} borderRadius={moderateScale(2)} style={{ marginRight: moderateScale(8) }} />
+                <SkeletonBox width={moderateScale(60)} height={verticalScale(14)} borderRadius={moderateScale(4)} />
               </View>
               <View style={styles.menuCard}>
                 {[1, 2, 3].map((i) => (
                   <View key={i} style={[styles.menuItem, i < 3 && styles.menuItemBorder]}>
-                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(10), height: moderateScale(36), width: moderateScale(36), opacity: 0.5 }} />
+                    <SkeletonBox width={moderateScale(36)} height={moderateScale(36)} borderRadius={moderateScale(10)} />
                     <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-                      <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: `${55 + (i * 10)}%` as any, opacity: 0.5 }} />
+                      <SkeletonBox width={`${55 + (i * 10)}%`} height={verticalScale(14)} borderRadius={moderateScale(4)} />
                     </View>
                   </View>
                 ))}
@@ -530,7 +533,7 @@ export default function ProfileScreen({ navigation }: any) {
                           styles.menuItem,
                           itemIndex < section.items.length - 1 && styles.menuItemBorder,
                         ]}
-                        onPress={() => item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.())}
+                        onPress={() => { haptic.selection(); item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.()); }}
                         activeOpacity={0.6}
                         accessibilityLabel={item.label}
                         accessibilityRole="button"

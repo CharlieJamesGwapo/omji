@@ -14,6 +14,7 @@ import { rideService, deliveryService, orderService } from '../../services/api';
 import { COLORS, SHADOWS, STATUS_CONFIG, formatStatus, getStatusColor, getStatusBg } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
+import SkeletonBox from '../../components/SkeletonBox';
 
 interface RideItem {
   id: number;
@@ -155,10 +156,10 @@ export default function RideHistoryScreen({ navigation }: any) {
         <View style={{ paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(16) }}>
           {[1, 2, 3, 4].map((i) => (
             <View key={i} style={{ backgroundColor: '#fff', borderRadius: moderateScale(12), padding: moderateScale(14), marginBottom: verticalScale(10), flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: COLORS.gray200, opacity: 0.5 }} />
+              <SkeletonBox width={moderateScale(44)} height={moderateScale(44)} borderRadius={moderateScale(22)} />
               <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
-                <View style={{ height: fontScale(14), width: '60%', backgroundColor: COLORS.gray200, borderRadius: 4, marginBottom: verticalScale(8), opacity: 0.5 }} />
-                <View style={{ height: fontScale(12), width: '40%', backgroundColor: COLORS.gray200, borderRadius: 4, opacity: 0.5 }} />
+                <SkeletonBox width="60%" height={fontScale(14)} borderRadius={4} style={{ marginBottom: verticalScale(8) }} />
+                <SkeletonBox width="40%" height={fontScale(12)} borderRadius={4} />
               </View>
             </View>
           ))}

@@ -15,6 +15,7 @@ import { walletService } from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
+import { haptic } from '../../utils/haptics';
 
 export default function WalletScreen({ navigation }: any) {
   const [balance, setBalance] = useState(0);
@@ -114,6 +115,7 @@ export default function WalletScreen({ navigation }: any) {
               setBalance(data?.balance != null ? Number(data.balance) : balance + amount);
               setShowTopUp(false);
               setTopUpAmount('');
+              haptic.success();
               Alert.alert('Success', `\u20B1${amount} has been added to your wallet!`);
               fetchWallet();
             } catch (error: any) {
@@ -465,6 +467,7 @@ export default function WalletScreen({ navigation }: any) {
                           setBalance(data?.balance != null ? Number(data.balance) : balance - amount);
                           setShowWithdraw(false);
                           setWithdrawAmount('');
+                          haptic.success();
                           Alert.alert('Success', `\u20B1${amount} withdrawal request submitted!`);
                           fetchWallet();
                         } catch (error: any) {

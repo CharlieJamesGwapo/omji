@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/api.config';
+import { addBreadcrumb } from '../utils/sentry';
 
 export { API_BASE_URL };
 
@@ -58,6 +59,11 @@ api.interceptors.response.use(
         onUnauthorized();
       }
     }
+
+    addBreadcrumb(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, 'api', {
+      status: error.response?.status,
+      message: error.response?.data?.error,
+    });
 
     return Promise.reject(error);
   }

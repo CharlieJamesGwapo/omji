@@ -2,6 +2,7 @@
   "expo": {
     "name": "OMJI",
     "slug": "omji",
+    "scheme": "omji",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +23,10 @@
         "NSLocationAlwaysUsageDescription": "OMJI needs your location for real-time tracking.",
         "NSCameraUsageDescription": "OMJI needs camera access to upload item photos.",
         "NSPhotoLibraryUsageDescription": "OMJI needs access to your photos.",
-        "LSApplicationQueriesSchemes": ["gcash", "paymaya"]
+        "LSApplicationQueriesSchemes": [
+          "gcash",
+          "paymaya"
+        ]
       }
     },
     "android": {
@@ -78,7 +82,8 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "updates": {
       "enabled": true,

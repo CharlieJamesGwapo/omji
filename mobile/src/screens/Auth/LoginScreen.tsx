@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { fontScale, verticalScale, moderateScale } from '../../utils/responsive';
 import { COLORS } from '../../constants/theme';
+import { haptic } from '../../utils/haptics';
 
 type BannerType = 'error' | 'success';
 
@@ -101,8 +102,10 @@ export default function LoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       await login(phone, password);
+      haptic.success();
       showBanner('Login successful!', 'success');
     } catch (error: any) {
+      haptic.error();
       showBanner(error.response?.data?.error || error.message || 'Invalid credentials', 'error');
       triggerShake();
     } finally {

@@ -23,6 +23,7 @@ import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { getCardWidth, RESPONSIVE, isTablet, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
 import { rideService, deliveryService, notificationService, storeService, userService, announcementService } from '../../services/api';
 import type { SavedAddress, Ride } from '../../types';
+import SkeletonBox from '../../components/SkeletonBox';
 import Toast, { ToastType } from '../../components/Toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -321,21 +322,21 @@ export default function HomeScreen({ navigation }: any) {
         {initialLoading && (
           <View style={styles.skeletonContainer}>
             {/* Greeting placeholder */}
-            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(18), width: '55%', marginBottom: verticalScale(16), opacity: 0.5 }} />
+            <SkeletonBox width="55%" height={verticalScale(18)} borderRadius={moderateScale(12)} style={{ marginBottom: verticalScale(16) }} />
             {/* Service cards placeholder */}
             <View style={styles.skeletonServicesRow}>
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, marginRight: moderateScale(10), opacity: 0.5 }} />
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, marginRight: moderateScale(10), opacity: 0.5 }} />
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, opacity: 0.5 }} />
+              <SkeletonBox height={verticalScale(100)} borderRadius={moderateScale(12)} style={{ flex: 1, marginRight: moderateScale(10) }} />
+              <SkeletonBox height={verticalScale(100)} borderRadius={moderateScale(12)} style={{ flex: 1, marginRight: moderateScale(10) }} />
+              <SkeletonBox height={verticalScale(100)} borderRadius={moderateScale(12)} style={{ flex: 1 }} />
             </View>
             {/* Active rides placeholder */}
-            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(72), marginBottom: verticalScale(12), opacity: 0.5 }} />
+            <SkeletonBox height={verticalScale(72)} borderRadius={moderateScale(12)} style={{ marginBottom: verticalScale(12) }} />
             {/* Stores carousel placeholder */}
-            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(14), width: '35%', marginBottom: verticalScale(12), opacity: 0.5 }} />
+            <SkeletonBox width="35%" height={verticalScale(14)} borderRadius={moderateScale(12)} style={{ marginBottom: verticalScale(12) }} />
             <View style={styles.skeletonServicesRow}>
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), marginRight: moderateScale(10), opacity: 0.5 }} />
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), marginRight: moderateScale(10), opacity: 0.5 }} />
-              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), opacity: 0.5 }} />
+              <SkeletonBox width={moderateScale(140)} height={verticalScale(110)} borderRadius={moderateScale(12)} style={{ marginRight: moderateScale(10) }} />
+              <SkeletonBox width={moderateScale(140)} height={verticalScale(110)} borderRadius={moderateScale(12)} style={{ marginRight: moderateScale(10) }} />
+              <SkeletonBox width={moderateScale(140)} height={verticalScale(110)} borderRadius={moderateScale(12)} />
             </View>
           </View>
         )}

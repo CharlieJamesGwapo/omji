@@ -37,6 +37,7 @@ import RiderRegistrationScreen from '../screens/Auth/RiderRegistrationScreen';
 import RiderSelectionScreen from '../screens/Main/RiderSelectionScreen';
 import RiderWaitingScreen from '../screens/Main/RiderWaitingScreen';
 import ReferralScreen from '../screens/Main/ReferralScreen';
+import PrivacyScreen from '../screens/Main/PrivacyScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -144,6 +145,7 @@ export default function MainNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Payment" component={PaymentScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false, cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
     </Stack.Navigator>
   );

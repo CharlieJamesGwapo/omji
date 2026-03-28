@@ -22,6 +22,7 @@ import ConfirmBookingModal from '../../components/ConfirmBookingModal';
 import type { BookingDetail } from '../../components/ConfirmBookingModal';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isTablet, isIOS } from '../../utils/responsive';
 import { useRoadDistance } from '../../hooks/useDistance';
+import { haptic } from '../../utils/haptics';
 
 export default function PasundoScreen({ navigation, route }: any) {
   const initialDropoff = route?.params?.dropoff;
@@ -370,6 +371,7 @@ export default function PasundoScreen({ navigation, route }: any) {
 
   const executePasundoBooking = () => {
     setShowConfirmModal(false);
+    haptic.success();
     const pickupLabel = buildPickupLabel();
     const scheduledAtISO = getScheduledAtISO();
     navigation.navigate('RiderSelection', {
@@ -569,7 +571,7 @@ export default function PasundoScreen({ navigation, route }: any) {
               <TouchableOpacity
                 key={v.id}
                 style={[styles.vehicleCard, vehicleType === v.id && styles.vehicleCardActive, { minHeight: moderateScale(48) }]}
-                onPress={() => setVehicleType(v.id)}
+                onPress={() => { haptic.light(); setVehicleType(v.id); }}
                 accessibilityLabel={`Select ${v.name.toLowerCase()}, base fare ${v.base} pesos${vehicleType === v.id ? ', selected' : ''}`}
                 accessibilityRole="button"
               >

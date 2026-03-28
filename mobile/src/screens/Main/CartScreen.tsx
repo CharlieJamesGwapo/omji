@@ -15,6 +15,7 @@ import { orderService, walletService, ratesService } from '../../services/api';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, verticalScale, moderateScale, fontScale, isIOS } from '../../utils/responsive';
+import { haptic } from '../../utils/haptics';
 
 export default function CartScreen({ route, navigation }: any) {
   const { store, cartItems: initialCartItems } = route.params || {};
@@ -76,6 +77,7 @@ export default function CartScreen({ route, navigation }: any) {
   }, []);
 
   const updateQuantity = (id: number, delta: number) => {
+    haptic.light();
     setCartItems((items: any[]) =>
       items.map((item: any) =>
         item.id === id
@@ -86,6 +88,7 @@ export default function CartScreen({ route, navigation }: any) {
   };
 
   const removeItem = (id: number) => {
+    haptic.warning();
     Alert.alert(
       'Remove Item',
       'Are you sure you want to remove this item from your cart?',
@@ -157,6 +160,7 @@ export default function CartScreen({ route, navigation }: any) {
                 delivery_latitude: userLocation?.latitude || 0,
                 delivery_longitude: userLocation?.longitude || 0,
               });
+              haptic.success();
               if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
                 navigation.navigate('Payment', {
                   type: paymentMethod,

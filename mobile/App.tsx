@@ -1,5 +1,8 @@
 import 'react-native-gesture-handler';
 import React from 'react';
+import { initSentry } from './src/utils/sentry';
+
+initSentry();
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +21,9 @@ import NoInternetScreen from './src/screens/NoInternetScreen';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainNavigator from './src/navigation/MainNavigator';
 import RiderNavigator from './src/navigation/RiderNavigator';
+
+// Deep Linking
+import { linking } from './src/utils/deepLinking';
 
 // Ignore specific non-critical warnings
 LogBox.ignoreLogs([
@@ -71,7 +77,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer onUnhandledAction={(action) => { console.warn('Unhandled navigation action:', action); }}>
+    <NavigationContainer linking={linking} onUnhandledAction={(action) => { console.warn('Unhandled navigation action:', action); }}>
       <StatusBar style="auto" />
       {!user ? (
         <AuthNavigator />
