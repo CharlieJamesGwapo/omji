@@ -19,6 +19,7 @@ import AnnouncementsPage from './pages/AnnouncementsPage';
 import WithdrawalsPage from './pages/WithdrawalsPage';
 import ReferralsPage from './pages/ReferralsPage';
 import ReportsPage from './pages/ReportsPage';
+import SystemMetricsPage from './pages/SystemMetricsPage';
 import { Toaster } from 'react-hot-toast';
 
 // ── Theme Context ────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ const navGroups = [
       { path: '/promos', label: 'Promos', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
       { path: '/notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
       { path: '/announcements', label: 'Announcements', icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z' },
+      { path: '/metrics', label: 'System Metrics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
     ],
   },
 ];
@@ -308,6 +310,7 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
             <Route path="/withdrawals" element={<WithdrawalsPage />} />
             <Route path="/referrals" element={<ReferralsPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
+            <Route path="/metrics" element={<SystemMetricsPage />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>

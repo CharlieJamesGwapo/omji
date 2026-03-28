@@ -12,6 +12,7 @@ import (
 	"omji/pkg/middleware"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -74,14 +75,34 @@ func main() {
 		defer cancel()
 
 		dbStatus := "connected"
+		var dbLatency time.Duration
+		dbStart := time.Now()
 		if err := sqlDB.PingContext(ctx); err != nil {
 			dbStatus = "disconnected"
 		}
+		dbLatency = time.Since(dbStart)
+
+		dbStats := sqlDB.Stats()
 
 		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-			"db":     dbStatus,
-			"uptime": time.Since(startTime).Round(time.Second).String(),
+			"status":       "healthy",
+			"version":      "1.0.0",
+			"db":           dbStatus,
+			"db_latency_ms": dbLatency.Milliseconds(),
+			"db_pool": gin.H{
+				"open":     dbStats.OpenConnections,
+				"in_use":   dbStats.InUse,
+				"idle":     dbStats.Idle,
+				"max_open": dbStats.MaxOpenConnections,
+			},
+			"uptime":         time.Since(startTime).Round(time.Second).String(),
+			"uptime_seconds": int(time.Since(startTime).Seconds()),
+			"go_routines":    runtime.NumGoroutine(),
+			"memory_mb": func() float64 {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				return float64(m.Alloc) / 1024 / 1024
+			}(),
 		})
 	}
 
@@ -214,6 +235,38 @@ func main() {
 	admin := router.Group("/api/v1/admin")
 	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 	{
+		// Server metrics (admin-only)
+		admin.GET("/metrics", func(c *gin.Context) {
+			dbStats := sqlDB.Stats()
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+
+			c.JSON(http.StatusOK, gin.H{
+				"server": gin.H{
+					"uptime":      time.Since(startTime).Round(time.Second).String(),
+					"go_routines": runtime.NumGoroutine(),
+					"go_version":  runtime.Version(),
+					"num_cpu":     runtime.NumCPU(),
+				},
+				"memory": gin.H{
+					"alloc_mb":       float64(m.Alloc) / 1024 / 1024,
+					"total_alloc_mb": float64(m.TotalAlloc) / 1024 / 1024,
+					"sys_mb":         float64(m.Sys) / 1024 / 1024,
+					"gc_cycles":      m.NumGC,
+				},
+				"database": gin.H{
+					"open_connections":     dbStats.OpenConnections,
+					"in_use":              dbStats.InUse,
+					"idle":                dbStats.Idle,
+					"max_open":            dbStats.MaxOpenConnections,
+					"wait_count":          dbStats.WaitCount,
+					"wait_duration_ms":    dbStats.WaitDuration.Milliseconds(),
+					"max_idle_closed":     dbStats.MaxIdleClosed,
+					"max_lifetime_closed": dbStats.MaxLifetimeClosed,
+				},
+			})
+		})
+
 		// User management
 		admin.GET("/users", handlers.GetAllUsers(database))
 		admin.GET("/users/:id", handlers.GetUserByID(database))

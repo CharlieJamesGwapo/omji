@@ -277,6 +277,9 @@ export const adminService = {
     return cachedGet(`/admin/commission/records${qs ? `?${qs}` : ''}`);
   },
   getCommissionSummary: () => cachedGet('/admin/commission/summary'),
+
+  // System Metrics
+  getSystemMetrics: () => freshGet('/admin/metrics'),
 };
 
 // Utility to clear all cache (useful for manual refresh)

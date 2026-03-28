@@ -22,3 +22,5 @@ services:
         value: "https://omji-admin.onrender.com"
       - key: UPLOAD_DIR
         value: "/var/data/uploads"
+      - key: SENTRY_DSN
+        sync: false
