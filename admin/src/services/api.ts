@@ -101,6 +101,7 @@ function cachedGet(url: string, config?: any) {
       if (!entry.promise) {
         entry.promise = API.get(url, config).then((res) => {
           cache.set(key, { data: res, timestamp: Date.now() });
+          entry.promise = undefined;
           return res;
         }).catch(() => {
           // On error, keep stale data

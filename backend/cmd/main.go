@@ -302,10 +302,14 @@ func main() {
 		admin.GET("/referrals", handlers.AdminGetReferrals(database))
 	}
 
-	// WebSocket routes
-	router.GET("/ws/tracking/:rideId", handlers.WebSocketTrackingHandler(database))
-	router.GET("/ws/driver/:driverId", handlers.WebSocketDriverHandler(database))
-	router.GET("/ws/chat/:rideId", handlers.WebSocketChatHandler(database))
+	// WebSocket routes (auth required; token passed as query param)
+	ws := router.Group("/ws")
+	ws.Use(middleware.AuthMiddleware())
+	{
+		ws.GET("/tracking/:rideId", handlers.WebSocketTrackingHandler(database))
+		ws.GET("/driver/:driverId", handlers.WebSocketDriverHandler(database))
+		ws.GET("/chat/:rideId", handlers.WebSocketChatHandler(database))
+	}
 
 	// Start server with graceful shutdown
 	port := os.Getenv("PORT")

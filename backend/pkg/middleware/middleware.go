@@ -132,6 +132,12 @@ func CORSMiddleware() gin.HandlerFunc {
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
+		// Fallback to query param for WebSocket connections (can't set custom headers)
+		if authHeader == "" {
+			if token := c.Query("token"); token != "" {
+				authHeader = "Bearer " + token
+			}
+		}
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			c.Abort()

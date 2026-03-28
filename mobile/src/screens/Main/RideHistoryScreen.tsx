@@ -46,6 +46,7 @@ export default function RideHistoryScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rides, setRides] = useState<RideItem[]>([]);
+  const [fetchError, setFetchError] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
@@ -53,6 +54,7 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   const fetchRides = useCallback(async () => {
     try {
+      setFetchError(false);
       const [ridesRes, deliveriesRes, ordersRes] = await Promise.allSettled([
         rideService.getRideHistory(),
         deliveryService.getDeliveryHistory(),
@@ -86,6 +88,7 @@ export default function RideHistoryScreen({ navigation }: any) {
       setRides(allRides);
     } catch (error) {
       console.error('Error fetching rides:', error);
+      setFetchError(true);
       setRides([]);
       showToast('Could not load history. Pull down to retry.', 'error');
     } finally {
@@ -143,8 +146,51 @@ export default function RideHistoryScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerBackBtn} />
+          <Text style={styles.headerTitle}>Activity History</Text>
+          <View style={{ width: moderateScale(22) }} />
+        </View>
+        <View style={{ paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(16) }}>
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={{ backgroundColor: '#fff', borderRadius: moderateScale(12), padding: moderateScale(14), marginBottom: verticalScale(10), flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: COLORS.gray200, opacity: 0.5 }} />
+              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                <View style={{ height: fontScale(14), width: '60%', backgroundColor: COLORS.gray200, borderRadius: 4, marginBottom: verticalScale(8), opacity: 0.5 }} />
+                <View style={{ height: fontScale(12), width: '40%', backgroundColor: COLORS.gray200, borderRadius: 4, opacity: 0.5 }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (fetchError && !loading && rides.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={moderateScale(22)} color={COLORS.gray800} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Activity History</Text>
+          <View style={{ width: moderateScale(22) }} />
+        </View>
+        <View style={{ alignItems: 'center', paddingVertical: verticalScale(60) }}>
+          <Ionicons name="cloud-offline-outline" size={moderateScale(48)} color={COLORS.error} />
+          <Text style={{ fontSize: fontScale(16), fontWeight: '600', color: COLORS.gray700, marginTop: verticalScale(12) }}>Could not load data</Text>
+          <Text style={{ fontSize: fontScale(13), color: COLORS.gray500, marginTop: verticalScale(4), textAlign: 'center' }}>Check your connection and try again</Text>
+          <TouchableOpacity onPress={fetchRides} style={{ marginTop: verticalScale(16), backgroundColor: COLORS.accent, paddingHorizontal: moderateScale(24), paddingVertical: verticalScale(10), borderRadius: moderateScale(8) }}>
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: fontScale(14) }}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { favoritesService } from '../../services/api';
+import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import Toast, { ToastType } from '../../components/Toast';
 
@@ -34,6 +35,7 @@ export default function FavoritesScreen({ navigation }: any) {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
@@ -41,12 +43,14 @@ export default function FavoritesScreen({ navigation }: any) {
 
   const fetchFavorites = useCallback(async () => {
     try {
+      setFetchError(false);
       const typeParam = activeFilter === 'all' ? undefined : activeFilter;
       const response = await favoritesService.getFavorites(typeParam);
       const data = response.data?.data;
       setFavorites(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      setFetchError(true);
       setFavorites([]);
       showToast('Could not load favorites. Pull down to retry.', 'error');
     } finally {
@@ -213,8 +217,25 @@ export default function FavoritesScreen({ navigation }: any) {
 
       {/* Content */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#DC2626" />
+        <View style={{ paddingHorizontal: RESPONSIVE.paddingHorizontal, paddingTop: verticalScale(16) }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={{ backgroundColor: '#fff', borderRadius: moderateScale(12), padding: moderateScale(14), marginBottom: verticalScale(10), flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: moderateScale(44), height: moderateScale(44), borderRadius: moderateScale(22), backgroundColor: COLORS.gray200, opacity: 0.5 }} />
+              <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                <View style={{ height: fontScale(14), width: '60%', backgroundColor: COLORS.gray200, borderRadius: 4, marginBottom: verticalScale(8), opacity: 0.5 }} />
+                <View style={{ height: fontScale(12), width: '40%', backgroundColor: COLORS.gray200, borderRadius: 4, opacity: 0.5 }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : fetchError && favorites.length === 0 ? (
+        <View style={{ alignItems: 'center', paddingVertical: verticalScale(60) }}>
+          <Ionicons name="cloud-offline-outline" size={moderateScale(48)} color={COLORS.error} />
+          <Text style={{ fontSize: fontScale(16), fontWeight: '600', color: COLORS.gray700, marginTop: verticalScale(12) }}>Could not load data</Text>
+          <Text style={{ fontSize: fontScale(13), color: COLORS.gray500, marginTop: verticalScale(4), textAlign: 'center' }}>Check your connection and try again</Text>
+          <TouchableOpacity onPress={fetchFavorites} style={{ marginTop: verticalScale(16), backgroundColor: COLORS.accent, paddingHorizontal: moderateScale(24), paddingVertical: verticalScale(10), borderRadius: moderateScale(8) }}>
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: fontScale(14) }}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList

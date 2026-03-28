@@ -22,8 +22,10 @@ export function usePushNotifications(navigation: any) {
   const responseListener = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     registerForPushNotifications().then(token => {
-      if (token) {
+      if (token && isMounted) {
         setExpoPushToken(token);
         // Send token to backend
         pushService.registerToken(token, Platform.OS).catch(() => {});
@@ -37,17 +39,72 @@ export function usePushNotifications(navigation: any) {
 
     // Listen for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      if (!isMounted) return;
+
       const data = response.notification.request.content.data;
-      if (data?.type === 'chat' && data?.rideId) {
-        // Navigate to chat screen
-        navigation.navigate('Chat', {
-          rideId: Number(data.rideId),
-          rider: { id: Number(data.senderId), name: data.senderName || 'Driver' },
-        });
+      if (!data?.type) return;
+
+      try {
+        switch (data.type) {
+          case 'chat':
+            if (data.rideId) {
+              navigation.navigate('Chat', {
+                rideId: Number(data.rideId),
+                rider: { id: Number(data.senderId), name: data.senderName || 'Driver' },
+              });
+            }
+            break;
+
+          case 'ride_accepted':
+          case 'ride_update':
+          case 'ride':
+            navigation.navigate('Tracking', {
+              type: 'ride',
+              rideId: data.ride_id,
+              pickup: data.pickup || '',
+              dropoff: data.dropoff || '',
+              fare: data.fare || 0,
+            });
+            break;
+
+          case 'delivery_update':
+          case 'delivery':
+            navigation.navigate('Tracking', {
+              type: 'delivery',
+              rideId: data.delivery_id || data.ride_id,
+              pickup: data.pickup || '',
+              dropoff: data.dropoff || '',
+              fare: data.fare || 0,
+            });
+            break;
+
+          case 'order_update':
+          case 'order':
+            navigation.navigate('Orders');
+            break;
+
+          case 'wallet':
+            navigation.navigate('Wallet');
+            break;
+
+          case 'promo':
+            navigation.navigate('Home');
+            break;
+
+          case 'ride_request':
+            // No navigation needed - RiderRequestModal handles this
+            break;
+
+          default:
+            break;
+        }
+      } catch {
+        // Prevent crashes from invalid navigation data
       }
     });
 
     return () => {
+      isMounted = false;
       if (notificationListener.current) {
         notificationListener.current.remove();
       }

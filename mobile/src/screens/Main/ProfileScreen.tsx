@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Image,
   Alert,
-  ActivityIndicator,
   StatusBar,
   Linking,
   Share,
@@ -43,6 +42,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [driverStatus, setDriverStatus] = useState<'none' | 'pending' | 'verified'>('none');
   const [referralCode, setReferralCode] = useState('');
   const [referralStats, setReferralStats] = useState({ total_referrals: 0, total_earned: 0 });
+  const [fetchError, setFetchError] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -57,6 +57,7 @@ export default function ProfileScreen({ navigation }: any) {
   const fetchUserStats = async () => {
     try {
       setLoading(true);
+      setFetchError(false);
 
       const [ridesHistRes, ordersHistRes, deliveriesHistRes, walletRes, profileRes, driverRes] = await Promise.allSettled([
         rideService.getRideHistory(),
@@ -139,7 +140,7 @@ export default function ProfileScreen({ navigation }: any) {
     } catch (error: any) {
       if (error.response?.status !== 401) {
         console.warn('Could not fetch user stats:', error.message);
-        showToast('Could not load profile data. Please try again later.', 'error');
+        setFetchError(true);
       }
     } finally {
       setLoading(false);
@@ -294,177 +295,259 @@ export default function ProfileScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          {loading ? (
-            <View style={styles.statsLoading}>
-              <ActivityIndicator size="small" color={COLORS.primaryDark} />
+        {/* Loading Skeleton */}
+        {loading && !fetchError ? (
+          <>
+            {/* Stats Skeleton */}
+            <View style={styles.statsContainer}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={styles.statItem}>
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(18), height: moderateScale(36), width: moderateScale(36), opacity: 0.5, marginBottom: verticalScale(6) }} />
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(30), opacity: 0.5, marginBottom: verticalScale(4) }} />
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(10), width: moderateScale(40), opacity: 0.5 }} />
+                </View>
+              ))}
             </View>
-          ) : (
-            <>
+
+            {/* Wallet Skeleton */}
+            <View style={[styles.walletCard, { overflow: 'hidden' }]}>
+              <View style={[styles.walletGradient, { backgroundColor: COLORS.gray300 }]}>
+                <View style={styles.walletTop}>
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(14), height: moderateScale(48), width: moderateScale(48), opacity: 0.5 }} />
+                  <View style={{ flex: 1, marginLeft: moderateScale(14) }}>
+                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(12), width: moderateScale(90), opacity: 0.5, marginBottom: verticalScale(6) }} />
+                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(22), width: moderateScale(120), opacity: 0.5 }} />
+                  </View>
+                </View>
+                <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: verticalScale(12), flexDirection: 'row', justifyContent: 'space-around' }}>
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(60), opacity: 0.5 }} />
+                  <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(80), opacity: 0.5 }} />
+                </View>
+              </View>
+            </View>
+
+            {/* Menu Items Skeleton */}
+            <View style={{ marginTop: verticalScale(24), paddingHorizontal: RESPONSIVE.paddingHorizontal }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) }}>
+                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(2), height: moderateScale(18), width: moderateScale(4), opacity: 0.5, marginRight: moderateScale(8) }} />
+                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(70), opacity: 0.5 }} />
+              </View>
+              <View style={styles.menuCard}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <View key={i} style={[styles.menuItem, i < 5 && styles.menuItemBorder]}>
+                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(10), height: moderateScale(36), width: moderateScale(36), opacity: 0.5 }} />
+                    <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                      <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: `${60 + (i * 5)}%` as any, opacity: 0.5 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Second section skeleton */}
+            <View style={{ marginTop: verticalScale(24), paddingHorizontal: RESPONSIVE.paddingHorizontal }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(10) }}>
+                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(2), height: moderateScale(18), width: moderateScale(4), opacity: 0.5, marginRight: moderateScale(8) }} />
+                <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: moderateScale(60), opacity: 0.5 }} />
+              </View>
+              <View style={styles.menuCard}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={[styles.menuItem, i < 3 && styles.menuItemBorder]}>
+                    <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(10), height: moderateScale(36), width: moderateScale(36), opacity: 0.5 }} />
+                    <View style={{ flex: 1, marginLeft: moderateScale(12) }}>
+                      <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(4), height: verticalScale(14), width: `${55 + (i * 10)}%` as any, opacity: 0.5 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : fetchError ? (
+          /* Error State with Retry */
+          <View style={styles.errorContainer}>
+            <View style={styles.errorIconContainer}>
+              <Ionicons name="cloud-offline-outline" size={moderateScale(48)} color={COLORS.gray400} />
+            </View>
+            <Text style={styles.errorTitle}>Could not load profile</Text>
+            <Text style={styles.errorMessage}>Something went wrong while fetching your data. Please check your connection and try again.</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchUserStats}
+              activeOpacity={0.7}
+              accessibilityLabel="Try again"
+              accessibilityRole="button"
+            >
+              <Ionicons name="refresh-outline" size={moderateScale(18)} color={COLORS.white} />
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <View style={styles.statsContainer}>
               {renderStatItem('car-outline', stats.rides, 'Trips', COLORS.primaryDark)}
               {renderStatItem('bag-check-outline', stats.orders, 'Orders', COLORS.primaryDark)}
               {renderStatItem('star', stats.rating > 0 ? stats.rating : '—', stats.rating > 0 ? 'Rating' : 'No ratings', COLORS.primaryDark)}
               {renderStatItem('trending-up-outline', `₱${stats.spent >= 1000 ? (stats.spent / 1000).toFixed(1) + 'k' : stats.spent.toLocaleString()}`, 'Spent', COLORS.primaryDark)}
-            </>
-          )}
-        </View>
+            </View>
 
-        {/* Wallet Quick Access Card */}
-        <TouchableOpacity
-          style={styles.walletCard}
-          onPress={() => navigation.navigate('Wallet')}
-          activeOpacity={0.85}
-          accessibilityLabel="View wallet"
-          accessibilityRole="button"
-        >
-          <View style={styles.walletGradient}>
-            <View style={styles.walletTop}>
-              <View style={styles.walletIconContainer}>
-                <Ionicons name="wallet" size={moderateScale(24)} color={COLORS.white} />
-              </View>
-              <View style={styles.walletInfo}>
-                <Text style={styles.walletLabel}>Wallet Balance</Text>
-                <Text style={styles.walletBalance}>
-                  ₱{loading ? '---' : walletBalance.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.walletActions}>
-              <TouchableOpacity
-                style={styles.walletActionButton}
-                onPress={() => navigation.navigate('Wallet')}
-                accessibilityLabel="Top up wallet"
-                accessibilityRole="button"
-              >
-                <Ionicons name="add-circle-outline" size={moderateScale(16)} color={COLORS.white} />
-                <Text style={styles.walletActionText}>Top Up</Text>
-              </TouchableOpacity>
-              <View style={styles.walletDivider} />
-              <TouchableOpacity
-                style={styles.walletActionButton}
-                onPress={() => navigation.navigate('Wallet')}
-                accessibilityLabel="View transactions"
-                accessibilityRole="button"
-              >
-                <Ionicons name="swap-horizontal-outline" size={moderateScale(16)} color={COLORS.white} />
-                <Text style={styles.walletActionText}>Transactions</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Decorative circles */}
-          <View style={styles.walletDecorCircle1} />
-          <View style={styles.walletDecorCircle2} />
-        </TouchableOpacity>
-
-        {/* Refer & Earn Card */}
-        {referralCode ? (
-          <View style={styles.referralCard}>
-            <View style={styles.referralHeader}>
-              <View style={styles.referralIconContainer}>
-                <Ionicons name="gift" size={moderateScale(22)} color={COLORS.primaryDark} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.referralTitle}>Refer & Earn</Text>
-                <Text style={styles.referralSubtitle}>Invite friends, earn rewards!</Text>
-              </View>
-            </View>
-            <View style={styles.referralCodeRow}>
-              <TouchableOpacity
-                style={styles.referralCodeBox}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(referralCode);
-                  showToast('Referral code copied!', 'success');
-                }}
-                activeOpacity={0.7}
-                accessibilityLabel="Copy referral code"
-                accessibilityRole="button"
-              >
-                <Text style={styles.referralCodeText}>{referralCode}</Text>
-                <Ionicons name="copy-outline" size={moderateScale(16)} color={COLORS.primaryDark} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.referralShareButton}
-                onPress={async () => {
-                  try {
-                    await Share.share({
-                      message: `Join OMJI and get a free ₱10 bonus! Use my referral code: ${referralCode}\n\nDownload OMJI now!`,
-                    });
-                  } catch {
-                    // User cancelled share
-                  }
-                }}
-                activeOpacity={0.7}
-                accessibilityLabel="Share referral code"
-                accessibilityRole="button"
-              >
-                <Ionicons name="share-social" size={moderateScale(18)} color={COLORS.white} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.referralStatsRow}>
-              <View style={styles.referralStatItem}>
-                <Text style={styles.referralStatValue}>{referralStats.total_referrals}</Text>
-                <Text style={styles.referralStatLabel}>Referrals</Text>
-              </View>
-              <View style={styles.referralStatDivider} />
-              <View style={styles.referralStatItem}>
-                <Text style={styles.referralStatValue}>₱{referralStats.total_earned.toFixed(0)}</Text>
-                <Text style={styles.referralStatLabel}>Earned</Text>
-              </View>
-            </View>
-            <Text style={styles.referralBonusText}>
-              You earn ₱20 per referral. Your friend gets ₱10!
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Menu Sections */}
-        {menuSections.map((section) => {
-          const accentColor = SECTION_ACCENTS[section.title] || COLORS.accent;
-          const iconBg = SECTION_ICONS[section.title]?.bg || COLORS.accentBg;
-
-          return (
-            <View key={section.title} style={styles.menuSection}>
-              <View style={styles.sectionTitleRow}>
-                <View style={[styles.sectionIndicator, { backgroundColor: accentColor }]} />
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-              </View>
-              <View style={styles.menuCard}>
-                {section.items.map((item, itemIndex) => (
+            {/* Wallet Quick Access Card */}
+            <TouchableOpacity
+              style={styles.walletCard}
+              onPress={() => navigation.navigate('Wallet')}
+              activeOpacity={0.85}
+              accessibilityLabel="View wallet"
+              accessibilityRole="button"
+            >
+              <View style={styles.walletGradient}>
+                <View style={styles.walletTop}>
+                  <View style={styles.walletIconContainer}>
+                    <Ionicons name="wallet" size={moderateScale(24)} color={COLORS.white} />
+                  </View>
+                  <View style={styles.walletInfo}>
+                    <Text style={styles.walletLabel}>Wallet Balance</Text>
+                    <Text style={styles.walletBalance}>
+                      ₱{walletBalance.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.walletActions}>
                   <TouchableOpacity
-                    key={item.label}
-                    style={[
-                      styles.menuItem,
-                      itemIndex < section.items.length - 1 && styles.menuItemBorder,
-                    ]}
-                    onPress={() => item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.())}
-                    activeOpacity={0.6}
-                    accessibilityLabel={item.label}
+                    style={styles.walletActionButton}
+                    onPress={() => navigation.navigate('Wallet')}
+                    accessibilityLabel="Top up wallet"
                     accessibilityRole="button"
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: iconBg }]}>
-                      <Ionicons name={item.icon as any} size={moderateScale(18)} color={accentColor} />
-                    </View>
-                    <Text style={styles.menuLabel}>{item.label}</Text>
-                    <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.gray300} />
+                    <Ionicons name="add-circle-outline" size={moderateScale(16)} color={COLORS.white} />
+                    <Text style={styles.walletActionText}>Top Up</Text>
                   </TouchableOpacity>
-                ))}
+                  <View style={styles.walletDivider} />
+                  <TouchableOpacity
+                    style={styles.walletActionButton}
+                    onPress={() => navigation.navigate('Wallet')}
+                    accessibilityLabel="View transactions"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="swap-horizontal-outline" size={moderateScale(16)} color={COLORS.white} />
+                    <Text style={styles.walletActionText}>Transactions</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          );
-        })}
+              {/* Decorative circles */}
+              <View style={styles.walletDecorCircle1} />
+              <View style={styles.walletDecorCircle2} />
+            </TouchableOpacity>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7} accessibilityLabel="Sign out" accessibilityRole="button">
-          <View style={styles.logoutIconContainer}>
-            <Ionicons name="log-out-outline" size={moderateScale(20)} color={COLORS.error} />
-          </View>
-          <Text style={styles.logoutText}>Sign Out</Text>
-          <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.errorLight} />
-        </TouchableOpacity>
+            {/* Refer & Earn Card */}
+            {referralCode ? (
+              <View style={styles.referralCard}>
+                <View style={styles.referralHeader}>
+                  <View style={styles.referralIconContainer}>
+                    <Ionicons name="gift" size={moderateScale(22)} color={COLORS.primaryDark} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.referralTitle}>Refer & Earn</Text>
+                    <Text style={styles.referralSubtitle}>Invite friends, earn rewards!</Text>
+                  </View>
+                </View>
+                <View style={styles.referralCodeRow}>
+                  <TouchableOpacity
+                    style={styles.referralCodeBox}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(referralCode);
+                      showToast('Referral code copied!', 'success');
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Copy referral code"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.referralCodeText}>{referralCode}</Text>
+                    <Ionicons name="copy-outline" size={moderateScale(16)} color={COLORS.primaryDark} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.referralShareButton}
+                    onPress={async () => {
+                      try {
+                        await Share.share({
+                          message: `Join OMJI and get a free ₱10 bonus! Use my referral code: ${referralCode}\n\nDownload OMJI now!`,
+                        });
+                      } catch {
+                        // User cancelled share
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Share referral code"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="share-social" size={moderateScale(18)} color={COLORS.white} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.referralStatsRow}>
+                  <View style={styles.referralStatItem}>
+                    <Text style={styles.referralStatValue}>{referralStats.total_referrals}</Text>
+                    <Text style={styles.referralStatLabel}>Referrals</Text>
+                  </View>
+                  <View style={styles.referralStatDivider} />
+                  <View style={styles.referralStatItem}>
+                    <Text style={styles.referralStatValue}>₱{referralStats.total_earned.toFixed(0)}</Text>
+                    <Text style={styles.referralStatLabel}>Earned</Text>
+                  </View>
+                </View>
+                <Text style={styles.referralBonusText}>
+                  You earn ₱20 per referral. Your friend gets ₱10!
+                </Text>
+              </View>
+            ) : null}
 
-        {/* Version */}
-        <Text style={styles.versionText}>OMJI v1.0.0</Text>
+            {/* Menu Sections */}
+            {menuSections.map((section) => {
+              const accentColor = SECTION_ACCENTS[section.title] || COLORS.accent;
+              const iconBg = SECTION_ICONS[section.title]?.bg || COLORS.accentBg;
+
+              return (
+                <View key={section.title} style={styles.menuSection}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={[styles.sectionIndicator, { backgroundColor: accentColor }]} />
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                  </View>
+                  <View style={styles.menuCard}>
+                    {section.items.map((item, itemIndex) => (
+                      <TouchableOpacity
+                        key={item.label}
+                        style={[
+                          styles.menuItem,
+                          itemIndex < section.items.length - 1 && styles.menuItemBorder,
+                        ]}
+                        onPress={() => item.screen ? navigation.navigate(item.screen) : ('action' in item && item.action?.())}
+                        activeOpacity={0.6}
+                        accessibilityLabel={item.label}
+                        accessibilityRole="button"
+                      >
+                        <View style={[styles.menuIconContainer, { backgroundColor: iconBg }]}>
+                          <Ionicons name={item.icon as any} size={moderateScale(18)} color={accentColor} />
+                        </View>
+                        <Text style={styles.menuLabel}>{item.label}</Text>
+                        <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.gray300} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Logout Button */}
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7} accessibilityLabel="Sign out" accessibilityRole="button">
+              <View style={styles.logoutIconContainer}>
+                <Ionicons name="log-out-outline" size={moderateScale(20)} color={COLORS.error} />
+              </View>
+              <Text style={styles.logoutText}>Sign Out</Text>
+              <Ionicons name="chevron-forward" size={moderateScale(18)} color={COLORS.errorLight} />
+            </TouchableOpacity>
+
+            {/* Version */}
+            <Text style={styles.versionText}>OMJI v1.0.0</Text>
+          </>
+        )}
 
         <View style={{ height: verticalScale(100) }} />
       </ScrollView>
@@ -612,12 +695,6 @@ const styles = StyleSheet.create({
     elevation: moderateScale(5),
     top: verticalScale(-16),
     marginBottom: verticalScale(-4),
-  },
-  statsLoading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: verticalScale(16),
   },
   statItem: {
     flex: 1,
@@ -926,6 +1003,60 @@ const styles = StyleSheet.create({
     color: COLORS.gray500,
     textAlign: 'center',
     fontWeight: '500',
+  },
+
+  // Error State
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(48),
+    paddingHorizontal: RESPONSIVE.paddingHorizontal,
+    marginHorizontal: RESPONSIVE.marginHorizontal,
+    marginTop: verticalScale(24),
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.large,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: verticalScale(2) },
+    shadowOpacity: 0.06,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(3),
+  },
+  errorIconContainer: {
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(16),
+  },
+  errorTitle: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    marginBottom: verticalScale(8),
+  },
+  errorMessage: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    lineHeight: fontScale(18),
+    marginBottom: verticalScale(20),
+    paddingHorizontal: moderateScale(12),
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryDark,
+    paddingHorizontal: moderateScale(24),
+    paddingVertical: verticalScale(12),
+    borderRadius: moderateScale(24),
+  },
+  retryButtonText: {
+    fontSize: RESPONSIVE.fontSize.regular,
+    fontWeight: '600',
+    color: COLORS.white,
+    marginLeft: moderateScale(8),
   },
 
   // Version

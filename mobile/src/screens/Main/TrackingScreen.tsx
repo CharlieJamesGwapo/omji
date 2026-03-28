@@ -171,6 +171,22 @@ export default function TrackingScreen({ route, navigation }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
+  // Lifecycle & fetch guard refs
+  const mountedRef = useRef(true);
+  const isFetchingRef = useRef(false);
+  const cancelNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (cancelNavTimeoutRef.current) {
+        clearTimeout(cancelNavTimeoutRef.current);
+        cancelNavTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // Animation refs
   const starAnims = useRef([1, 2, 3, 4, 5].map(() => new Animated.Value(1))).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -228,17 +244,21 @@ export default function TrackingScreen({ route, navigation }: any) {
 
   const fetchRideDetails = useCallback(async () => {
     if (!rideId) { setLoading(false); return; }
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const response = type === 'delivery'
         ? await deliveryService.getDeliveryDetails(rideId)
         : await rideService.getRideDetails(rideId);
+      if (!mountedRef.current) return;
       const data = response.data?.data;
       setRideData(data);
       setStatus(data?.status || 'pending');
     } catch (error) {
       // Silently handle fetch errors - polling will retry
     } finally {
-      setLoading(false);
+      isFetchingRef.current = false;
+      if (mountedRef.current) setLoading(false);
     }
   }, [rideId, type]);
 
@@ -291,13 +311,15 @@ export default function TrackingScreen({ route, navigation }: any) {
             } else {
               await driverService.updateRideStatus(rideId, next.status);
             }
+            if (!mountedRef.current) return;
             setStatus(next.status);
             fetchRideDetails();
           } catch (error: any) {
+            if (!mountedRef.current) return;
             const msg = error.response?.data?.error || 'Failed to update status';
             showToast(msg, 'error');
           } finally {
-            setUpdatingStatus(false);
+            if (mountedRef.current) setUpdatingStatus(false);
           }
         },
       },
@@ -305,7 +327,7 @@ export default function TrackingScreen({ route, navigation }: any) {
   };
 
   const performCancel = async (reason: string) => {
-    if (!rideId) return;
+    if (!rideId || cancelling) return;
     const itemType = type === 'delivery' ? 'delivery' : 'ride';
     setCancelling(true);
     try {
@@ -314,13 +336,17 @@ export default function TrackingScreen({ route, navigation }: any) {
       } else {
         await rideService.cancelRide(rideId, reason);
       }
+      if (!mountedRef.current) return;
       showToast(`Your ${itemType} has been cancelled.`, 'success');
-      setTimeout(() => navigation.goBack(), 1000);
+      cancelNavTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) navigation.goBack();
+      }, 1000);
     } catch (error: any) {
+      if (!mountedRef.current) return;
       const msg = error.response?.data?.error || `Failed to cancel ${itemType}`;
       showToast(msg, 'error');
     } finally {
-      setCancelling(false);
+      if (mountedRef.current) setCancelling(false);
     }
   };
 

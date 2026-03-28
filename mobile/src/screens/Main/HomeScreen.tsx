@@ -51,6 +51,8 @@ export default function HomeScreen({ navigation }: any) {
   const [recentTrips, setRecentTrips] = useState<Ride[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<number>>(new Set());
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const carouselScrollRef = useRef<FlatList>(null);
   const carouselIndex = useRef(0);
   const lastFetchRef = useRef<number>(0);
@@ -97,6 +99,7 @@ export default function HomeScreen({ navigation }: any) {
   }, []);
 
   const fetchAllData = useCallback(async () => {
+    let hadCriticalError = true;
     try {
       const [ridesRes, deliveriesRes] = await Promise.allSettled([
         rideService.getActiveRides(),
@@ -110,6 +113,10 @@ export default function HomeScreen({ navigation }: any) {
         const data = deliveriesRes.value?.data?.data;
         setActiveDeliveries(Array.isArray(data) ? data : []);
       }
+      // At least one critical call succeeded
+      if (ridesRes.status === 'fulfilled' || deliveriesRes.status === 'fulfilled') {
+        hadCriticalError = false;
+      }
     } catch (error) {
       console.error('Error fetching active orders:', error);
       showToast('Could not load active orders. Please check your connection.', 'error');
@@ -121,6 +128,7 @@ export default function HomeScreen({ navigation }: any) {
       const data = res?.data?.data;
       if (Array.isArray(data)) {
         setFeaturedStores(data.slice(0, 10));
+        hadCriticalError = false;
       }
     } catch {
       // Non-critical
@@ -163,6 +171,9 @@ export default function HomeScreen({ navigation }: any) {
     } catch {
       // Non-critical
     }
+
+    setFetchError(hadCriticalError);
+    setInitialLoading(false);
   }, [fetchUnreadCount]);
 
   useEffect(() => {
@@ -177,6 +188,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setFetchError(false);
     lastFetchRef.current = 0; // Reset throttle
     await fetchAllData();
     setRefreshing(false);
@@ -295,8 +307,55 @@ export default function HomeScreen({ navigation }: any) {
           />
         }
       >
+        {/* Skeleton Loader */}
+        {initialLoading && (
+          <View style={styles.skeletonContainer}>
+            {/* Greeting placeholder */}
+            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(18), width: '55%', marginBottom: verticalScale(16), opacity: 0.5 }} />
+            {/* Service cards placeholder */}
+            <View style={styles.skeletonServicesRow}>
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, marginRight: moderateScale(10), opacity: 0.5 }} />
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, marginRight: moderateScale(10), opacity: 0.5 }} />
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(100), flex: 1, opacity: 0.5 }} />
+            </View>
+            {/* Active rides placeholder */}
+            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(72), marginBottom: verticalScale(12), opacity: 0.5 }} />
+            {/* Stores carousel placeholder */}
+            <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(14), width: '35%', marginBottom: verticalScale(12), opacity: 0.5 }} />
+            <View style={styles.skeletonServicesRow}>
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), marginRight: moderateScale(10), opacity: 0.5 }} />
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), marginRight: moderateScale(10), opacity: 0.5 }} />
+              <View style={{ backgroundColor: COLORS.gray200, borderRadius: moderateScale(12), height: verticalScale(110), width: moderateScale(140), opacity: 0.5 }} />
+            </View>
+          </View>
+        )}
+
+        {/* Error State */}
+        {fetchError && !initialLoading && (
+          <View style={styles.errorCard}>
+            <Ionicons name="cloud-offline-outline" size={moderateScale(48)} color={COLORS.gray400} />
+            <Text style={styles.errorTitle}>Could not load data</Text>
+            <Text style={styles.errorSubtext}>Check your connection and try again</Text>
+            <TouchableOpacity
+              style={styles.errorRetryButton}
+              onPress={() => {
+                setInitialLoading(true);
+                setFetchError(false);
+                lastFetchRef.current = 0;
+                fetchAllData();
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="Try again"
+              accessibilityRole="button"
+            >
+              <Ionicons name="refresh" size={moderateScale(18)} color={COLORS.white} style={{ marginRight: moderateScale(6) }} />
+              <Text style={styles.errorRetryText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Announcement Banner */}
-        {announcements
+        {!initialLoading && !fetchError && announcements
           .filter((ann: any) => !dismissedAnnouncements.has(ann.id))
           .slice(0, 1)
           .map((ann: any) => {
@@ -336,7 +395,7 @@ export default function HomeScreen({ navigation }: any) {
           })}
 
         {/* Active Ride/Delivery Banners */}
-        {activeRides.map((ride: any) => (
+        {!initialLoading && !fetchError && activeRides.map((ride: any) => (
           <TouchableOpacity
             key={`ride-${ride.id}`}
             style={styles.activeCard}
@@ -368,7 +427,7 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
         ))}
-        {activeDeliveries.map((del: any) => (
+        {!initialLoading && !fetchError && activeDeliveries.map((del: any) => (
           <TouchableOpacity
             key={`del-${del.id}`}
             style={[styles.activeCard]}
@@ -402,7 +461,7 @@ export default function HomeScreen({ navigation }: any) {
         ))}
 
         {/* Empty state when no active rides/deliveries */}
-        {activeRides.length === 0 && activeDeliveries.length === 0 && !refreshing && (
+        {!initialLoading && !fetchError && activeRides.length === 0 && activeDeliveries.length === 0 && !refreshing && (
           <View style={styles.noActiveContainer}>
             <Ionicons name="checkmark-circle-outline" size={moderateScale(24)} color={COLORS.gray400} />
             <Text style={styles.noActiveText}>No active rides or deliveries</Text>
@@ -410,7 +469,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* Featured Stores Carousel */}
-        {featuredStores.length > 0 && (
+        {!initialLoading && !fetchError && featuredStores.length > 0 && (
           <View style={styles.carouselSection}>
             <View style={styles.carouselHeader}>
               <Text style={styles.carouselTitle}>Popular Stores</Text>
@@ -466,14 +525,14 @@ export default function HomeScreen({ navigation }: any) {
             />
           </View>
         )}
-        {storesLoading && featuredStores.length === 0 && (
+        {!initialLoading && !fetchError && storesLoading && featuredStores.length === 0 && (
           <View style={styles.carouselLoading}>
             <ActivityIndicator size="small" color={COLORS.accent} />
           </View>
         )}
 
         {/* Destination Search Bar */}
-        <TouchableOpacity
+        {!initialLoading && !fetchError && <TouchableOpacity
           style={styles.destinationBar}
           onPress={() => navigation.navigate('Pasabay')}
           activeOpacity={0.8}
@@ -485,10 +544,10 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.destinationArrow}>
             <Ionicons name="arrow-forward" size={moderateScale(16)} color={COLORS.accent} />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         {/* Rider Promo Banner */}
-        {user?.role === 'user' && (
+        {!initialLoading && !fetchError && user?.role === 'user' && (
           <TouchableOpacity
             style={styles.riderPromoBanner}
             onPress={() => navigation.navigate('RiderRegistration')}
@@ -507,6 +566,7 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
+        {!initialLoading && !fetchError && (<>
         {/* Service Cards */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -675,6 +735,7 @@ export default function HomeScreen({ navigation }: any) {
           <Ionicons name="location" size={moderateScale(14)} color={COLORS.accent} />
           <Text style={styles.locationTagText}>Misamis Oriental, Philippines</Text>
         </View>
+        </>)}
       </ScrollView>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
@@ -1282,5 +1343,52 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     marginLeft: moderateScale(6),
     fontWeight: '500',
+  },
+
+  // --- Skeleton Loader ---
+  skeletonContainer: {
+    marginBottom: verticalScale(16),
+  },
+  skeletonServicesRow: {
+    flexDirection: 'row' as const,
+    marginBottom: verticalScale(16),
+  },
+
+  // --- Error State ---
+  errorCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RESPONSIVE.borderRadius.xlarge,
+    padding: moderateScale(32),
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: verticalScale(16),
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  errorTitle: {
+    fontSize: RESPONSIVE.fontSize.large,
+    fontWeight: '700' as const,
+    color: COLORS.gray900,
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(6),
+  },
+  errorSubtext: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray400,
+    marginBottom: verticalScale(20),
+    textAlign: 'center' as const,
+  },
+  errorRetryButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: COLORS.accent,
+    borderRadius: moderateScale(12),
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: moderateScale(24),
+  },
+  errorRetryText: {
+    fontSize: RESPONSIVE.fontSize.medium,
+    fontWeight: '600' as const,
+    color: COLORS.white,
   },
 });
