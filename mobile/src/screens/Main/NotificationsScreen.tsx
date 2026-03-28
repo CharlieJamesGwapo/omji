@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -231,35 +231,30 @@ export default function NotificationsScreen({ navigation }: any) {
         )}
       </View>
 
-      <FlatList
-        data={[1]}
-        renderItem={() => (
-          <View>
-            {notifications.length === 0 ? (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconWrap}>
-                  <Ionicons name="notifications-off-outline" size={moderateScale(56)} color={COLORS.gray300} />
-                </View>
-                <Text style={styles.emptyTitle}>No Notifications</Text>
-                <Text style={styles.emptySubtext}>
-                  When you receive notifications about your rides, deliveries, or orders, they will appear here.
-                </Text>
-                <TouchableOpacity style={styles.emptyButton} onPress={onRefresh} accessibilityLabel="Refresh notifications" accessibilityRole="button">
-                  <Ionicons name="refresh-outline" size={moderateScale(18)} color={COLORS.accent} />
-                  <Text style={styles.emptyButtonText}>Refresh</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              renderGroupedList()
-            )}
-          </View>
-        )}
-        keyExtractor={() => 'notifications'}
+      <ScrollView
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.accent]} tintColor={COLORS.accent} />
         }
-      />
+      >
+        {notifications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="notifications-off-outline" size={moderateScale(56)} color={COLORS.gray300} />
+            </View>
+            <Text style={styles.emptyTitle}>No Notifications</Text>
+            <Text style={styles.emptySubtext}>
+              When you receive notifications about your rides, deliveries, or orders, they will appear here.
+            </Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={onRefresh} accessibilityLabel="Refresh notifications" accessibilityRole="button">
+              <Ionicons name="refresh-outline" size={moderateScale(18)} color={COLORS.accent} />
+              <Text style={styles.emptyButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          renderGroupedList()
+        )}
+      </ScrollView>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </View>
   );

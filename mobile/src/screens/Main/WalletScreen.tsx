@@ -40,7 +40,7 @@ export default function WalletScreen({ navigation }: any) {
       setFetchError(false);
       const response = await walletService.getBalance();
       const data = response.data?.data;
-      setBalance(Number(data?.balance) || 0);
+      setBalance(data?.balance != null ? Number(data.balance) : 0);
       setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
     } catch (error: any) {
       if (error.response?.status !== 401) {

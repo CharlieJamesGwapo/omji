@@ -14,25 +14,15 @@ const api = axios.create({
   },
 });
 
-// Retry requests once on network/timeout errors (GET always, POST only on timeout with no response)
-api.interceptors.response.use(undefined, async (error) => {
-  const config = error.config;
-  if (config && !config.__retried && (!error.response || error.code === 'ECONNABORTED')) {
-    const isGet = config.method === 'get';
-    const isPostTimeout = config.method === 'post' && error.code === 'ECONNABORTED' && !error.response;
-    if (isGet || isPostTimeout) {
-      config.__retried = true;
-      return api(config);
-    }
-  }
-  return Promise.reject(error);
-});
-
 // Add token to requests
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // AsyncStorage read failed — proceed without token
   }
   return config;
 });
@@ -44,17 +34,31 @@ export const setOnUnauthorized = (callback: () => void) => {
   onUnauthorized = callback;
 };
 
+// Single response interceptor: retry on network/timeout errors, handle 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const config = error.config;
+
+    // Retry once on network/timeout errors (GET always, POST only on timeout with no response)
+    if (config && !config.__retried && (!error.response || error.code === 'ECONNABORTED')) {
+      const isGet = config.method === 'get';
+      const isPostTimeout = config.method === 'post' && error.code === 'ECONNABORTED' && !error.response;
+      if (isGet || isPostTimeout) {
+        config.__retried = true;
+        return api(config);
+      }
+    }
+
+    // Handle 401 - clear expired/invalid tokens
     if (error.response?.status === 401) {
-      // Token is expired or invalid - clear stored auth
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('token').catch(() => {});
+      await AsyncStorage.removeItem('user').catch(() => {});
       if (onUnauthorized) {
         onUnauthorized();
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -113,7 +117,8 @@ export const deliveryService = {
   createDeliveryWithPhoto: (data: any, photoUri: string | null) => {
     const formData = new FormData();
     Object.keys(data).forEach(key => {
-      formData.append(key, String(data[key]));
+      const val = data[key];
+      formData.append(key, typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? ''));
     });
     if (photoUri) {
       const filename = photoUri.split('/').pop() || 'photo.jpg';
@@ -215,7 +220,8 @@ export const driverService = {
   registerDriverWithDocuments: (data: any, photos: { profile?: string | null; license?: string | null; orcr?: string | null; id?: string | null }) => {
     const formData = new FormData();
     Object.keys(data).forEach(key => {
-      formData.append(key, String(data[key]));
+      const val = data[key];
+      formData.append(key, typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? ''));
     });
     const photoFields: Array<{ key: keyof typeof photos; field: string }> = [
       { key: 'profile', field: 'profile_photo' },

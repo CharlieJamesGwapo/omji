@@ -75,6 +75,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   // Payment session countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
+      if (isLeavingRef.current) { clearInterval(timer); return; }
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
@@ -125,7 +126,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       const found = configs.find((c: any) => c.type === type && c.is_active);
       setConfig(found || null);
     } catch {
-      // silent
+      console.warn('Payment: Could not load payment config');
     } finally {
       setLoading(false);
     }
@@ -146,27 +147,30 @@ export default function PaymentScreen({ route, navigation }: any) {
     const gcashPkg = 'com.globe.gcash.android';
     const mayaPkg = 'com.paymaya';
     const pkg = isGcash ? gcashPkg : mayaPkg;
+    const deepLink = isGcash ? 'gcash://' : 'paymaya://';
 
-    if (isIOS) {
-      // iOS: use custom scheme directly
-      const deepLink = isGcash ? 'gcash://' : 'paymaya://';
+    // Try multiple approaches to open the app
+    const urlsToTry = isIOS
+      ? [deepLink]
+      : [
+          deepLink,
+          `intent://#Intent;package=${pkg};launchFlags=0x10000000;end`,
+          `market://details?id=${pkg}`, // fallback: opens Play Store to the app
+        ];
+
+    for (const url of urlsToTry) {
       try {
-        await Linking.openURL(deepLink);
-        return;
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+          return;
+        }
       } catch {
-        // fall through to store link
-      }
-    } else {
-      // Android: use intent URL to bypass <queries> restriction
-      const intentUrl = `intent://#Intent;package=${pkg};launchFlags=0x10000000;end`;
-      try {
-        await Linking.openURL(intentUrl);
-        return;
-      } catch {
-        // fall through to store link
+        // Try next URL
       }
     }
 
+    // All attempts failed — show install prompt
     const storeLink = isGcash
       ? isIOS
         ? 'https://apps.apple.com/ph/app/gcash/id520020791'
@@ -175,8 +179,8 @@ export default function PaymentScreen({ route, navigation }: any) {
         ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
         : `https://play.google.com/store/apps/details?id=${mayaPkg}`;
     Alert.alert(
-      `${brandName} Not Installed`,
-      `Please install ${brandName} to complete payment, or scan the QR code below.`,
+      `Could Not Open ${brandName}`,
+      `Make sure ${brandName} is installed and try again, or scan the QR code below.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Get App', onPress: () => Linking.openURL(storeLink) },

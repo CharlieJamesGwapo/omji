@@ -75,21 +75,29 @@ export default function ChatScreen({ route, navigation }: any) {
     imageUrl: m.image_url || undefined,
   }), [currentUserId]);
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Fetch messages on mount, poll with adaptive interval, WebSocket for real-time
   useEffect(() => {
     if (!chatId || !currentUserId) { setLoading(false); return; }
     let interval: ReturnType<typeof setInterval> | null = null;
-    let mounted = true;
     let ws: WebSocket | null = null;
+    let isFetching = false;
 
     const stopPolling = () => {
       if (interval) { clearInterval(interval); interval = null; }
     };
 
     const fetchMessages = async () => {
+      if (isFetching) return; // Prevent concurrent fetches from polling + WS
+      isFetching = true;
       try {
         const response = await chatService.getMessages(chatId);
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         const raw = response.data?.data;
         const msgs: ChatMsg[] = Array.isArray(raw)
           ? raw.map(mapServerMessage)
@@ -105,7 +113,8 @@ export default function ChatScreen({ route, navigation }: any) {
       } catch {
         // Silent fail for polling — will retry
       } finally {
-        if (mounted) setLoading(false);
+        isFetching = false;
+        if (mountedRef.current) setLoading(false);
       }
     };
 
@@ -119,14 +128,14 @@ export default function ChatScreen({ route, navigation }: any) {
     const connectWebSocket = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        if (!token || !mounted) return;
+        if (!token || !mountedRef.current) return;
 
         const url = getWebSocketUrl(`/ws/chat/${chatId}`, token);
         ws = new WebSocket(url);
         wsRef.current = ws;
 
         ws.onopen = () => {
-          if (!mounted) return;
+          if (!mountedRef.current) return;
           wsConnected.current = true;
           // Reduce polling to fallback interval
           pollingIntervalRef.current = 15000;
@@ -135,7 +144,7 @@ export default function ChatScreen({ route, navigation }: any) {
         };
 
         ws.onmessage = (event) => {
-          if (!mounted) return;
+          if (!mountedRef.current) return;
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'chat_message') {
@@ -157,7 +166,7 @@ export default function ChatScreen({ route, navigation }: any) {
         };
 
         ws.onclose = () => {
-          if (!mounted) return;
+          if (!mountedRef.current) return;
           wsConnected.current = false;
           wsRef.current = null;
           // Increase polling back to 3s
@@ -189,7 +198,6 @@ export default function ChatScreen({ route, navigation }: any) {
     });
 
     return () => {
-      mounted = false;
       stopPolling();
       if (ws) {
         ws.close();
@@ -266,6 +274,7 @@ export default function ChatScreen({ route, navigation }: any) {
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
+      if (!mountedRef.current) return;
 
       const imageUri = result.assets[0].uri;
       setUploadingImage(true);

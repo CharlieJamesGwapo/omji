@@ -44,7 +44,7 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
       const remaining = Math.max(1, (request.expires_at || now + TIMEOUT) - now);
       setSecondsLeft(remaining);
 
-      Vibration.vibrate([0, 400, 200, 400]);
+      try { Vibration.vibrate([0, 400, 200, 400]); } catch {}
 
       // Slide in
       Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 11 }).start();
@@ -75,7 +75,7 @@ export default function RiderRequestModal({ visible, request, onAccept, onDeclin
         slideAnim.setValue(0);
       };
     }
-  }, [visible, request]);
+  }, [visible, request, onDecline]);
 
   if (!visible || !request) return null;
 

@@ -93,6 +93,7 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   const handleRegister = async () => {
+    if (loading) return;
     if (!validate()) {
       shake();
       showToast('Please fix the errors below', 'warning');

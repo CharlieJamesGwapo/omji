@@ -104,7 +104,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userData);
     } catch (error: any) {
-
+      await AsyncStorage.removeItem('token').catch(() => {});
+      await AsyncStorage.removeItem('user').catch(() => {});
       const message = error.response?.data?.error || error.message || 'Registration failed';
       throw new Error(message);
     }
@@ -124,9 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateUser = async (userData: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
       try {
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
       } catch (error) {
         console.error('Failed to persist updated user to AsyncStorage:', error);
       }
@@ -143,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       }
     } catch (error) {
-      // Silently ignore refresh failures - user can still use cached data
+      console.warn('Failed to refresh user profile:', error);
     }
   };
 

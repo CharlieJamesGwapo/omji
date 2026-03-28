@@ -21,7 +21,8 @@
         "NSLocationWhenInUseUsageDescription": "OMJI needs your location to provide ride and delivery services.",
         "NSLocationAlwaysUsageDescription": "OMJI needs your location for real-time tracking.",
         "NSCameraUsageDescription": "OMJI needs camera access to upload item photos.",
-        "NSPhotoLibraryUsageDescription": "OMJI needs access to your photos."
+        "NSPhotoLibraryUsageDescription": "OMJI needs access to your photos.",
+        "LSApplicationQueriesSchemes": ["gcash", "paymaya"]
       }
     },
     "android": {
@@ -50,6 +51,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withAndroidQueries",
       [
         "expo-location",
         {

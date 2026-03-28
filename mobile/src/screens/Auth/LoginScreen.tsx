@@ -90,6 +90,7 @@ export default function LoginScreen({ navigation }: any) {
   }, [shakeAnim]);
 
   const handleLogin = async () => {
+    if (loading) return;
     setPhoneError('');
     setPasswordError('');
     let hasError = false;

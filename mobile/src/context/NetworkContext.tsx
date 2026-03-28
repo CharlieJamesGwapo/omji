@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { AppState, AppStateStatus } from 'react-native';
 
@@ -22,18 +22,27 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     isInternetReachable: true,
     connectionType: null,
   });
+  const listenerFiredRef = useRef(false);
 
   useEffect(() => {
+    listenerFiredRef.current = false;
+
     // Fetch real state immediately instead of assuming connected
     NetInfo.fetch().then((netState) => {
-      setState({
-        isConnected: netState.isConnected ?? true,
-        isInternetReachable: netState.isInternetReachable,
-        connectionType: netState.type,
-      });
+      // Only apply initial fetch if listener hasn't fired yet (avoids race condition)
+      if (!listenerFiredRef.current) {
+        setState({
+          isConnected: netState.isConnected ?? true,
+          isInternetReachable: netState.isInternetReachable,
+          connectionType: netState.type,
+        });
+      }
+    }).catch(() => {
+      // NetInfo fetch failed — keep default optimistic state
     });
 
     const unsubscribe = NetInfo.addEventListener((netState: NetInfoState) => {
+      listenerFiredRef.current = true;
       setState({
         isConnected: netState.isConnected ?? true,
         isInternetReachable: netState.isInternetReachable,
@@ -54,6 +63,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
             isInternetReachable: netState.isInternetReachable,
             connectionType: netState.type,
           });
+        }).catch(() => {
+          // NetInfo fetch failed on foreground — keep current state
         });
       }
     };

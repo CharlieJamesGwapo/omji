@@ -182,8 +182,8 @@ export default function OrdersScreen({ navigation }: any) {
       allOrders.length = 0;
       allOrders.push(...dedupedOrders);
 
-      // Add history data (completed/cancelled)
-      const existingIds = new Set(allOrders.map(o => `${o.type}-${o.id}`));
+      // Add history data (completed/cancelled) — use seen set which already has deduped keys
+      const existingIds = seen;
 
       if (ridesHistRes.status === 'fulfilled') {
         const data = ridesHistRes.value?.data?.data;

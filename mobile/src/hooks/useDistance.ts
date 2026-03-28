@@ -117,6 +117,10 @@ export function useRoadDistance(pickup: LocationData, dropoff: LocationData) {
         setIsRoad(result.isRoad);
         setLoading(false);
       }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     });
   }, [pickup.latitude, pickup.longitude, dropoff.latitude, dropoff.longitude]);
 

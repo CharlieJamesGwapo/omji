@@ -116,6 +116,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
     // Validation
     if (!fullName || !phone || !email || !address) {
       Alert.alert('Error', 'Please fill in all personal information');

@@ -70,7 +70,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer onUnhandledAction={() => { /* Silently ignore unhandled navigation actions during navigator transitions */ }}>
+    <NavigationContainer onUnhandledAction={(action) => { console.warn('Unhandled navigation action:', action); }}>
       <StatusBar style="auto" />
       {!user ? (
         <AuthNavigator />

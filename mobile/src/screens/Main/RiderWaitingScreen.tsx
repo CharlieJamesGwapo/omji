@@ -82,8 +82,8 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
     } else if (type === 'ride_declined' || type === 'ride_expired') {
       setStatus(type === 'ride_declined' ? 'declined' : 'expired');
       setTimeout(() => {
-        const newExcluded = [...excludeDriverIds];
-        // Navigate back to selection
+        const newExcluded = [...excludeDriverIds, rideId];
+        // Navigate back to selection with declined driver excluded
         navigation.replace('RiderSelection', {
           bookingData,
           excludeDriverIds: newExcluded,
