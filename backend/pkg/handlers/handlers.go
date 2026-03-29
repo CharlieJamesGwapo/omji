@@ -2755,11 +2755,19 @@ func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			did := uint(id)
 			// Nullify driver references on historical records
-			tx.Model(&models.Ride{}).Where("driver_id = ?", did).Update("driver_id", nil)
-			tx.Model(&models.Delivery{}).Where("driver_id = ?", did).Update("driver_id", nil)
+			if err := tx.Model(&models.Ride{}).Where("driver_id = ?", did).Update("driver_id", nil).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.Delivery{}).Where("driver_id = ?", did).Update("driver_id", nil).Error; err != nil {
+				return err
+			}
 			// Delete owned records
-			tx.Where("driver_id = ?", did).Delete(&models.CommissionRecord{})
-			tx.Where("driver_id = ?", did).Delete(&models.WithdrawalRequest{})
+			if err := tx.Where("driver_id = ?", did).Delete(&models.CommissionRecord{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("driver_id = ?", did).Delete(&models.WithdrawalRequest{}).Error; err != nil {
+				return err
+			}
 			return tx.Delete(&driver).Error
 		}); err != nil {
 			log.Printf("Failed to delete driver %d: %v", id, err)
@@ -2858,12 +2866,18 @@ func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 		}
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			sid := uint(id)
-			// Nullify store references on historical orders
-			tx.Model(&models.Order{}).Where("store_id = ?", sid).Update("store_id", 0)
+			// Nullify store references on historical orders (use NULL not 0 to avoid FK violation)
+			if err := tx.Exec("UPDATE orders SET store_id = NULL WHERE store_id = ?", sid).Error; err != nil {
+				return err
+			}
 			// Delete owned records
-			tx.Where("store_id = ?", sid).Delete(&models.MenuItem{})
+			if err := tx.Where("store_id = ?", sid).Delete(&models.MenuItem{}).Error; err != nil {
+				return err
+			}
 			// Delete favorites referencing this store
-			tx.Where("type = ? AND item_id = ?", "store", sid).Delete(&models.Favorite{})
+			if err := tx.Where("type = ? AND item_id = ?", "store", sid).Delete(&models.Favorite{}).Error; err != nil {
+				return err
+			}
 			return tx.Delete(&store).Error
 		}); err != nil {
 			log.Printf("Failed to delete store %d: %v", id, err)
@@ -3495,14 +3509,20 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 		case "drivers":
 			if err := db.Model(&models.Driver{}).Pluck("user_id", &userIDs).Error; err != nil {
 				log.Printf("Failed to pluck driver user IDs: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch driver list"})
+				return
 			}
 		case "users":
 			if err := db.Model(&models.User{}).Where("role = ?", "user").Pluck("id", &userIDs).Error; err != nil {
 				log.Printf("Failed to pluck user IDs: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch user list"})
+				return
 			}
 		default: // all
 			if err := db.Model(&models.User{}).Pluck("id", &userIDs).Error; err != nil {
 				log.Printf("Failed to pluck all user IDs: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch user list"})
+				return
 			}
 		}
 
@@ -4746,6 +4766,11 @@ func AdminCreateRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "service_type is required"})
 			return
 		}
+		validServiceTypes := map[string]bool{"ride": true, "delivery": true, "order": true}
+		if !validServiceTypes[input.ServiceType] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "service_type must be ride, delivery, or order"})
+			return
+		}
 		if input.ServiceType == "ride" && input.VehicleType == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_type is required for rides"})
 			return
@@ -5039,6 +5064,10 @@ func AdminUpdateMenuItem(db *gorm.DB) gin.HandlerFunc {
 			updates["name"] = *input.Name
 		}
 		if input.Price != nil {
+			if *input.Price < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Price cannot be negative"})
+				return
+			}
 			updates["price"] = *input.Price
 		}
 		if input.Image != nil {
@@ -5245,19 +5274,26 @@ func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// AdminGetCommissionConfig returns the current commission config
+// AdminGetCommissionConfig returns the current commission config (auto-creates default if none exists)
 func AdminGetCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var config models.CommissionConfig
 		if err := db.First(&config).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Commission config not found"})
-			return
+			// Auto-create default config
+			config = models.CommissionConfig{
+				Percentage: 10,
+				IsActive:   true,
+			}
+			if err := db.Create(&config).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create default commission config"})
+				return
+			}
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": config, "timestamp": time.Now()})
 	}
 }
 
-// AdminUpdateCommissionConfig updates the commission percentage
+// AdminUpdateCommissionConfig updates or creates the commission percentage (upsert)
 func AdminUpdateCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -5269,7 +5305,16 @@ func AdminUpdateCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 		}
 		var config models.CommissionConfig
 		if err := db.First(&config).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Commission config not found"})
+			// No config exists — create one
+			config = models.CommissionConfig{
+				Percentage: input.Percentage,
+				IsActive:   true,
+			}
+			if err := db.Create(&config).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create commission config"})
+				return
+			}
+			c.JSON(http.StatusCreated, gin.H{"success": true, "data": config, "timestamp": time.Now()})
 			return
 		}
 		config.Percentage = input.Percentage
@@ -5767,6 +5812,74 @@ func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": announcement, "timestamp": time.Now()})
+	}
+}
+
+// AdminUpdateAnnouncement updates an existing announcement
+func AdminUpdateAnnouncement(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid announcement ID"})
+			return
+		}
+
+		var announcement models.Announcement
+		if err := db.First(&announcement, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Announcement not found"})
+			return
+		}
+
+		var input struct {
+			Title     *string    `json:"title"`
+			Message   *string    `json:"message"`
+			Type      *string    `json:"type"`
+			IsActive  *bool      `json:"is_active"`
+			ExpiresAt *time.Time `json:"expires_at"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+
+		updates := map[string]interface{}{}
+		if input.Title != nil {
+			updates["title"] = *input.Title
+		}
+		if input.Message != nil {
+			updates["message"] = *input.Message
+		}
+		if input.Type != nil {
+			validTypes := map[string]bool{"info": true, "warning": true, "promo": true, "update": true}
+			if !validTypes[*input.Type] {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid type. Must be info, warning, promo, or update"})
+				return
+			}
+			updates["type"] = *input.Type
+		}
+		if input.IsActive != nil {
+			updates["is_active"] = *input.IsActive
+		}
+		if input.ExpiresAt != nil {
+			updates["expires_at"] = *input.ExpiresAt
+		}
+
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
+			return
+		}
+
+		if err := db.Model(&announcement).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update announcement"})
+			return
+		}
+
+		if err := db.First(&announcement, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated announcement"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": announcement, "timestamp": time.Now()})
 	}
 }
 

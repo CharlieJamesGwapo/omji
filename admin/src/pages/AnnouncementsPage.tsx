@@ -24,6 +24,7 @@ const AnnouncementsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     message: '',
@@ -48,6 +49,23 @@ const AnnouncementsPage: React.FC = () => {
     loadAnnouncements();
   }, [loadAnnouncements]);
 
+  const openCreateModal = useCallback(() => {
+    setEditingId(null);
+    setFormData({ title: '', message: '', type: 'info', expires_at: '' });
+    setShowModal(true);
+  }, []);
+
+  const openEditModal = useCallback((a: Announcement) => {
+    setEditingId(a.id);
+    setFormData({
+      title: a.title,
+      message: a.message,
+      type: (a.type || 'info') as AnnouncementType,
+      expires_at: a.expires_at ? new Date(a.expires_at).toISOString().slice(0, 16) : '',
+    });
+    setShowModal(true);
+  }, []);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.message.trim()) {
@@ -56,22 +74,29 @@ const AnnouncementsPage: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      await adminService.createAnnouncement({
+      const payload = {
         title: formData.title.trim(),
         message: formData.message.trim(),
         type: formData.type,
         ...(formData.expires_at ? { expires_at: new Date(formData.expires_at).toISOString() } : {}),
-      });
-      toast.success('Announcement created!');
+      };
+      if (editingId) {
+        await adminService.updateAnnouncement(editingId, payload);
+        toast.success('Announcement updated!');
+      } else {
+        await adminService.createAnnouncement(payload);
+        toast.success('Announcement created!');
+      }
       setShowModal(false);
+      setEditingId(null);
       setFormData({ title: '', message: '', type: 'info', expires_at: '' });
       await loadAnnouncements();
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to create announcement'));
+      toast.error(getErrorMessage(err, editingId ? 'Failed to update announcement' : 'Failed to create announcement'));
     } finally {
       setSubmitting(false);
     }
-  }, [formData, loadAnnouncements]);
+  }, [formData, editingId, loadAnnouncements]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -105,7 +130,7 @@ const AnnouncementsPage: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openCreateModal}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors shadow-sm"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,8 +195,18 @@ const AnnouncementsPage: React.FC = () => {
                   {a.expires_at && <div>Expires: {formatDateTime(a.expires_at)}</div>}
                 </div>
 
-                {/* Delete */}
-                <div className="pt-2 border-t border-dashed flex justify-end" style={{ borderColor: isDark ? '#374151' : '#e5e7eb' }}>
+                {/* Actions */}
+                <div className="pt-2 border-t border-dashed flex justify-end gap-2" style={{ borderColor: isDark ? '#374151' : '#e5e7eb' }}>
+                  <button
+                    onClick={() => openEditModal(a)}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                      isDark
+                        ? 'text-blue-400 hover:bg-blue-500/10'
+                        : 'text-blue-500 hover:bg-blue-50'
+                    }`}
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => setDeleteTarget(a)}
                     className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
@@ -189,8 +224,8 @@ const AnnouncementsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Create Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Create Announcement">
+      {/* Create/Edit Modal */}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editingId ? 'Edit Announcement' : 'Create Announcement'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div>
@@ -291,7 +326,7 @@ const AnnouncementsPage: React.FC = () => {
               disabled={submitting}
               className="px-5 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 shadow-sm"
             >
-              {submitting ? 'Creating...' : 'Create'}
+              {submitting ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? 'Update' : 'Create')}
             </button>
           </div>
         </form>

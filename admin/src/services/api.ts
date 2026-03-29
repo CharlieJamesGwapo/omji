@@ -224,6 +224,7 @@ export const adminService = {
   getAnnouncements: () => cachedGet('/admin/announcements'),
   createAnnouncement: (data: { title: string; message: string; type: string; expires_at?: string }) =>
     API.post('/admin/announcements', data),
+  updateAnnouncement: (id: number, data: any) => API.put(`/admin/announcements/${id}`, data),
   deleteAnnouncement: (id: number) => API.delete(`/admin/announcements/${id}`),
 
   // Rates

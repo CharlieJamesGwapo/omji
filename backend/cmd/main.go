@@ -343,6 +343,7 @@ func main() {
 		// Announcement management
 		admin.GET("/announcements", handlers.AdminGetAnnouncements(database))
 		admin.POST("/announcements", handlers.AdminCreateAnnouncement(database))
+		admin.PUT("/announcements/:id", handlers.AdminUpdateAnnouncement(database))
 		admin.DELETE("/announcements/:id", handlers.AdminDeleteAnnouncement(database))
 
 		// Scheduled rides processing
