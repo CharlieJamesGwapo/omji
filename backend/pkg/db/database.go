@@ -76,13 +76,20 @@ func seedData(db *gorm.DB) {
 			log.Fatalf("Failed to hash admin password: %v", err)
 		}
 
+		// Generate unique referral code for admin
+		refBytes := make([]byte, 4)
+		if _, err := rand.Read(refBytes); err != nil {
+			log.Fatalf("Failed to generate admin referral code: %v", err)
+		}
+
 		adminUser := models.User{
-			Name:       "Admin",
-			Email:      "admin",
-			Phone:      "admin",
-			Password:   string(hashedPassword),
-			Role:       "admin",
-			IsVerified: true,
+			Name:         "Admin",
+			Email:        "admin",
+			Phone:        "admin",
+			Password:     string(hashedPassword),
+			Role:         "admin",
+			IsVerified:   true,
+			ReferralCode: "ADMIN-" + hex.EncodeToString(refBytes),
 		}
 
 		if err := db.Create(&adminUser).Error; err != nil {

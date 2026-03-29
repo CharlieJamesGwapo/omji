@@ -2628,28 +2628,65 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			uid := uint(id)
 			// Nullify user references on historical records (preserve history)
-			tx.Model(&models.Ride{}).Where("user_id = ?", uid).Update("user_id", 0)
-			tx.Model(&models.Delivery{}).Where("user_id = ?", uid).Update("user_id", 0)
-			tx.Model(&models.Order{}).Where("user_id = ?", uid).Update("user_id", 0)
-			tx.Model(&models.ChatMessage{}).Where("sender_id = ?", uid).Update("sender_id", 0)
-			tx.Model(&models.ChatMessage{}).Where("receiver_id = ?", uid).Update("receiver_id", 0)
-			tx.Model(&models.WalletTransaction{}).Where("user_id = ?", uid).Update("user_id", 0)
+			// Use raw SQL with NULL (not 0) to avoid FK violations
+			if err := tx.Exec("UPDATE rides SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE deliveries SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE orders SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE chat_messages SET sender_id = NULL WHERE sender_id = ?", uid).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE chat_messages SET receiver_id = NULL WHERE receiver_id = ?", uid).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE wallet_transactions SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+				return err
+			}
 			// Delete owned records
-			tx.Where("user_id = ?", uid).Delete(&models.SavedAddress{})
-			tx.Where("user_id = ?", uid).Delete(&models.PaymentMethod{})
-			tx.Where("user_id = ?", uid).Delete(&models.Notification{})
-			tx.Where("user_id = ?", uid).Delete(&models.Favorite{})
-			tx.Where("user_id = ?", uid).Delete(&models.PushToken{})
-			tx.Where("user_id = ?", uid).Delete(&models.Wallet{})
-			tx.Where("referrer_id = ? OR referred_id = ?", uid, uid).Delete(&models.Referral{})
+			if err := tx.Where("user_id = ?", uid).Delete(&models.SavedAddress{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id = ?", uid).Delete(&models.PaymentMethod{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id = ?", uid).Delete(&models.Notification{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id = ?", uid).Delete(&models.Favorite{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id = ?", uid).Delete(&models.PushToken{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("user_id = ?", uid).Delete(&models.Wallet{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("referrer_id = ? OR referred_id = ?", uid, uid).Delete(&models.Referral{}).Error; err != nil {
+				return err
+			}
 			// Delete driver record if exists
 			var driver models.Driver
 			if tx.Where("user_id = ?", uid).First(&driver).Error == nil {
-				tx.Model(&models.Ride{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil)
-				tx.Model(&models.Delivery{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil)
-				tx.Where("driver_id = ?", driver.ID).Delete(&models.CommissionRecord{})
-				tx.Where("driver_id = ?", driver.ID).Delete(&models.WithdrawalRequest{})
-				tx.Delete(&driver)
+				if err := tx.Model(&models.Ride{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&models.Delivery{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
+					return err
+				}
+				if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.CommissionRecord{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.WithdrawalRequest{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Delete(&driver).Error; err != nil {
+					return err
+				}
 			}
 			// Delete user
 			return tx.Delete(&user).Error
