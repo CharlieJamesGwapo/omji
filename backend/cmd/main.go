@@ -341,6 +341,7 @@ func main() {
 		admin.GET("/commission/summary", handlers.AdminGetCommissionSummary(database))
 
 		// Announcement management
+		admin.GET("/announcements", handlers.AdminGetAnnouncements(database))
 		admin.POST("/announcements", handlers.AdminCreateAnnouncement(database))
 		admin.DELETE("/announcements/:id", handlers.AdminDeleteAnnouncement(database))
 

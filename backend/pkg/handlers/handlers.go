@@ -2618,13 +2618,44 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
 			return
 		}
-		result := db.Delete(&models.User{}, id)
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
+		// Verify user exists
+		var user models.User
+		if err := db.First(&user, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
 			return
 		}
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+		// Delete in transaction to handle foreign key constraints
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			uid := uint(id)
+			// Nullify user references on historical records (preserve history)
+			tx.Model(&models.Ride{}).Where("user_id = ?", uid).Update("user_id", 0)
+			tx.Model(&models.Delivery{}).Where("user_id = ?", uid).Update("user_id", 0)
+			tx.Model(&models.Order{}).Where("user_id = ?", uid).Update("user_id", 0)
+			tx.Model(&models.ChatMessage{}).Where("sender_id = ?", uid).Update("sender_id", 0)
+			tx.Model(&models.ChatMessage{}).Where("receiver_id = ?", uid).Update("receiver_id", 0)
+			tx.Model(&models.WalletTransaction{}).Where("user_id = ?", uid).Update("user_id", 0)
+			// Delete owned records
+			tx.Where("user_id = ?", uid).Delete(&models.SavedAddress{})
+			tx.Where("user_id = ?", uid).Delete(&models.PaymentMethod{})
+			tx.Where("user_id = ?", uid).Delete(&models.Notification{})
+			tx.Where("user_id = ?", uid).Delete(&models.Favorite{})
+			tx.Where("user_id = ?", uid).Delete(&models.PushToken{})
+			tx.Where("user_id = ?", uid).Delete(&models.Wallet{})
+			tx.Where("referrer_id = ? OR referred_id = ?", uid, uid).Delete(&models.Referral{})
+			// Delete driver record if exists
+			var driver models.Driver
+			if tx.Where("user_id = ?", uid).First(&driver).Error == nil {
+				tx.Model(&models.Ride{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil)
+				tx.Model(&models.Delivery{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil)
+				tx.Where("driver_id = ?", driver.ID).Delete(&models.CommissionRecord{})
+				tx.Where("driver_id = ?", driver.ID).Delete(&models.WithdrawalRequest{})
+				tx.Delete(&driver)
+			}
+			// Delete user
+			return tx.Delete(&user).Error
+		}); err != nil {
+			log.Printf("Failed to delete user %d: %v", id, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "User deleted"}, "timestamp": time.Now()})
@@ -2679,13 +2710,23 @@ func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
 			return
 		}
-		result := db.Delete(&models.Driver{}, id)
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete driver"})
+		var driver models.Driver
+		if err := db.First(&driver, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
 			return
 		}
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			did := uint(id)
+			// Nullify driver references on historical records
+			tx.Model(&models.Ride{}).Where("driver_id = ?", did).Update("driver_id", nil)
+			tx.Model(&models.Delivery{}).Where("driver_id = ?", did).Update("driver_id", nil)
+			// Delete owned records
+			tx.Where("driver_id = ?", did).Delete(&models.CommissionRecord{})
+			tx.Where("driver_id = ?", did).Delete(&models.WithdrawalRequest{})
+			return tx.Delete(&driver).Error
+		}); err != nil {
+			log.Printf("Failed to delete driver %d: %v", id, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete driver"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Driver deleted"}, "timestamp": time.Now()})
@@ -2722,6 +2763,14 @@ func CreateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		if store.Name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Store name is required"})
+			return
+		}
+		if store.Address == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Store address is required"})
+			return
+		}
 		if err := db.Create(&store).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create store"})
 			return
@@ -2750,7 +2799,10 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update store"})
 			return
 		}
-		db.First(&store, store.ID)
+		if err := db.First(&store, store.ID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -2762,13 +2814,23 @@ func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
 			return
 		}
-		result := db.Delete(&models.Store{}, id)
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete store"})
+		var store models.Store
+		if err := db.First(&store, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
 			return
 		}
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Store not found"})
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			sid := uint(id)
+			// Nullify store references on historical orders
+			tx.Model(&models.Order{}).Where("store_id = ?", sid).Update("store_id", 0)
+			// Delete owned records
+			tx.Where("store_id = ?", sid).Delete(&models.MenuItem{})
+			// Delete favorites referencing this store
+			tx.Where("type = ? AND item_id = ?", "store", sid).Delete(&models.Favorite{})
+			return tx.Delete(&store).Error
+		}); err != nil {
+			log.Printf("Failed to delete store %d: %v", id, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete store"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Store deleted"}, "timestamp": time.Now()})
@@ -3116,7 +3178,10 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update promo"})
 			return
 		}
-		db.First(&promo, promo.ID)
+		if err := db.First(&promo, promo.ID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -3128,13 +3193,21 @@ func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
 			return
 		}
-		result := db.Delete(&models.Promo{}, id)
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete promo"})
+		var promo models.Promo
+		if err := db.First(&promo, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo not found"})
 			return
 		}
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Promo not found"})
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			pid := uint(id)
+			// Nullify promo references on historical records
+			tx.Model(&models.Ride{}).Where("promo_id = ?", pid).Update("promo_id", nil)
+			tx.Model(&models.Delivery{}).Where("promo_id = ?", pid).Update("promo_id", nil)
+			tx.Model(&models.Order{}).Where("promo_id = ?", pid).Update("promo_id", nil)
+			return tx.Delete(&promo).Error
+		}); err != nil {
+			log.Printf("Failed to delete promo %d: %v", id, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete promo"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Promo deleted"}, "timestamp": time.Now()})
@@ -3909,7 +3982,7 @@ func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update withdrawal"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawal})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawal, "timestamp": time.Now()})
 	}
 }
 
@@ -4893,6 +4966,10 @@ func AdminCreateMenuItem(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Item name is required"})
 			return
 		}
+		if item.Price < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Price cannot be negative"})
+			return
+		}
 		if err := db.Create(&item).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create menu item"})
 			return
@@ -5600,6 +5677,20 @@ func GetAnnouncements(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// AdminGetAnnouncements returns ALL announcements for admin management (including inactive/expired)
+func AdminGetAnnouncements(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var announcements []models.Announcement
+		if err := db.Session(&gorm.Session{SkipDefaultTransaction: true}).
+			Order("created_at DESC").
+			Find(&announcements).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch announcements"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": announcements, "timestamp": time.Now()})
+	}
+}
+
 // AdminCreateAnnouncement creates a new announcement (admin only)
 func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -5610,7 +5701,7 @@ func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
 			ExpiresAt *time.Time `json:"expires_at"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Title and message are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Title and message are required"})
 			return
 		}
 
@@ -5620,7 +5711,7 @@ func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
 		}
 		validTypes := map[string]bool{"info": true, "warning": true, "promo": true, "update": true}
 		if !validTypes[annType] {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type. Must be info, warning, promo, or update"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid type. Must be info, warning, promo, or update"})
 			return
 		}
 
@@ -5634,11 +5725,11 @@ func AdminCreateAnnouncement(db *gorm.DB) gin.HandlerFunc {
 
 		if err := db.Create(&announcement).Error; err != nil {
 			log.Printf("Failed to create announcement: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create announcement"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create announcement"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"data": announcement})
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": announcement, "timestamp": time.Now()})
 	}
 }
 
@@ -5647,22 +5738,22 @@ func AdminDeleteAnnouncement(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid announcement ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid announcement ID"})
 			return
 		}
 
 		result := db.Model(&models.Announcement{}).Where("id = ?", id).Update("is_active", false)
 		if result.Error != nil {
 			log.Printf("Failed to delete announcement %d: %v", id, result.Error)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete announcement"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete announcement"})
 			return
 		}
 		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Announcement not found"})
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Announcement not found"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Announcement deleted"})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Announcement deleted"}, "timestamp": time.Now()})
 	}
 }
 

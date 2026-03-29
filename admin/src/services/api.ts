@@ -179,7 +179,7 @@ export const adminService = {
   refreshRates: () => freshGet('/admin/rates'),
   refreshPaymentConfigs: () => freshGet('/admin/payment-configs'),
   refreshWithdrawals: () => freshGet('/admin/withdrawals'),
-  refreshAnnouncements: () => freshGet('/announcements'),
+  refreshAnnouncements: () => freshGet('/admin/announcements'),
   refreshReferrals: () => freshGet('/admin/referrals'),
   refreshDashboard: () => {
     // Actually fetch fresh data for all dashboard endpoints
@@ -221,7 +221,7 @@ export const adminService = {
     API.post('/admin/notifications', data),
 
   // Announcements
-  getAnnouncements: () => cachedGet('/announcements'),
+  getAnnouncements: () => cachedGet('/admin/announcements'),
   createAnnouncement: (data: { title: string; message: string; type: string; expires_at?: string }) =>
     API.post('/admin/announcements', data),
   deleteAnnouncement: (id: number) => API.delete(`/admin/announcements/${id}`),
