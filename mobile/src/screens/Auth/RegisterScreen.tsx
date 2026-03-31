@@ -82,7 +82,10 @@ export default function RegisterScreen({ navigation }: any) {
     if (!email.trim()) errors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Enter a valid email';
     if (!phone.trim()) errors.phone = 'Phone number is required';
-    else if (phone.replace(/\D/g, '').length < 10) errors.phone = 'Enter a valid phone number';
+    else {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) errors.phone = 'Phone must be 10-15 digits';
+    }
     if (!password) errors.password = 'Password is required';
     else if (password.length < 6) errors.password = 'Password must be at least 6 characters';
     if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
@@ -102,7 +105,12 @@ export default function RegisterScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      await register(name, email, phone, password);
+      // Sanitize phone: strip non-digits, keep leading + if present
+      const sanitizedPhone = phone.startsWith('+')
+        ? '+' + phone.slice(1).replace(/\D/g, '')
+        : phone.replace(/\D/g, '');
+
+      await register(name.trim(), email.trim().toLowerCase(), sanitizedPhone, password);
       // Show success visual feedback
       setRegistrationSuccess(true);
       Animated.spring(successScaleAnim, {
@@ -114,7 +122,16 @@ export default function RegisterScreen({ navigation }: any) {
       showToast('Account created successfully! Welcome to OMJI!', 'success');
     } catch (error: any) {
       shake();
-      const msg = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
+      const msg = error.message || 'Registration failed. Please try again.';
+      // Map server errors to specific fields
+      const lowerMsg = msg.toLowerCase();
+      if (lowerMsg.includes('email already')) {
+        setFieldErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+      } else if (lowerMsg.includes('phone already')) {
+        setFieldErrors(prev => ({ ...prev, phone: 'This phone number is already registered' }));
+      } else if (lowerMsg.includes('phone') && lowerMsg.includes('format')) {
+        setFieldErrors(prev => ({ ...prev, phone: 'Invalid phone format. Use digits only (10-15)' }));
+      }
       showToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -216,7 +233,7 @@ export default function RegisterScreen({ navigation }: any) {
             {renderInput('lock-closed-outline', 'Password', password, setPassword, 'password', { secure: true })}
 
             {/* Password Requirements Hint */}
-            {focusedField === 'password' && password.length === 0 && (
+            {focusedField === 'password' && passwordStrength !== 'strong' && (
               <Text style={styles.passwordHint}>
                 Min 6 characters. Use uppercase, numbers, and symbols for a stronger password.
               </Text>

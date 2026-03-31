@@ -133,14 +133,26 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate OTP"})
 			return
 		}
+		// Generate unique referral code (retry on collision)
+		var referralCode string
+		for i := 0; i < 5; i++ {
+			referralCode = generateReferralCode(input.Name)
+			var count int64
+			db.Model(&models.User{}).Where("referral_code = ?", referralCode).Count(&count)
+			if count == 0 {
+				break
+			}
+		}
 		user := models.User{
 			Name: input.Name, Email: input.Email, Phone: input.Phone,
 			Password: string(hashedPassword), OTPCode: otp,
 			OTPExpiry: time.Now().Add(5 * time.Minute), Role: "user",
-			IsVerified: true, // Regular users are auto-verified, only riders need approval
+			IsVerified:   true, // Regular users are auto-verified, only riders need approval
+			ReferralCode: referralCode,
 		}
 		if err := db.Create(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create account"})
+			log.Printf("Failed to create user: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create account. Please try again."})
 			return
 		}
 		SendOTPSMS(input.Phone, otp)
