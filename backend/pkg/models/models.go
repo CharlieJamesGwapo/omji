@@ -35,7 +35,7 @@ type User struct {
 type Referral struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	ReferrerID    uint      `gorm:"index" json:"referrer_id"`
-	ReferredID    uint      `gorm:"index" json:"referred_id"`
+	ReferredID    uint      `gorm:"uniqueIndex" json:"referred_id"`
 	ReferrerBonus float64   `gorm:"default:0" json:"referrer_bonus"`
 	ReferredBonus float64   `gorm:"default:0" json:"referred_bonus"`
 	Status        string    `gorm:"default:pending" json:"status"` // pending, completed
@@ -88,8 +88,8 @@ type Driver struct {
 // Ride model (Pasundo)
 type Ride struct {
 	ID                  uint      `gorm:"primaryKey" json:"id"`
-	UserID              uint      `gorm:"index:idx_ride_user_status" json:"user_id"`
-	User                User
+	UserID              *uint     `gorm:"index:idx_ride_user_status" json:"user_id"`
+	User                *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	DriverID            *uint     `gorm:"index:idx_ride_driver_status" json:"driver_id,omitempty"`
 	Driver              *Driver
 	PickupLocation      string    `json:"pickup_location"`
@@ -109,7 +109,7 @@ type Ride struct {
 	UserReview          string    `json:"user_review"`
 	DriverRating        *float64  `json:"driver_rating,omitempty"`
 	DriverReview        string    `json:"driver_review"`
-	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
+	PaymentMethod       string    `gorm:"default:'cash';index:idx_ride_payment" json:"payment_method"`
 	ScheduledAt         *time.Time `json:"scheduled_at,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CancellationReason  string     `json:"cancellation_reason,omitempty"`
@@ -121,8 +121,8 @@ type Ride struct {
 // RideShare model (Pasabay)
 type RideShare struct {
 	ID                  uint      `gorm:"primaryKey" json:"id"`
-	DriverID            uint      `json:"driver_id"`
-	Driver              Driver
+	DriverID            *uint     `json:"driver_id"`
+	Driver              *Driver   `gorm:"foreignKey:DriverID" json:"driver,omitempty"`
 	PickupLocation      string    `json:"pickup_location"`
 	PickupLatitude      float64   `json:"pickup_latitude"`
 	PickupLongitude     float64   `json:"pickup_longitude"`
@@ -143,8 +143,8 @@ type RideShare struct {
 // Delivery model (Pasugo)
 type Delivery struct {
 	ID                  uint      `gorm:"primaryKey" json:"id"`
-	UserID              uint      `gorm:"index:idx_delivery_user_status" json:"user_id"`
-	User                User
+	UserID              *uint     `gorm:"index:idx_delivery_user_status" json:"user_id"`
+	User                *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	DriverID            *uint     `gorm:"index:idx_delivery_driver_status" json:"driver_id,omitempty"`
 	Driver              *Driver
 	PickupLocation      string    `json:"pickup_location"`
@@ -161,7 +161,7 @@ type Delivery struct {
 	DeliveryFee         float64   `json:"delivery_fee"`
 	Tip                 float64   `gorm:"default:0" json:"tip"`
 	Status              string    `gorm:"default:'pending';index:idx_delivery_user_status;index:idx_delivery_driver_status;index:idx_delivery_status_driver" json:"status"` // pending, accepted, in_progress, completed, cancelled
-	PaymentMethod       string    `gorm:"default:'cash'" json:"payment_method"`
+	PaymentMethod       string    `gorm:"default:'cash';index:idx_delivery_payment" json:"payment_method"`
 	BarcodeNumber       string    `json:"barcode_number"`
 	PromoID             *uint     `json:"promo_id,omitempty"`
 	Promo               *Promo
@@ -212,10 +212,10 @@ type MenuItem struct {
 // Order model (Food/Store orders)
 type Order struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
-	UserID           uint      `gorm:"index:idx_order_user_status" json:"user_id"`
-	User             User
-	StoreID          uint      `gorm:"index;index:idx_order_store_status,priority:1" json:"store_id"`
-	Store            Store
+	UserID           *uint     `gorm:"index:idx_order_user_status" json:"user_id"`
+	User             *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	StoreID          *uint     `gorm:"index;index:idx_order_store_status,priority:1" json:"store_id"`
+	Store            *Store    `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 	Items            datatypes.JSON `json:"items"` // Array of {item_id, quantity, price}
 	Subtotal         float64   `json:"subtotal"`
 	DeliveryFee      float64   `json:"delivery_fee"`
@@ -227,7 +227,7 @@ type Order struct {
 	DeliveryLocation string    `json:"delivery_location"`
 	DeliveryLatitude float64   `json:"delivery_latitude"`
 	DeliveryLongitude float64  `json:"delivery_longitude"`
-	PaymentMethod    string    `json:"payment_method"` // cash, card, gcash, payamya
+	PaymentMethod    string    `gorm:"index:idx_order_payment" json:"payment_method"` // cash, card, gcash, payamya
 	UserRating       *float64  `json:"user_rating,omitempty"`
 	StoreRating      *float64  `json:"store_rating,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
@@ -256,8 +256,8 @@ type Promo struct {
 // ChatMessage model
 type ChatMessage struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	SenderID  uint      `gorm:"index;index:idx_chat_sender_created,priority:1" json:"sender_id"`
-	ReceiverID uint     `gorm:"index;index:idx_chat_receiver_created,priority:1" json:"receiver_id"`
+	SenderID  *uint     `gorm:"index;index:idx_chat_sender_created,priority:1" json:"sender_id"`
+	ReceiverID *uint    `gorm:"index;index:idx_chat_receiver_created,priority:1" json:"receiver_id"`
 	RideID    *uint     `gorm:"index" json:"ride_id,omitempty"`
 	Message   string    `json:"message"`
 	ImageURL  string    `json:"image_url,omitempty"`
@@ -306,8 +306,8 @@ type Wallet struct {
 // WalletTransaction model
 type WalletTransaction struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	WalletID    uint      `gorm:"index" json:"wallet_id"`
-	UserID      uint      `gorm:"index" json:"user_id"`
+	WalletID    *uint     `gorm:"index" json:"wallet_id"`
+	UserID      *uint     `gorm:"index" json:"user_id"`
 	Type        string    `json:"type"` // top_up, withdrawal, payment, refund, earning
 	Amount      float64   `json:"amount"`
 	Description string    `json:"description"`

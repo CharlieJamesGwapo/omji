@@ -485,12 +485,12 @@ export default function RatesPage() {
       {/* Modal */}
       <Modal
         open={showModal}
-        onClose={() => !saving && setShowModal(false)}
+        onClose={() => { if (!saving) { setShowModal(false); setForm({ ...emptyForm }); setEditingRate(null); } }}
         title={editingRate ? 'Edit Rate Config' : 'New Rate Config'}
         footer={
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowModal(false)}
+              onClick={() => { setShowModal(false); setForm({ ...emptyForm }); setEditingRate(null); }}
               disabled={saving}
               className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
             >

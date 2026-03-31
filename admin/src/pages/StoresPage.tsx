@@ -246,8 +246,9 @@ export default function StoresPage() {
     setSavingMenuItem(true);
     try {
       if (editingMenuItem) {
-        const res = await adminService.updateMenuItem(menuStore.id, editingMenuItem.id, menuForm);
-        setMenuItems(prev => prev.map(i => i.id === editingMenuItem.id ? (res.data?.data || { ...editingMenuItem, ...menuForm }) : i));
+        await adminService.updateMenuItem(menuStore.id, editingMenuItem.id, menuForm);
+        const menuRes = await adminService.getMenuItems(menuStore.id);
+        setMenuItems(menuRes.data?.data || []);
         toast.success('Menu item updated');
       } else {
         await adminService.createMenuItem(menuStore.id, menuForm);
@@ -255,6 +256,7 @@ export default function StoresPage() {
         setMenuItems(menuRes.data?.data || []);
         toast.success('Menu item created');
       }
+      setMenuForm({ ...emptyMenuForm });
       setShowMenuForm(false);
       setEditingMenuItem(null);
     } catch (err: any) {

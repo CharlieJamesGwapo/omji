@@ -166,6 +166,7 @@ export default function CartScreen({ route, navigation }: any) {
                   type: paymentMethod,
                   amount: total,
                   serviceType: 'order',
+                  rideId: orderResponse.data?.data?.id,
                 });
               } else {
                 Alert.alert('Success', 'Your order has been placed!', [

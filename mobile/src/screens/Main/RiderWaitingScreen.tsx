@@ -14,7 +14,7 @@ import Toast, { ToastType } from '../../components/Toast';
 const TIMEOUT_SECONDS = 30;
 
 export default function RiderWaitingScreen({ navigation, route }: any) {
-  const { rideId, driverName, driverRating, driverVehicle, bookingData, excludeDriverIds = [] } = route.params;
+  const { rideId, driverId = 0, driverName, driverRating, driverVehicle, bookingData, excludeDriverIds = [] } = route.params;
   const insets = useSafeAreaInsets();
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT_SECONDS);
   const [status, setStatus] = useState<'waiting' | 'accepted' | 'declined' | 'expired' | 'cancelled'>('waiting');
@@ -82,7 +82,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
     } else if (type === 'ride_declined' || type === 'ride_expired') {
       setStatus(type === 'ride_declined' ? 'declined' : 'expired');
       setTimeout(() => {
-        const newExcluded = [...excludeDriverIds, rideId];
+        const newExcluded = [...excludeDriverIds, driverId];
         // Navigate back to selection with declined driver excluded
         navigation.replace('RiderSelection', {
           bookingData,
@@ -90,7 +90,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
         });
       }, 1500);
     }
-  }, [navigation, rideId, bookingData, excludeDriverIds]);
+  }, [navigation, rideId, driverId, bookingData, excludeDriverIds]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {

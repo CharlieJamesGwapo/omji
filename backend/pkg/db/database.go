@@ -48,6 +48,26 @@ func MigrateDB(db *gorm.DB) {
 	if err := models.AutoMigrate(db); err != nil {
 		log.Fatalf("Database migration failed: %v", err)
 	}
+
+	// Drop NOT NULL constraints on FK columns that need to be nullable for safe deletion.
+	// AutoMigrate won't drop NOT NULL on existing columns, so we do it manually.
+	nullableFKs := []string{
+		"ALTER TABLE rides ALTER COLUMN user_id DROP NOT NULL",
+		"ALTER TABLE deliveries ALTER COLUMN user_id DROP NOT NULL",
+		"ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL",
+		"ALTER TABLE orders ALTER COLUMN store_id DROP NOT NULL",
+		"ALTER TABLE chat_messages ALTER COLUMN sender_id DROP NOT NULL",
+		"ALTER TABLE chat_messages ALTER COLUMN receiver_id DROP NOT NULL",
+		"ALTER TABLE wallet_transactions ALTER COLUMN user_id DROP NOT NULL",
+		"ALTER TABLE wallet_transactions ALTER COLUMN wallet_id DROP NOT NULL",
+		"ALTER TABLE ride_shares ALTER COLUMN driver_id DROP NOT NULL",
+	}
+	for _, stmt := range nullableFKs {
+		if err := db.Exec(stmt).Error; err != nil {
+			slog.Warn("Nullable FK migration (may already be applied)", "sql", stmt, "error", err)
+		}
+	}
+
 	slog.Info("Database migrations completed")
 
 	// Seed initial data

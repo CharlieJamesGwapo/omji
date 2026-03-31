@@ -29,6 +29,20 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// uintPtr converts a uint value to a *uint pointer (needed for nullable FK fields).
+func uintPtr(v uint) *uint { return &v }
+
+// safeNotify creates a notification for a user, safely handling nil userID pointers.
+// This prevents panics when the referenced user has been deleted (UserID set to NULL).
+func safeNotify(db *gorm.DB, userID *uint, title, body, notifType string) {
+	if userID == nil {
+		return
+	}
+	if err := db.Create(&models.Notification{UserID: *userID, Title: title, Body: body, Type: notifType}).Error; err != nil {
+		log.Printf("Failed to create notification (user=%d, type=%s): %v", *userID, notifType, err)
+	}
+}
+
 // createCommissionRecord calculates and records commission for a completed service.
 // For wallet payments, it deducts commission from driver earnings.
 // For cash payments, it records as pending_collection.
@@ -463,7 +477,7 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			rideStatus = "requested"
 		}
 		ride := models.Ride{
-			UserID: userID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
+			UserID: uintPtr(userID), PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			Distance: distance, EstimatedFare: fare, VehicleType: input.VehicleType, Status: rideStatus, PromoID: promoID, PaymentMethod: input.PaymentMethod,
 			DriverID: input.DriverID, ScheduledAt: scheduledAt,
@@ -725,7 +739,7 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 		}
 		freeDriver(db, ride.DriverID)
 		notifyDriver(db, ride.DriverID, "Ride Cancelled", "The passenger cancelled the ride from "+ride.PickupLocation+".", "ride_cancelled")
-		notifyUser(db, ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
+		notifyUser(db, *ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
 	}
 }
@@ -829,7 +843,7 @@ func RatePassenger(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&d).Update("user_rating", input.Rating).Error; err != nil {
 					return err
 				}
-				if err := updateUserRating(tx, d.UserID, input.Rating); err != nil {
+				if err := updateUserRating(tx, *d.UserID, input.Rating); err != nil {
 					return err
 				}
 				return nil
@@ -852,7 +866,7 @@ func RatePassenger(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&ride).Updates(map[string]interface{}{"user_rating": input.Rating, "user_review": input.Comment}).Error; err != nil {
 					return err
 				}
-				if err := updateUserRating(tx, ride.UserID, input.Rating); err != nil {
+				if err := updateUserRating(tx, *ride.UserID, input.Rating); err != nil {
 					return err
 				}
 				return nil
@@ -897,7 +911,7 @@ func CreateRideShare(db *gorm.DB) gin.HandlerFunc {
 			depTime = time.Now().Add(30 * time.Minute)
 		}
 		rs := models.RideShare{
-			DriverID: driver.ID, PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
+			DriverID: uintPtr(driver.ID), PickupLocation: input.PickupLocation, PickupLatitude: input.PickupLatitude, PickupLongitude: input.PickupLongitude,
 			DropoffLocation: input.DropoffLocation, DropoffLatitude: input.DropoffLatitude, DropoffLongitude: input.DropoffLongitude,
 			TotalSeats: input.TotalSeats, AvailableSeats: input.TotalSeats, BaseFare: input.BaseFare, Status: "active", DepartureTime: depTime,
 		}
@@ -950,7 +964,7 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 		// Prevent driver from joining their own rideshare
 		var driver models.Driver
 		if err := tx.Where("user_id = ?", userID).First(&driver).Error; err == nil {
-			if driver.ID == rs.DriverID {
+			if rs.DriverID != nil && driver.ID == *rs.DriverID {
 				tx.Rollback()
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot join your own ride share"})
 				return
@@ -982,8 +996,8 @@ func JoinRideShare(db *gorm.DB) gin.HandlerFunc {
 		}
 		// Create a trackable ride for this passenger
 		ride := models.Ride{
-			UserID:           userID,
-			DriverID:         &rs.DriverID,
+			UserID:           uintPtr(userID),
+			DriverID:         rs.DriverID,
 			PickupLocation:   rs.PickupLocation,
 			PickupLatitude:   rs.PickupLatitude,
 			PickupLongitude:  rs.PickupLongitude,
@@ -1134,7 +1148,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 		delivery := models.Delivery{
-			UserID: userID, PickupLocation: pickupLocation, PickupLatitude: pickupLat, PickupLongitude: pickupLng,
+			UserID: uintPtr(userID), PickupLocation: pickupLocation, PickupLatitude: pickupLat, PickupLongitude: pickupLng,
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
 			PaymentMethod: paymentMethod, BarcodeNumber: func() string { b, err := GenerateOTP(); if err != nil { return fmt.Sprintf("%06d", 0) }; return b }(), PromoID: promoID,
@@ -1215,7 +1229,7 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 		}
 		freeDriver(db, d.DriverID)
 		notifyDriver(db, d.DriverID, "Delivery Cancelled", "The customer cancelled the delivery from "+d.PickupLocation+".", "delivery_cancelled")
-		notifyUser(db, d.UserID, "Delivery Cancelled", "Your delivery has been cancelled.", "delivery_cancelled")
+		notifyUser(db, *d.UserID, "Delivery Cancelled", "Your delivery has been cancelled.", "delivery_cancelled")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
 	}
 }
@@ -1346,7 +1360,7 @@ func CreateOrder(db *gorm.DB) gin.HandlerFunc {
 		deliveryFee := GetOrderDeliveryFeeFromDB(db)
 		tax := subtotal * 0.05
 		order := models.Order{
-			UserID: userID, StoreID: input.StoreID, Items: datatypes.JSON(input.Items), Subtotal: subtotal, DeliveryFee: deliveryFee, Tax: tax,
+			UserID: uintPtr(userID), StoreID: uintPtr(input.StoreID), Items: datatypes.JSON(input.Items), Subtotal: subtotal, DeliveryFee: deliveryFee, Tax: tax,
 			TotalAmount: subtotal + deliveryFee + tax, Status: "pending",
 			DeliveryLocation: input.DeliveryLocation, DeliveryLatitude: input.DeliveryLatitude, DeliveryLongitude: input.DeliveryLongitude,
 			PaymentMethod: input.PaymentMethod,
@@ -1907,9 +1921,7 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 		if rideErr == nil {
 			// Notify customer
 			if ride.ID != 0 {
-				if err := db.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Accepted", Body: "A driver has accepted your ride request", Type: "ride_request"}).Error; err != nil {
-					log.Printf("Failed to create ride accepted notification: %v", err)
-				}
+				safeNotify(db, ride.UserID, "Ride Accepted", "A driver has accepted your ride request", "ride_request")
 				rideIDStr := fmt.Sprintf("%d", ride.ID)
 				tracker.Broadcast(rideIDStr, map[string]interface{}{
 					"type":         "ride_accepted",
@@ -1940,9 +1952,7 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 		})
 		if delErr == nil {
 			if delivery.ID != 0 {
-				if err := db.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Accepted", Body: "A driver has accepted your delivery request", Type: "delivery_request"}).Error; err != nil {
-					log.Printf("Failed to create delivery accepted notification: %v", err)
-				}
+				safeNotify(db, delivery.UserID, "Delivery Accepted", "A driver has accepted your delivery request", "delivery_request")
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery accepted", "ride_id": delivery.ID, "type": "delivery", "status": "accepted", "pickup": delivery.PickupLocation, "dropoff": delivery.DropoffLocation, "fare": delivery.DeliveryFee}, "timestamp": time.Now()})
 			return
@@ -1970,9 +1980,7 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
 					return err
 				}
-				if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: "Driver Unavailable", Body: "Your ride is being reassigned to another driver", Type: "ride_request"}).Error; err != nil {
-					log.Printf("Failed to create ride reassign notification: %v", err)
-				}
+				safeNotify(tx, ride.UserID, "Driver Unavailable", "Your ride is being reassigned to another driver", "ride_request")
 				return nil
 			})
 			if txErr != nil {
@@ -1992,9 +2000,7 @@ func RejectRequest(db *gorm.DB) gin.HandlerFunc {
 				if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
 					return err
 				}
-				if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Driver Unavailable", Body: "Your delivery is being reassigned to another driver", Type: "delivery_request"}).Error; err != nil {
-					log.Printf("Failed to create delivery reassign notification: %v", err)
-				}
+				safeNotify(tx, delivery.UserID, "Driver Unavailable", "Your delivery is being reassigned to another driver", "delivery_request")
 				return nil
 			})
 			if txErr != nil {
@@ -2037,13 +2043,7 @@ func DeclineRideRequest(db *gorm.DB) gin.HandlerFunc {
 			"type":    "ride_declined",
 			"ride_id": ride.ID,
 		})
-		if err := db.Create(&models.Notification{
-			UserID: ride.UserID, Title: "Ride Declined",
-			Body: "The rider declined your request. Please select another rider.",
-			Type: "ride_request",
-		}).Error; err != nil {
-			log.Printf("Failed to create decline notification: %v", err)
-		}
+		safeNotify(db, ride.UserID, "Ride Declined", "The rider declined your request. Please select another rider.", "ride_request")
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Request declined"}})
 	}
 }
@@ -2264,13 +2264,15 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 									updates["payment_method"] = "cash"
 								} else {
 									if err := tx.Create(&models.WalletTransaction{
-										WalletID: wallet.ID, UserID: ride.UserID, Type: "payment",
+										WalletID: uintPtr(wallet.ID), UserID: ride.UserID, Type: "payment",
 										Amount: fare, Description: "Ride payment #" + strconv.Itoa(int(ride.ID)),
 										Reference: "RIDE-" + strconv.Itoa(int(ride.ID)),
 									}).Error; err != nil {
 										log.Printf("Failed to create wallet tx for ride %d, rolling back wallet: %v", ride.ID, err)
 										wallet.Balance += fare
-										tx.Save(&wallet)
+										if err := tx.Save(&wallet).Error; err != nil {
+											log.Printf("CRITICAL: Failed to rollback wallet for ride %d: %v", ride.ID, err)
+										}
 										updates["payment_method"] = "cash"
 									}
 								}
@@ -2296,18 +2298,14 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 					rideStatusBody = "Your ride is now in progress!"
 				}
 				if rideStatusTitle != "" {
-					if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: rideStatusTitle, Body: rideStatusBody, Type: "ride_update"}).Error; err != nil {
-						log.Printf("Failed to create ride status notification: %v", err)
-					}
+					safeNotify(tx, ride.UserID, rideStatusTitle, rideStatusBody, "ride_update")
 				}
 				if input.Status == "completed" {
 					finalFare := ride.FinalFare
 					if finalFare == 0 {
 						finalFare = ride.EstimatedFare
 					}
-					if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: "Ride Completed", Body: "Your ride has been completed. Fare: ₱" + strconv.FormatFloat(finalFare, 'f', 0, 64), Type: "ride"}).Error; err != nil {
-						log.Printf("Failed to create ride completed notification: %v", err)
-					}
+					safeNotify(tx, ride.UserID, "Ride Completed", "Your ride has been completed. Fare: ₱"+strconv.FormatFloat(finalFare, 'f', 0, 64), "ride")
 				}
 				return nil
 			})
@@ -2373,13 +2371,15 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 									updates["payment_method"] = "cash"
 								} else {
 									if err := tx.Create(&models.WalletTransaction{
-										WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment",
+										WalletID: uintPtr(wallet.ID), UserID: delivery.UserID, Type: "payment",
 										Amount: fee, Description: "Delivery payment #" + strconv.Itoa(int(delivery.ID)),
 										Reference: "DEL-" + strconv.Itoa(int(delivery.ID)),
 									}).Error; err != nil {
 										log.Printf("Failed to create wallet tx for delivery %d, rolling back wallet: %v", delivery.ID, err)
 										wallet.Balance += fee
-										tx.Save(&wallet)
+										if err := tx.Save(&wallet).Error; err != nil {
+											log.Printf("CRITICAL: Failed to rollback wallet for delivery %d: %v", delivery.ID, err)
+										}
 										updates["payment_method"] = "cash"
 									}
 								}
@@ -2408,14 +2408,10 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 					delStatusBody = "Your delivery is now in progress!"
 				}
 				if delStatusTitle != "" {
-					if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: delStatusTitle, Body: delStatusBody, Type: "delivery_update"}).Error; err != nil {
-						log.Printf("Failed to create delivery status notification: %v", err)
-					}
+					safeNotify(tx, delivery.UserID, delStatusTitle, delStatusBody, "delivery_update")
 				}
 				if input.Status == "completed" {
-					if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: "Delivery Completed", Body: "Your delivery has been completed. Fee: ₱" + strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), Type: "delivery"}).Error; err != nil {
-						log.Printf("Failed to create delivery completed notification: %v", err)
-					}
+					safeNotify(tx, delivery.UserID, "Delivery Completed", "Your delivery has been completed. Fee: ₱"+strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), "delivery")
 				}
 				return nil
 			})
@@ -2506,7 +2502,7 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		rideIDUint := uint(rideIDParsed)
-		msg := models.ChatMessage{SenderID: userID, ReceiverID: input.ReceiverID, RideID: &rideIDUint, Message: input.Message}
+		msg := models.ChatMessage{SenderID: uintPtr(userID), ReceiverID: uintPtr(input.ReceiverID), RideID: &rideIDUint, Message: input.Message}
 		if err := db.Create(&msg).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send message"})
 			return
@@ -2644,7 +2640,11 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 			if err := tx.Exec("UPDATE chat_messages SET receiver_id = NULL WHERE receiver_id = ?", uid).Error; err != nil {
 				return err
 			}
-			if err := tx.Exec("UPDATE wallet_transactions SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+			if err := tx.Exec("UPDATE wallet_transactions SET user_id = NULL, wallet_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+				return err
+			}
+			// Nullify rideshare references
+			if err := tx.Exec("UPDATE ride_shares SET driver_id = NULL WHERE driver_id IN (SELECT id FROM drivers WHERE user_id = ?)", uid).Error; err != nil {
 				return err
 			}
 			// Delete owned records
@@ -2759,6 +2759,10 @@ func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 				return err
 			}
 			if err := tx.Model(&models.Delivery{}).Where("driver_id = ?", did).Update("driver_id", nil).Error; err != nil {
+				return err
+			}
+			// Nullify rideshare references
+			if err := tx.Exec("UPDATE ride_shares SET driver_id = NULL WHERE driver_id = ?", did).Error; err != nil {
 				return err
 			}
 			// Delete owned records
@@ -3252,9 +3256,15 @@ func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			pid := uint(id)
 			// Nullify promo references on historical records
-			tx.Model(&models.Ride{}).Where("promo_id = ?", pid).Update("promo_id", nil)
-			tx.Model(&models.Delivery{}).Where("promo_id = ?", pid).Update("promo_id", nil)
-			tx.Model(&models.Order{}).Where("promo_id = ?", pid).Update("promo_id", nil)
+			if err := tx.Model(&models.Ride{}).Where("promo_id = ?", pid).Update("promo_id", nil).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.Delivery{}).Where("promo_id = ?", pid).Update("promo_id", nil).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.Order{}).Where("promo_id = ?", pid).Update("promo_id", nil).Error; err != nil {
+				return err
+			}
 			return tx.Delete(&promo).Error
 		}); err != nil {
 			log.Printf("Failed to delete promo %d: %v", id, err)
@@ -3700,9 +3710,7 @@ func AdminUpdateOrderStatus(db *gorm.DB) gin.HandlerFunc {
 			orderStatusBody = "Your order has been cancelled."
 		}
 		if orderStatusTitle != "" {
-			if err := db.Create(&models.Notification{UserID: order.UserID, Title: orderStatusTitle, Body: orderStatusBody, Type: "order_update"}).Error; err != nil {
-				log.Printf("Failed to create order status notification: %v", err)
-			}
+			safeNotify(db, order.UserID, orderStatusTitle, orderStatusBody, "order_update")
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": order, "timestamp": time.Now()})
 	}
@@ -3770,8 +3778,8 @@ func TopUpWallet(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		transaction := models.WalletTransaction{
-			WalletID:    wallet.ID,
-			UserID:      userID,
+			WalletID:    uintPtr(wallet.ID),
+			UserID:      uintPtr(userID),
 			Type:        "top_up",
 			Amount:      input.Amount,
 			Description: "Wallet top-up via " + input.PaymentMethod,
@@ -3831,7 +3839,7 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		transaction := models.WalletTransaction{
-			WalletID: wallet.ID, UserID: userID, Type: "withdrawal",
+			WalletID: uintPtr(wallet.ID), UserID: uintPtr(userID), Type: "withdrawal",
 			Amount: input.Amount, Description: "Withdrawal to " + input.PaymentMethod,
 			Reference: "WD-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
 		}
@@ -3897,7 +3905,7 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		transaction := models.WalletTransaction{
-			WalletID: wallet.ID, UserID: userID, Type: "withdrawal",
+			WalletID: uintPtr(wallet.ID), UserID: uintPtr(userID), Type: "withdrawal",
 			Amount: input.Amount, Description: "Withdrawal to " + input.Method + " (" + input.AccountNumber + ")",
 			Reference: "WD-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
 		}
@@ -4018,7 +4026,7 @@ func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
 				return
 			}
 			refundTxn := models.WalletTransaction{
-				WalletID: wallet.ID, UserID: driver.UserID, Type: "refund",
+				WalletID: uintPtr(wallet.ID), UserID: uintPtr(driver.UserID), Type: "refund",
 				Amount: withdrawal.Amount, Description: "Withdrawal rejected - refund",
 				Reference: "WD-REFUND-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
 			}
@@ -4377,7 +4385,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 									if wallet.Balance >= fare {
 										wallet.Balance -= fare
 										if err := tx.Save(&wallet).Error; err == nil {
-											if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"}).Error; err != nil {
+											if err := tx.Create(&models.WalletTransaction{WalletID: uintPtr(wallet.ID), UserID: ride.UserID, Type: "payment", Amount: fare, Description: "Ride payment", Reference: "RIDE-WS"}).Error; err != nil {
 												log.Printf("Failed to create wallet transaction for WS ride payment: %v", err)
 												return err
 											}
@@ -4402,9 +4410,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 							nTitle, nBody = "Ride Completed", "Your ride has been completed."
 						}
 						if nTitle != "" {
-							if err := tx.Create(&models.Notification{UserID: ride.UserID, Title: nTitle, Body: nBody, Type: "ride_update"}).Error; err != nil {
-								log.Printf("Failed to create WS ride status notification: %v", err)
-							}
+							safeNotify(tx, ride.UserID, nTitle, nBody, "ride_update")
 						}
 						return nil
 					}); err != nil {
@@ -4443,7 +4449,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 										if wallet.Balance >= delivery.DeliveryFee {
 											wallet.Balance -= delivery.DeliveryFee
 											if err := tx.Save(&wallet).Error; err == nil {
-												if err := tx.Create(&models.WalletTransaction{WalletID: wallet.ID, UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"}).Error; err != nil {
+												if err := tx.Create(&models.WalletTransaction{WalletID: uintPtr(wallet.ID), UserID: delivery.UserID, Type: "payment", Amount: delivery.DeliveryFee, Description: "Delivery payment", Reference: "DEL-WS"}).Error; err != nil {
 													log.Printf("Failed to create wallet transaction for WS delivery payment: %v", err)
 													return err
 												}
@@ -4470,9 +4476,7 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 								dTitle, dBody = "Delivery Completed", "Your delivery has been completed."
 							}
 							if dTitle != "" {
-								if err := tx.Create(&models.Notification{UserID: delivery.UserID, Title: dTitle, Body: dBody, Type: "delivery_update"}).Error; err != nil {
-									log.Printf("Failed to create WS delivery status notification: %v", err)
-								}
+								safeNotify(tx, delivery.UserID, dTitle, dBody, "delivery_update")
 							}
 							return nil
 						}); err != nil {
@@ -4622,7 +4626,12 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 		}()
 
 		// Parse rideID to uint for DB storage
-		rideIDParsed, _ := strconv.ParseUint(rideID, 10, 64)
+		rideIDParsed, err := strconv.ParseUint(rideID, 10, 64)
+		if err != nil {
+			log.Printf("Invalid rideID in WebSocket chat: %s", rideID)
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"invalid ride ID"}`))
+			return
+		}
 		rideIDUint := uint(rideIDParsed)
 
 		for {
@@ -4646,8 +4655,8 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 					continue
 				}
 				msg := models.ChatMessage{
-					SenderID:   userID,
-					ReceiverID: input.ReceiverID,
+					SenderID:   uintPtr(userID),
+					ReceiverID: uintPtr(input.ReceiverID),
 					RideID:     &rideIDUint,
 					Message:    input.Message,
 				}
@@ -4669,8 +4678,8 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 					continue
 				}
 				msg := models.ChatMessage{
-					SenderID:   userID,
-					ReceiverID: input.ReceiverID,
+					SenderID:   uintPtr(userID),
+					ReceiverID: uintPtr(input.ReceiverID),
 					RideID:     &rideIDUint,
 					Message:    "[image]",
 					ImageURL:   input.ImageURL,
@@ -5639,8 +5648,8 @@ func ApplyReferralCode(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		referrerTx := models.WalletTransaction{
-			WalletID:    referrerWallet.ID,
-			UserID:      referrer.ID,
+			WalletID:    uintPtr(referrerWallet.ID),
+			UserID:      uintPtr(referrer.ID),
 			Type:        "referral_bonus",
 			Amount:      referrerBonus,
 			Description: "Referral bonus - new user joined",
@@ -5667,8 +5676,8 @@ func ApplyReferralCode(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		referredTxn := models.WalletTransaction{
-			WalletID:    referredWallet.ID,
-			UserID:      userID,
+			WalletID:    uintPtr(referredWallet.ID),
+			UserID:      uintPtr(userID),
 			Type:        "referral_bonus",
 			Amount:      referredBonus,
 			Description: "Welcome bonus from referral",

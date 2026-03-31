@@ -83,6 +83,7 @@ export default function RiderSelectionScreen({ navigation, route }: any) {
       }
       navigation.replace('RiderWaiting', {
         rideId: ride.id,
+        driverId: driver.id,
         driverName: driver.name,
         driverRating: driver.rating,
         driverVehicle: `${driver.vehicle_type} - ${driver.vehicle_plate}`,
