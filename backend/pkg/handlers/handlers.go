@@ -3167,6 +3167,7 @@ func AdminGetExtendedAnalytics(db *gorm.DB) gin.HandlerFunc {
 				"active_announcements":      activeAnnouncements,
 				"total_chat_messages":       todayChatMessages,
 			},
+			"timestamp": time.Now(),
 		})
 	}
 }
@@ -3386,9 +3387,13 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			} else if r.Status == "accepted" {
 				action = "ride accepted by driver"
 			}
+			userName, userEmail := "Deleted User", ""
+			if r.User != nil {
+				userName, userEmail = r.User.Name, r.User.Email
+			}
 			logs = append(logs, ActivityLog{
 				ID: r.ID, Type: "ride", Action: action,
-				UserName: r.User.Name, UserEmail: r.User.Email,
+				UserName: userName, UserEmail: userEmail,
 				Details:  r.PickupLocation + " → " + r.DropoffLocation,
 				Status:   r.Status, Amount: r.EstimatedFare,
 				CreatedAt: r.CreatedAt,
@@ -3407,9 +3412,13 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			} else if d.Status == "cancelled" {
 				action = "cancelled a delivery"
 			}
+			userName, userEmail := "Deleted User", ""
+			if d.User != nil {
+				userName, userEmail = d.User.Name, d.User.Email
+			}
 			logs = append(logs, ActivityLog{
 				ID: d.ID, Type: "delivery", Action: action,
-				UserName: d.User.Name, UserEmail: d.User.Email,
+				UserName: userName, UserEmail: userEmail,
 				Details:  d.ItemDescription + " — " + d.PickupLocation + " → " + d.DropoffLocation,
 				Status:   d.Status, Amount: d.DeliveryFee,
 				CreatedAt: d.CreatedAt,
@@ -3428,13 +3437,17 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			} else if o.Status == "cancelled" {
 				action = "cancelled an order"
 			}
+			userName, userEmail := "Deleted User", ""
+			if o.User != nil {
+				userName, userEmail = o.User.Name, o.User.Email
+			}
 			storeName := ""
-			if o.Store.Name != "" {
+			if o.Store != nil && o.Store.Name != "" {
 				storeName = " from " + o.Store.Name
 			}
 			logs = append(logs, ActivityLog{
 				ID: o.ID, Type: "order", Action: action,
-				UserName: o.User.Name, UserEmail: o.User.Email,
+				UserName: userName, UserEmail: userEmail,
 				Details:  "Order" + storeName + " — " + o.DeliveryLocation,
 				Status:   o.Status, Amount: o.TotalAmount,
 				CreatedAt: o.CreatedAt,
@@ -3467,9 +3480,13 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 				action = "verified as driver"
 				status = "approved"
 			}
+			userName, userEmail := "Deleted User", ""
+			if d.User.ID != 0 {
+				userName, userEmail = d.User.Name, d.User.Email
+			}
 			logs = append(logs, ActivityLog{
 				ID: d.ID, Type: "driver", Action: action,
-				UserName: d.User.Name, UserEmail: d.User.Email,
+				UserName: userName, UserEmail: userEmail,
 				Details:  d.VehicleType + " — " + d.VehiclePlate,
 				Status:   status,
 				CreatedAt: d.CreatedAt,
