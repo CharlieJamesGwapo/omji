@@ -235,9 +235,10 @@ export default function RiderEarningsScreen({ navigation }: any) {
   };
 
   const handleWithdraw = () => {
-    const amount = parseFloat(withdrawAmount);
+    const sanitized = withdrawAmount.replace(/[^0-9.]/g, '');
+    const amount = parseFloat(sanitized);
 
-    if (isNaN(amount) || amount <= 0 || amount < minimumWithdraw) {
+    if (!isFinite(amount) || amount <= 0 || amount < minimumWithdraw) {
       Alert.alert(
         'Invalid Amount',
         `Minimum withdrawal amount is ₱${minimumWithdraw}`

@@ -73,7 +73,12 @@ export default function OrdersScreen({ navigation }: any) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const lastFetchRef = useRef<number>(0);
+  const mountedRef = useRef(true);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -240,12 +245,12 @@ export default function OrdersScreen({ navigation }: any) {
 
       // Sort by date descending
       allOrders.sort((a, b) => (new Date(b.createdAt || 0).getTime() || 0) - (new Date(a.createdAt || 0).getTime() || 0));
-      setOrders(allOrders);
+      if (mountedRef.current) setOrders(allOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      showToast('Could not load orders. Pull down to refresh.', 'error');
+      if (mountedRef.current) showToast('Could not load orders. Pull down to refresh.', 'error');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 

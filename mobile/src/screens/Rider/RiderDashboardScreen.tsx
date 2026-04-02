@@ -243,12 +243,16 @@ export default function RiderDashboardScreen({ navigation }: any) {
             setShowRequestModal(false);
             setRideRequest(null);
           }
-        } catch {}
+        } catch (e) {
+          console.warn('RiderDashboard WS: Failed to parse message', e);
+        }
       };
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;
       };
-      ws.onerror = () => {};
+      ws.onerror = (e: any) => {
+        console.warn('RiderDashboard WS error:', e?.message || 'unknown');
+      };
       ws.onclose = () => {
         if (reconnectAttemptsRef.current < MAX_RECONNECTS) {
           const delay = Math.min(5000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
@@ -334,10 +338,10 @@ export default function RiderDashboardScreen({ navigation }: any) {
           } catch {}
         }
 
-        // Use default Balingasag location as final fallback
         if (latitude === 0 && longitude === 0) {
-          latitude = 8.4343;
-          longitude = 124.7762;
+          showToast('Could not detect your location. Please enable GPS and try again.', 'error');
+          setTogglingOnline(false);
+          return;
         }
 
         await driverService.setAvailability({

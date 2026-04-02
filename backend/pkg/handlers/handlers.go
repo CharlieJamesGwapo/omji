@@ -2044,7 +2044,11 @@ func DeclineRideRequest(db *gorm.DB) gin.HandlerFunc {
 			}
 			ride.Status = "cancelled"
 			ride.DriverID = nil
-			return tx.Save(&ride).Error
+			if err := tx.Save(&ride).Error; err != nil {
+				return err
+			}
+			// Reset driver availability so they can receive new requests
+			return tx.Model(&driver).Update("is_available", true).Error
 		})
 		if err != nil {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Request not found or already handled"})
@@ -2053,6 +2057,11 @@ func DeclineRideRequest(db *gorm.DB) gin.HandlerFunc {
 		rideIDStr := fmt.Sprintf("%d", ride.ID)
 		tracker.Broadcast(rideIDStr, map[string]interface{}{
 			"type":    "ride_declined",
+			"ride_id": ride.ID,
+		})
+		// Notify driver via WebSocket so their UI dismisses the request modal
+		driverTracker.Send(fmt.Sprintf("%d", driver.ID), map[string]interface{}{
+			"type":    "ride_expired",
 			"ride_id": ride.ID,
 		})
 		safeNotify(db, ride.UserID, "Ride Declined", "The rider declined your request. Please select another rider.", "ride_request")
@@ -2196,21 +2205,21 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		validStatuses := map[string]bool{"driver_arrived": true, "picked_up": true, "in_progress": true, "completed": true}
+		validStatuses := map[string]bool{"driver_arrived": true, "picked_up": true, "in_progress": true, "completed": true, "cancelled": true}
 		if !validStatuses[input.Status] {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Valid: driver_arrived, picked_up, in_progress, completed"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid status. Valid: driver_arrived, picked_up, in_progress, completed, cancelled"})
 			return
 		}
 		// Valid status transitions
 		rideTransitions := map[string][]string{
-			"accepted":       {"driver_arrived"},
-			"driver_arrived": {"in_progress"},
+			"accepted":       {"driver_arrived", "cancelled"},
+			"driver_arrived": {"in_progress", "cancelled"},
 			"in_progress":    {"completed"},
 		}
 		deliveryTransitions := map[string][]string{
-			"accepted":       {"driver_arrived"},
-			"driver_arrived": {"picked_up"},
-			"picked_up":      {"in_progress"},
+			"accepted":       {"driver_arrived", "cancelled"},
+			"driver_arrived": {"picked_up", "cancelled"},
+			"picked_up":      {"in_progress", "cancelled"},
 			"in_progress":    {"completed"},
 		}
 		rideID := c.Param("id")
@@ -2236,6 +2245,15 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 					return fmt.Errorf("HANDLED")
 				}
 				updates := map[string]interface{}{"status": input.Status}
+				if input.Status == "cancelled" {
+					now := time.Now()
+					updates["completed_at"] = &now
+					updates["driver_id"] = nil
+					// Restore driver availability on cancellation
+					if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
+						log.Printf("Failed to restore driver availability for ride %d: %v", ride.ID, err)
+					}
+				}
 				if input.Status == "in_progress" {
 					now := time.Now()
 					updates["started_at"] = &now
@@ -2353,6 +2371,15 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 					return fmt.Errorf("HANDLED")
 				}
 				updates := map[string]interface{}{"status": input.Status}
+				if input.Status == "cancelled" {
+					now := time.Now()
+					updates["completed_at"] = &now
+					updates["driver_id"] = nil
+					// Restore driver availability on cancellation
+					if err := tx.Model(&driver).Update("is_available", true).Error; err != nil {
+						log.Printf("Failed to restore driver availability for delivery %d: %v", delivery.ID, err)
+					}
+				}
 				if input.Status == "in_progress" {
 					now := time.Now()
 					updates["started_at"] = &now
@@ -4028,6 +4055,8 @@ func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			validTransition = true
 		case withdrawal.Status == "approved" && input.Status == "completed":
 			validTransition = true
+		case withdrawal.Status == "rejected" && input.Status == "pending":
+			validTransition = true
 		}
 		if !validTransition {
 			tx.Rollback()
@@ -4924,9 +4953,23 @@ func AdminUpdateUser(db *gorm.DB) gin.HandlerFunc {
 			updates["name"] = *input.Name
 		}
 		if input.Email != nil {
+			// Check email uniqueness (exclude current user)
+			var count int64
+			db.Model(&models.User{}).Where("email = ? AND id != ?", *input.Email, user.ID).Count(&count)
+			if count > 0 {
+				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Email already in use by another user"})
+				return
+			}
 			updates["email"] = *input.Email
 		}
 		if input.Phone != nil {
+			// Check phone uniqueness (exclude current user)
+			var count int64
+			db.Model(&models.User{}).Where("phone = ? AND id != ?", *input.Phone, user.ID).Count(&count)
+			if count > 0 {
+				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Phone number already in use by another user"})
+				return
+			}
 			updates["phone"] = *input.Phone
 		}
 		if input.Role != nil {
@@ -5174,6 +5217,7 @@ func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Payment type is required"})
 			return
 		}
+		config.Type = strings.ToLower(config.Type)
 		validTypes := map[string]bool{"gcash": true, "maya": true}
 		if !validTypes[config.Type] {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid type. Must be gcash or maya"})
@@ -5434,29 +5478,35 @@ func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
 			CurrentMonthCommission float64
 		}
 
-		db.Model(&models.CommissionRecord{}).Select(
+		row := db.Model(&models.CommissionRecord{}).Select(
 			"COALESCE(SUM(commission_amount), 0) as total_commission, "+
 				"COALESCE(SUM(CASE WHEN status = 'deducted' THEN commission_amount ELSE 0 END), 0) as total_deducted, "+
 				"COALESCE(SUM(CASE WHEN status = 'pending_collection' THEN commission_amount ELSE 0 END), 0) as total_pending_collection, "+
 				"COALESCE(SUM(CASE WHEN service_type = 'ride' THEN commission_amount ELSE 0 END), 0) as ride_commission, "+
 				"COALESCE(SUM(CASE WHEN service_type = 'delivery' THEN commission_amount ELSE 0 END), 0) as delivery_commission, "+
 				"COALESCE(SUM(CASE WHEN service_type = 'order' THEN commission_amount ELSE 0 END), 0) as order_commission").
-			Row().Scan(
+			Row()
+		if err := row.Scan(
 			&summary.TotalCommission,
 			&summary.TotalDeducted,
 			&summary.TotalPendingCollection,
 			&summary.RideCommission,
 			&summary.DeliveryCommission,
 			&summary.OrderCommission,
-		)
+		); err != nil {
+			log.Printf("Failed to scan commission summary: %v", err)
+		}
 
 		// Current month commission
 		now := time.Now()
 		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		db.Model(&models.CommissionRecord{}).
+		monthRow := db.Model(&models.CommissionRecord{}).
 			Where("created_at >= ?", monthStart).
 			Select("COALESCE(SUM(commission_amount), 0)").
-			Row().Scan(&summary.CurrentMonthCommission)
+			Row()
+		if err := monthRow.Scan(&summary.CurrentMonthCommission); err != nil {
+			log.Printf("Failed to scan monthly commission: %v", err)
+		}
 
 		// Get current percentage
 		var config models.CommissionConfig

@@ -122,7 +122,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   const fetchConfig = async () => {
     try {
       const res = await paymentConfigService.getConfigs();
-      const configs = res.data?.data || [];
+      const configs = Array.isArray(res.data?.data) ? res.data.data : [];
       const found = configs.find((c: any) => c.type === type && c.is_active);
       setConfig(found || null);
     } catch {

@@ -115,8 +115,12 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
           // Ignore malformed WebSocket messages
         }
       };
-      ws.onerror = () => {};
-      ws.onclose = () => {};
+      ws.onerror = (e: any) => {
+        console.warn('RiderWaiting WS error:', e?.message || 'unknown');
+      };
+      ws.onclose = (e: any) => {
+        console.warn('RiderWaiting WS closed:', e?.code, e?.reason);
+      };
     })();
 
     return () => { if (ws) ws.close(); };
