@@ -110,6 +110,7 @@ type Ride struct {
 	DriverRating        *float64  `json:"driver_rating,omitempty"`
 	DriverReview        string    `json:"driver_review"`
 	PaymentMethod       string    `gorm:"default:'cash';index:idx_ride_payment" json:"payment_method"`
+	PaymentStatus       string    `gorm:"default:'pending'" json:"payment_status"` // pending, submitted, verified, rejected
 	ScheduledAt         *time.Time `json:"scheduled_at,omitempty"`
 	StartedAt           *time.Time `json:"started_at,omitempty"`
 	CancellationReason  string     `json:"cancellation_reason,omitempty"`
@@ -162,6 +163,7 @@ type Delivery struct {
 	Tip                 float64   `gorm:"default:0" json:"tip"`
 	Status              string    `gorm:"default:'pending';index:idx_delivery_user_status;index:idx_delivery_driver_status;index:idx_delivery_status_driver" json:"status"` // pending, accepted, in_progress, completed, cancelled
 	PaymentMethod       string    `gorm:"default:'cash';index:idx_delivery_payment" json:"payment_method"`
+	PaymentStatus       string    `gorm:"default:'pending'" json:"payment_status"` // pending, submitted, verified, rejected
 	BarcodeNumber       string    `json:"barcode_number"`
 	PromoID             *uint     `json:"promo_id,omitempty"`
 	Promo               *Promo
@@ -228,6 +230,7 @@ type Order struct {
 	DeliveryLatitude float64   `json:"delivery_latitude"`
 	DeliveryLongitude float64  `json:"delivery_longitude"`
 	PaymentMethod    string    `gorm:"index:idx_order_payment" json:"payment_method"` // cash, card, gcash, payamya
+	PaymentStatus    string    `gorm:"default:'pending'" json:"payment_status"` // pending, submitted, verified, rejected
 	UserRating       *float64  `json:"user_rating,omitempty"`
 	StoreRating      *float64  `json:"store_rating,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
@@ -341,6 +344,26 @@ type PaymentConfig struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// PaymentProof stores proof-of-payment for GCash/Maya transactions
+type PaymentProof struct {
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	ServiceType     string    `gorm:"index:idx_proof_service;not null" json:"service_type"` // ride, delivery, order
+	ServiceID       uint      `gorm:"index:idx_proof_service;not null" json:"service_id"`
+	UserID          uint      `gorm:"index:idx_proof_user_status;not null" json:"user_id"`
+	User            *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	PaymentMethod   string    `gorm:"not null" json:"payment_method"` // gcash, maya
+	ReferenceNumber string    `gorm:"not null" json:"reference_number"`
+	Amount          float64   `gorm:"not null" json:"amount"`
+	ProofImageURL   string    `gorm:"type:text;not null" json:"proof_image_url"` // base64 data URL
+	Status          string    `gorm:"default:'submitted';index:idx_proof_user_status;index:idx_proof_status" json:"status"` // submitted, verified, rejected
+	VerifiedByID    *uint     `json:"verified_by_id,omitempty"`
+	VerifiedByRole  string    `json:"verified_by_role,omitempty"` // rider, admin
+	RejectionReason string    `json:"rejection_reason,omitempty"`
+	AttemptNumber   int       `gorm:"default:1" json:"attempt_number"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 // CommissionConfig model for admin-managed platform commission
 type CommissionConfig struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
@@ -416,6 +439,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&CommissionRecord{},
 		&PushToken{},
 		&WithdrawalRequest{},
+		&PaymentProof{},
 		&Referral{},
 		&Announcement{},
 	)
