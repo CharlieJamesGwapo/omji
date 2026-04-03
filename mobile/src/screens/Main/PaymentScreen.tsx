@@ -17,7 +17,8 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { paymentConfigService } from '../../services/api';
+import * as ImagePicker from 'expo-image-picker';
+import { paymentConfigService, paymentProofService } from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS, deviceWidth } from '../../utils/responsive';
 
@@ -37,7 +38,10 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [imageError, setImageError] = useState(false);
   const imageLoadingRef = useRef(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [referenceNo] = useState(() => `OMJI-${Date.now().toString(36).toUpperCase()}`);
+  const [referenceNo] = useState(() => {
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `OMJI-${Date.now().toString(36).toUpperCase()}-${rand}`;
+  });
   const [timeLeft, setTimeLeft] = useState(15 * 60);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,6 +50,16 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [customTip, setCustomTip] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const isLeavingRef = useRef(false);
+
+  // Proof upload state
+  const [proofStep, setProofStep] = useState<'payment' | 'upload' | 'status'>('payment');
+  const [proofImageUrl, setProofImageUrl] = useState<string | null>(null);
+  const [proofStatus, setProofStatus] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [submittingProof, setSubmittingProof] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const statusPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isGcash = type === 'gcash';
   const brandName = isGcash ? 'GCash' : 'Maya';
@@ -69,6 +83,7 @@ export default function PaymentScreen({ route, navigation }: any) {
     return () => {
       clearTimeout(qrTimeout);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (statusPollRef.current) clearInterval(statusPollRef.current);
     };
   }, []);
 
@@ -214,6 +229,125 @@ export default function PaymentScreen({ route, navigation }: any) {
       setCustomTip('');
       Keyboard.dismiss();
     }
+  };
+
+  const pickProofImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Please allow access to your photo library to upload proof.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      base64: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      uploadProofImage(result.assets[0].uri);
+    }
+  };
+
+  const takeProofPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Please allow camera access to take a photo of your proof.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      uploadProofImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadProofImage = async (uri: string) => {
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'proof.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      formData.append('proof_image', { uri, name: filename, type: mimeType } as any);
+      const res = await paymentProofService.upload(formData);
+      const url = res.data?.data?.url;
+      if (url) {
+        setProofImageUrl(url);
+      } else {
+        Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
+      }
+    } catch {
+      Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  const submitProof = async () => {
+    if (!proofImageUrl) {
+      Alert.alert('Missing Proof', 'Please upload a screenshot of your payment.');
+      return;
+    }
+    setSubmittingProof(true);
+    try {
+      await paymentProofService.submit({
+        service_type: serviceType || 'ride',
+        service_id: rideId || 0,
+        payment_method: type,
+        reference_number: referenceNo,
+        amount: totalAmount,
+        proof_image_url: proofImageUrl,
+      });
+      setProofStep('status');
+      setProofStatus('submitted');
+      startPollingStatus();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Failed to submit proof. Please try again.';
+      Alert.alert('Submission Failed', msg);
+    } finally {
+      setSubmittingProof(false);
+    }
+  };
+
+  const startPollingStatus = () => {
+    if (statusPollRef.current) clearInterval(statusPollRef.current);
+    statusPollRef.current = setInterval(async () => {
+      try {
+        const res = await paymentProofService.getStatus(serviceType || 'ride', rideId || 0);
+        const proof = res.data?.data;
+        if (proof) {
+          setProofStatus(proof.status);
+          if (proof.status === 'verified') {
+            if (statusPollRef.current) clearInterval(statusPollRef.current);
+          } else if (proof.status === 'rejected') {
+            if (statusPollRef.current) clearInterval(statusPollRef.current);
+            setRejectionReason(proof.rejection_reason || 'Payment proof was rejected.');
+            setAttemptNumber(proof.attempt_number);
+          }
+        }
+      } catch {
+        // silent — keep polling
+      }
+    }, 5000);
+  };
+
+  const retryProof = () => {
+    setProofImageUrl(null);
+    setProofStatus(null);
+    setRejectionReason(null);
+    setProofStep('upload');
+  };
+
+  const switchToCash = () => {
+    Alert.alert(
+      'Switch to Cash',
+      'Your payment method will be changed to cash. You will pay the rider directly.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Switch to Cash', onPress: handleDone },
+      ]
+    );
   };
 
   const serviceLabel =
@@ -462,17 +596,126 @@ export default function PaymentScreen({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* Completed Payment Button — outside card */}
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={handleDone}
-          activeOpacity={0.8}
-          accessibilityLabel="Confirm payment completed"
-          accessibilityRole="button"
-        >
-          <Ionicons name="checkmark-circle" size={moderateScale(22)} color="#DC2626" />
-          <Text style={styles.doneButtonText}>I've Completed Payment</Text>
-        </TouchableOpacity>
+        {/* Payment Action Section */}
+        {proofStep === 'payment' && (
+          <TouchableOpacity
+            style={styles.doneButton}
+            onPress={() => setProofStep('upload')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cloud-upload" size={moderateScale(22)} color="#DC2626" />
+            <Text style={styles.doneButtonText}>I've Sent Payment — Upload Proof</Text>
+          </TouchableOpacity>
+        )}
+
+        {proofStep === 'upload' && (
+          <View style={styles.proofSection}>
+            <Text style={styles.proofTitle}>Upload Payment Proof</Text>
+            <Text style={styles.proofSubtitle}>
+              Take a screenshot of your {brandName} payment confirmation
+            </Text>
+
+            {proofImageUrl ? (
+              <View style={styles.proofPreviewContainer}>
+                <Image source={{ uri: proofImageUrl }} style={styles.proofPreview} resizeMode="contain" />
+                <TouchableOpacity style={styles.retakeButton} onPress={pickProofImage}>
+                  <Ionicons name="refresh" size={moderateScale(16)} color="#fff" />
+                  <Text style={styles.retakeText}>Change Image</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.proofButtons}>
+                <TouchableOpacity
+                  style={styles.proofPickButton}
+                  onPress={takeProofPhoto}
+                  disabled={uploadingProof}
+                >
+                  <Ionicons name="camera" size={moderateScale(24)} color="#DC2626" />
+                  <Text style={styles.proofPickText}>Camera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.proofPickButton}
+                  onPress={pickProofImage}
+                  disabled={uploadingProof}
+                >
+                  <Ionicons name="images" size={moderateScale(24)} color="#DC2626" />
+                  <Text style={styles.proofPickText}>Gallery</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {uploadingProof && (
+              <ActivityIndicator size="small" color="#DC2626" style={{ marginTop: verticalScale(8) }} />
+            )}
+
+            <View style={styles.refInputRow}>
+              <Text style={styles.refInputLabel}>Reference #</Text>
+              <Text style={styles.refInputValue}>{referenceNo}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitProofButton, (!proofImageUrl || submittingProof) && { opacity: 0.5 }]}
+              onPress={submitProof}
+              disabled={!proofImageUrl || submittingProof}
+              activeOpacity={0.8}
+            >
+              {submittingProof ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={moderateScale(20)} color="#fff" />
+                  <Text style={styles.submitProofText}>Submit Proof</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {proofStep === 'status' && (
+          <View style={styles.proofSection}>
+            {proofStatus === 'submitted' && (
+              <>
+                <View style={styles.statusBadge}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <Text style={[styles.statusText, { color: '#F59E0B' }]}>Waiting for Verification</Text>
+                </View>
+                <Text style={styles.statusSubtext}>
+                  Your payment proof has been submitted. The rider will verify your payment shortly.
+                </Text>
+              </>
+            )}
+            {proofStatus === 'verified' && (
+              <>
+                <View style={styles.statusBadge}>
+                  <Ionicons name="checkmark-circle" size={moderateScale(24)} color="#10B981" />
+                  <Text style={[styles.statusText, { color: '#10B981' }]}>Payment Verified!</Text>
+                </View>
+                <TouchableOpacity style={styles.doneButton} onPress={handleDone} activeOpacity={0.8}>
+                  <Text style={styles.doneButtonText}>Continue</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {proofStatus === 'rejected' && (
+              <>
+                <View style={styles.statusBadge}>
+                  <Ionicons name="close-circle" size={moderateScale(24)} color="#EF4444" />
+                  <Text style={[styles.statusText, { color: '#EF4444' }]}>Proof Rejected</Text>
+                </View>
+                <Text style={styles.rejectionText}>{rejectionReason}</Text>
+                {attemptNumber < 2 ? (
+                  <TouchableOpacity style={styles.doneButton} onPress={retryProof} activeOpacity={0.8}>
+                    <Ionicons name="refresh" size={moderateScale(20)} color="#DC2626" />
+                    <Text style={styles.doneButtonText}>Upload New Proof</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[styles.doneButton, { borderColor: '#6B7280' }]} onPress={switchToCash} activeOpacity={0.8}>
+                    <Ionicons name="cash" size={moderateScale(20)} color="#6B7280" />
+                    <Text style={[styles.doneButtonText, { color: '#6B7280' }]}>Switch to Cash Payment</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -861,5 +1104,132 @@ const styles = StyleSheet.create({
     fontSize: fontScale(15),
     fontWeight: 'bold',
     color: '#DC2626',
+  },
+  proofSection: {
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(16),
+    marginHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(12),
+    marginBottom: verticalScale(20),
+    padding: moderateScale(16),
+    alignItems: 'center',
+  },
+  proofTitle: {
+    fontSize: fontScale(17),
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: verticalScale(4),
+  },
+  proofSubtitle: {
+    fontSize: fontScale(13),
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: verticalScale(16),
+  },
+  proofButtons: {
+    flexDirection: 'row',
+    gap: moderateScale(16),
+  },
+  proofPickButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: moderateScale(100),
+    height: moderateScale(80),
+    borderRadius: moderateScale(12),
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  proofPickText: {
+    fontSize: fontScale(12),
+    color: '#DC2626',
+    marginTop: verticalScale(4),
+    fontWeight: '600',
+  },
+  proofPreviewContainer: {
+    alignItems: 'center',
+    marginBottom: verticalScale(12),
+  },
+  proofPreview: {
+    width: moderateScale(200),
+    height: moderateScale(260),
+    borderRadius: moderateScale(12),
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  retakeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6B7280',
+    borderRadius: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: verticalScale(6),
+    marginTop: verticalScale(8),
+    gap: moderateScale(4),
+  },
+  retakeText: {
+    fontSize: fontScale(12),
+    color: '#fff',
+    fontWeight: '600',
+  },
+  refInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: verticalScale(10),
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    marginTop: verticalScale(12),
+  },
+  refInputLabel: {
+    fontSize: fontScale(13),
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  refInputValue: {
+    fontSize: fontScale(13),
+    color: '#1F2937',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  submitProofButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    borderRadius: moderateScale(12),
+    paddingVertical: verticalScale(14),
+    width: '100%',
+    marginTop: verticalScale(12),
+    gap: moderateScale(8),
+  },
+  submitProofText: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#fff',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    marginBottom: verticalScale(8),
+  },
+  statusText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
+  },
+  statusSubtext: {
+    fontSize: fontScale(13),
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: verticalScale(8),
+  },
+  rejectionText: {
+    fontSize: fontScale(13),
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: verticalScale(12),
+    fontStyle: 'italic',
   },
 });
