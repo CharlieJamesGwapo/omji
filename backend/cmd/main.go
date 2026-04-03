@@ -167,6 +167,11 @@ func main() {
 		protected.POST("/payments/methods", handlers.AddPaymentMethod(database))
 		protected.DELETE("/payments/methods/:id", handlers.DeletePaymentMethod(database))
 
+		// Payment proof routes
+		protected.POST("/payment-proof/upload", handlers.UploadPaymentProof(database))
+		protected.POST("/payment-proof/submit", handlers.SubmitPaymentProof(database))
+		protected.GET("/payment-proof/:serviceType/:serviceId", handlers.GetPaymentProofStatus(database))
+
 		// Promo codes
 		protected.GET("/promos/available", handlers.GetAvailablePromos(database))
 		protected.POST("/promos/apply", handlers.ApplyPromo(database))
@@ -186,6 +191,11 @@ func main() {
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
 		// Intentional: UpdateRideStatus handles both ride and delivery status updates
 		protected.PUT("/driver/deliveries/:id/status", handlers.UpdateRideStatus(database))
+
+		// Rider payment proof verification
+		protected.GET("/driver/payment-proof/:serviceType/:serviceId", handlers.RiderGetPaymentProof(database))
+		protected.PUT("/driver/payment-proof/:id/verify", handlers.RiderVerifyPaymentProof(database))
+		protected.PUT("/driver/payment-proof/:id/reject", handlers.RiderRejectPaymentProof(database))
 
 		// Wallet routes
 		protected.GET("/wallet/balance", handlers.GetWalletBalance(database))
@@ -333,6 +343,11 @@ func main() {
 		admin.POST("/payment-configs/upload-qr", handlers.AdminUploadQRCode(database))
 		admin.PUT("/payment-configs/:id", handlers.AdminUpdatePaymentConfig(database))
 		admin.DELETE("/payment-configs/:id", handlers.AdminDeletePaymentConfig(database))
+
+		// Payment proof management
+		admin.GET("/payment-proofs", handlers.AdminGetPaymentProofs(database))
+		admin.PUT("/payment-proof/:id/verify", handlers.AdminVerifyPaymentProof(database))
+		admin.PUT("/payment-proof/:id/reject", handlers.AdminRejectPaymentProof(database))
 
 		// Commission management
 		admin.GET("/commission/config", handlers.AdminGetCommissionConfig(database))
