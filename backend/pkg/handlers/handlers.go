@@ -6225,3 +6225,242 @@ func AdminGetReferrals(db *gorm.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+// RiderGetPaymentProof returns payment proof for a service assigned to the rider
+func RiderGetPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		serviceType := c.Param("serviceType")
+		serviceID := c.Param("serviceId")
+
+		uid := userID.(uint)
+		var driver models.Driver
+		if err := db.Where("user_id = ?", uid).First(&driver).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Driver profile not found"})
+			return
+		}
+
+		assigned := false
+		switch serviceType {
+		case "ride":
+			var ride models.Ride
+			if err := db.Where("id = ? AND driver_id = ?", serviceID, driver.ID).First(&ride).Error; err == nil {
+				assigned = true
+			}
+		case "delivery":
+			var delivery models.Delivery
+			if err := db.Where("id = ? AND driver_id = ?", serviceID, driver.ID).First(&delivery).Error; err == nil {
+				assigned = true
+			}
+		}
+		if !assigned {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "You are not assigned to this service"})
+			return
+		}
+
+		var proof models.PaymentProof
+		err := db.Where("service_type = ? AND service_id = ? AND status = ?",
+			serviceType, serviceID, "submitted").
+			Order("created_at DESC").First(&proof).Error
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No pending payment proof found"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": proof})
+	}
+}
+
+// RiderVerifyPaymentProof marks a payment proof as verified by the rider
+func RiderVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		proofID := c.Param("id")
+		uid := userID.(uint)
+
+		var proof models.PaymentProof
+		if err := db.First(&proof, proofID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
+			return
+		}
+		if proof.Status != "submitted" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Proof is not in submitted status"})
+			return
+		}
+
+		proof.Status = "verified"
+		proof.VerifiedByID = &uid
+		proof.VerifiedByRole = "rider"
+		if err := db.Save(&proof).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify payment proof"})
+			return
+		}
+
+		switch proof.ServiceType {
+		case "ride":
+			db.Model(&models.Ride{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		case "delivery":
+			db.Model(&models.Delivery{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		case "order":
+			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment verified"})
+	}
+}
+
+// RiderRejectPaymentProof marks a payment proof as rejected with a reason
+func RiderRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		proofID := c.Param("id")
+		var input struct {
+			Reason string `json:"reason" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Rejection reason is required"})
+			return
+		}
+
+		var proof models.PaymentProof
+		if err := db.First(&proof, proofID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
+			return
+		}
+		if proof.Status != "submitted" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Proof is not in submitted status"})
+			return
+		}
+
+		proof.Status = "rejected"
+		proof.RejectionReason = input.Reason
+		if err := db.Save(&proof).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject payment proof"})
+			return
+		}
+
+		switch proof.ServiceType {
+		case "ride":
+			db.Model(&models.Ride{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		case "delivery":
+			db.Model(&models.Delivery{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		case "order":
+			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment proof rejected"})
+	}
+}
+
+// AdminGetPaymentProofs returns paginated payment proofs with optional filters
+func AdminGetPaymentProofs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status := c.DefaultQuery("status", "submitted")
+		serviceType := c.Query("service_type")
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 20
+		}
+		offset := (page - 1) * limit
+
+		query := db.Model(&models.PaymentProof{}).Preload("User")
+		if status != "" {
+			query = query.Where("status = ?", status)
+		}
+		if serviceType != "" {
+			query = query.Where("service_type = ?", serviceType)
+		}
+
+		var total int64
+		query.Count(&total)
+
+		var proofs []models.PaymentProof
+		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&proofs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment proofs"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": proofs, "total": total, "page": page, "limit": limit})
+	}
+}
+
+// AdminVerifyPaymentProof marks a payment proof as verified by admin
+func AdminVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		proofID := c.Param("id")
+		uid := userID.(uint)
+
+		var proof models.PaymentProof
+		if err := db.First(&proof, proofID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
+			return
+		}
+		if proof.Status != "submitted" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Proof is not in submitted status"})
+			return
+		}
+
+		proof.Status = "verified"
+		proof.VerifiedByID = &uid
+		proof.VerifiedByRole = "admin"
+		if err := db.Save(&proof).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify payment proof"})
+			return
+		}
+
+		switch proof.ServiceType {
+		case "ride":
+			db.Model(&models.Ride{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		case "delivery":
+			db.Model(&models.Delivery{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		case "order":
+			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment verified by admin"})
+	}
+}
+
+// AdminRejectPaymentProof marks a payment proof as rejected by admin
+func AdminRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		proofID := c.Param("id")
+		var input struct {
+			Reason string `json:"reason" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Rejection reason is required"})
+			return
+		}
+
+		var proof models.PaymentProof
+		if err := db.First(&proof, proofID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
+			return
+		}
+		if proof.Status != "submitted" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Proof is not in submitted status"})
+			return
+		}
+
+		proof.Status = "rejected"
+		proof.RejectionReason = input.Reason
+		if err := db.Save(&proof).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reject payment proof"})
+			return
+		}
+
+		switch proof.ServiceType {
+		case "ride":
+			db.Model(&models.Ride{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		case "delivery":
+			db.Model(&models.Delivery{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		case "order":
+			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment proof rejected by admin"})
+	}
+}
