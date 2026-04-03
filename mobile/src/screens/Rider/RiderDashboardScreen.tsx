@@ -22,6 +22,7 @@ import { getWebSocketUrl } from '../../utils/websocket';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
 import RiderRequestModal from '../../components/RiderRequestModal';
+import PaymentVerificationCard from '../../components/PaymentVerificationCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
@@ -751,44 +752,51 @@ export default function RiderDashboardScreen({ navigation }: any) {
               </View>
             </View>
             {activeJobs.map((job) => (
-              <TouchableOpacity
-                key={`active-${job.type}-${job.id}`}
-                style={styles.activeJobCard}
-                onPress={() => {
-                  if (job.type === 'rideshare') {
-                    Alert.alert('Ride Share', `Route: ${job.pickup || 'Pickup'} → ${job.dropoff || 'Dropoff'}\nSeats: ${job.available_seats || 0}/${job.total_seats || 0}\nFare: ₱${(job.base_fare || 0).toFixed(0)}`);
-                  } else {
-                    navigation.navigate('Tracking', {
-                      type: job.type === 'delivery' ? 'delivery' : 'ride',
-                      rideId: job.id,
-                      pickup: job.pickup_location || job.pickup || 'Pickup',
-                      dropoff: job.dropoff_location || job.dropoff || 'Dropoff',
-                      fare: job.estimated_fare || job.delivery_fee || 0,
-                    });
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.activeJobStripe, { backgroundColor: getJobColor(job) }]} />
-                <View style={[styles.activeJobIconWrap, { backgroundColor: `${getJobColor(job)}15` }]}>
-                  <Ionicons name={getJobIcon(job) as any} size={moderateScale(20)} color={getJobColor(job)} />
-                </View>
-                <View style={styles.activeJobInfo}>
-                  <Text style={styles.activeJobTitle}>{getJobLabel(job)} #{job.id}</Text>
-                  <Text style={[styles.activeJobStatus, { color: getJobColor(job) }]}>{getStatusLabel(job.status)}</Text>
-                  <Text style={styles.activeJobRoute} numberOfLines={1}>
-                    {job.pickup_location || job.pickup || 'Pickup'} → {job.dropoff_location || job.dropoff || 'Dropoff'}
-                  </Text>
-                </View>
-                <View style={styles.activeJobRight}>
-                  <Text style={[styles.activeJobFare, { color: getJobColor(job) }]}>
-                    ₱{(job.estimated_fare || job.delivery_fee || job.base_fare || 0).toFixed(0)}
-                  </Text>
-                  <View style={styles.activeJobChevron}>
-                    <Ionicons name="chevron-forward" size={moderateScale(14)} color={COLORS.gray400} />
+              <React.Fragment key={`active-${job.type}-${job.id}`}>
+                <TouchableOpacity
+                  style={styles.activeJobCard}
+                  onPress={() => {
+                    if (job.type === 'rideshare') {
+                      Alert.alert('Ride Share', `Route: ${job.pickup || 'Pickup'} → ${job.dropoff || 'Dropoff'}\nSeats: ${job.available_seats || 0}/${job.total_seats || 0}\nFare: ₱${(job.base_fare || 0).toFixed(0)}`);
+                    } else {
+                      navigation.navigate('Tracking', {
+                        type: job.type === 'delivery' ? 'delivery' : 'ride',
+                        rideId: job.id,
+                        pickup: job.pickup_location || job.pickup || 'Pickup',
+                        dropoff: job.dropoff_location || job.dropoff || 'Dropoff',
+                        fare: job.estimated_fare || job.delivery_fee || 0,
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.activeJobStripe, { backgroundColor: getJobColor(job) }]} />
+                  <View style={[styles.activeJobIconWrap, { backgroundColor: `${getJobColor(job)}15` }]}>
+                    <Ionicons name={getJobIcon(job) as any} size={moderateScale(20)} color={getJobColor(job)} />
                   </View>
-                </View>
-              </TouchableOpacity>
+                  <View style={styles.activeJobInfo}>
+                    <Text style={styles.activeJobTitle}>{getJobLabel(job)} #{job.id}</Text>
+                    <Text style={[styles.activeJobStatus, { color: getJobColor(job) }]}>{getStatusLabel(job.status)}</Text>
+                    <Text style={styles.activeJobRoute} numberOfLines={1}>
+                      {job.pickup_location || job.pickup || 'Pickup'} → {job.dropoff_location || job.dropoff || 'Dropoff'}
+                    </Text>
+                  </View>
+                  <View style={styles.activeJobRight}>
+                    <Text style={[styles.activeJobFare, { color: getJobColor(job) }]}>
+                      ₱{(job.estimated_fare || job.delivery_fee || job.base_fare || 0).toFixed(0)}
+                    </Text>
+                    <View style={styles.activeJobChevron}>
+                      <Ionicons name="chevron-forward" size={moderateScale(14)} color={COLORS.gray400} />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                <PaymentVerificationCard
+                  serviceType={job.type === 'delivery' ? 'delivery' : 'ride'}
+                  serviceId={job.id}
+                  paymentMethod={job.payment_method || 'cash'}
+                  onVerified={() => showToast('Payment verified!', 'success')}
+                />
+              </React.Fragment>
             ))}
           </View>
         )}
