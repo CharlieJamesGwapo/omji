@@ -1503,6 +1503,11 @@ func AddPaymentMethod(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		validTypes := map[string]bool{"cash": true, "gcash": true, "maya": true, "wallet": true}
+		if !validTypes[input.Type] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid payment type. Must be cash, gcash, maya, or wallet"})
+			return
+		}
 		pm := models.PaymentMethod{UserID: userID, Type: input.Type, IsDefault: input.IsDefault}
 		if err := db.Create(&pm).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to add payment method"})
@@ -2292,6 +2297,7 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 								if err := tx.Save(&wallet).Error; err != nil {
 									log.Printf("Failed to save wallet for ride %d: %v", ride.ID, err)
 									updates["payment_method"] = "cash"
+									updates["payment_status"] = "pending"
 								} else {
 									if err := tx.Create(&models.WalletTransaction{
 										WalletID: uintPtr(wallet.ID), UserID: ride.UserID, Type: "payment",
@@ -2304,13 +2310,18 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 											log.Printf("CRITICAL: Failed to rollback wallet for ride %d: %v", ride.ID, err)
 										}
 										updates["payment_method"] = "cash"
+										updates["payment_status"] = "pending"
+									} else {
+										updates["payment_status"] = "verified"
 									}
 								}
 							} else {
 								updates["payment_method"] = "cash"
+								updates["payment_status"] = "pending"
 							}
 						} else {
 							updates["payment_method"] = "cash"
+							updates["payment_status"] = "pending"
 						}
 					}
 				}
@@ -5284,6 +5295,10 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 		var config models.PaymentConfig
 		if err := db.First(&config, id).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment config not found"})
+			return
+		}
+		if config.IsActive {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot delete an active payment config. Deactivate it first."})
 			return
 		}
 		if err := db.Delete(&config).Error; err != nil {
