@@ -48,70 +48,73 @@ export default function RiderRegistrationScreen({ navigation }: any) {
 
   const vehicleTypes = ['Motorcycle', 'Tricycle', 'Car', 'Van'];
 
-  const isDocumentPhoto = (asset: { width: number; height: number; fileSize?: number }): { valid: boolean; reason?: string } => {
-    const { width, height, fileSize } = asset;
-    // Document photos should have reasonable resolution
-    if (width < 300 || height < 300) {
-      return { valid: false, reason: 'Image resolution is too low. Please take a clearer photo of your document.' };
-    }
-    // Check if the image is suspiciously square (selfie-like) - IDs are rectangular
-    const ratio = width / height;
-    const isNearlySquare = ratio > 0.85 && ratio < 1.15;
-    // Very portrait images are likely selfies (front camera)
-    const isTallPortrait = ratio < 0.65;
-    if (isNearlySquare || isTallPortrait) {
-      return { valid: false, reason: 'This appears to be a selfie or portrait photo. Please upload a photo of your actual government-issued ID document (landscape/rectangular).' };
-    }
-    // Check minimum file size (real document photos should be >50KB)
-    if (fileSize && fileSize < 50000) {
-      return { valid: false, reason: 'Image file is too small. Please upload a clear, high-quality photo of your document.' };
-    }
-    return { valid: true };
+  const pickImage = async (type: 'profile' | 'license' | 'orcr' | 'id') => {
+    Alert.alert(
+      'Upload Photo',
+      type === 'profile' ? 'Choose your profile photo' : 'Upload a clear photo of your document',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => captureImage(type, 'camera'),
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: () => captureImage(type, 'gallery'),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
-  const pickImage = async (type: 'profile' | 'license' | 'orcr' | 'id') => {
+  const captureImage = async (type: 'profile' | 'license' | 'orcr' | 'id', source: 'camera' | 'gallery') => {
     try {
-      const isDocument = type !== 'profile';
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: isDocument ? [3, 2] : [1, 1],
-        quality: 0.8,
-      });
+      let result;
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Needed', 'Please allow camera access in your device settings.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Needed', 'Please allow photo library access in your device settings.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        });
+      }
 
       if (!result.canceled && result.assets?.[0]?.uri) {
         const asset = result.assets[0];
 
-        // Validate document photos (not profile)
-        if (isDocument) {
-          const check = isDocumentPhoto({
-            width: asset.width,
-            height: asset.height,
-            fileSize: asset.fileSize || undefined,
-          });
-          if (!check.valid) {
-            Alert.alert('Invalid Document Photo', check.reason || 'Please upload a valid document photo.');
+        // Basic validation for document photos
+        if (type !== 'profile') {
+          if (asset.width < 300 || asset.height < 300) {
+            Alert.alert('Low Quality', 'Image resolution is too low. Please take a clearer photo.');
+            return;
+          }
+          if (asset.fileSize && asset.fileSize < 50000) {
+            Alert.alert('Low Quality', 'Image file is too small. Please upload a clear, high-quality photo.');
             return;
           }
         }
 
         switch (type) {
-          case 'profile':
-            setProfilePhoto(asset.uri);
-            break;
-          case 'license':
-            setLicensePhoto(asset.uri);
-            break;
-          case 'orcr':
-            setOrCrPhoto(asset.uri);
-            break;
-          case 'id':
-            setValidIdPhoto(asset.uri);
-            break;
+          case 'profile': setProfilePhoto(asset.uri); break;
+          case 'license': setLicensePhoto(asset.uri); break;
+          case 'orcr': setOrCrPhoto(asset.uri); break;
+          case 'id': setValidIdPhoto(asset.uri); break;
         }
       }
     } catch {
-      Alert.alert('Error', 'Could not open photo library. Please check your permissions in Settings.');
+      Alert.alert('Error', 'Could not access camera or photo library. Please check your permissions in Settings.');
     }
   };
 
@@ -172,13 +175,19 @@ export default function RiderRegistrationScreen({ navigation }: any) {
     <View style={styles.section}>
       <Text style={styles.label}>{title} *</Text>
       <TouchableOpacity
-        style={styles.uploadButton}
+        style={[styles.uploadButton, photo && styles.uploadButtonWithPhoto]}
         onPress={() => pickImage(type)}
-        accessibilityLabel={`Upload ${title}`}
+        accessibilityLabel={photo ? `Change ${title}` : `Upload ${title}`}
         accessibilityRole="button"
       >
         {photo ? (
-          <Image source={{ uri: photo }} style={styles.uploadedImage} />
+          <View>
+            <Image source={{ uri: photo }} style={styles.uploadedImage} />
+            <View style={styles.changeOverlay}>
+              <Ionicons name="camera" size={moderateScale(16)} color="#fff" />
+              <Text style={styles.changeOverlayText}>Tap to change</Text>
+            </View>
+          </View>
         ) : (
           <View style={styles.uploadPlaceholder}>
             <Ionicons name="camera-outline" size={32} color="#DC2626" />
@@ -557,6 +566,27 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E5E7EB',
     borderStyle: 'dashed',
+  },
+  uploadButtonWithPhoto: {
+    borderStyle: 'solid',
+    borderColor: '#10B981',
+  },
+  changeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(8),
+    gap: moderateScale(6),
+  },
+  changeOverlayText: {
+    color: '#fff',
+    fontSize: fontScale(13),
+    fontWeight: '600',
   },
   uploadPlaceholder: {
     alignItems: 'center',

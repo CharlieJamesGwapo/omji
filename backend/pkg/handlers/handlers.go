@@ -1775,6 +1775,10 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 		for _, field := range docFields {
 			file, err := c.FormFile(field)
 			if err == nil && file != nil {
+				if file.Size > 10*1024*1024 {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("File %s is too large. Maximum 10MB allowed", field)})
+					return
+				}
 				uploadDir := getUploadDir()
 				os.MkdirAll(uploadDir, os.ModePerm)
 				filename := strconv.FormatUint(uint64(userID), 10) + "_" + field + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
@@ -1783,6 +1787,15 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 					documents[field] = baseURL + "/uploads/" + filename
 				}
 			}
+		}
+
+		if len(documents) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "At least one document photo is required"})
+			return
+		}
+		if _, hasProfile := documents["profile_photo"]; !hasProfile {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Profile photo is required"})
+			return
 		}
 
 		var documentsJSON datatypes.JSON
