@@ -329,4 +329,9 @@ export const pushService = {
   removeToken: () => api.delete('/push-token'),
 };
 
+// App Version Services
+export const appService = {
+  checkVersion: () => api.get('/public/app-version'),
+};
+
 export default api;

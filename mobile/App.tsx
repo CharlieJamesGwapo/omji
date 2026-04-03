@@ -1,12 +1,14 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { initSentry } from './src/utils/sentry';
 
 initSentry();
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { View, ActivityIndicator, LogBox, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, ActivityIndicator, LogBox, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import Constants from 'expo-constants';
+import { appService } from './src/services/api';
 
 // Context
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -45,6 +47,39 @@ const LoadingScreen = () => (
 const RootNavigator = () => {
   const { user, loading, logout } = useAuth();
   const { isConnected } = useNetwork();
+
+  // App version check
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const res = await appService.checkVersion();
+        const data = res.data?.data;
+        if (!data) return;
+        const currentVersion = Constants.expoConfig?.version || '1.0.0';
+        if (data.version !== currentVersion) {
+          Alert.alert(
+            'Update Available',
+            data.changelog || 'A new version of OMJI is available.',
+            [
+              ...(data.force_update ? [] : [{ text: 'Later', style: 'cancel' as const }]),
+              {
+                text: 'Update Now',
+                onPress: () => {
+                  if (data.update_url) {
+                    Linking.openURL(data.update_url);
+                  }
+                },
+              },
+            ],
+            { cancelable: !data.force_update }
+          );
+        }
+      } catch {
+        // Silent — don't block app launch
+      }
+    };
+    checkVersion();
+  }, []);
 
   // Block app when no internet connection
   if (!isConnected) {

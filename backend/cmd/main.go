@@ -118,6 +118,20 @@ func main() {
 		public.POST("/auth/login", handlers.Login(database))
 		public.POST("/auth/verify-otp", handlers.VerifyOTP(database))
 		public.POST("/auth/resend-otp", handlers.ResendOTP(database))
+
+		// App version check
+		public.GET("/app-version", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"success": true,
+				"data": gin.H{
+					"version":      "1.0.0",
+					"build_number": 1,
+					"force_update": false,
+					"update_url":   "https://play.google.com/store/apps/details?id=com.omji.app",
+					"changelog":    "Bug fixes and improvements",
+				},
+			})
+		})
 	}
 
 	// Protected routes (auth required)
