@@ -5356,6 +5356,134 @@ func GetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// UploadPaymentProof handles proof-of-payment image uploads from mobile users
+func UploadPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("proof_image")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No file uploaded"})
+			return
+		}
+		if file.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
+			return
+		}
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+		mimeType, ok := mimeTypes[ext]
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
+			return
+		}
+		src, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			return
+		}
+		defer src.Close()
+		data, err := io.ReadAll(src)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			return
+		}
+		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"url": dataURL}})
+	}
+}
+
+// SubmitPaymentProof creates a payment proof record and updates service payment status
+func SubmitPaymentProof(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		var input struct {
+			ServiceType     string  `json:"service_type" binding:"required"`
+			ServiceID       uint    `json:"service_id" binding:"required"`
+			PaymentMethod   string  `json:"payment_method" binding:"required"`
+			ReferenceNumber string  `json:"reference_number" binding:"required"`
+			Amount          float64 `json:"amount" binding:"required"`
+			ProofImageURL   string  `json:"proof_image_url" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Missing required fields: service_type, service_id, payment_method, reference_number, amount, proof_image_url"})
+			return
+		}
+		// Validate service_type
+		validTypes := map[string]bool{"ride": true, "delivery": true, "order": true}
+		if !validTypes[input.ServiceType] {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid service_type. Must be ride, delivery, or order"})
+			return
+		}
+		// Validate payment_method
+		if input.PaymentMethod != "gcash" && input.PaymentMethod != "maya" {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid payment_method. Must be gcash or maya"})
+			return
+		}
+		// Validate proof_image_url starts with data:image/
+		if !strings.HasPrefix(input.ProofImageURL, "data:image/") {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid proof image format"})
+			return
+		}
+		uid := userID.(uint)
+
+		// Check how many attempts already exist
+		var attemptCount int64
+		db.Model(&models.PaymentProof{}).Where("service_type = ? AND service_id = ? AND user_id = ?",
+			input.ServiceType, input.ServiceID, uid).Count(&attemptCount)
+		if attemptCount >= 2 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Maximum proof attempts reached. Please switch to cash payment."})
+			return
+		}
+
+		proof := models.PaymentProof{
+			ServiceType:     input.ServiceType,
+			ServiceID:       input.ServiceID,
+			UserID:          uid,
+			PaymentMethod:   input.PaymentMethod,
+			ReferenceNumber: input.ReferenceNumber,
+			Amount:          input.Amount,
+			ProofImageURL:   input.ProofImageURL,
+			Status:          "submitted",
+			AttemptNumber:   int(attemptCount) + 1,
+		}
+
+		if err := db.Create(&proof).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to submit payment proof"})
+			return
+		}
+
+		// Update service payment_status to "submitted"
+		switch input.ServiceType {
+		case "ride":
+			db.Model(&models.Ride{}).Where("id = ? AND user_id = ?", input.ServiceID, uid).Update("payment_status", "submitted")
+		case "delivery":
+			db.Model(&models.Delivery{}).Where("id = ? AND user_id = ?", input.ServiceID, uid).Update("payment_status", "submitted")
+		case "order":
+			db.Model(&models.Order{}).Where("id = ? AND user_id = ?", input.ServiceID, uid).Update("payment_status", "submitted")
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": proof})
+	}
+}
+
+// GetPaymentProofStatus returns the latest payment proof for a service
+func GetPaymentProofStatus(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		serviceType := c.Param("serviceType")
+		serviceID := c.Param("serviceId")
+		userID, _ := c.Get("user_id")
+
+		var proof models.PaymentProof
+		err := db.Where("service_type = ? AND service_id = ? AND user_id = ?",
+			serviceType, serviceID, userID.(uint)).
+			Order("created_at DESC").First(&proof).Error
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No payment proof found"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": proof})
+	}
+}
+
 // AdminGetCommissionConfig returns the current commission config (auto-creates default if none exists)
 func AdminGetCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
