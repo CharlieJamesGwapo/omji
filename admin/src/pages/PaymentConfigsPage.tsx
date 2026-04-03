@@ -79,8 +79,16 @@ const PaymentConfigsPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!form.account_name.trim() || !form.account_number.trim()) {
-      toast.error('Account name and number are required');
+    if (!form.account_name.trim() || form.account_name.trim().length < 2) {
+      toast.error('Account name must be at least 2 characters');
+      return;
+    }
+    if (!form.account_number.trim()) {
+      toast.error('Account number is required');
+      return;
+    }
+    if (form.is_active && !form.qr_code_url) {
+      toast.error('QR code is required for active payment configs');
       return;
     }
     setSaving(true);
@@ -132,6 +140,12 @@ const PaymentConfigsPage: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!confirmDialog.configId) return;
+    const configToDelete = configs.find(c => c.id === confirmDialog.configId);
+    if (configToDelete?.is_active) {
+      toast.error('Cannot delete an active payment config. Deactivate it first.');
+      setConfirmDialog({ open: false, configId: null });
+      return;
+    }
     try {
       await adminService.deletePaymentConfig(confirmDialog.configId);
       toast.success('Payment config deleted');
