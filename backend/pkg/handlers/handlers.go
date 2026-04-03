@@ -752,6 +752,13 @@ func CancelRide(db *gorm.DB) gin.HandlerFunc {
 		freeDriver(db, ride.DriverID)
 		notifyDriver(db, ride.DriverID, "Ride Cancelled", "The passenger cancelled the ride from "+ride.PickupLocation+".", "ride_cancelled")
 		notifyUser(db, *ride.UserID, "Ride Cancelled", "Your ride has been cancelled.", "ride_cancelled")
+		// Notify driver of cancellation via push
+		if ride.DriverID != nil {
+			var driver models.Driver
+			if err := db.First(&driver, *ride.DriverID).Error; err == nil {
+				sendPushToUser(db, driver.UserID, "Ride Cancelled", fmt.Sprintf("Ride #%d was cancelled by the passenger.", ride.ID), map[string]interface{}{"type": "ride_update", "rideId": ride.ID})
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride cancelled", "id": ride.ID}, "timestamp": time.Now()})
 	}
 }
@@ -1242,6 +1249,13 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 		freeDriver(db, d.DriverID)
 		notifyDriver(db, d.DriverID, "Delivery Cancelled", "The customer cancelled the delivery from "+d.PickupLocation+".", "delivery_cancelled")
 		notifyUser(db, *d.UserID, "Delivery Cancelled", "Your delivery has been cancelled.", "delivery_cancelled")
+		// Notify driver of cancellation via push
+		if d.DriverID != nil {
+			var driver models.Driver
+			if err := db.First(&driver, *d.DriverID).Error; err == nil {
+				sendPushToUser(db, driver.UserID, "Delivery Cancelled", fmt.Sprintf("Delivery #%d was cancelled by the customer.", d.ID), map[string]interface{}{"type": "delivery_update", "rideId": d.ID})
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery cancelled"}, "timestamp": time.Now()})
 	}
 }
@@ -1952,6 +1966,7 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 			// Notify customer
 			if ride.ID != 0 {
 				safeNotify(db, ride.UserID, "Ride Accepted", "A driver has accepted your ride request", "ride_request")
+				safePushNotify(db, ride.UserID, "Rider On The Way!", "A driver has accepted your ride and is heading to you.", map[string]interface{}{"type": "ride_accepted", "rideId": ride.ID})
 				rideIDStr := fmt.Sprintf("%d", ride.ID)
 				tracker.Broadcast(rideIDStr, map[string]interface{}{
 					"type":         "ride_accepted",
@@ -1983,6 +1998,7 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 		if delErr == nil {
 			if delivery.ID != 0 {
 				safeNotify(db, delivery.UserID, "Delivery Accepted", "A driver has accepted your delivery request", "delivery_request")
+				safePushNotify(db, delivery.UserID, "Rider Assigned!", "A rider is heading to pick up your package.", map[string]interface{}{"type": "delivery_update", "rideId": delivery.ID})
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Delivery accepted", "ride_id": delivery.ID, "type": "delivery", "status": "accepted", "pickup": delivery.PickupLocation, "dropoff": delivery.DropoffLocation, "fare": delivery.DeliveryFee}, "timestamp": time.Now()})
 			return
@@ -2353,6 +2369,7 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 				}
 				if rideStatusTitle != "" {
 					safeNotify(tx, ride.UserID, rideStatusTitle, rideStatusBody, "ride_update")
+					safePushNotify(db, ride.UserID, rideStatusTitle, rideStatusBody, map[string]interface{}{"type": "ride_update", "rideId": ride.ID})
 				}
 				if input.Status == "completed" {
 					finalFare := ride.FinalFare
@@ -2360,6 +2377,7 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 						finalFare = ride.EstimatedFare
 					}
 					safeNotify(tx, ride.UserID, "Ride Completed", "Your ride has been completed. Fare: ₱"+strconv.FormatFloat(finalFare, 'f', 0, 64), "ride")
+					safePushNotify(db, ride.UserID, "Ride Complete!", "Rate your rider and share feedback.", map[string]interface{}{"type": "ride_update", "rideId": ride.ID})
 				}
 				return nil
 			})
@@ -2472,9 +2490,11 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 				}
 				if delStatusTitle != "" {
 					safeNotify(tx, delivery.UserID, delStatusTitle, delStatusBody, "delivery_update")
+					safePushNotify(db, delivery.UserID, delStatusTitle, delStatusBody, map[string]interface{}{"type": "delivery_update", "rideId": delivery.ID})
 				}
 				if input.Status == "completed" {
 					safeNotify(tx, delivery.UserID, "Delivery Completed", "Your delivery has been completed. Fee: ₱"+strconv.FormatFloat(delivery.DeliveryFee, 'f', 0, 64), "delivery")
+					safePushNotify(db, delivery.UserID, "Delivery Complete!", "Your package has been delivered.", map[string]interface{}{"type": "delivery_update", "rideId": delivery.ID})
 				}
 				return nil
 			})
@@ -3633,6 +3653,14 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 				return
 			}
 			sentCount = len(notifications)
+
+			// Also send push notifications to all targeted users
+			var tokens []models.PushToken
+			if err := db.Where("user_id IN ?", userIDs).Find(&tokens).Error; err == nil {
+				for _, t := range tokens {
+					sendExpoPushNotification(t.Token, input.Title, input.Message, map[string]interface{}{"type": notifType})
+				}
+			}
 		}
 
 		c.JSON(http.StatusCreated, gin.H{
@@ -3791,6 +3819,7 @@ func AdminUpdateOrderStatus(db *gorm.DB) gin.HandlerFunc {
 		}
 		if orderStatusTitle != "" {
 			safeNotify(db, order.UserID, orderStatusTitle, orderStatusBody, "order_update")
+			safePushNotify(db, order.UserID, orderStatusTitle, orderStatusBody, map[string]interface{}{"type": "order_update", "orderId": order.ID})
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": order, "timestamp": time.Now()})
 	}
@@ -5072,6 +5101,7 @@ func AdminUpdateDriver(db *gorm.DB) gin.HandlerFunc {
 				if err := db.Create(&models.Notification{UserID: driver.UserID, Title: "Account Verified", Body: "Congratulations! Your rider account has been verified. You can now go online and accept rides.", Type: "account_update"}).Error; err != nil {
 					log.Printf("Failed to create verification notification: %v", err)
 				}
+				sendPushToUser(db, driver.UserID, "You're Approved! 🎉", "You can now go online and start accepting rides.", map[string]interface{}{"type": "account_update"})
 			}
 		}
 		if len(updates) == 0 {
@@ -5721,6 +5751,24 @@ func sendExpoPushNotification(token, title, body string, data map[string]interfa
 	}()
 }
 
+// sendPushToUser looks up a user's push token and sends a push notification.
+// Fire-and-forget: silently returns if user has no token registered.
+func sendPushToUser(db *gorm.DB, userID uint, title, body string, data map[string]interface{}) {
+	var token models.PushToken
+	if err := db.Where("user_id = ?", userID).First(&token).Error; err != nil {
+		return // No token registered — user hasn't enabled notifications
+	}
+	sendExpoPushNotification(token.Token, title, body, data)
+}
+
+// safePushNotify sends a push notification to a user, safely handling nil userID pointers.
+func safePushNotify(db *gorm.DB, userID *uint, title, body string, data map[string]interface{}) {
+	if userID == nil {
+		return
+	}
+	sendPushToUser(db, *userID, title, body, data)
+}
+
 // RegisterPushToken upserts the authenticated user's Expo push token.
 func RegisterPushToken(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -6332,6 +6380,9 @@ func RiderVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
 		}
 
+		// Push notify user that payment was verified
+		sendPushToUser(db, proof.UserID, "Payment Verified!", "Your payment has been confirmed.", map[string]interface{}{"type": "payment_update"})
+
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment verified"})
 	}
 }
@@ -6373,6 +6424,9 @@ func RiderRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		case "order":
 			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
 		}
+
+		// Push notify user that payment was rejected
+		sendPushToUser(db, proof.UserID, "Payment Rejected", "Your payment proof was rejected. Please resubmit.", map[string]interface{}{"type": "payment_update"})
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment proof rejected"})
 	}
@@ -6447,6 +6501,9 @@ func AdminVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "verified")
 		}
 
+		// Push notify user that payment was verified
+		sendPushToUser(db, proof.UserID, "Payment Verified!", "Your payment has been confirmed.", map[string]interface{}{"type": "payment_update"})
+
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment verified by admin"})
 	}
 }
@@ -6488,6 +6545,9 @@ func AdminRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		case "order":
 			db.Model(&models.Order{}).Where("id = ?", proof.ServiceID).Update("payment_status", "rejected")
 		}
+
+		// Push notify user that payment was rejected
+		sendPushToUser(db, proof.UserID, "Payment Rejected", "Your payment proof was rejected. Please resubmit.", map[string]interface{}{"type": "payment_update"})
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment proof rejected by admin"})
 	}
