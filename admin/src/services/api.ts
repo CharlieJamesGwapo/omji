@@ -246,6 +246,18 @@ export const adminService = {
     });
   },
 
+  // Payment Proofs
+  getPaymentProofs: (params?: { status?: string; service_type?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.service_type) query.set('service_type', params.service_type);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    return API.get(`/admin/payment-proofs?${query.toString()}`);
+  },
+  verifyPaymentProof: (id: number) => API.put(`/admin/payment-proof/${id}/verify`),
+  rejectPaymentProof: (id: number, reason: string) => API.put(`/admin/payment-proof/${id}/reject`, { reason }),
+
   // Withdrawals
   getWithdrawals: () => cachedGet('/admin/withdrawals'),
   updateWithdrawal: (id: number, data: { status: string; note?: string }) =>

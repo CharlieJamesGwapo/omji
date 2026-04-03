@@ -185,6 +185,25 @@ export interface PaymentConfig {
   updated_at: string;
 }
 
+export interface PaymentProof {
+  id: number;
+  service_type: 'ride' | 'delivery' | 'order';
+  service_id: number;
+  user_id: number;
+  user?: { id: number; name: string; email: string; phone: string };
+  payment_method: 'gcash' | 'maya';
+  reference_number: string;
+  amount: number;
+  proof_image_url: string;
+  status: 'submitted' | 'verified' | 'rejected';
+  verified_by_id?: number;
+  verified_by_role?: 'rider' | 'admin';
+  rejection_reason?: string;
+  attempt_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Notification {
   id: number;
   user_id: number;
