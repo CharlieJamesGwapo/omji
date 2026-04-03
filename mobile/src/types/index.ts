@@ -181,6 +181,26 @@ export interface Notification {
 // ===== Payment =====
 export type PaymentMethod = 'cash' | 'gcash' | 'maya' | 'wallet';
 
+export type PaymentStatus = 'pending' | 'submitted' | 'verified' | 'rejected';
+
+export interface PaymentProof {
+  id: number;
+  service_type: 'ride' | 'delivery' | 'order';
+  service_id: number;
+  user_id: number;
+  payment_method: 'gcash' | 'maya';
+  reference_number: string;
+  amount: number;
+  proof_image_url: string;
+  status: PaymentStatus;
+  verified_by_id?: number;
+  verified_by_role?: 'rider' | 'admin';
+  rejection_reason?: string;
+  attempt_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // ===== Stores =====
 export interface Store {
   id: number;

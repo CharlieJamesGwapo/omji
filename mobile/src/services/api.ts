@@ -203,6 +203,34 @@ export const paymentConfigService = {
   getConfigs: () => api.get('/payment-configs'),
 };
 
+// Payment Proof Services
+export const paymentProofService = {
+  upload: (formData: FormData) =>
+    api.post('/payment-proof/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    }),
+  submit: (data: {
+    service_type: string;
+    service_id: number;
+    payment_method: string;
+    reference_number: string;
+    amount: number;
+    proof_image_url: string;
+  }) => api.post('/payment-proof/submit', data),
+  getStatus: (serviceType: string, serviceId: number) =>
+    api.get(`/payment-proof/${serviceType}/${serviceId}`),
+};
+
+export const riderPaymentProofService = {
+  getProof: (serviceType: string, serviceId: number) =>
+    api.get(`/driver/payment-proof/${serviceType}/${serviceId}`),
+  verify: (proofId: number) =>
+    api.put(`/driver/payment-proof/${proofId}/verify`),
+  reject: (proofId: number, reason: string) =>
+    api.put(`/driver/payment-proof/${proofId}/reject`, { reason }),
+};
+
 // Rates Services
 export const ratesService = {
   getRates: () => api.get('/rates'),
