@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../services/api';
 import type { PaymentProof } from '../types';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../App';
 import PageSkeleton from '../components/PageSkeleton';
 
 export default function PaymentProofsPage() {
