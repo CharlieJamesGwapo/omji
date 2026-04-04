@@ -1,4 +1,4 @@
-// ── Shared Types for OMJI Admin ──────────────────────────────────────
+// ── Shared Types for ONE RIDE Admin ──────────────────────────────────────
 
 export interface User {
   id: number;

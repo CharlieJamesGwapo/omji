@@ -1,4 +1,4 @@
-// ── Shared Utilities for OMJI Admin ──────────────────────────────────
+// ── Shared Utilities for ONE RIDE Admin ──────────────────────────────────
 
 import { STATUS_COLORS, DEFAULT_STATUS_COLOR } from '../constants';
 

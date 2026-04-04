@@ -1,4 +1,4 @@
-// ── Shared Constants for OMJI Admin ──────────────────────────────────
+// ── Shared Constants for ONE RIDE Admin ──────────────────────────────────
 
 export const ITEMS_PER_PAGE = 20;
 

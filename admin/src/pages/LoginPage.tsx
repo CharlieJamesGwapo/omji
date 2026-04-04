@@ -3,7 +3,7 @@ import { authService } from '../services/api';
 import axios from 'axios';
 import { getErrorMessage } from '../utils';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.com/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://oneride-backend.onrender.com/api/v1';
 const HEALTH_URL = API_URL.replace('/api/v1', '/health');
 
 interface LoginPageProps {
@@ -123,9 +123,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-red-600 rounded-xl mx-auto mb-3 flex items-center justify-center overflow-hidden">
-            <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="ONE RIDE" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">OMJI Admin</h1>
+          <h1 className="text-2xl font-bold text-gray-900">ONE RIDE Admin</h1>
           <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
 

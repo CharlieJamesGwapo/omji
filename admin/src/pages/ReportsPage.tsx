@@ -104,7 +104,7 @@ const ReportsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `omji-revenue-report-${now.toISOString().slice(0, 10)}.csv`;
+    link.download = `oneride-revenue-report-${now.toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success('CSV downloaded');

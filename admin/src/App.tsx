@@ -103,10 +103,10 @@ const Sidebar: React.FC<{ onLogout: () => void; user: any; open: boolean; onClos
         <div className="px-5 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shadow-lg ${isDark ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-white shadow-gray-200'}`}>
-              <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="ONE RIDE" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>OMJI</h1>
+              <h1 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>ONE RIDE</h1>
               <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isDark ? 'text-emerald-400' : 'text-gray-400'}`}>Admin Panel</p>
             </div>
           </div>
@@ -263,9 +263,9 @@ const AdminLayout: React.FC<{ onLogout: () => void; user: any }> = ({ onLogout, 
             </button>
             <div className="lg:hidden flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden">
-                <img src="/logo.png" alt="OMJI" className="w-full h-full object-cover" />
+                <img src="/logo.png" alt="ONE RIDE" className="w-full h-full object-cover" />
               </div>
-              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>OMJI</span>
+              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>ONE RIDE</span>
             </div>
             {/* Breadcrumb */}
             <div className="hidden lg:flex items-center gap-2">

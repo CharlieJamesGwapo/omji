@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use environment variable for API URL, fallback to production
-const API_URL = import.meta.env.VITE_API_URL || 'https://omji-backend.onrender.com/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://oneride-backend.onrender.com/api/v1';
 
 // ── In-memory cache with stale-while-revalidate ──────────────────────
 interface CacheEntry {
