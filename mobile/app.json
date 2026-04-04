@@ -76,7 +76,8 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "useLegacyPackaging": false
+            "useLegacyPackaging": false,
+            "enableMinifyInReleaseBuilds": true
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -88,12 +89,12 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 5000,
-      "url": "https://u.expo.dev/58003a41-a27a-47ac-b17a-886e1f190db9"
+      "url": "https://u.expo.dev/c4fd222b-e5b3-4f71-a6a5-3d0e429ebc70"
     },
     "owner": "bboydevzxczc",
     "extra": {
       "eas": {
-        "projectId": "58003a41-a27a-47ac-b17a-886e1f190db9"
+        "projectId": "c4fd222b-e5b3-4f71-a6a5-3d0e429ebc70"
       }
     },
     "runtimeVersion": "1.0.0"
