@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "OMJI",
-    "slug": "omji",
-    "scheme": "omji",
+    "name": "ONE RIDE",
+    "slug": "oneride-balingasag",
+    "scheme": "oneride",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,19 +10,19 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#3B82F6"
+      "backgroundColor": "#DC2626"
     },
     "assetBundlePatterns": [
       "assets/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.omji.balingasag",
+      "bundleIdentifier": "com.oneridebalingasag.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "OMJI needs your location to provide ride and delivery services.",
-        "NSLocationAlwaysUsageDescription": "OMJI needs your location for real-time tracking.",
-        "NSCameraUsageDescription": "OMJI needs camera access to upload item photos.",
-        "NSPhotoLibraryUsageDescription": "OMJI needs access to your photos.",
+        "NSLocationWhenInUseUsageDescription": "ONE RIDE needs your location to provide ride and delivery services.",
+        "NSLocationAlwaysUsageDescription": "ONE RIDE needs your location for real-time tracking.",
+        "NSCameraUsageDescription": "ONE RIDE needs camera access to upload item photos.",
+        "NSPhotoLibraryUsageDescription": "ONE RIDE needs access to your photos.",
         "LSApplicationQueriesSchemes": [
           "gcash",
           "paymaya"
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3B82F6"
       },
-      "package": "com.omji.balingasag",
+      "package": "com.oneridebalingasag.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_FINE_LOCATION",
@@ -59,7 +59,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow OMJI to use your location for ride and delivery tracking."
+          "locationAlwaysAndWhenInUsePermission": "Allow ONE RIDE to use your location for ride and delivery tracking."
         }
       ],
       [
@@ -96,8 +96,6 @@
         "projectId": "58003a41-a27a-47ac-b17a-886e1f190db9"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    }
+    "runtimeVersion": "1.0.0"
   }
 }
