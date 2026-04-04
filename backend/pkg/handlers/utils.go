@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"time"
 
-	"omji/pkg/models"
+	"oneride/pkg/models"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

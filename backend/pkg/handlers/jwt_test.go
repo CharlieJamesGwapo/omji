@@ -27,7 +27,7 @@ func TestGenerateToken(t *testing.T) {
 
 	t.Run("token contains correct claims", func(t *testing.T) {
 		userID := uint(42)
-		email := "test@omji.app"
+		email := "test@oneride.app"
 		role := "driver"
 
 		tokenStr, err := GenerateToken(userID, email, role)

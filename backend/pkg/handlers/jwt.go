@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"omji/config"
+	"oneride/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

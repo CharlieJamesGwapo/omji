@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"log"
 	"log/slog"
-	"omji/config"
-	"omji/pkg/models"
+	"oneride/config"
+	"oneride/pkg/models"
 	"os"
 	"time"
 

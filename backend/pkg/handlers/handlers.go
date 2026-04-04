@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"omji/pkg/models"
+	"oneride/pkg/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -1082,7 +1082,7 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 				if err := c.SaveUploadedFile(file, savePath); err == nil {
 					baseURL := os.Getenv("BASE_URL")
 					if baseURL == "" {
-						baseURL = "https://omji-backend.onrender.com"
+						baseURL = "https://oneride-backend.onrender.com"
 					}
 					itemPhoto = baseURL + "/uploads/" + filename
 				}
@@ -1783,7 +1783,7 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 		documents := map[string]string{}
 		baseURL := os.Getenv("BASE_URL")
 		if baseURL == "" {
-			baseURL = "https://omji-backend.onrender.com"
+			baseURL = "https://oneride-backend.onrender.com"
 		}
 		docFields := []string{"profile_photo", "license_photo", "orcr_photo", "id_photo"}
 		for _, field := range docFields {
@@ -5812,7 +5812,7 @@ func generateReferralCode(name string) string {
 	if len(prefix) > 4 {
 		prefix = prefix[:4]
 	}
-	code := fmt.Sprintf("OMJI-%s%04d", prefix, rand.Intn(10000))
+	code := fmt.Sprintf("ONERIDE-%s%04d", prefix, rand.Intn(10000))
 	return code
 }
 

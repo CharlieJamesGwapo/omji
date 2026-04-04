@@ -131,7 +131,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("valid token passes and sets context", func(t *testing.T) {
 		r := setupRouter()
-		token := generateTestToken(42, "user@omji.app", "user")
+		token := generateTestToken(42, "user@oneride.app", "user")
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -183,7 +183,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("token from query param works", func(t *testing.T) {
 		r := setupRouter()
-		token := generateTestToken(99, "ws@omji.app", "driver")
+		token := generateTestToken(99, "ws@oneride.app", "driver")
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/protected?token="+token, nil)
@@ -199,7 +199,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 		claims := jwt.MapClaims{
 			"user_id": float64(1),
-			"email":   "expired@omji.app",
+			"email":   "expired@oneride.app",
 			"role":    "user",
 			"exp":     time.Now().Add(-time.Hour).Unix(),
 		}

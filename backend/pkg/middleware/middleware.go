@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"omji/config"
+	"oneride/config"
 	"os"
 	"strings"
 	"sync"
@@ -96,7 +96,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		originsEnv = os.Getenv("ALLOWED_ORIGINS")
 	}
 	if originsEnv == "" {
-		originsEnv = "https://omji-admin.onrender.com"
+		originsEnv = "https://oneride-admin.onrender.com"
 	}
 
 	allowedOrigins := make(map[string]bool)

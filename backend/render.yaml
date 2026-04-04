@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: omji-backend
+    name: oneride-backend
     env: go
     buildCommand: go build -o bin/server cmd/main.go
     startCommand: ./bin/server
@@ -19,7 +19,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "https://omji-admin.onrender.com"
+        value: "https://oneride-admin.onrender.com"
       - key: UPLOAD_DIR
         value: "/var/data/uploads"
       - key: SENTRY_DSN

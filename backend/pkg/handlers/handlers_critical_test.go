@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"omji/pkg/models"
+	"oneride/pkg/models"
 	"strings"
 	"testing"
 

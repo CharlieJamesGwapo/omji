@@ -6,10 +6,10 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"omji/config"
-	"omji/pkg/db"
-	"omji/pkg/handlers"
-	"omji/pkg/middleware"
+	"oneride/config"
+	"oneride/pkg/db"
+	"oneride/pkg/handlers"
+	"oneride/pkg/middleware"
 	"os"
 	"os/signal"
 	"runtime"
@@ -127,7 +127,7 @@ func main() {
 					"version":      "1.0.0",
 					"build_number": 1,
 					"force_update": false,
-					"update_url":   "https://play.google.com/store/apps/details?id=com.omji.app",
+					"update_url":   "https://play.google.com/store/apps/details?id=com.oneridebalingasag.app",
 					"changelog":    "Bug fixes and improvements",
 				},
 			})
@@ -408,7 +408,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		slog.Info("OMJI Backend starting", "port", port)
+		slog.Info("ONE RIDE Backend starting", "port", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
 		}

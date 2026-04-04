@@ -1,4 +1,4 @@
-module omji
+module oneride
 
 go 1.23
 

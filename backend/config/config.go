@@ -48,9 +48,9 @@ func LoadConfig() *Config {
 	return &Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "omji_user"),
-		DBPassword: getEnv("DB_PASSWORD", "omji_password"),
-		DBName:     getEnv("DB_NAME", "omji_db"),
+		DBUser:     getEnv("DB_USER", "oneride_user"),
+		DBPassword: getEnv("DB_PASSWORD", "oneride_password"),
+		DBName:     getEnv("DB_NAME", "oneride_db"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		JWTSecret:  "", // Use config.GetJWTSecret() instead; validated at startup
 		SMTPHost:   getEnv("SMTP_HOST", "smtp.gmail.com"),
