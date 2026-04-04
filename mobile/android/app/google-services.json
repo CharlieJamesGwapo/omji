@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "914776520905",
+    "project_id": "omji-7774e",
+    "storage_bucket": "omji-7774e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:914776520905:android:f9598ef89d9480cec3b518",
+        "android_client_info": {
+          "package_name": "com.omji.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAROUEi2pifaybVwGhtq4kwKjxZCxGlcdw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
