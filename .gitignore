@@ -35,3 +35,6 @@ build/
 omji-7774e-firebase-adminsdk-*.json
 .claude/
 .superpowers/
+
+# Local Netlify folder
+.netlify
