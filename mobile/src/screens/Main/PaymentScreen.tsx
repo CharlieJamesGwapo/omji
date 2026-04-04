@@ -40,7 +40,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [referenceNo] = useState(() => {
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `OMJI-${Date.now().toString(36).toUpperCase()}-${rand}`;
+    return `ONERIDE-${Date.now().toString(36).toUpperCase()}-${rand}`;
   });
   const [timeLeft, setTimeLeft] = useState(15 * 60);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

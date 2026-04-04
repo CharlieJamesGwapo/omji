@@ -92,7 +92,7 @@ describe('getRoadDistance', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('router.project-osrm.org'),
       expect.objectContaining({
-        headers: { 'User-Agent': 'OMJI-App/1.0' },
+        headers: { 'User-Agent': 'OneRide-App/1.0' },
       }),
     );
   });

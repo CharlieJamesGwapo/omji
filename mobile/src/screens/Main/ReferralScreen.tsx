@@ -76,7 +76,7 @@ export default function ReferralScreen({ navigation }: any) {
     if (!code) return;
     try {
       await Share.share({
-        message: `Join OMJI - Balingasag's ride & delivery app! Use my referral code: ${code} to get a bonus on your first ride. Download now!`,
+        message: `Join ONE RIDE - Balingasag & Salay's ride & delivery app! Use my referral code: ${code} to get a bonus on your first ride. Download now!`,
       });
     } catch {
       // User cancelled share
@@ -130,7 +130,7 @@ export default function ReferralScreen({ navigation }: any) {
                 </View>
                 <Text style={styles.shareCardTitle}>Invite Friends</Text>
                 <Text style={styles.shareCardSubtitle}>
-                  Share your code and earn rewards when your friends join OMJI
+                  Share your code and earn rewards when your friends join ONE RIDE
                 </Text>
               </View>
 

@@ -221,10 +221,10 @@ export default function ProfileScreen({ navigation }: any) {
     {
       title: 'Support',
       items: [
-        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=Help%20Request') },
+        { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Linking.openURL('mailto:infoomjisys@gmail.com?subject=Help%20Request') },
         { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Linking.openURL('tel:+639123456789') },
-        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Linking.openURL('https://omji.app/terms') },
-        { icon: 'information-circle-outline', label: 'About OMJI', screen: null, action: () => Alert.alert('About OMJI', 'OMJI - Balingasag\nYour ride-hailing and delivery app\n\nServices:\n- Pasundo (Pick-up)\n- Pasugo (Delivery)\n- Pasabay (Ride Sharing)\n- Store Orders\n\nVersion 1.0.0') },
+        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Linking.openURL('https://oneride-balingasag.netlify.app/terms') },
+        { icon: 'information-circle-outline', label: 'About ONE RIDE', screen: null, action: () => Alert.alert('About ONE RIDE', 'ONE RIDE - Balingasag & Salay\nYour ride-hailing and delivery app\n\nServices:\n- Pasundo (Pick-up)\n- Pasugo (Delivery)\n- Pasabay (Ride Sharing)\n- Store Orders\n\nVersion 1.0.0') },
       ],
     },
   ];
@@ -484,7 +484,7 @@ export default function ProfileScreen({ navigation }: any) {
                     onPress={async () => {
                       try {
                         await Share.share({
-                          message: `Join OMJI and get a free ₱10 bonus! Use my referral code: ${referralCode}\n\nDownload OMJI now!`,
+                          message: `Join ONE RIDE and get a free ₱10 bonus! Use my referral code: ${referralCode}\n\nDownload ONE RIDE now!`,
                         });
                       } catch {
                         // User cancelled share
@@ -560,7 +560,7 @@ export default function ProfileScreen({ navigation }: any) {
             </TouchableOpacity>
 
             {/* Version */}
-            <Text style={styles.versionText}>OMJI v1.0.0</Text>
+            <Text style={styles.versionText}>ONE RIDE v1.0.0</Text>
           </>
         )}
 

@@ -39,7 +39,7 @@ export async function getRoadDistance(
       const url = `https://router.project-osrm.org/route/v1/driving/${point1.longitude},${point1.latitude};${point2.longitude},${point2.latitude}?overview=false`;
       const res = await fetch(url, {
         signal,
-        headers: { 'User-Agent': 'OMJI-App/1.0' },
+        headers: { 'User-Agent': 'OneRide-App/1.0' },
       });
 
       if (!res.ok) {

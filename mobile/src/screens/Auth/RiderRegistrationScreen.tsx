@@ -222,7 +222,7 @@ export default function RiderRegistrationScreen({ navigation }: any) {
         <Ionicons name="bicycle" size={48} color="#DC2626" />
         <Text style={styles.headerTitle}>Become a Rider</Text>
         <Text style={styles.headerSubtitle}>
-          {submitted ? 'Your application is being reviewed' : 'Join OMJI and start earning today!'}
+          {submitted ? 'Your application is being reviewed' : 'Join ONE RIDE and start earning today!'}
         </Text>
       </View>
 

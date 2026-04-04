@@ -1,13 +1,13 @@
 import { getWebSocketUrl } from '../../utils/websocket';
 
-// The actual API_BASE_URL is 'https://omji-backend.onrender.com/api/v1'
+// The actual API_BASE_URL is 'https://oneride-backend.onrender.com/api/v1'
 // The function replaces https->wss, removes /api/v1, then appends path
 
 describe('WebSocket Utilities', () => {
   describe('getWebSocketUrl', () => {
     it('constructs correct WebSocket URL with path', () => {
       const url = getWebSocketUrl('/ws/ride/123');
-      expect(url).toBe('wss://omji-backend.onrender.com/ws/ride/123');
+      expect(url).toBe('wss://oneride-backend.onrender.com/ws/ride/123');
     });
 
     it('uses wss:// protocol for production https:// base URL', () => {
@@ -22,7 +22,7 @@ describe('WebSocket Utilities', () => {
 
     it('appends token as query parameter when provided', () => {
       const url = getWebSocketUrl('/ws/ride/456', 'my-auth-token');
-      expect(url).toBe('wss://omji-backend.onrender.com/ws/ride/456?token=my-auth-token');
+      expect(url).toBe('wss://oneride-backend.onrender.com/ws/ride/456?token=my-auth-token');
     });
 
     it('does not append token query param when token is undefined', () => {
@@ -38,7 +38,7 @@ describe('WebSocket Utilities', () => {
 
     it('handles root path correctly', () => {
       const url = getWebSocketUrl('/');
-      expect(url).toBe('wss://omji-backend.onrender.com/');
+      expect(url).toBe('wss://oneride-backend.onrender.com/');
     });
   });
 });

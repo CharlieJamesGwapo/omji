@@ -46,11 +46,11 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   },
   {
     id: 'wallet',
-    name: 'OMJI Wallet',
+    name: 'ONE RIDE Wallet',
     icon: 'wallet-outline',
     color: '#8B5CF6',
     bgColor: '#F5F3FF',
-    description: 'Pay from your OMJI wallet balance',
+    description: 'Pay from your ONE RIDE wallet balance',
   },
 ];
 

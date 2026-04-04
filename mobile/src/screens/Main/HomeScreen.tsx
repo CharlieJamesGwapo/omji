@@ -240,7 +240,7 @@ export default function HomeScreen({ navigation }: any) {
     { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet', color: COLORS.primaryDark, bg: COLORS.primaryBg },
     { icon: 'time-outline', label: 'History', screen: 'RideHistory', color: COLORS.primaryDark, bg: COLORS.primaryBg },
     { icon: 'gift-outline', label: 'Promos', screen: 'Pasundo', color: COLORS.primaryDark, bg: COLORS.primaryBg },
-    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Linking.openURL('mailto:support@omji.app?subject=OMJI%20Support'), color: COLORS.primaryDark, bg: COLORS.primaryBg },
+    { icon: 'help-circle-outline', label: 'Help', screen: null, action: () => Linking.openURL('mailto:infoomjisys@gmail.com?subject=ONE%20RIDE%20Support'), color: COLORS.primaryDark, bg: COLORS.primaryBg },
   ];
 
   const STORE_CATEGORY_CONFIG: Record<string, { color: string; icon: string }> = {
@@ -570,7 +570,7 @@ export default function HomeScreen({ navigation }: any) {
               <Ionicons name="bicycle" size={moderateScale(20)} color="#10B981" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.riderPromoTitle}>Earn with OMJI</Text>
+              <Text style={styles.riderPromoTitle}>Earn with ONE RIDE</Text>
               <Text style={styles.riderPromoSubtext}>Become a rider and start earning today</Text>
             </View>
             <Ionicons name="chevron-forward" size={moderateScale(16)} color={COLORS.gray400} />
@@ -720,7 +720,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* Promo Banner */}
         <TouchableOpacity
           style={styles.promoBanner}
-          onPress={() => Alert.alert('Special Promo', 'Use code OMJI20 for 20% off your first ride!')}
+          onPress={() => Alert.alert('Special Promo', 'Use code ONERIDE20 for 20% off your first ride!')}
           activeOpacity={0.85}
           accessibilityLabel="Limited offer: 20% off your first ride"
           accessibilityRole="button"
@@ -733,7 +733,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.promoText}>
               <Text style={styles.promoLabel}>LIMITED OFFER</Text>
               <Text style={styles.promoTitle}>20% Off Your First Ride!</Text>
-              <Text style={styles.promoSubtitle}>Use code OMJI20 at checkout</Text>
+              <Text style={styles.promoSubtitle}>Use code ONERIDE20 at checkout</Text>
             </View>
             <View style={styles.promoArrow}>
               <Ionicons name="chevron-forward" size={moderateScale(20)} color={COLORS.white} />

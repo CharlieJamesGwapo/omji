@@ -9,7 +9,7 @@ interface QueuedAction {
   retries: number;
 }
 
-const QUEUE_KEY = '@omji_offline_queue';
+const QUEUE_KEY = '@oneride_offline_queue';
 
 export const offlineQueue = {
   async getQueue(): Promise<QueuedAction[]> {

@@ -170,7 +170,7 @@ export default function SearchScreen({ navigation }: any) {
         <View style={styles.emptyState}>
           <Ionicons name="search-outline" size={moderateScale(48)} color={COLORS.gray300} />
           <Text style={styles.emptyTitle}>Search for stores, rides, or orders</Text>
-          <Text style={styles.emptySubtitle}>Find what you need across all OMJI services</Text>
+          <Text style={styles.emptySubtitle}>Find what you need across all ONE RIDE services</Text>
         </View>
       );
     }

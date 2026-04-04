@@ -250,7 +250,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       const query = encodeURIComponent(searchQuery.trim());
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=ph&limit=1`,
-        { headers: { 'User-Agent': 'OMJI-App/1.0' } }
+        { headers: { 'User-Agent': 'OneRide-App/1.0' } }
       );
       const data = await res.json();
       if (data?.[0]) {

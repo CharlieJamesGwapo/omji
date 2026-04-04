@@ -124,7 +124,7 @@ export default function PrivacyScreen({ navigation }: any) {
             <View style={styles.infoIconContainer}>
               <Ionicons name="shield-checkmark" size={moderateScale(24)} color={COLORS.accent} />
             </View>
-            <Text style={styles.infoTitle}>Your Data at OMJI</Text>
+            <Text style={styles.infoTitle}>Your Data at ONE RIDE</Text>
           </View>
           <Text style={styles.infoDescription}>
             We take your privacy seriously. Below is a summary of the data we collect and your rights regarding that data.

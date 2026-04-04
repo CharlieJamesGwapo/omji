@@ -119,7 +119,7 @@ export default function RegisterScreen({ navigation }: any) {
         tension: 60,
         friction: 8,
       }).start();
-      showToast('Account created successfully! Welcome to OMJI!', 'success');
+      showToast('Account created successfully! Welcome to ONE RIDE!', 'success');
     } catch (error: any) {
       shake();
       const msg = error.message || 'Registration failed. Please try again.';
@@ -218,13 +218,13 @@ export default function RegisterScreen({ navigation }: any) {
             <View style={styles.successIconWrapper}>
               <Ionicons name="checkmark-circle" size={moderateScale(72)} color={COLORS.success} />
             </View>
-            <Text style={styles.successTitle}>Welcome to OMJI!</Text>
+            <Text style={styles.successTitle}>Welcome to ONE RIDE!</Text>
             <Text style={styles.successSubtitle}>Your account has been created successfully. You are now being logged in...</Text>
           </Animated.View>
         ) : (
           /* Form */
           <Animated.View style={[styles.formContainer, { transform: [{ translateX: shakeAnim }] }]}>
-            <Text style={styles.welcomeText}>Join OMJI Today!</Text>
+            <Text style={styles.welcomeText}>Join ONE RIDE Today!</Text>
             <Text style={styles.subtitleText}>Get access to all services in Balingasag</Text>
 
             {renderInput('person-outline', 'Full Name', name, setName, 'name', { autoCapitalize: 'words' })}
@@ -295,14 +295,14 @@ export default function RegisterScreen({ navigation }: any) {
                 I agree to the{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://omji.app/terms')}
+                  onPress={() => Linking.openURL('https://oneride-balingasag.netlify.app/terms')}
                 >
                   Terms of Service
                 </Text>
                 {' '}and{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://omji.app/privacy')}
+                  onPress={() => Linking.openURL('https://oneride-balingasag.netlify.app/privacy')}
                 >
                   Privacy Policy
                 </Text>

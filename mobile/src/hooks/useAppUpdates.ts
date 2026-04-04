@@ -13,7 +13,7 @@ export function useAppUpdates() {
         await Updates.fetchUpdateAsync();
         Alert.alert(
           'Update Available',
-          'A new version of OMJI is ready. Restart to apply the update.',
+          'A new version of ONE RIDE is ready. Restart to apply the update.',
           [
             { text: 'Later', style: 'cancel' },
             { text: 'Restart Now', onPress: () => Updates.reloadAsync() },

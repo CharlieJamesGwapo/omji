@@ -17,7 +17,7 @@ export default function AuthNavigator() {
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
-        const value = await AsyncStorage.getItem('@omji_onboarded');
+        const value = await AsyncStorage.getItem('@oneride_onboarded');
         setHasOnboarded(value !== null);
       } catch {
         setHasOnboarded(false);

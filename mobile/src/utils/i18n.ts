@@ -83,7 +83,7 @@ const translations: Record<string, Record<Lang, string>> = {
   // SOS
   'sos.title': { en: 'Emergency', ceb: 'Emerhensya' },
   'sos.call_911': { en: 'Call Emergency (911)', ceb: 'Tawag sa 911' },
-  'sos.call_support': { en: 'Call OMJI Support', ceb: 'Tawag sa OMJI Support' },
+  'sos.call_support': { en: 'Call ONE RIDE Support', ceb: 'Tawag sa ONE RIDE Support' },
   'sos.share_location': { en: 'Share Live Location', ceb: 'I-share ang Location' },
 
   // Auth

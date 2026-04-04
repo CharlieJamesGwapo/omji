@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<string, { label: string; description: string; icon: 
   driver_arrived: { label: 'Rider Has Arrived', description: 'Your rider is waiting at the pickup location. Please proceed.', icon: 'location', color: COLORS.pasabay },
   picked_up: { label: 'Item Picked Up', description: 'Your item has been collected and is being transported.', icon: 'cube', color: COLORS.pasabay },
   in_progress: { label: 'On the Way', description: 'Sit back and relax! You are heading to your destination.', icon: 'navigate', color: COLORS.success },
-  completed: { label: 'Trip Completed', description: 'You have arrived! Thank you for riding with OMJI.', icon: 'checkmark-done-circle', color: COLORS.success },
+  completed: { label: 'Trip Completed', description: 'You have arrived! Thank you for riding with ONE RIDE.', icon: 'checkmark-done-circle', color: COLORS.success },
   cancelled: { label: 'Trip Cancelled', description: 'This trip has been cancelled.', icon: 'close-circle', color: COLORS.error },
 };
 
@@ -40,7 +40,7 @@ const PAYMENT_LABELS: Record<string, { name: string; icon: string; color: string
   cash: { name: 'Cash', icon: 'cash-outline', color: COLORS.warning },
   gcash: { name: 'GCash', icon: 'phone-portrait-outline', color: '#0070E0' },
   maya: { name: 'Maya', icon: 'card-outline', color: '#00B251' },
-  wallet: { name: 'OMJI Wallet', icon: 'wallet-outline', color: COLORS.pasabay },
+  wallet: { name: 'ONE RIDE Wallet', icon: 'wallet-outline', color: COLORS.pasabay },
 };
 
 const RATING_LABELS = ['Poor', 'Fair', 'Good', 'Great', 'Excellent!'];
@@ -367,7 +367,7 @@ export default function TrackingScreen({ route, navigation }: any) {
     try {
       const tripType = type === 'delivery' ? 'delivery' : 'ride';
       await Share.share({
-        message: `I'm on an OMJI ${tripType}! From: ${pickupLabel} To: ${dropoffLabel}. Track my trip on OMJI app.`,
+        message: `I'm on a ONE RIDE ${tripType}! From: ${pickupLabel} To: ${dropoffLabel}. Track my trip on ONE RIDE app.`,
       });
     } catch {
       Alert.alert('Share Trip', 'Share your live trip details with friends and family for safety. This feature will be fully available soon!');
@@ -409,7 +409,7 @@ export default function TrackingScreen({ route, navigation }: any) {
       'Choose an emergency action:',
       [
         { text: 'Call Emergency (911)', style: 'destructive', onPress: () => Linking.openURL('tel:911') },
-        { text: 'Call OMJI Support', onPress: () => Linking.openURL('tel:09123456789') },
+        { text: 'Call ONE RIDE Support', onPress: () => Linking.openURL('tel:09123456789') },
         {
           text: 'Share Live Location',
           onPress: async () => {
@@ -1077,7 +1077,7 @@ export default function TrackingScreen({ route, navigation }: any) {
                   const tipLine = (rideData?.tip && Number(rideData.tip) > 0) ? `Tip: \u20B1${Number(rideData.tip).toFixed(2)}\n` : '';
                   try {
                     await Share.share({
-                      message: `OMJI Trip Receipt\nDate: ${dateStr}\nFrom: ${pickupLabel}\nTo: ${dropoffLabel}\nDistance: ${rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}\nDuration: ${durationStr}\n${tipLine}Fare: \u20B1${Number(rideFare || 0).toFixed(2)}\nPayment: ${paymentInfo.name}\nRef: #${String(rideId).slice(-8).toUpperCase()}\n\nThank you for riding with OMJI!`,
+                      message: `ONE RIDE Trip Receipt\nDate: ${dateStr}\nFrom: ${pickupLabel}\nTo: ${dropoffLabel}\nDistance: ${rideDistance > 0 ? `${Number(rideDistance).toFixed(1)} km` : '--'}\nDuration: ${durationStr}\n${tipLine}Fare: \u20B1${Number(rideFare || 0).toFixed(2)}\nPayment: ${paymentInfo.name}\nRef: #${String(rideId).slice(-8).toUpperCase()}\n\nThank you for riding with ONE RIDE!`,
                     });
                   } catch {
                     // User cancelled share

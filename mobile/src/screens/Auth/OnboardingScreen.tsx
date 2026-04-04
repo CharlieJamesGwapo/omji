@@ -69,7 +69,7 @@ export default function OnboardingScreen({ navigation }: any) {
 
   const completeOnboarding = useCallback(async () => {
     try {
-      await AsyncStorage.setItem('@omji_onboarded', 'true');
+      await AsyncStorage.setItem('@oneride_onboarded', 'true');
     } catch {}
     navigation.replace('Login');
   }, [navigation]);
