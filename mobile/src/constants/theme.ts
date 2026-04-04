@@ -1,15 +1,15 @@
-// OMJI App Theme Constants
+// ONE RIDE App Theme Constants
 // Centralized design system for consistent, professional UI
 
 export const COLORS = {
   // Primary Brand
-  primary: '#EF4444',        // OMJI Red
-  primaryDark: '#DC2626',
-  primaryLight: '#FCA5A5',
+  primary: '#F97316',        // ONE RIDE Orange
+  primaryDark: '#EA580C',
+  primaryLight: '#FDBA74',
   primaryBg: '#FEF2F2',
 
   // Secondary / Accent
-  accent: '#3B82F6',         // Blue
+  accent: '#DC2626',         // Red
   accentDark: '#2563EB',
   accentLight: '#93C5FD',
   accentBg: '#EFF6FF',
@@ -79,7 +79,7 @@ export const COLORS = {
   overlayLight: 'rgba(0, 0, 0, 0.3)',
 
   // Gradient pairs
-  gradientPrimary: ['#EF4444', '#DC2626'] as const,
+  gradientPrimary: ['#F97316', '#EA580C'] as const,
   gradientAccent: ['#3B82F6', '#2563EB'] as const,
   gradientSuccess: ['#10B981', '#059669'] as const,
   gradientPurple: ['#8B5CF6', '#7C3AED'] as const,
