@@ -46,20 +46,39 @@ func InitDB(cfg *config.Config) *gorm.DB {
 
 func MigrateDB(db *gorm.DB) {
 	// Fix type mismatch: older GORM/postgres mapped uint to integer (serial),
-	// but current version maps uint to bigint (bigserial). Align existing PK
-	// columns so FK constraints don't fail with SQLSTATE 42804.
-	typeFixSQL := []string{
-		"ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint",
-		"ALTER TABLE drivers ALTER COLUMN id SET DATA TYPE bigint",
-		"ALTER TABLE stores ALTER COLUMN id SET DATA TYPE bigint",
-		"ALTER TABLE wallets ALTER COLUMN id SET DATA TYPE bigint",
-	}
-	for _, stmt := range typeFixSQL {
-		if err := db.Exec(stmt).Error; err != nil {
-			// Ignore errors: table may not exist yet, or column may already be bigint
-			slog.Info("Type fix migration (may already be applied)", "sql", stmt, "error", err)
-		}
-	}
+	// but current version maps uint to bigint (bigserial). Drop all FK constraints
+	// first (they block ALTER TYPE), convert all integer id/_id columns to bigint,
+	// then let AutoMigrate recreate the constraints.
+	db.Exec(`
+		DO $$
+		DECLARE r RECORD;
+		BEGIN
+			-- Drop all FK constraints so column types can be altered
+			FOR r IN SELECT tc.constraint_name, tc.table_name
+			         FROM information_schema.table_constraints tc
+			         WHERE tc.constraint_type = 'FOREIGN KEY'
+			         AND tc.table_schema = CURRENT_SCHEMA()
+			LOOP
+				EXECUTE 'ALTER TABLE ' || quote_ident(r.table_name) ||
+				        ' DROP CONSTRAINT ' || quote_ident(r.constraint_name);
+			END LOOP;
+
+			-- Convert all integer PK and FK columns to bigint
+			FOR r IN SELECT c.table_name, c.column_name
+			         FROM information_schema.columns c
+			         JOIN information_schema.tables t
+			           ON t.table_name = c.table_name AND t.table_schema = c.table_schema
+			         WHERE c.table_schema = CURRENT_SCHEMA()
+			         AND t.table_type = 'BASE TABLE'
+			         AND c.data_type = 'integer'
+			         AND (c.column_name = 'id' OR c.column_name LIKE '%%_id')
+			LOOP
+				EXECUTE 'ALTER TABLE ' || quote_ident(r.table_name) ||
+				        ' ALTER COLUMN ' || quote_ident(r.column_name) ||
+				        ' SET DATA TYPE bigint';
+			END LOOP;
+		END $$;
+	`)
 
 	if err := models.AutoMigrate(db); err != nil {
 		log.Fatalf("Database migration failed: %v", err)
