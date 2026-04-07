@@ -45,6 +45,22 @@ func InitDB(cfg *config.Config) *gorm.DB {
 }
 
 func MigrateDB(db *gorm.DB) {
+	// Fix type mismatch: older GORM/postgres mapped uint to integer (serial),
+	// but current version maps uint to bigint (bigserial). Align existing PK
+	// columns so FK constraints don't fail with SQLSTATE 42804.
+	typeFixSQL := []string{
+		"ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint",
+		"ALTER TABLE drivers ALTER COLUMN id SET DATA TYPE bigint",
+		"ALTER TABLE stores ALTER COLUMN id SET DATA TYPE bigint",
+		"ALTER TABLE wallets ALTER COLUMN id SET DATA TYPE bigint",
+	}
+	for _, stmt := range typeFixSQL {
+		if err := db.Exec(stmt).Error; err != nil {
+			// Ignore errors: table may not exist yet, or column may already be bigint
+			slog.Info("Type fix migration (may already be applied)", "sql", stmt, "error", err)
+		}
+	}
+
 	if err := models.AutoMigrate(db); err != nil {
 		log.Fatalf("Database migration failed: %v", err)
 	}
