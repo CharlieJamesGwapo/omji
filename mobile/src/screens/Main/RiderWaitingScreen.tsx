@@ -21,6 +21,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
   const progress = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const wsRef = useRef<WebSocket | null>(null);
+  const wsReconnectAttempts = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusRef = useRef(status);
@@ -94,16 +95,22 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    (async () => {
+    let mounted = true;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connectWebSocket = async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         setToast({ visible: true, message: 'Authentication error. Please log in again.', type: 'error' });
         return;
       }
 
-      ws = new WebSocket(getWebSocketUrl(`/ws/tracking/${rideId}`, token));
+      const ws = new WebSocket(getWebSocketUrl(`/ws/tracking/${rideId}`, token));
       wsRef.current = ws;
+
+      ws.onopen = () => {
+        wsReconnectAttempts.current = 0;
+      };
 
       ws.onmessage = (event) => {
         try {
@@ -120,10 +127,22 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
       };
       ws.onclose = (e: any) => {
         console.warn('RiderWaiting WS closed:', e?.code, e?.reason);
+        const s = statusRef.current;
+        if (mounted && s === 'waiting' && wsReconnectAttempts.current < 5) {
+          const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts.current), 30000);
+          wsReconnectAttempts.current += 1;
+          reconnectTimer = setTimeout(connectWebSocket, delay);
+        }
       };
-    })();
+    };
 
-    return () => { if (ws) ws.close(); };
+    connectWebSocket();
+
+    return () => {
+      mounted = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef.current) wsRef.current.close();
+    };
   }, [rideId, handleResponse]);
 
   // Fallback polling — WebSocket handles real-time ride status
