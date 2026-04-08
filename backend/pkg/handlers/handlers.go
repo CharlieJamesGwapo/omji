@@ -4445,7 +4445,8 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 				Longitude float64 `json:"longitude"`
 				Status    string  `json:"status"`
 			}
-			if json.Unmarshal(message, &msg) != nil {
+			if err := json.Unmarshal(message, &msg); err != nil {
+				log.Printf("WebSocketTracking: invalid JSON from ride %s: %v", rideID, err)
 				continue
 			}
 			switch msg.Type {
@@ -4676,7 +4677,8 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 				Latitude  float64 `json:"latitude"`
 				Longitude float64 `json:"longitude"`
 			}
-			if json.Unmarshal(message, &msg) != nil {
+			if err := json.Unmarshal(message, &msg); err != nil {
+				log.Printf("WebSocketDriver: invalid JSON from driver %s: %v", driverID, err)
 				continue
 			}
 			if msg.Type == "location_update" {
@@ -4764,7 +4766,8 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 				Message    string `json:"message"`
 				ImageURL   string `json:"image_url"`
 			}
-			if json.Unmarshal(message, &input) != nil {
+			if err := json.Unmarshal(message, &input); err != nil {
+				log.Printf("WebSocketChat: invalid JSON for ride %s: %v", rideID, err)
 				continue
 			}
 
