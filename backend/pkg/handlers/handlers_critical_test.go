@@ -434,3 +434,19 @@ func TestCreateCommissionRecord_WalletPayment_DeductsFromDriver(t *testing.T) {
 	require.NoError(t, db.First(&updatedDriver, driver.ID).Error)
 	assert.Less(t, updatedDriver.TotalEarnings, 500.0, "driver earnings should be deducted")
 }
+
+func TestCreateCommissionRecord_LocksDriverRow(t *testing.T) {
+	db := setupTestDB(t)
+	db.Create(&models.CommissionConfig{Percentage: 10.0, IsActive: true})
+	user := seedUser(t, db, "Driver User", "driver@test.com", "driver")
+	driver := seedDriver(t, db, user.ID)
+	db.Model(&driver).Update("total_earnings", 1000.0)
+
+	tx := db.Begin()
+	createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "wallet")
+	tx.Commit()
+
+	var updated models.Driver
+	db.First(&updated, driver.ID)
+	assert.InDelta(t, 980.0, updated.TotalEarnings, 0.01, "earnings should be reduced by commission amount")
+}

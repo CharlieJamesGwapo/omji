@@ -61,9 +61,11 @@ func createCommissionRecord(tx *gorm.DB, serviceType string, serviceID uint, dri
 	status := "pending_collection"
 	if paymentMethod == "wallet" {
 		status = "deducted"
-		// Deduct commission from driver's total_earnings
-		if err := tx.Model(&models.Driver{}).Where("id = ?", driverID).
-			Update("total_earnings", gorm.Expr("total_earnings - ?", commissionAmount)).Error; err != nil {
+		// Lock driver row then deduct commission from total_earnings
+		var driver models.Driver
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, driverID).Error; err != nil {
+			log.Printf("Failed to lock driver %d for commission deduction: %v", driverID, err)
+		} else if err := tx.Model(&driver).Update("total_earnings", gorm.Expr("total_earnings - ?", commissionAmount)).Error; err != nil {
 			log.Printf("Failed to deduct commission from driver %d earnings: %v", driverID, err)
 		}
 	}
