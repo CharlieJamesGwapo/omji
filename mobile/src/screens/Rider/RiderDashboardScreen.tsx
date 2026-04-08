@@ -294,7 +294,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
         }
       } catch {}
     };
-    const interval = setInterval(updateLocation, 30000);
+    // Update driver location every 60s to balance accuracy with battery life
+    const interval = setInterval(updateLocation, 60000);
     return () => clearInterval(interval);
   }, [isOnline]);
 

@@ -121,6 +121,8 @@ export interface Store {
   address: string;
   category: string;
   logo: string;
+  opening_hours: string;
+  is_open: boolean;
   is_verified: boolean;
   rating: number;
   total_ratings: number;
@@ -135,6 +137,7 @@ export interface MenuItem {
   id: number;
   store_id: number;
   name: string;
+  description?: string;
   price: number;
   image?: string;
   category: string;

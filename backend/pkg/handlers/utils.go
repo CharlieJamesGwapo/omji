@@ -3,9 +3,14 @@ package handlers
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"math/big"
+	"net/http"
+	"net/smtp"
+	"net/url"
+	"os"
 	"time"
 
 	"oneride/pkg/models"
@@ -66,17 +71,71 @@ func GetOrderDeliveryFeeFromDB(db *gorm.DB) float64 {
 	return 30.0
 }
 
-// TODO: Replace with a real email provider (e.g., SendGrid, AWS SES, Mailgun)
+// SendOTPEmail sends an OTP via SMTP email.
+// Requires SMTP_USER and SMTP_PASS env vars. If not set, logs the request and returns nil (dev mode).
 func SendOTPEmail(email, otp string) error {
-	// OTP is not logged to stdout for security
-	log.Printf("OTP email requested for %s", email)
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+	if smtpUser == "" || smtpPass == "" {
+		log.Printf("OTP email requested for %s (SMTP not configured, dev mode)", email)
+		return nil
+	}
+
+	smtpHost := os.Getenv("SMTP_HOST")
+	if smtpHost == "" {
+		smtpHost = "smtp.gmail.com"
+	}
+	smtpPort := os.Getenv("SMTP_PORT")
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
+
+	subject := "ONE RIDE - Verification Code"
+	body := fmt.Sprintf("Your ONE RIDE verification code is: %s\n\nThis code is valid for 5 minutes.\n\nIf you did not request this, please ignore this email.", otp)
+
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", smtpUser, email, subject, body)
+
+	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
+	addr := smtpHost + ":" + smtpPort
+
+	if err := smtp.SendMail(addr, auth, smtpUser, []string{email}, []byte(msg)); err != nil {
+		log.Printf("Failed to send OTP email to %s: %v", email, err)
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	log.Printf("OTP email sent to %s", email)
 	return nil
 }
 
-// TODO: Replace with a real SMS provider (e.g., Twilio, Vonage, Semaphore)
+// SendOTPSMS sends an OTP via Semaphore SMS API.
+// Requires SEMAPHORE_API_KEY env var. If not set, logs the OTP request and returns nil (dev mode).
 func SendOTPSMS(phone, otp string) error {
-	// OTP is not logged to stdout for security
-	log.Printf("OTP SMS requested for %s", phone)
+	apiKey := os.Getenv("SEMAPHORE_API_KEY")
+	if apiKey == "" {
+		log.Printf("OTP SMS requested for %s (SEMAPHORE_API_KEY not set, dev mode)", phone)
+		return nil
+	}
+
+	message := fmt.Sprintf("Your ONE RIDE verification code is: %s. Valid for 5 minutes.", otp)
+
+	resp, err := http.PostForm("https://api.semaphore.co/api/v4/messages", url.Values{
+		"apikey":  {apiKey},
+		"number":  {phone},
+		"message": {message},
+	})
+	if err != nil {
+		log.Printf("Failed to send OTP SMS to %s: %v", phone, err)
+		return fmt.Errorf("failed to send SMS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Semaphore SMS API error for %s: status=%d body=%s", phone, resp.StatusCode, string(body))
+		return fmt.Errorf("SMS API returned status %d", resp.StatusCode)
+	}
+
+	log.Printf("OTP SMS sent to %s via Semaphore", phone)
 	return nil
 }
 
@@ -174,4 +233,9 @@ func GetRoadDistance(clientDistance, lat1, lon1, lat2, lon2 float64) float64 {
 	}
 	// Fallback: Haversine × 1.4 road factor
 	return math.Round(haversine*1.4*10) / 10
+}
+
+// validCoordinates returns true if lat/lng are within valid ranges.
+func validCoordinates(lat, lng float64) bool {
+	return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
 }

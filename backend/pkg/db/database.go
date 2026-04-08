@@ -53,6 +53,21 @@ func MigrateDB(db *gorm.DB) {
 		slog.Info("users.id column type", "type", colType)
 	}
 
+	// Fix UUID primary keys: if any table has uuid-typed id columns, drop and recreate.
+	// This happens when the Render DB was initialized with uuid defaults instead of bigint.
+	type uuidCol struct {
+		TableName string `gorm:"column:table_name"`
+	}
+	var uuidTables []uuidCol
+	db.Raw("SELECT c.table_name FROM information_schema.columns c JOIN information_schema.tables t ON t.table_name = c.table_name AND t.table_schema = c.table_schema WHERE c.table_schema = CURRENT_SCHEMA() AND t.table_type = 'BASE TABLE' AND c.column_name = 'id' AND c.data_type = 'uuid'").Scan(&uuidTables)
+	if len(uuidTables) > 0 {
+		slog.Warn("Found tables with UUID primary keys, dropping and recreating", "count", len(uuidTables))
+		for _, t := range uuidTables {
+			slog.Warn("Dropping table with UUID pk", "table", t.TableName)
+			db.Exec("DROP TABLE IF EXISTS " + t.TableName + " CASCADE")
+		}
+	}
+
 	// Drop all FK constraints so column types can be altered, then convert integer columns to bigint.
 	type fkRecord struct {
 		TableName      string `gorm:"column:table_name"`

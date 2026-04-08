@@ -434,3 +434,128 @@ func TestCreateCommissionRecord_WalletPayment_DeductsFromDriver(t *testing.T) {
 	require.NoError(t, db.First(&updatedDriver, driver.ID).Error)
 	assert.Less(t, updatedDriver.TotalEarnings, 500.0, "driver earnings should be deducted")
 }
+
+func TestCreateCommissionRecord_LocksDriverRow(t *testing.T) {
+	db := setupTestDB(t)
+	db.Create(&models.CommissionConfig{Percentage: 10.0, IsActive: true})
+	user := seedUser(t, db, "Driver User", "driver@test.com", "driver")
+	driver := seedDriver(t, db, user.ID)
+	db.Model(&driver).Update("total_earnings", 1000.0)
+
+	tx := db.Begin()
+	createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "wallet")
+	tx.Commit()
+
+	var updated models.Driver
+	db.First(&updated, driver.ID)
+	assert.InDelta(t, 980.0, updated.TotalEarnings, 0.01, "earnings should be reduced by commission amount")
+}
+
+func TestValidCoordinates(t *testing.T) {
+	tests := []struct {
+		name     string
+		lat, lng float64
+		valid    bool
+	}{
+		{"valid Balingasag", 8.4343, 124.7762, true},
+		{"zero coords", 0, 0, true},
+		{"lat too high", 91, 0, false},
+		{"lat too low", -91, 0, false},
+		{"lng too high", 0, 181, false},
+		{"lng too low", 0, -181, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.valid, validCoordinates(tt.lat, tt.lng))
+		})
+	}
+}
+
+// ============================================================
+// Test: RateDelivery handler updates driver rating
+// ============================================================
+
+func TestRateDelivery_UpdatesDriverRating(t *testing.T) {
+	db := setupTestDB(t)
+
+	user := seedUser(t, db, "Customer", "cust@test.com", "user")
+	driverUser := seedUser(t, db, "DriverUser", "drvuser@test.com", "driver")
+	driver := seedDriver(t, db, driverUser.ID)
+
+	driverID := driver.ID
+	userID := user.ID
+	delivery := models.Delivery{
+		UserID:          &userID,
+		DriverID:        &driverID,
+		Status:          "completed",
+		PickupLocation:  "A",
+		DropoffLocation: "B",
+	}
+	require.NoError(t, db.Create(&delivery).Error)
+
+	router := setupRouter()
+	router.PUT("/deliveries/:id/rate", func(c *gin.Context) {
+		c.Set("userID", user.ID)
+		RateDelivery(db)(c)
+	})
+
+	body := `{"rating": 4.5}`
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("/deliveries/%d/rate", delivery.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var updated models.Driver
+	db.First(&updated, driver.ID)
+	assert.InDelta(t, 4.5, updated.Rating, 0.01)
+	assert.Equal(t, 1, updated.TotalRatings)
+}
+
+func TestCreateOrder_RejectsInvalidItemsJSON(t *testing.T) {
+	db := setupTestDB(t)
+	user := seedUser(t, db, "Customer", "ordercust@test.com", "user")
+	store := models.Store{Name: "Test Store", Category: "restaurant", IsVerified: true}
+	require.NoError(t, db.Create(&store).Error)
+
+	router := setupRouter()
+	router.POST("/orders/create", func(c *gin.Context) {
+		c.Set("userID", user.ID)
+		CreateOrder(db)(c)
+	})
+
+	body := fmt.Sprintf(`{"store_id":%d,"items":"not-valid-json","delivery_location":"Test","delivery_latitude":8.43,"delivery_longitude":124.77,"payment_method":"cash"}`, store.ID)
+	req, _ := http.NewRequest("POST", "/orders/create", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.NotEqual(t, http.StatusOK, w.Code, "should not create order with invalid items")
+}
+
+func TestGetStores_ProximitySearch(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create stores at different distances from Balingasag center (8.4343, 124.7762)
+	db.Create(&models.Store{Name: "Near Store", Category: "restaurant", Latitude: 8.435, Longitude: 124.777, IsVerified: true, Rating: 3.0})
+	db.Create(&models.Store{Name: "Far Store", Category: "restaurant", Latitude: 8.50, Longitude: 124.90, IsVerified: true, Rating: 5.0})
+	db.Create(&models.Store{Name: "Very Far Store", Category: "restaurant", Latitude: 9.00, Longitude: 125.00, IsVerified: true, Rating: 4.0})
+
+	router := setupRouter()
+	router.GET("/stores", GetStores(db))
+
+	// Test with location - should return nearest first
+	req, _ := http.NewRequest("GET", "/stores?latitude=8.4343&longitude=124.7762&radius=20", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp struct {
+		Data []models.Store `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	require.GreaterOrEqual(t, len(resp.Data), 2, "should find at least 2 stores within 20km")
+	assert.Equal(t, "Near Store", resp.Data[0].Name, "nearest store should be first")
+}

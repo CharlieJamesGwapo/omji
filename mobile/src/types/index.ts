@@ -212,6 +212,7 @@ export interface Store {
   cover_image?: string;
   rating: number;
   is_open: boolean;
+  opening_hours?: string;
   latitude?: number;
   longitude?: number;
 }
