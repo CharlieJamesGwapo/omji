@@ -73,7 +73,7 @@ const CommissionPage: React.FC = () => {
       setRecords(Array.isArray(recordsData) ? recordsData : recordsData?.records || []);
       setTotal(Array.isArray(recordsData) ? recordsData.length : recordsData?.total || 0);
     } catch {
-      toast.error('Failed to load maintenance rate data');
+      toast.error('Failed to load commission data');
     } finally {
       setLoading(false);
     }
@@ -92,11 +92,11 @@ const CommissionPage: React.FC = () => {
     try {
       setSaving(true);
       await adminService.updateCommissionConfig({ percentage: pct });
-      toast.success(`Maintenance rate updated to ${pct}%`);
+      toast.success(`Commission rate updated to ${pct}%`);
       setShowEditModal(false);
       fetchData();
     } catch {
-      toast.error('Failed to update maintenance rate');
+      toast.error('Failed to update commission rate');
     } finally {
       setSaving(false);
     }
@@ -128,15 +128,15 @@ const CommissionPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Maintenance Rate</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage platform maintenance rate and view earnings</p>
+        <h1 className="text-xl font-bold text-gray-900">Commission Rate</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Manage platform commission rate and view earnings</p>
       </div>
 
       {/* Commission Rate Card */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-500">Current Maintenance Rate</p>
+            <p className="text-sm font-medium text-gray-500">Current Commission Rate</p>
             <p className="text-4xl font-bold text-emerald-600 mt-1">{config?.percentage ?? 0}%</p>
             {config?.updated_at && (
               <p className="text-xs text-gray-400 mt-1">Last updated: {formatDate(config.updated_at)}</p>
@@ -155,7 +155,7 @@ const CommissionPage: React.FC = () => {
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Maintenance</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Commission</p>
             <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(summary.total_commission)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -231,7 +231,7 @@ const CommissionPage: React.FC = () => {
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Driver</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Total Fare</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Rate</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Maintenance</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-500">Commission</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-500">Payment</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-500">Status</th>
               </tr>
@@ -240,7 +240,7 @@ const CommissionPage: React.FC = () => {
               {records.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
-                    No maintenance rate records found
+                    No commission records found
                   </td>
                 </tr>
               ) : (
@@ -309,7 +309,7 @@ const CommissionPage: React.FC = () => {
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Maintenance Rate</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Commission Rate</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Percentage (%)</label>
               <input
