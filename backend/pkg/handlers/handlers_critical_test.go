@@ -533,3 +533,29 @@ func TestCreateOrder_RejectsInvalidItemsJSON(t *testing.T) {
 
 	assert.NotEqual(t, http.StatusOK, w.Code, "should not create order with invalid items")
 }
+
+func TestGetStores_ProximitySearch(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create stores at different distances from Balingasag center (8.4343, 124.7762)
+	db.Create(&models.Store{Name: "Near Store", Category: "restaurant", Latitude: 8.435, Longitude: 124.777, IsVerified: true, Rating: 3.0})
+	db.Create(&models.Store{Name: "Far Store", Category: "restaurant", Latitude: 8.50, Longitude: 124.90, IsVerified: true, Rating: 5.0})
+	db.Create(&models.Store{Name: "Very Far Store", Category: "restaurant", Latitude: 9.00, Longitude: 125.00, IsVerified: true, Rating: 4.0})
+
+	router := setupRouter()
+	router.GET("/stores", GetStores(db))
+
+	// Test with location - should return nearest first
+	req, _ := http.NewRequest("GET", "/stores?latitude=8.4343&longitude=124.7762&radius=20", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp struct {
+		Data []models.Store `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	require.GreaterOrEqual(t, len(resp.Data), 2, "should find at least 2 stores within 20km")
+	assert.Equal(t, "Near Store", resp.Data[0].Name, "nearest store should be first")
+}

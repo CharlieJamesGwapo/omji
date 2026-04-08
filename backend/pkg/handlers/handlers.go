@@ -1306,7 +1306,7 @@ func GetStores(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		category := c.Query("category")
 		var stores []models.Store
-		q := db.Order("rating DESC")
+		q := db.Model(&models.Store{})
 		if category != "" {
 			q = q.Where("category = ?", category)
 		}
@@ -1314,7 +1314,43 @@ func GetStores(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch stores"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "timestamp": time.Now()})
+
+		// If lat/lng provided, calculate distance and sort by proximity
+		lat, latErr := strconv.ParseFloat(c.Query("latitude"), 64)
+		lng, lngErr := strconv.ParseFloat(c.Query("longitude"), 64)
+		if latErr == nil && lngErr == nil && validCoordinates(lat, lng) {
+			radius := 10.0
+			if r, err := strconv.ParseFloat(c.Query("radius"), 64); err == nil && r > 0 {
+				radius = r
+			}
+
+			type storeWithDist struct {
+				Store    models.Store
+				Distance float64
+			}
+			var nearby []storeWithDist
+			for _, s := range stores {
+				dist := GetDistance(lat, lng, s.Latitude, s.Longitude)
+				if dist <= radius {
+					nearby = append(nearby, storeWithDist{Store: s, Distance: dist})
+				}
+			}
+			sort.Slice(nearby, func(i, j int) bool {
+				return nearby[i].Distance < nearby[j].Distance
+			})
+			result := make([]models.Store, len(nearby))
+			for i, n := range nearby {
+				result[i] = n.Store
+			}
+			c.JSON(http.StatusOK, gin.H{"success": true, "data": result, "count": len(result), "timestamp": time.Now()})
+			return
+		}
+
+		// No location: sort by rating (default)
+		sort.Slice(stores, func(i, j int) bool {
+			return stores[i].Rating > stores[j].Rating
+		})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "count": len(stores), "timestamp": time.Now()})
 	}
 }
 
