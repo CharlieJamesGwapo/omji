@@ -137,6 +137,7 @@ export interface MenuItem {
   id: number;
   store_id: number;
   name: string;
+  description?: string;
   price: number;
   image?: string;
   category: string;

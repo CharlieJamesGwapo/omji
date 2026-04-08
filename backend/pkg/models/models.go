@@ -204,8 +204,9 @@ type MenuItem struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	StoreID   uint      `json:"store_id"`
 	Store     Store
-	Name      string    `json:"name"`
-	Price     float64   `json:"price"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Price       float64   `json:"price"`
 	Image     string    `json:"image"`
 	Category  string    `json:"category"` // food, drink, etc.
 	Available bool      `gorm:"default:true" json:"available"`

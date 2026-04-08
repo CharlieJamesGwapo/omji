@@ -23,6 +23,7 @@ const emptyStoreForm = {
 
 const emptyMenuForm = {
   name: '',
+  description: '',
   price: 0,
   category: 'food',
   image: '',
@@ -229,6 +230,7 @@ export default function StoresPage() {
     setEditingMenuItem(item);
     setMenuForm({
       name: item.name || '',
+      description: item.description || '',
       price: item.price || 0,
       category: item.category || 'food',
       image: item.image || '',
@@ -831,6 +833,18 @@ export default function StoresPage() {
                         placeholder="e.g. Chicken Joy"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                      <textarea
+                        value={menuForm.description}
+                        onChange={e => setMenuForm(prev => ({ ...prev, description: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                        placeholder="Brief description of the item"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Price (PHP)</label>
                       <input
