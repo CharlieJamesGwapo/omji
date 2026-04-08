@@ -126,7 +126,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
     return () => { if (ws) ws.close(); };
   }, [rideId, handleResponse]);
 
-  // Polling fallback — check ride status every 3s
+  // Fallback polling — WebSocket handles real-time ride status
   useEffect(() => {
     pollRef.current = setInterval(async () => {
       try {
@@ -136,7 +136,7 @@ export default function RiderWaitingScreen({ navigation, route }: any) {
         if (ride.status === 'accepted') handleResponse('ride_accepted');
         else if (ride.status === 'cancelled') handleResponse('ride_declined');
       } catch {}
-    }, 3000);
+    }, 10000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [rideId, handleResponse]);
 
