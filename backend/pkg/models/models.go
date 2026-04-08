@@ -188,6 +188,8 @@ type Store struct {
 	Phone         string    `json:"phone"`
 	Description   string    `json:"description"`
 	Logo          string    `json:"logo"`
+	OpeningHours  string    `gorm:"default:'06:00-23:00'" json:"opening_hours"`
+	IsOpen        bool      `gorm:"default:true" json:"is_open"`
 	IsVerified    bool      `gorm:"default:false" json:"is_verified"`
 	Rating        float64   `gorm:"default:5" json:"rating"`
 	TotalRatings  int       `gorm:"default:0" json:"total_ratings"`

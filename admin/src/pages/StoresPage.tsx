@@ -16,6 +16,8 @@ const emptyStoreForm = {
   phone: '',
   description: '',
   logo: '',
+  opening_hours: '06:00-23:00',
+  is_open: true,
   is_verified: false,
 };
 
@@ -137,6 +139,8 @@ export default function StoresPage() {
       phone: store.phone || '',
       description: store.description || '',
       logo: store.logo || '',
+      opening_hours: store.opening_hours || '06:00-23:00',
+      is_open: store.is_open ?? true,
       is_verified: store.is_verified,
     });
     setShowStoreModal(true);
@@ -730,6 +734,38 @@ export default function StoresPage() {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
               placeholder="https://example.com/logo.png"
             />
+          </div>
+
+          {/* Operating Hours */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Operating Hours</label>
+            <input
+              type="text"
+              value={storeForm.opening_hours}
+              onChange={e => setStoreForm(prev => ({ ...prev, opening_hours: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+              placeholder="06:00-23:00"
+            />
+          </div>
+
+          {/* Currently Open Toggle */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Currently Open</p>
+              <p className="text-xs text-gray-500">Toggle store open/closed status</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStoreForm(prev => ({ ...prev, is_open: !prev.is_open }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                storeForm.is_open ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+              aria-label="Toggle open status"
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                storeForm.is_open ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
           </div>
 
           {/* Verified Toggle */}
