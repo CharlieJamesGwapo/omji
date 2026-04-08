@@ -153,7 +153,8 @@ export const deliveryService = {
 
 // Store Services
 export const storeService = {
-  getStores: (category?: string) => api.get('/stores', { params: category ? { category } : {} }),
+  getStores: (params?: { category?: string; latitude?: number; longitude?: number; radius?: number }) =>
+    api.get('/stores', { params }),
   getStoreMenu: (id: number) => api.get(`/stores/${id}/menu`),
 };
 

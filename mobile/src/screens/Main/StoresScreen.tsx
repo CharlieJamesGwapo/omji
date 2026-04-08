@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { storeService } from '../../services/api';
+import { useLocationDetection } from '../../hooks';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
@@ -27,6 +28,8 @@ interface StoreItem {
   phone: string;
   description: string;
   is_verified: boolean;
+  is_open?: boolean;
+  opening_hours?: string;
 }
 
 const CATEGORY_STYLES: Record<string, { gradient: string; icon: string; emoji: string }> = {
@@ -34,12 +37,6 @@ const CATEGORY_STYLES: Record<string, { gradient: string; icon: string; emoji: s
   grocery: { gradient: COLORS.primaryDark, icon: 'cart', emoji: '' },
   pharmacy: { gradient: COLORS.primaryDark, icon: 'medical', emoji: '' },
   retail: { gradient: COLORS.primaryDark, icon: 'bag', emoji: '' },
-};
-
-// Check store open/closed based on current hour (6am-11pm operating hours)
-const isStoreOpen = (): boolean => {
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 23;
 };
 
 export default function StoresScreen({ navigation }: any) {
@@ -50,6 +47,7 @@ export default function StoresScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const { location } = useLocationDetection();
 
   const searchBorderAnim = useRef(new Animated.Value(0)).current;
 
@@ -87,7 +85,11 @@ export default function StoresScreen({ navigation }: any) {
   const fetchStores = useCallback(async () => {
     try {
       setFetchError(false);
-      const response = await storeService.getStores();
+      const response = await storeService.getStores({
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        latitude: location?.latitude || undefined,
+        longitude: location?.longitude || undefined,
+      });
       const data = response.data?.data;
       setStores(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -98,7 +100,7 @@ export default function StoresScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedCategory, location?.latitude, location?.longitude]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -106,19 +108,18 @@ export default function StoresScreen({ navigation }: any) {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchStores();
   }, [fetchStores]);
 
   const filteredStores = (stores || []).filter((store) => {
-    const matchesCategory = selectedCategory === 'all' || store.category === selectedCategory;
     const matchesSearch = searchQuery === '' ||
       store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (store.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesSearch;
   });
 
   const featuredStores = filteredStores.filter(store => store.is_verified);
-  const storeOpen = isStoreOpen();
 
   const getCategoryColor = (categoryId: string): string => {
     return CATEGORY_STYLES[categoryId]?.gradient || COLORS.gray500;
@@ -303,11 +304,11 @@ export default function StoresScreen({ navigation }: any) {
                       {/* Open/Closed badge */}
                       <View style={[
                         styles.openBadgeFeatured,
-                        { backgroundColor: storeOpen ? COLORS.success : COLORS.error },
+                        { backgroundColor: store.is_open ? COLORS.success : COLORS.error },
                       ]}>
                         <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.white }} />
                         <Text style={styles.openBadgeFeaturedText}>
-                          {storeOpen ? 'Open' : 'Closed'}
+                          {store.is_open ? 'Open' : 'Closed'}
                         </Text>
                       </View>
                       {/* Rating badge */}
@@ -326,6 +327,12 @@ export default function StoresScreen({ navigation }: any) {
                           {store.address || store.category}
                         </Text>
                       </View>
+                      {!!store.opening_hours && (
+                        <View style={[styles.featuredMeta, { marginTop: verticalScale(2) }]}>
+                          <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.gray400} />
+                          <Text style={styles.featuredMetaText}>{store.opening_hours}</Text>
+                        </View>
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
@@ -380,7 +387,7 @@ export default function StoresScreen({ navigation }: any) {
                       color={COLORS.white}
                     />
                   </View>
-                  {storeOpen && (
+                  {store.is_open && (
                     <View style={styles.openDotSmall}>
                       <View style={{ width: moderateScale(6), height: moderateScale(6), borderRadius: moderateScale(3), backgroundColor: COLORS.primaryDark }} />
                     </View>
@@ -406,10 +413,13 @@ export default function StoresScreen({ navigation }: any) {
                         {store.category}
                       </Text>
                     </View>
-                    {storeOpen ? (
+                    {store.is_open ? (
                       <Text style={styles.openText}>Open</Text>
                     ) : (
                       <Text style={styles.closedText}>Closed</Text>
+                    )}
+                    {!!store.opening_hours && (
+                      <Text style={styles.storeHoursText}>{store.opening_hours}</Text>
                     )}
                   </View>
 
@@ -785,6 +795,10 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '700',
     color: COLORS.error,
+  },
+  storeHoursText: {
+    fontSize: fontScale(10),
+    color: COLORS.gray400,
   },
   storeInfoRow: {
     flexDirection: 'row',
