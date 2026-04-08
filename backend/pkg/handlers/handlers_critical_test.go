@@ -512,3 +512,24 @@ func TestRateDelivery_UpdatesDriverRating(t *testing.T) {
 	assert.InDelta(t, 4.5, updated.Rating, 0.01)
 	assert.Equal(t, 1, updated.TotalRatings)
 }
+
+func TestCreateOrder_RejectsInvalidItemsJSON(t *testing.T) {
+	db := setupTestDB(t)
+	user := seedUser(t, db, "Customer", "ordercust@test.com", "user")
+	store := models.Store{Name: "Test Store", Category: "restaurant", IsVerified: true}
+	require.NoError(t, db.Create(&store).Error)
+
+	router := setupRouter()
+	router.POST("/orders/create", func(c *gin.Context) {
+		c.Set("userID", user.ID)
+		CreateOrder(db)(c)
+	})
+
+	body := fmt.Sprintf(`{"store_id":%d,"items":"not-valid-json","delivery_location":"Test","delivery_latitude":8.43,"delivery_longitude":124.77,"payment_method":"cash"}`, store.ID)
+	req, _ := http.NewRequest("POST", "/orders/create", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.NotEqual(t, http.StatusOK, w.Code, "should not create order with invalid items")
+}

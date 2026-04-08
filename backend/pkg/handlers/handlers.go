@@ -1357,27 +1357,29 @@ func CreateOrder(db *gorm.DB) gin.HandlerFunc {
 			ItemID   uint `json:"item_id"`
 			Quantity int  `json:"quantity"`
 		}
-		if err := json.Unmarshal(input.Items, &orderItems); err == nil {
-			itemIDs := make([]uint, 0, len(orderItems))
-			for _, item := range orderItems {
-				if item.Quantity > 0 && item.ItemID > 0 {
-					itemIDs = append(itemIDs, item.ItemID)
-				}
+		if err := json.Unmarshal(input.Items, &orderItems); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid items format"})
+			return
+		}
+		itemIDs := make([]uint, 0, len(orderItems))
+		for _, item := range orderItems {
+			if item.Quantity > 0 && item.ItemID > 0 {
+				itemIDs = append(itemIDs, item.ItemID)
 			}
-			if len(itemIDs) > 0 {
-				var menuItems []models.MenuItem
-				if err := db.Where("id IN ? AND store_id = ?", itemIDs, input.StoreID).Find(&menuItems).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify order items"})
-					return
-				}
-				priceMap := make(map[uint]float64, len(menuItems))
-				for _, mi := range menuItems {
-					priceMap[mi.ID] = mi.Price
-				}
-				for _, item := range orderItems {
-					if price, ok := priceMap[item.ItemID]; ok && item.Quantity > 0 {
-						subtotal += price * float64(item.Quantity)
-					}
+		}
+		if len(itemIDs) > 0 {
+			var menuItems []models.MenuItem
+			if err := db.Where("id IN ? AND store_id = ?", itemIDs, input.StoreID).Find(&menuItems).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify order items"})
+				return
+			}
+			priceMap := make(map[uint]float64, len(menuItems))
+			for _, mi := range menuItems {
+				priceMap[mi.ID] = mi.Price
+			}
+			for _, item := range orderItems {
+				if price, ok := priceMap[item.ItemID]; ok && item.Quantity > 0 {
+					subtotal += price * float64(item.Quantity)
 				}
 			}
 		}
