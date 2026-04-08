@@ -470,3 +470,45 @@ func TestValidCoordinates(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================
+// Test: RateDelivery handler updates driver rating
+// ============================================================
+
+func TestRateDelivery_UpdatesDriverRating(t *testing.T) {
+	db := setupTestDB(t)
+
+	user := seedUser(t, db, "Customer", "cust@test.com", "user")
+	driverUser := seedUser(t, db, "DriverUser", "drvuser@test.com", "driver")
+	driver := seedDriver(t, db, driverUser.ID)
+
+	driverID := driver.ID
+	userID := user.ID
+	delivery := models.Delivery{
+		UserID:          &userID,
+		DriverID:        &driverID,
+		Status:          "completed",
+		PickupLocation:  "A",
+		DropoffLocation: "B",
+	}
+	require.NoError(t, db.Create(&delivery).Error)
+
+	router := setupRouter()
+	router.PUT("/deliveries/:id/rate", func(c *gin.Context) {
+		c.Set("userID", user.ID)
+		RateDelivery(db)(c)
+	})
+
+	body := `{"rating": 4.5}`
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("/deliveries/%d/rate", delivery.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var updated models.Driver
+	db.First(&updated, driver.ID)
+	assert.InDelta(t, 4.5, updated.Rating, 0.01)
+	assert.Equal(t, 1, updated.TotalRatings)
+}
