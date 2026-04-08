@@ -2803,7 +2803,8 @@ func GetAllDrivers(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Driver{}).Count(&total)
 		if err := db.Preload("User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&drivers).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch drivers"})
+			log.Printf("GetAllDrivers: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch drivers: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": drivers, "count": len(drivers), "total": total, "timestamp": time.Now()})
@@ -2888,7 +2889,8 @@ func AdminGetAllStores(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Store{}).Count(&total)
 		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&stores).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch stores"})
+			log.Printf("GetAllStores: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch stores: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": stores, "count": len(stores), "total": total, "timestamp": time.Now()})
@@ -3266,7 +3268,8 @@ func GetAllPromos(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Promo{}).Count(&total)
 		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&promos).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch promos"})
+			log.Printf("AdminGetAllPromos: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch promos: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promos, "count": len(promos), "total": total, "timestamp": time.Now()})
@@ -3383,7 +3386,8 @@ func AdminGetAllRides(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Ride{}).Count(&total)
 		if err := db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&rides).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rides"})
+			log.Printf("AdminGetAllRides: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rides: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": rides, "count": len(rides), "total": total, "timestamp": time.Now()})
@@ -3405,7 +3409,8 @@ func AdminGetAllDeliveries(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Delivery{}).Count(&total)
 		if err := db.Preload("User").Preload("Driver").Preload("Driver.User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&deliveries).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch deliveries"})
+			log.Printf("AdminGetAllDeliveries: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch deliveries: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": deliveries, "count": len(deliveries), "total": total, "timestamp": time.Now()})
@@ -3427,7 +3432,8 @@ func AdminGetAllOrders(db *gorm.DB) gin.HandlerFunc {
 		var total int64
 		db.Model(&models.Order{}).Count(&total)
 		if err := db.Preload("User").Preload("Store").Order("created_at DESC").Limit(limit).Offset(offset).Find(&orders).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch orders"})
+			log.Printf("AdminGetAllOrders: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch orders: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": orders, "count": len(orders), "total": total, "timestamp": time.Now()})
@@ -3594,7 +3600,8 @@ func AdminGetNotifications(db *gorm.DB) gin.HandlerFunc {
 		}
 		var notifications []models.Notification
 		if err := db.Order("created_at DESC").Limit(limit).Find(&notifications).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch notifications"})
+			log.Printf("AdminGetNotifications: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch notifications: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": notifications, "count": len(notifications), "timestamp": time.Now()})
@@ -4077,7 +4084,8 @@ func AdminGetWithdrawals(db *gorm.DB) gin.HandlerFunc {
 			Preload("Driver").Preload("Driver.User").
 			Order("created_at DESC").
 			Find(&withdrawals).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch withdrawals"})
+			log.Printf("AdminGetWithdrawals: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch withdrawals: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawals})
@@ -4881,7 +4889,8 @@ func AdminGetRates(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var rates []models.RateConfig
 		if err := db.Order("service_type, vehicle_type").Find(&rates).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rates"})
+			log.Printf("AdminGetRates: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch rates: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": rates})
@@ -5145,7 +5154,8 @@ func AdminGetMenuItems(db *gorm.DB) gin.HandlerFunc {
 		}
 		var items []models.MenuItem
 		if err := db.Where("store_id = ?", storeId).Order("category, name").Find(&items).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch menu items"})
+			log.Printf("AdminGetMenuItems: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch menu items: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "count": len(items), "timestamp": time.Now()})
@@ -5266,7 +5276,8 @@ func AdminGetPaymentConfigs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var configs []models.PaymentConfig
 		if err := db.Order("type").Find(&configs).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment configs"})
+			log.Printf("AdminGetPaymentConfigs: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment configs: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": configs, "count": len(configs)})
@@ -5647,7 +5658,8 @@ func AdminGetCommissionRecords(db *gorm.DB) gin.HandlerFunc {
 
 		var records []models.CommissionRecord
 		if err := query.Preload("Driver.User").Order("created_at DESC").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch commission records"})
+			log.Printf("AdminGetCommissionRecords: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch commission records: " + err.Error()})
 			return
 		}
 
@@ -6071,7 +6083,8 @@ func AdminGetAnnouncements(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Session(&gorm.Session{SkipDefaultTransaction: true}).
 			Order("created_at DESC").
 			Find(&announcements).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch announcements"})
+			log.Printf("AdminGetAnnouncements: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch announcements: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": announcements, "timestamp": time.Now()})
@@ -6239,7 +6252,8 @@ func AdminGetReferrals(db *gorm.DB) gin.HandlerFunc {
 
 		var referrals []models.Referral
 		if err := db.Order("created_at DESC").Find(&referrals).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load referrals"})
+			log.Printf("AdminGetReferrals: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load referrals: " + err.Error()})
 			return
 		}
 
@@ -6473,7 +6487,8 @@ func AdminGetPaymentProofs(db *gorm.DB) gin.HandlerFunc {
 
 		var proofs []models.PaymentProof
 		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&proofs).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment proofs"})
+			log.Printf("AdminGetPaymentProofs: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch payment proofs: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": proofs, "total": total, "page": page, "limit": limit})
