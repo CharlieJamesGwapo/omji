@@ -2670,9 +2670,12 @@ func GetAllUsers(db *gorm.DB) gin.HandlerFunc {
 		}
 		var users []models.User
 		var total int64
-		db.Model(&models.User{}).Count(&total)
+		if err := db.Model(&models.User{}).Count(&total).Error; err != nil {
+			log.Printf("GetAllUsers: count error: %v", err)
+		}
 		if err := db.Order("created_at DESC").Limit(limit).Offset(offset).Find(&users).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch users"})
+			log.Printf("GetAllUsers: find error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch users: " + err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": users, "count": len(users), "total": total, "timestamp": time.Now()})
