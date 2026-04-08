@@ -266,7 +266,8 @@ export default function TrackingScreen({ route, navigation }: any) {
     fetchRideDetails();
     // Stop polling once ride is completed or cancelled
     if (status === 'completed' || status === 'cancelled') return;
-    const interval = setInterval(fetchRideDetails, 5000);
+    // Fallback polling — WebSocket handles real-time updates
+    const interval = setInterval(fetchRideDetails, 15000);
     return () => clearInterval(interval);
   }, [fetchRideDetails, status]);
 
