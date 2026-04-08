@@ -22,9 +22,10 @@ func InitDB(cfg *config.Config) *gorm.DB {
 	dsn := cfg.GetDSN()
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Warn),
-		SkipDefaultTransaction: true,
-		PrepareStmt:            true,
+		Logger:                                   logger.Default.LogMode(logger.Warn),
+		SkipDefaultTransaction:                    true,
+		PrepareStmt:                               true,
+		DisableForeignKeyConstraintWhenMigrating:   true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -45,40 +46,45 @@ func InitDB(cfg *config.Config) *gorm.DB {
 }
 
 func MigrateDB(db *gorm.DB) {
-	// Fix type mismatch: older GORM/postgres mapped uint to integer (serial),
-	// but current version maps uint to bigint (bigserial). Drop all FK constraints
-	// first (they block ALTER TYPE), convert all integer id/_id columns to bigint,
-	// then let AutoMigrate recreate the constraints.
-	db.Exec(`
-		DO $$
-		DECLARE r RECORD;
-		BEGIN
-			-- Drop all FK constraints so column types can be altered
-			FOR r IN SELECT tc.constraint_name, tc.table_name
-			         FROM information_schema.table_constraints tc
-			         WHERE tc.constraint_type = 'FOREIGN KEY'
-			         AND tc.table_schema = CURRENT_SCHEMA()
-			LOOP
-				EXECUTE 'ALTER TABLE ' || quote_ident(r.table_name) ||
-				        ' DROP CONSTRAINT ' || quote_ident(r.constraint_name);
-			END LOOP;
+	// Log the actual users.id column type for diagnostics
+	var colType string
+	if err := db.Raw("SELECT data_type FROM information_schema.columns WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'users' AND column_name = 'id'").Scan(&colType).Error; err != nil {
+		slog.Info("Could not query users.id type (table may not exist yet)", "error", err)
+	} else {
+		slog.Info("users.id column type", "type", colType)
+	}
 
-			-- Convert all integer PK and FK columns to bigint
-			FOR r IN SELECT c.table_name, c.column_name
-			         FROM information_schema.columns c
-			         JOIN information_schema.tables t
-			           ON t.table_name = c.table_name AND t.table_schema = c.table_schema
-			         WHERE c.table_schema = CURRENT_SCHEMA()
-			         AND t.table_type = 'BASE TABLE'
-			         AND c.data_type = 'integer'
-			         AND (c.column_name = 'id' OR c.column_name LIKE '%%_id')
-			LOOP
-				EXECUTE 'ALTER TABLE ' || quote_ident(r.table_name) ||
-				        ' ALTER COLUMN ' || quote_ident(r.column_name) ||
-				        ' SET DATA TYPE bigint';
-			END LOOP;
-		END $$;
-	`)
+	// Drop all FK constraints so column types can be altered, then convert integer columns to bigint.
+	type fkRecord struct {
+		TableName      string `gorm:"column:table_name"`
+		ConstraintName string `gorm:"column:constraint_name"`
+	}
+	var fks []fkRecord
+	db.Raw("SELECT table_name, constraint_name FROM information_schema.table_constraints WHERE constraint_type = 'FOREIGN KEY' AND table_schema = CURRENT_SCHEMA()").Scan(&fks)
+	for _, fk := range fks {
+		stmt := "ALTER TABLE " + fk.TableName + " DROP CONSTRAINT " + fk.ConstraintName
+		if err := db.Exec(stmt).Error; err != nil {
+			slog.Warn("Failed to drop FK constraint", "constraint", fk.ConstraintName, "table", fk.TableName, "error", err)
+		} else {
+			slog.Info("Dropped FK constraint", "constraint", fk.ConstraintName, "table", fk.TableName)
+		}
+	}
+
+	// Convert all integer PK/FK columns to bigint
+	type colRecord struct {
+		TableName  string `gorm:"column:table_name"`
+		ColumnName string `gorm:"column:column_name"`
+	}
+	var cols []colRecord
+	db.Raw("SELECT c.table_name, c.column_name FROM information_schema.columns c JOIN information_schema.tables t ON t.table_name = c.table_name AND t.table_schema = c.table_schema WHERE c.table_schema = CURRENT_SCHEMA() AND t.table_type = 'BASE TABLE' AND c.data_type = 'integer' AND (c.column_name = 'id' OR c.column_name LIKE '%\\_id')").Scan(&cols)
+	for _, col := range cols {
+		stmt := "ALTER TABLE " + col.TableName + " ALTER COLUMN " + col.ColumnName + " SET DATA TYPE bigint"
+		if err := db.Exec(stmt).Error; err != nil {
+			slog.Warn("Failed to alter column type", "table", col.TableName, "column", col.ColumnName, "error", err)
+		} else {
+			slog.Info("Altered column to bigint", "table", col.TableName, "column", col.ColumnName)
+		}
+	}
 
 	if err := models.AutoMigrate(db); err != nil {
 		log.Fatalf("Database migration failed: %v", err)
