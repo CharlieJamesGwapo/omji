@@ -24,7 +24,6 @@ func InitDB(cfg *config.Config) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Warn),
 		SkipDefaultTransaction:                    true,
-		PrepareStmt:                               true,
 		DisableForeignKeyConstraintWhenMigrating:   true,
 	})
 	if err != nil {
