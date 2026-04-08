@@ -220,12 +220,33 @@ const UsersPage: React.FC = () => {
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Users Management</h1>
           <p className="text-gray-500 text-sm mt-1">Manage and monitor all registered users</p>
         </div>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by name, email, or phone..."
-          className="w-full sm:w-80"
-        />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button onClick={() => {
+            if (!users.length) { toast.error('No data to export'); return; }
+            const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const header = 'Name,Email,Phone,Role,Verified,Rating,Joined Date\n';
+            const rows = users.map((u) => [esc(u.name), esc(u.email), esc(u.phone), esc(u.role), esc(u.is_verified ? 'Yes' : 'No'), esc(u.rating ?? ''), esc(u.created_at ? new Date(u.created_at).toLocaleDateString() : '')].join(',')).join('\n');
+            const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `omji-users-${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success('CSV downloaded');
+          }} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-all duration-200 shadow-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by name, email, or phone..."
+            className="w-full sm:w-80"
+          />
+        </div>
       </div>
 
       {/* Stats Cards */}
