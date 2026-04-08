@@ -175,3 +175,8 @@ func GetRoadDistance(clientDistance, lat1, lon1, lat2, lon2 float64) float64 {
 	// Fallback: Haversine × 1.4 road factor
 	return math.Round(haversine*1.4*10) / 10
 }
+
+// validCoordinates returns true if lat/lng are within valid ranges.
+func validCoordinates(lat, lng float64) bool {
+	return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+}

@@ -4450,6 +4450,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 			switch msg.Type {
 			case "location_update":
+				if !validCoordinates(msg.Latitude, msg.Longitude) {
+					continue
+				}
 				tracker.Broadcast(rideID, gin.H{"type": "location_update", "latitude": msg.Latitude, "longitude": msg.Longitude, "timestamp": time.Now()})
 			case "status_update":
 				// Validate status transitions (same rules as REST endpoint)
@@ -4678,7 +4681,7 @@ func WebSocketDriverHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 			if msg.Type == "location_update" {
 				// Validate coordinates
-				if msg.Latitude < -90 || msg.Latitude > 90 || msg.Longitude < -180 || msg.Longitude > 180 {
+				if !validCoordinates(msg.Latitude, msg.Longitude) {
 					continue
 				}
 				if err := db.Model(&models.Driver{}).Where("id = ?", driverID).Updates(map[string]interface{}{"current_latitude": msg.Latitude, "current_longitude": msg.Longitude}).Error; err != nil {

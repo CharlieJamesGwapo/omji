@@ -450,3 +450,23 @@ func TestCreateCommissionRecord_LocksDriverRow(t *testing.T) {
 	db.First(&updated, driver.ID)
 	assert.InDelta(t, 980.0, updated.TotalEarnings, 0.01, "earnings should be reduced by commission amount")
 }
+
+func TestValidCoordinates(t *testing.T) {
+	tests := []struct {
+		name     string
+		lat, lng float64
+		valid    bool
+	}{
+		{"valid Balingasag", 8.4343, 124.7762, true},
+		{"zero coords", 0, 0, true},
+		{"lat too high", 91, 0, false},
+		{"lat too low", -91, 0, false},
+		{"lng too high", 0, 181, false},
+		{"lng too low", 0, -181, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.valid, validCoordinates(tt.lat, tt.lng))
+		})
+	}
+}
