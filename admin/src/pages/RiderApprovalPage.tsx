@@ -3,7 +3,7 @@ import { adminService } from '../services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '../hooks/useDebounce';
 import { ITEMS_PER_PAGE, DOC_LABELS } from '../constants';
-import { getErrorMessage, formatCurrency } from '../utils';
+import { getErrorMessage, formatCurrency, formatDate, formatDateTime } from '../utils';
 import { SearchInput, ConfirmDialog, EmptyState, PageSkeleton, Pagination } from '../components';
 
 interface RiderApplication {
@@ -317,7 +317,7 @@ const RiderApprovalPage: React.FC = () => {
 
                 {/* Applied date */}
                 <div className="text-xs text-gray-400 mb-4">
-                  Applied: {new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  Applied: {formatDate(rider.created_at)}
                 </div>
 
                 {/* Action buttons */}
@@ -459,7 +459,7 @@ const RiderApprovalPage: React.FC = () => {
                   <div>
                     <p className="text-xs text-gray-500">Application Date</p>
                     <p className="font-medium text-sm text-gray-900">
-                      {new Date(selectedRider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(selectedRider.created_at)}
                     </p>
                   </div>
                   <div>

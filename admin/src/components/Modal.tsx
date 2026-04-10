@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 
 interface ModalProps {
   open: boolean;
@@ -17,8 +17,6 @@ const sizeClasses = {
 };
 
 const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, size = 'md', footer }) => {
-  const overlayRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -37,11 +35,7 @@ const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, size = 'm
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div
-        ref={overlayRef}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className={`relative bg-white rounded-xl shadow-xl ${sizeClasses[size]} w-full max-h-[80vh] flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">

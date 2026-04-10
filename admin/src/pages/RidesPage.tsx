@@ -587,7 +587,7 @@ const RidesPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Distance</div>
-                <div className="text-sm font-medium text-gray-900">{selectedRide.distance ? `${selectedRide.distance.toFixed(1)} km` : 'N/A'}</div>
+                <div className="text-sm font-medium text-gray-900">{selectedRide.distance != null ? `${selectedRide.distance.toFixed(1)} km` : 'N/A'}</div>
               </div>
               <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Estimated Fare</div>

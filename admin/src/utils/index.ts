@@ -10,9 +10,15 @@ export const formatStatus = (status: string): string =>
 export const getStatusColor = (status: string) =>
   STATUS_COLORS[status] || DEFAULT_STATUS_COLOR;
 
+/** Returns true if dateStr parses to a valid date */
+const isValidDate = (dateStr: string): boolean => {
+  const d = new Date(dateStr);
+  return !isNaN(d.getTime());
+};
+
 /** Format a date string to locale display */
 export const formatDate = (dateStr: string): string => {
-  if (!dateStr) return '—';
+  if (!dateStr || !isValidDate(dateStr)) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -22,7 +28,7 @@ export const formatDate = (dateStr: string): string => {
 
 /** Format a date string to locale display with time */
 export const formatDateTime = (dateStr: string): string => {
-  if (!dateStr) return '—';
+  if (!dateStr || !isValidDate(dateStr)) return '—';
   return new Date(dateStr).toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -34,7 +40,7 @@ export const formatDateTime = (dateStr: string): string => {
 
 /** Format time only */
 export const formatTime = (dateStr: string): string => {
-  if (!dateStr) return '—';
+  if (!dateStr || !isValidDate(dateStr)) return '—';
   return new Date(dateStr).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
