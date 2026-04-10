@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ONE RIDE Balingasag — Ride, Deliver & Pasabay</title>
+  <meta name="description" content="ONE RIDE is Balingasag's all-in-one app for rides, deliveries, and ride sharing. Download free and experience convenience at your fingertips.">
+  <meta property="og:title" content="ONE RIDE Balingasag">
+  <meta property="og:description" content="Your all-in-one Ride, Delivery & Pasabay app for Balingasag.">
+  <meta property="og:image" content="onerider.jpeg">
+  <link rel="icon" type="image/jpeg" href="onerider.jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0A0806; color: #D4CABC; line-height: 1.6; overflow-x: hidden; }
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; display: block; }
+    ul { list-style: none; }
+
+    :root {
+      --primary: #DC2626;
+      --primary-dark: #B91C1C;
+      --primary-light: #EF4444;
+      --primary-glow: rgba(220,38,38,0.3);
+      --accent: #F97316;
+      --accent-light: #FB923C;
+      --accent-glow: rgba(249,115,22,0.3);
+      --bg-dark: #0A0806;
+      --bg-section: #120D0B;
+      --bg-card: #1A1210;
+      --bg-card-hover: #241816;
+      --text: #D4CABC;
+      --text-muted: #7A6E62;
+      --text-bright: #FFFFFF;
+      --success: #22C55E;
+      --gradient-fire: linear-gradient(135deg, var(--accent), var(--primary));
+      --gradient-red: linear-gradient(135deg, var(--primary), #7F1D1D);
+    }
+
+    /* ===== BANNER ===== */
+    .banner {
+      background: var(--gradient-fire);
+      color: white; text-align: center; padding: 10px 44px 10px 20px;
+      font-size: 0.83rem; font-weight: 600; position: relative; overflow: hidden;
+    }
+    .banner-text { display: inline-block; animation: ticker 22s linear infinite; white-space: nowrap; }
+    @keyframes ticker { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+    .banner-close {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; line-height: 1;
+    }
+
+    /* ===== NAVBAR ===== */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      padding: 14px 0; transition: all 0.3s ease;
+      background: rgba(10,8,6,0.85); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    }
+    .navbar.scrolled { box-shadow: 0 1px 30px rgba(249,115,22,0.08); border-bottom: 1px solid rgba(249,115,22,0.06); }
+    .nav-container {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-weight: 900; color: var(--text-bright); display: flex; align-items: center; gap: 10px; }
+    .nav-logo img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+    .nav-logo-text .name { font-size: 1.35rem; background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.1; }
+    .nav-logo-text .sub { font-size: 0.5rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); display: block; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { font-size: 0.9rem; font-weight: 500; color: var(--text); transition: color 0.2s; position: relative; }
+    .nav-links a:not(.nav-cta):hover { color: var(--accent-light); }
+    .nav-links a:not(.nav-cta)::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: var(--accent); transition: width 0.3s; }
+    .nav-links a:not(.nav-cta):hover::after { width: 100%; }
+    .nav-cta {
+      background: var(--gradient-fire) !important; color: white !important;
+      padding: 10px 22px; border-radius: 50px; font-weight: 700 !important; font-size: 0.88rem;
+      box-shadow: 0 2px 16px var(--accent-glow); transition: transform 0.2s, box-shadow 0.2s !important;
+    }
+    .nav-cta:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 24px var(--accent-glow) !important; }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 6px; }
+    .hamburger span { width: 24px; height: 2.5px; background: var(--text-bright); border-radius: 2px; transition: all 0.3s; display: block; }
+    .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+    .hamburger.active span:nth-child(2) { opacity: 0; }
+    .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+    .mobile-menu {
+      display: none; position: fixed; top: 72px; left: 0; right: 0;
+      background: rgba(10,8,6,0.98); backdrop-filter: blur(16px);
+      padding: 20px 24px 28px; flex-direction: column; gap: 4px; z-index: 999;
+      border-bottom: 1px solid rgba(249,115,22,0.1);
+    }
+    .mobile-menu.active { display: flex; }
+    .mobile-menu a { font-size: 1rem; font-weight: 500; color: var(--text); padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .mobile-menu a:last-child { border-bottom: none; margin-top: 8px; text-align: center; }
+
+    /* ===== HERO ===== */
+    .hero-wrapper { background: var(--bg-dark); }
+    .hero {
+      padding: 100px 24px 80px; max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; position: relative;
+      min-height: 100vh;
+    }
+    .hero-glow-1 {
+      position: absolute; top: -80px; left: -200px; width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(249,115,22,0.1), transparent 65%);
+      pointer-events: none; filter: blur(50px); z-index: 0;
+    }
+    .hero-glow-2 {
+      position: absolute; bottom: -80px; right: -150px; width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(220,38,38,0.08), transparent 65%);
+      pointer-events: none; filter: blur(50px); z-index: 0;
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.25);
+      padding: 8px 18px; border-radius: 50px; font-size: 0.84rem; font-weight: 600;
+      color: var(--accent-light); margin-bottom: 24px;
+    }
+    .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(34,197,94,0.4); } 50% { opacity:0.8; box-shadow:0 0 0 6px rgba(34,197,94,0); } }
+    .hero h1 { font-size: clamp(2.2rem, 4.2vw, 3.4rem); font-weight: 900; color: var(--text-bright); line-height: 1.1; margin-bottom: 20px; }
+    .hero h1 .hl { background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-desc { font-size: 1.05rem; color: var(--text-muted); margin-bottom: 36px; max-width: 480px; line-height: 1.75; }
+    .hero-buttons { display: flex; gap: 14px; margin-bottom: 52px; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--gradient-fire); color: white; padding: 14px 34px; border-radius: 50px;
+      font-weight: 700; font-size: 0.97rem; border: none; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 30px var(--accent-glow); }
+    .btn-secondary {
+      background: transparent; color: var(--text-bright); padding: 14px 34px;
+      border-radius: 50px; font-weight: 600; font-size: 0.97rem;
+      border: 2px solid rgba(255,255,255,0.12); cursor: pointer; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent-light); background: rgba(249,115,22,0.05); }
+    .hero-stats { display: flex; gap: 36px; flex-wrap: wrap; }
+    .hero-stat h3 { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+    .stat-orange { color: var(--accent-light); }
+    .stat-red { color: var(--primary-light); }
+    .stat-green { color: var(--success); }
+    .hero-stat p { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Hero visual */
+    .hero-visual { display: flex; justify-content: center; align-items: center; position: relative; z-index: 1; }
+    .hero-logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .hero-logo-img {
+      width: min(340px, 85vw); height: min(340px, 85vw); border-radius: 32px; object-fit: cover;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(249,115,22,0.2);
+      border: 3px solid rgba(249,115,22,0.2); animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+    .hero-logo-glow {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 420px; height: 420px;
+      background: radial-gradient(ellipse, rgba(249,115,22,0.18), transparent 70%);
+      filter: blur(50px); pointer-events: none; z-index: -1;
+    }
+    .hero-caption {
+      margin-top: 20px; padding: 10px 20px; border-radius: 12px;
+      background: rgba(249,115,22,0.06); border: 1px solid rgba(249,115,22,0.15);
+      font-size: 0.75rem; color: var(--text-muted); text-align: center;
+    }
+    .hero-caption strong { color: var(--accent-light); }
+
+    /* ===== SECTION COMMON ===== */
+    .section { padding: 96px 24px; }
+    .section-alt { background: var(--bg-section); }
+    .section-inner { max-width: 1200px; margin: 0 auto; }
+    .section-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2);
+      padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 700;
+      color: var(--accent-light); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px;
+    }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header h2 { font-size: clamp(1.8rem,3.5vw,2.8rem); font-weight: 900; color: var(--text-bright); margin-bottom: 12px; line-height: 1.15; }
+    .section-header h2 .hl { background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .section-header p { color: var(--text-muted); font-size: 1rem; max-width: 520px; margin: 0 auto; }
+
+    /* ===== SERVICES ===== */
+    .services-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+    .service-card {
+      background: var(--bg-card); border-radius: 24px; padding: 40px 28px; text-align: center;
+      border: 1px solid rgba(255,255,255,0.04); transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+      position: relative; overflow: hidden;
+    }
+    .service-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: var(--gradient-fire); opacity:0; transition: opacity 0.3s; }
+    .service-card::after { content:''; position:absolute; inset:0; background: radial-gradient(circle at 50% 0%, rgba(249,115,22,0.06), transparent 60%); opacity:0; transition: opacity 0.3s; pointer-events:none; }
+    .service-card:hover { transform: translateY(-8px); background: var(--bg-card-hover); box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+    .service-card:hover::before, .service-card:hover::after { opacity: 1; }
+    .service-icon { width: 72px; height: 72px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 24px; }
+    .si-orange { background: rgba(249,115,22,0.12); }
+    .si-red { background: rgba(220,38,38,0.1); }
+    .si-green { background: rgba(34,197,94,0.1); }
+    .service-card h3 { font-size: 1.3rem; font-weight: 800; color: var(--text-bright); margin-bottom: 6px; }
+    .service-bisaya { font-size: 0.8rem; font-weight: 700; display: inline-block; padding: 3px 12px; border-radius: 50px; margin-bottom: 14px; }
+    .sb-orange { color: var(--accent-light); background: rgba(249,115,22,0.08); }
+    .sb-red { color: var(--primary-light); background: rgba(220,38,38,0.08); }
+    .sb-green { color: var(--success); background: rgba(34,197,94,0.08); }
+    .service-card p { font-size: 0.91rem; color: var(--text-muted); line-height: 1.65; }
+
+    /* ===== HOW IT WORKS ===== */
+    .steps-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; position: relative; }
+    .steps-connector {
+      display: none;
+      position: absolute; top: 40px; left: calc(16.66% + 8px); right: calc(16.66% + 8px);
+      height: 2px; background: linear-gradient(90deg, var(--accent), var(--primary)); opacity: 0.2;
+    }
+    .step-card { text-align: center; padding: 20px 16px; }
+    .step-icon {
+      width: 82px; height: 82px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; margin: 0 auto 20px; background: var(--bg-card); border: 2px solid rgba(249,115,22,0.15);
+      position: relative;
+    }
+    .step-num {
+      position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%;
+      background: var(--gradient-fire); color: white; font-size: 0.75rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-card h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-bright); margin-bottom: 10px; }
+    .step-card p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; max-width: 260px; margin: 0 auto; }
+
+    /* ===== FEATURES ===== */
+    .features-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+    .feature-card {
+      background: var(--bg-card); border-radius: 20px; padding: 28px 24px;
+      border: 1px solid rgba(255,255,255,0.04); display: flex; gap: 18px; align-items: flex-start;
+      transition: all 0.3s ease;
+    }
+    .feature-card:hover { background: var(--bg-card-hover); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+    .fi { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; flex-shrink: 0; }
+    .fi-orange { background: rgba(249,115,22,0.1); }
+    .fi-red { background: rgba(220,38,38,0.1); }
+    .fi-green { background: rgba(34,197,94,0.1); }
+    .fi-blue { background: rgba(59,130,246,0.1); }
+    .fi-purple { background: rgba(168,85,247,0.1); }
+    .fi-yellow { background: rgba(234,179,8,0.1); }
+    .feature-text h3 { font-size: 1rem; font-weight: 800; color: var(--text-bright); margin-bottom: 6px; }
+    .feature-text p { font-size: 0.87rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* ===== WHY ONE RIDE ===== */
+    .why-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+    .why-card {
+      background: var(--bg-card); border-radius: 20px; padding: 32px 24px; text-align: center;
+      border: 1px solid rgba(255,255,255,0.04); transition: all 0.3s;
+    }
+    .why-card:hover { background: var(--bg-card-hover); transform: translateY(-4px); }
+    .why-num { font-size: 2.5rem; font-weight: 900; background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+    .why-card h3 { font-size: 1rem; font-weight: 800; color: var(--text-bright); margin-bottom: 8px; }
+    .why-card p { font-size: 0.87rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* ===== DOWNLOAD ===== */
+    .download-section {
+      background: linear-gradient(135deg, rgba(220,38,38,0.07) 0%, rgba(249,115,22,0.04) 100%);
+      border-top: 1px solid rgba(249,115,22,0.08); border-bottom: 1px solid rgba(249,115,22,0.08);
+    }
+    .download-inner { max-width: 720px; margin: 0 auto; text-align: center; }
+    .download-inner h2 { font-size: clamp(1.8rem,3vw,2.5rem); font-weight: 900; color: var(--text-bright); margin-bottom: 12px; line-height: 1.2; }
+    .download-inner h2 .hl { background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .download-inner p { color: var(--text-muted); font-size: 1rem; margin-bottom: 36px; }
+    .download-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .dl-btn {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--bg-card); border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 28px; border-radius: 14px; color: var(--text-bright);
+      font-weight: 600; transition: all 0.3s; font-size: 0.95rem;
+    }
+    .dl-btn:hover { background: var(--bg-card-hover); border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+    .dl-btn-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .dl-btn small { display: block; font-size: 0.65rem; color: var(--text-muted); font-weight: 500; }
+    .dl-note { font-size: 0.82rem; color: var(--text-muted); }
+    .dl-note a { color: var(--accent-light); }
+
+    /* ===== FOOTER ===== */
+    .footer { background: #060403; padding: 64px 24px 32px; }
+    .footer-inner { max-width: 1200px; margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+    .footer-logo-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .footer-logo-wrap img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+    .footer-logo-name .name { font-size: 1.25rem; font-weight: 900; background: var(--gradient-fire); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .footer-logo-name .sub { font-size: 0.58rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-muted); display: block; margin-top: 2px; }
+    .footer-brand p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.75; max-width: 300px; }
+    .footer-col h4 { font-size: 0.8rem; font-weight: 700; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+    .footer-col li { margin-bottom: 10px; }
+    .footer-col li a { font-size: 0.88rem; color: var(--text-muted); transition: color 0.2s; }
+    .footer-col li a:hover { color: var(--accent-light); }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 28px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .footer-bottom p { font-size: 0.8rem; color: var(--text-muted); }
+    .footer-bottom a { color: var(--accent-light); }
+
+    /* ===== ANIMATIONS ===== */
+    .fade-up { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (min-width: 769px) { .steps-connector { display: block; } }
+
+    @media (max-width: 1024px) {
+      .services-grid { grid-template-columns: repeat(2,1fr); }
+      .why-grid { grid-template-columns: repeat(2,1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .footer-brand { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; gap: 40px; padding: 80px 20px 60px; min-height: auto; }
+      .hero-visual { order: -1; }
+      .hero-logo-img { width: 220px; height: 220px; }
+      .hero-logo-glow { width: 280px; height: 280px; }
+      .services-grid { grid-template-columns: 1fr; }
+      .steps-grid { grid-template-columns: 1fr; gap: 24px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .why-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      .section { padding: 70px 20px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+      .footer-brand { grid-column: auto; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 2rem; }
+      .hero-buttons { flex-direction: column; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+      .hero-stats { gap: 20px; }
+      .download-btns { flex-direction: column; align-items: stretch; }
+      .dl-btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- BANNER -->
+<div class="banner" id="banner">
+  <span class="banner-text">🏍️ Now serving Balingasag, Misamis Oriental! &nbsp;·&nbsp; Book rides, send packages, and share trips &nbsp;·&nbsp; FREE to download &nbsp;·&nbsp; Available 24/7 &nbsp;·&nbsp; ONE RIDE — Community-Powered Transport &nbsp;·&nbsp;</span>
+  <button class="banner-close" onclick="document.getElementById('banner').style.display='none'" aria-label="Close">✕</button>
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <div class="nav-container">
+    <a href="#" class="nav-logo">
+      <img src="onerider.jpeg" alt="ONE RIDE Balingasag logo" />
+      <div class="nav-logo-text">
+        <span class="name">ONE RIDE</span>
+        <span class="sub">Balingasag</span>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="#services">Services</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#features">Features</a>
+      <a href="#download">App</a>
+      <a href="#download" class="nav-cta">Download Free</a>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu" role="navigation">
+  <a href="#services" onclick="closeMobile()">Services</a>
+  <a href="#how-it-works" onclick="closeMobile()">How It Works</a>
+  <a href="#features" onclick="closeMobile()">Features</a>
+  <a href="#download" onclick="closeMobile()">App</a>
+  <a href="#download" class="nav-cta" onclick="closeMobile()">Download Free</a>
+</div>
+
+<!-- HERO -->
+<div class="hero-wrapper">
+  <div class="hero">
+    <div class="hero-glow-1"></div>
+    <div class="hero-glow-2"></div>
+
+    <div class="hero-content fade-up">
+      <div class="hero-badge">
+        <div class="pulse-dot"></div>
+        Beta Testing &nbsp;·&nbsp; Balingasag
+      </div>
+      <h1>Your All-in-One<br><span class="hl">Ride, Delivery</span><br>&amp; Pasabay App</h1>
+      <p class="hero-desc">Book rides, send packages, and share trips with neighbors — all in one app. Built for Balingasag, powered by the community.</p>
+      <div class="hero-buttons">
+        <a href="#download" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+          Download the App
+        </a>
+        <a href="#services" class="btn-secondary">
+          Explore Services
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <h3 class="stat-orange">3</h3>
+          <p>Services</p>
+        </div>
+        <div class="hero-stat">
+          <h3 class="stat-green">Free</h3>
+          <p>To Download</p>
+        </div>
+        <div class="hero-stat">
+          <h3 class="stat-red">24/7</h3>
+          <p>Available</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual fade-up">
+      <div class="hero-logo-wrap">
+        <div class="hero-logo-glow"></div>
+        <img src="onerider.jpeg" alt="ONE RIDE Balingasag" class="hero-logo-img" loading="eager" />
+        <div class="hero-caption">
+          <strong>ONE RIDE Balingasag</strong> — Community-powered transport &amp; delivery
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section class="section" id="services">
+  <div class="section-inner">
+    <div class="section-header fade-up">
+      <div class="section-tag">⚡ Our Services</div>
+      <h2>Three Services,<br><span class="hl">One App</span></h2>
+      <p>Everything you need for daily transport and delivery in Balingasag — designed for the community.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card fade-up">
+        <div class="service-icon si-orange">🏍️</div>
+        <h3>Pasundo</h3>
+        <span class="service-bisaya sb-orange">Ride Service</span>
+        <p>Book a motorcycle ride anywhere in Balingasag. Fast, safe, and affordable with real-time rider tracking from pickup to drop-off.</p>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon si-red">📦</div>
+        <h3>Pasugo</h3>
+        <span class="service-bisaya sb-red">Delivery Service</span>
+        <p>Send packages, documents, or goods across town. Reliable door-to-door delivery with live tracking and proof of delivery.</p>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon si-green">🤝</div>
+        <h3>Pasabay</h3>
+        <span class="service-bisaya sb-green">Ride Sharing</span>
+        <p>Share a ride with neighbors heading the same direction. Save money, reduce traffic, and strengthen community connections.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section section-alt" id="how-it-works">
+  <div class="section-inner">
+    <div class="section-header fade-up">
+      <div class="section-tag">📱 How It Works</div>
+      <h2>Get a Ride in <span class="hl">3 Easy Steps</span></h2>
+      <p>From download to your first ride — it takes less than 2 minutes to get started.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="steps-connector"></div>
+      <div class="step-card fade-up">
+        <div class="step-icon">
+          <span>📲</span>
+          <div class="step-num">1</div>
+        </div>
+        <h3>Download the App</h3>
+        <p>Install ONE RIDE for free on Android or iOS. Sign up with your mobile number — no credit card needed.</p>
+      </div>
+      <div class="step-card fade-up">
+        <div class="step-icon">
+          <span>📍</span>
+          <div class="step-num">2</div>
+        </div>
+        <h3>Set Your Location</h3>
+        <p>Enter your pickup point and destination. Choose Pasundo, Pasugo, or Pasabay based on what you need.</p>
+      </div>
+      <div class="step-card fade-up">
+        <div class="step-icon">
+          <span>✅</span>
+          <div class="step-num">3</div>
+        </div>
+        <h3>Book & Go</h3>
+        <p>A nearby rider accepts in seconds. Track them live and pay via GCash, Maya, or cash on arrival.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-inner">
+    <div class="section-header fade-up">
+      <div class="section-tag">✨ Features</div>
+      <h2>Built for <span class="hl">Balingasag</span></h2>
+      <p>Every feature designed to make daily transport safer, faster, and more connected.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card fade-up">
+        <div class="fi fi-orange">📍</div>
+        <div class="feature-text">
+          <h3>Real-Time Tracking</h3>
+          <p>Watch your rider's live location on the map from booking to arrival. No more waiting in the dark.</p>
+        </div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="fi fi-green">💳</div>
+        <div class="feature-text">
+          <h3>Built-In Wallet</h3>
+          <p>Top up via GCash or Maya. Pay instantly without cash — fast, secure, and totally hassle-free.</p>
+        </div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="fi fi-red">🎁</div>
+        <div class="feature-text">
+          <h3>Promo Codes</h3>
+          <p>Unlock discounts with promo codes. Earn rewards for referring friends and completing rides.</p>
+        </div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="fi fi-blue">⭐</div>
+        <div class="feature-text">
+          <h3>Ratings & Reviews</h3>
+          <p>Rate your rider after every trip. Community accountability keeps everyone safe and professional.</p>
+        </div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="fi fi-purple">💬</div>
+        <div class="feature-text">
+          <h3>In-App Chat</h3>
+          <p>Message your rider directly inside the app. No need to share personal phone numbers.</p>
+        </div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="fi fi-yellow">🔔</div>
+        <div class="feature-text">
+          <h3>Push Notifications</h3>
+          <p>Instant alerts on bookings, rider status, promos, and community announcements.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY ONE RIDE -->
+<section class="section section-alt">
+  <div class="section-inner">
+    <div class="section-header fade-up">
+      <div class="section-tag">🏆 Why ONE RIDE</div>
+      <h2>Made for <span class="hl">Our Community</span></h2>
+      <p>Not just another app — ONE RIDE is built by and for the people of Balingasag.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card fade-up">
+        <div class="why-num">100%</div>
+        <h3>Free to Download</h3>
+        <p>No subscription, no hidden fees. Download once, ride forever. Pay only when you book.</p>
+      </div>
+      <div class="why-card fade-up">
+        <div class="why-num">24/7</div>
+        <h3>Always Available</h3>
+        <p>Need a ride at dawn or a delivery at midnight? ONE RIDE riders are ready around the clock.</p>
+      </div>
+      <div class="why-card fade-up">
+        <div class="why-num">Local</div>
+        <h3>Community-First</h3>
+        <p>Every rider is a neighbor. Your fare goes directly to local families in Balingasag.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="section download-section" id="download">
+  <div class="section-inner">
+    <div class="download-inner fade-up">
+      <div class="section-tag" style="margin: 0 auto 16px; display: table;">📲 Get The App</div>
+      <h2>Download ONE RIDE <span class="hl">Free Today</span></h2>
+      <p>Join riders and drivers in Balingasag. 100% free on Android and iOS.</p>
+      <div class="download-btns">
+        <a href="https://play.google.com/store" target="_blank" rel="noopener" class="dl-btn">
+          <span class="dl-btn-icon">🤖</span>
+          <div>
+            <small>Get it on</small>
+            Google Play
+          </div>
+        </a>
+        <a href="https://apps.apple.com" target="_blank" rel="noopener" class="dl-btn">
+          <span class="dl-btn-icon">🍎</span>
+          <div>
+            <small>Download on the</small>
+            App Store
+          </div>
+        </a>
+      </div>
+      <p class="dl-note">Questions? Email us at <a href="mailto:oneride.balingasag@gmail.com">oneride.balingasag@gmail.com</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo-wrap">
+          <img src="onerider.jpeg" alt="ONE RIDE" />
+          <div class="footer-logo-name">
+            <span class="name">ONE RIDE</span>
+            <span class="sub">Balingasag</span>
+          </div>
+        </div>
+        <p>Your community-powered all-in-one transport, delivery, and ride-sharing app. Built for the people of Balingasag, Misamis Oriental.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="#services">Pasundo — Ride</a></li>
+          <li><a href="#services">Pasugo — Delivery</a></li>
+          <li><a href="#services">Pasabay — Ride Share</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#download">Download App</a></li>
+          <li><a href="https://oneride-balingasag.netlify.app" target="_blank">Admin Portal</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 ONE RIDE Balingasag. All rights reserved.</p>
+      <p>Made with ❤️ for <a href="#">Balingasag, Misamis Oriental</a></p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Navbar scroll
+  const navbar = document.getElementById('navbar');
+  let lastScroll = 0;
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 20);
+    lastScroll = window.scrollY;
+  }, { passive: true });
+
+  // Hamburger
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    const open = hamburger.classList.toggle('active');
+    mobileMenu.classList.toggle('active', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  });
+  function closeMobile() {
+    hamburger.classList.remove('active');
+    mobileMenu.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // Fade-up on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href === '#') return;
+      const target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        const bannerH = document.getElementById('banner').offsetHeight || 0;
+        const navH = navbar.offsetHeight || 72;
+        const offset = bannerH + navH - (navbar.classList.contains('scrolled') ? bannerH : 0);
+        const top = target.getBoundingClientRect().top + window.pageYOffset - navH;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+</body>
+</html>

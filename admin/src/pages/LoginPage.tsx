@@ -122,11 +122,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-red-600 rounded-xl mx-auto mb-3 flex items-center justify-center overflow-hidden">
-            <img src="/logo.png" alt="ONE RIDE" className="w-full h-full object-cover" />
+          <div className="w-24 h-24 rounded-2xl mx-auto mb-3 flex items-center justify-center overflow-hidden shadow-lg">
+            <img src="/onerider.jpeg" alt="ONE RIDE" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">ONE RIDE Admin</h1>
-          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-gray-900">ONE RIDE Balingasag</h1>
+          <p className="text-gray-500 text-sm mt-1">Admin Portal — Sign in</p>
         </div>
 
         {/* Server Status */}
