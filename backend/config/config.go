@@ -48,9 +48,9 @@ func LoadConfig() *Config {
 	return &Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "oneride_user"),
-		DBPassword: getEnv("DB_PASSWORD", "oneride_password"),
-		DBName:     getEnv("DB_NAME", "oneride_db"),
+		DBUser:     getEnv("DB_USER", ""),
+		DBPassword: getEnv("DB_PASSWORD", ""),
+		DBName:     getEnv("DB_NAME", ""),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		JWTSecret:  "", // Use config.GetJWTSecret() instead; validated at startup
 		SMTPHost:   getEnv("SMTP_HOST", "smtp.gmail.com"),
@@ -82,4 +82,41 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// ValidateStartup verifies required environment variables are present and safe.
+// Returns a non-nil error describing the first problem found. Callers should
+// log.Fatal on the returned error at process start.
+func ValidateStartup() error {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return fmt.Errorf("JWT_SECRET is required")
+	}
+	if len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 bytes (got %d)", len(secret))
+	}
+
+	if os.Getenv("REFRESH_TOKEN_PEPPER") == "" {
+		return fmt.Errorf("REFRESH_TOKEN_PEPPER is required")
+	}
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+	if !strings.Contains(dbURL, "sslmode=require") && !strings.Contains(dbURL, "sslmode=verify-full") {
+		return fmt.Errorf("DATABASE_URL must enforce sslmode=require (or verify-full)")
+	}
+
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+	if corsOrigin == "" {
+		corsOrigin = os.Getenv("ALLOWED_ORIGINS")
+	}
+	for _, o := range strings.Split(corsOrigin, ",") {
+		if strings.TrimSpace(o) == "*" {
+			return fmt.Errorf("CORS_ORIGIN wildcard '*' is not allowed")
+		}
+	}
+
+	return nil
 }

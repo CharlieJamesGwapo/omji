@@ -35,8 +35,9 @@ func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
 
-	// Validate JWT_SECRET is set (will log.Fatal if missing)
-	config.GetJWTSecret()
+	if err := config.ValidateStartup(); err != nil {
+		log.Fatalf("FATAL: startup validation: %v", err)
+	}
 
 	// Initialize database
 	database := db.InitDB(cfg)
