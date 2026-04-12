@@ -52,6 +52,7 @@ func main() {
 	// Create Gin router (gin.New instead of gin.Default to avoid duplicate logging)
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(middleware.RequestIDMiddleware())
 
 	// Middleware stack
 	router.Use(middleware.SecurityHeadersMiddleware())
