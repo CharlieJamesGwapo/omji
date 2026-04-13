@@ -61,7 +61,9 @@ func main() {
 	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.RateLimitMiddleware(120))
 	router.Use(middleware.RequestLoggerMiddleware())
-	router.Use(validate.BodySizeLimit(1 << 20)) // 1 MB default
+	// NOTE: BodySizeLimit is applied per-group (1 MB for API groups, 10 MB for
+	// upload sub-groups) rather than globally so multipart uploads are not cut
+	// off by the 1 MB default.
 
 	// Upload directory (persistent disk on Render, local ./uploads in dev)
 	uploadDir := os.Getenv("UPLOAD_DIR")
@@ -116,6 +118,7 @@ func main() {
 	// Public routes (no auth required)
 	public := router.Group("/api/v1/public")
 	public.Use(middleware.AuthRateLimitMiddleware(20))
+	public.Use(validate.BodySizeLimit(1 << 20)) // 1 MB
 	{
 		// Auth routes
 		public.POST("/auth/register", handlers.Register(database))
@@ -144,6 +147,7 @@ func main() {
 	// Protected routes (auth required)
 	protected := router.Group("/api/v1")
 	protected.Use(middleware.AuthMiddleware())
+	protected.Use(validate.BodySizeLimit(1 << 20)) // 1 MB for standard JSON routes
 	{
 		// Auth session management
 		protected.POST("/auth/logout", handlers.Logout(database))
@@ -193,7 +197,7 @@ func main() {
 		protected.DELETE("/payments/methods/:id", handlers.DeletePaymentMethod(database))
 
 		// Payment proof routes
-		protected.POST("/payment-proof/upload", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadPaymentProof(database))
+		// NOTE: /payment-proof/upload is registered on the 10 MB upload sub-group below
 		protected.POST("/payment-proof/submit", handlers.SubmitPaymentProof(database))
 		protected.GET("/payment-proof/:serviceType/:serviceId", handlers.GetPaymentProofStatus(database))
 
@@ -241,7 +245,7 @@ func main() {
 		// Chat routes
 		protected.GET("/chats/:id/messages", handlers.GetChatMessages(database))
 		protected.POST("/chats/:id/message", handlers.SendChatMessage(database))
-		protected.POST("/chats/:id/image", handlers.ChatImageUpload(database))
+		// NOTE: /chats/:id/image is registered on the 10 MB upload sub-group below
 
 		// Push token routes
 		protected.POST("/push-token", handlers.RegisterPushToken(database))
@@ -273,6 +277,7 @@ func main() {
 	// Admin routes
 	admin := router.Group("/api/v1/admin")
 	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware(), middleware.AdminFreshMiddleware(database))
+	admin.Use(validate.BodySizeLimit(1 << 20)) // 1 MB for standard JSON admin routes
 	{
 		// Server metrics (admin-only)
 		admin.GET("/metrics", func(c *gin.Context) {
@@ -371,7 +376,7 @@ func main() {
 		// Payment config management
 		admin.GET("/payment-configs", handlers.AdminGetPaymentConfigs(database))
 		admin.POST("/payment-configs", handlers.AdminCreatePaymentConfig(database))
-		admin.POST("/payment-configs/upload-qr", handlers.AdminUploadQRCode(database))
+		// NOTE: /payment-configs/upload-qr is registered on the 10 MB admin upload sub-group below
 		admin.PUT("/payment-configs/:id", handlers.AdminUpdatePaymentConfig(database))
 		admin.DELETE("/payment-configs/:id", handlers.AdminDeletePaymentConfig(database))
 
@@ -401,6 +406,26 @@ func main() {
 
 		// Referral management
 		admin.GET("/referrals", handlers.AdminGetReferrals(database))
+	}
+
+	// Upload sub-groups — 10 MB body limit for multipart image uploads.
+	// These inherit the full auth middleware chain but override the body limit.
+
+	// Authenticated-user upload routes (auth required, 10 MB)
+	userUpload := router.Group("/api/v1")
+	userUpload.Use(middleware.AuthMiddleware())
+	userUpload.Use(validate.BodySizeLimit(10 << 20)) // 10 MB for uploads
+	{
+		userUpload.POST("/payment-proof/upload", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadPaymentProof(database))
+		userUpload.POST("/chats/:id/image", handlers.ChatImageUpload(database))
+	}
+
+	// Admin upload routes (auth + admin required, 10 MB)
+	adminUpload := router.Group("/api/v1/admin")
+	adminUpload.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware(), middleware.AdminFreshMiddleware(database))
+	adminUpload.Use(validate.BodySizeLimit(10 << 20)) // 10 MB for uploads
+	{
+		adminUpload.POST("/payment-configs/upload-qr", handlers.AdminUploadQRCode(database))
 	}
 
 	// WebSocket routes — authenticated via one-time ticket (?ticket=…).

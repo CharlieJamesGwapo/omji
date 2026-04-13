@@ -25,6 +25,7 @@ import (
 	"oneride/pkg/auth"
 	"oneride/pkg/authz"
 	"oneride/pkg/models"
+	"oneride/pkg/validate"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -1187,16 +1188,24 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			// Handle file upload
 			file, err := c.FormFile("item_photo")
 			if err == nil && file != nil {
-				uploadDir := getUploadDir()
-				os.MkdirAll(uploadDir, os.ModePerm)
-				filename := strconv.FormatUint(uint64(userID), 10) + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
-				savePath := filepath.Join(uploadDir, filename)
-				if err := c.SaveUploadedFile(file, savePath); err == nil {
-					baseURL := os.Getenv("BASE_URL")
-					if baseURL == "" {
-						baseURL = "https://oneride-backend.onrender.com"
+				f, err := file.Open()
+				if err == nil {
+					cleanBytes, filename, serr := validate.SanitizeImage(f, file.Size)
+					f.Close()
+					if serr != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": serr.Error()})
+						return
 					}
-					itemPhoto = baseURL + "/uploads/" + filename
+					uploadDir := getUploadDir()
+					os.MkdirAll(uploadDir, os.ModePerm)
+					dst := filepath.Join(uploadDir, filename)
+					if werr := os.WriteFile(dst, cleanBytes, 0644); werr == nil {
+						baseURL := os.Getenv("BASE_URL")
+						if baseURL == "" {
+							baseURL = "https://oneride-backend.onrender.com"
+						}
+						itemPhoto = baseURL + "/uploads/" + filename
+					}
 				}
 			}
 
@@ -2028,17 +2037,25 @@ func RegisterDriver(db *gorm.DB) gin.HandlerFunc {
 		for _, field := range docFields {
 			file, err := c.FormFile(field)
 			if err == nil && file != nil {
-				if file.Size > 10*1024*1024 {
-					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("File %s is too large. Maximum 10MB allowed", field)})
+				f, err := file.Open()
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("cannot open %s", field)})
+					return
+				}
+				cleanBytes, filename, err := validate.SanitizeImage(f, file.Size)
+				f.Close()
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("%s: %s", field, err.Error())})
 					return
 				}
 				uploadDir := getUploadDir()
 				os.MkdirAll(uploadDir, os.ModePerm)
-				filename := strconv.FormatUint(uint64(userID), 10) + "_" + field + "_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + filepath.Base(file.Filename)
-				savePath := filepath.Join(uploadDir, filename)
-				if err := c.SaveUploadedFile(file, savePath); err == nil {
-					documents[field] = baseURL + "/uploads/" + filename
+				dst := filepath.Join(uploadDir, filename)
+				if err := os.WriteFile(dst, cleanBytes, 0644); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "save failed"})
+					return
 				}
+				documents[field] = baseURL + "/uploads/" + filename
 			}
 		}
 
@@ -5140,21 +5157,6 @@ func ChatImageUpload(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Validate file size (max 5MB)
-		if file.Size > 5*1024*1024 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
-			return
-		}
-
-		// Validate file type
-		ext := strings.ToLower(filepath.Ext(file.Filename))
-		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-		mimeType, ok := mimeTypes[ext]
-		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
-			return
-		}
-
 		src, err := file.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
@@ -5162,13 +5164,13 @@ func ChatImageUpload(db *gorm.DB) gin.HandlerFunc {
 		}
 		defer src.Close()
 
-		data, err := io.ReadAll(src)
+		cleanBytes, _, err := validate.SanitizeImage(src, file.Size)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
 
-		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
+		dataURL := fmt.Sprintf("data:image/jpeg;base64,%s", base64.StdEncoding.EncodeToString(cleanBytes))
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -5690,22 +5692,6 @@ func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Validate file size (max 5MB)
-		if file.Size > 5*1024*1024 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
-			return
-		}
-
-		// Validate file type (only images)
-		ext := strings.ToLower(filepath.Ext(file.Filename))
-		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-		mimeType, ok := mimeTypes[ext]
-		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
-			return
-		}
-
-		// Read file contents and encode as base64 data URL
 		src, err := file.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
@@ -5713,13 +5699,13 @@ func AdminUploadQRCode(db *gorm.DB) gin.HandlerFunc {
 		}
 		defer src.Close()
 
-		data, err := io.ReadAll(src)
+		cleanBytes, _, err := validate.SanitizeImage(src, file.Size)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
 
-		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
+		dataURL := fmt.Sprintf("data:image/jpeg;base64,%s", base64.StdEncoding.EncodeToString(cleanBytes))
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -5751,29 +5737,18 @@ func UploadPaymentProof(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No file uploaded"})
 			return
 		}
-		if file.Size > 5*1024*1024 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File too large. Maximum 5MB allowed"})
-			return
-		}
-		ext := strings.ToLower(filepath.Ext(file.Filename))
-		mimeTypes := map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-		mimeType, ok := mimeTypes[ext]
-		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid file type. Only PNG, JPG, JPEG, WEBP allowed"})
-			return
-		}
 		src, err := file.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
 			return
 		}
 		defer src.Close()
-		data, err := io.ReadAll(src)
+		cleanBytes, _, err := validate.SanitizeImage(src, file.Size)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read file"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
+		dataURL := fmt.Sprintf("data:image/jpeg;base64,%s", base64.StdEncoding.EncodeToString(cleanBytes))
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"url": dataURL}})
 	}
 }
