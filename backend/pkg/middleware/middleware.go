@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"oneride/config"
+	"oneride/pkg/auth"
 	"os"
 	"strconv"
 	"strings"
@@ -226,6 +227,33 @@ func DriverMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		c.Next()
+	}
+}
+
+// WebSocketTicketMiddleware authenticates WebSocket upgrade requests using a
+// one-time ticket issued by IssueWSTicket. The client passes the ticket as the
+// "ticket" query parameter (?ticket=…). On success, userID, email, and role
+// are set on the gin context just like AuthMiddleware does.
+func WebSocketTicketMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.Query("ticket")
+		if key == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "ticket required"})
+			c.Abort()
+			return
+		}
+
+		userID, email, role, err := auth.ConsumeTicket(key)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired ticket"})
+			c.Abort()
+			return
+		}
+
+		c.Set("userID", userID)
+		c.Set("email", email)
+		c.Set("role", role)
 		c.Next()
 	}
 }

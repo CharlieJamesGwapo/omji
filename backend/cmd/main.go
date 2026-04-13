@@ -264,6 +264,10 @@ func main() {
 
 		// Payment configs (active configs for mobile)
 		protected.GET("/payment-configs", handlers.GetPaymentConfigs(database))
+
+		// WebSocket ticket issuance — client calls this to get a short-lived,
+		// one-time ticket before opening a WebSocket connection.
+		protected.POST("/ws/ticket", handlers.IssueWSTicket)
 	}
 
 	// Admin routes
@@ -397,9 +401,12 @@ func main() {
 		admin.GET("/referrals", handlers.AdminGetReferrals(database))
 	}
 
-	// WebSocket routes (auth required; token passed as query param)
+	// WebSocket routes — authenticated via one-time ticket (?ticket=…).
+	// Clients must first POST /api/v1/ws/ticket (protected route) to obtain a
+	// 30-second ticket, then pass it as the "ticket" query parameter when
+	// opening the WebSocket connection.
 	ws := router.Group("/ws")
-	ws.Use(middleware.AuthMiddleware())
+	ws.Use(middleware.WebSocketTicketMiddleware())
 	{
 		ws.GET("/tracking/:rideId", handlers.WebSocketTrackingHandler(database))
 		ws.GET("/driver/:driverId", handlers.WebSocketDriverHandler(database))
