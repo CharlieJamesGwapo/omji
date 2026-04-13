@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"oneride/pkg/audit"
 	"oneride/pkg/auth"
 	"oneride/pkg/models"
 
@@ -224,9 +225,28 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "No account found with that phone number or email"})
 			return
 		}
+		// Check if account is temporarily locked
+		if user.LockedUntil != nil && time.Now().Before(*user.LockedUntil) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"success": false, "error": "Account temporarily locked. Try again later."})
+			return
+		}
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+			user.FailedLoginCount++
+			if user.FailedLoginCount >= 5 {
+				lockUntil := time.Now().Add(15 * time.Minute)
+				user.LockedUntil = &lockUntil
+				user.FailedLoginCount = 0
+				audit.Log(db, c, "auth.account_locked", "user", fmt.Sprintf("%d", user.ID), map[string]any{"user_id": user.ID})
+			}
+			db.Save(&user)
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
 			return
+		}
+		// Reset lockout fields on successful login
+		if user.FailedLoginCount > 0 || user.LockedUntil != nil {
+			user.FailedLoginCount = 0
+			user.LockedUntil = nil
+			db.Save(&user)
 		}
 		access, refresh, expiresIn, err := issueAuthTokens(db, c, &user)
 		if err != nil {

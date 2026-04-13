@@ -27,9 +27,11 @@ type User struct {
 	DeliveryHistory    []Delivery
 	OrderHistory       []Order
 	ReferralCode       string    `gorm:"uniqueIndex" json:"referral_code,omitempty"`
-	TokenVersion       int       `gorm:"default:1;not null" json:"-"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	TokenVersion       int        `gorm:"default:1;not null" json:"-"`
+	FailedLoginCount   int        `gorm:"default:0" json:"-"`
+	LockedUntil        *time.Time `json:"-"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // Referral model

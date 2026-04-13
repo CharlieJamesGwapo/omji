@@ -70,3 +70,33 @@ func TestLogin_ReturnsAccessAndRefreshTokens(t *testing.T) {
 		t.Fatal("missing refresh_token")
 	}
 }
+
+func TestLogin_LocksAfterFiveFailures(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupAuthTestDB(t)
+
+	r := gin.New()
+	r.POST("/login", Login(db))
+
+	// POST 5 bad-password requests
+	for i := 0; i < 5; i++ {
+		body := `{"email":"test@example.com","password":"wrongpassword"}`
+		req, _ := http.NewRequest("POST", "/login", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: expected 401, got %d: %s", i+1, w.Code, w.Body.String())
+		}
+	}
+
+	// 6th request with CORRECT password — should be locked (429)
+	body := `{"email":"test@example.com","password":"password123"}`
+	req, _ := http.NewRequest("POST", "/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 after lockout, got %d: %s", w.Code, w.Body.String())
+	}
+}
