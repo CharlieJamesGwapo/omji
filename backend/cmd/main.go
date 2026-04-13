@@ -158,7 +158,7 @@ func main() {
 
 		// Ride booking routes (Pasundo)
 		protected.GET("/rides/nearby-drivers", handlers.GetNearbyDrivers(database))
-		protected.POST("/rides/create", handlers.CreateRide(database))
+		protected.POST("/rides/create", middleware.UserRateLimitMiddleware(20, time.Hour), handlers.CreateRide(database))
 		protected.GET("/rides/active", handlers.GetActiveRides(database))
 		protected.GET("/rides/:id", handlers.GetRideDetails(database))
 		protected.PUT("/rides/:id/cancel", handlers.CancelRide(database))
@@ -171,7 +171,7 @@ func main() {
 		protected.POST("/rideshare/:id/join", handlers.JoinRideShare(database))
 
 		// Delivery routes (Pasugo)
-		protected.POST("/deliveries/create", handlers.CreateDelivery(database))
+		protected.POST("/deliveries/create", middleware.UserRateLimitMiddleware(20, time.Hour), handlers.CreateDelivery(database))
 		protected.GET("/deliveries/active", handlers.GetActiveDeliveries(database))
 		protected.GET("/deliveries/:id", handlers.GetDeliveryDetails(database))
 		protected.PUT("/deliveries/:id/cancel", handlers.CancelDelivery(database))
@@ -181,7 +181,7 @@ func main() {
 		// Food & Store orders
 		protected.GET("/stores", handlers.GetStores(database))
 		protected.GET("/stores/:id/menu", handlers.GetStoreMenu(database))
-		protected.POST("/orders/create", handlers.CreateOrder(database))
+		protected.POST("/orders/create", middleware.UserRateLimitMiddleware(20, time.Hour), handlers.CreateOrder(database))
 		protected.GET("/orders/active", handlers.GetActiveOrders(database))
 		protected.GET("/orders/:id", handlers.GetOrderDetails(database))
 		protected.PUT("/orders/:id/cancel", handlers.CancelOrder(database))
@@ -193,7 +193,7 @@ func main() {
 		protected.DELETE("/payments/methods/:id", handlers.DeletePaymentMethod(database))
 
 		// Payment proof routes
-		protected.POST("/payment-proof/upload", handlers.UploadPaymentProof(database))
+		protected.POST("/payment-proof/upload", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadPaymentProof(database))
 		protected.POST("/payment-proof/submit", handlers.SubmitPaymentProof(database))
 		protected.GET("/payment-proof/:serviceType/:serviceId", handlers.GetPaymentProofStatus(database))
 
@@ -210,7 +210,7 @@ func main() {
 		protected.POST("/driver/requests/:id/reject", handlers.RejectRequest(database))
 		protected.POST("/driver/requests/:id/decline-ride", handlers.DeclineRideRequest(database))
 		protected.GET("/driver/earnings", handlers.GetDriverEarnings(database))
-		protected.POST("/driver/withdraw", handlers.RequestWithdrawal(database))
+		protected.POST("/driver/withdraw", middleware.UserRateLimitMiddleware(5, 24*time.Hour), handlers.RequestWithdrawal(database))
 		protected.GET("/driver/withdrawals", handlers.GetWithdrawals(database))
 		protected.POST("/driver/availability", handlers.SetAvailability(database))
 		protected.PUT("/driver/rides/:id/status", handlers.UpdateRideStatus(database))
@@ -225,7 +225,7 @@ func main() {
 		// Wallet routes
 		protected.GET("/wallet/balance", handlers.GetWalletBalance(database))
 		protected.POST("/wallet/top-up", handlers.TopUpWallet(database))
-		protected.POST("/wallet/withdraw", handlers.WithdrawWallet(database))
+		protected.POST("/wallet/withdraw", middleware.UserRateLimitMiddleware(5, 24*time.Hour), handlers.WithdrawWallet(database))
 
 		// Favorites routes
 		protected.GET("/favorites", handlers.GetFavorites(database))

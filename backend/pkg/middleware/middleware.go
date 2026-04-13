@@ -291,6 +291,28 @@ func AdminFreshMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// UserRateLimitMiddleware applies per-user rate limiting on sensitive endpoints.
+// It keys by "u:<userID>" when a userID is present in the context (set by
+// AuthMiddleware), falling back to the client IP. Must be placed after
+// AuthMiddleware in the handler chain to be effective.
+func UserRateLimitMiddleware(limit int, window time.Duration) gin.HandlerFunc {
+	limiter := newRateLimiter(limit, window)
+	return func(c *gin.Context) {
+		var key string
+		if raw, ok := c.Get("userID"); ok {
+			uid, _ := raw.(uint)
+			key = "u:" + strconv.FormatUint(uint64(uid), 10)
+		} else {
+			key = c.ClientIP()
+		}
+		if !limiter.allow(key) {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
+			return
+		}
+		c.Next()
+	}
+}
+
 // AuthRateLimitMiddleware applies a stricter rate limit to auth routes (brute force protection)
 func AuthRateLimitMiddleware(requestsPerMinute int) gin.HandlerFunc {
 	limiter := newRateLimiter(requestsPerMinute, time.Minute)
