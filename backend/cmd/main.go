@@ -123,6 +123,9 @@ func main() {
 		public.POST("/auth/verify-otp", handlers.VerifyOTP(database))
 		public.POST("/auth/resend-otp", handlers.ResendOTP(database))
 
+		// Auth refresh
+		public.POST("/auth/refresh", handlers.RefreshToken(database))
+
 		// App version check
 		public.GET("/app-version", func(c *gin.Context) {
 			c.JSON(200, gin.H{
@@ -142,6 +145,10 @@ func main() {
 	protected := router.Group("/api/v1")
 	protected.Use(middleware.AuthMiddleware())
 	{
+		// Auth session management
+		protected.POST("/auth/logout", handlers.Logout(database))
+		protected.POST("/auth/logout-all", handlers.LogoutAll(database))
+
 		// User routes
 		protected.GET("/user/profile", handlers.GetUserProfile(database))
 		protected.PUT("/user/profile", handlers.UpdateUserProfile(database))
