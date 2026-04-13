@@ -84,6 +84,14 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// SecurityV2Enabled reports whether the SECURITY_V2 feature flag is active.
+// When false, certain hardened behaviours (short access-token lifetime,
+// CORS wildcard rejection, AdminFreshMiddleware) are relaxed to allow
+// gradual rollout. Set SECURITY_V2=true in production to enable all guards.
+func SecurityV2Enabled() bool {
+	return os.Getenv("SECURITY_V2") == "true"
+}
+
 // ValidateStartup verifies required environment variables are present and safe.
 // Returns a non-nil error describing the first problem found. Callers should
 // log.Fatal on the returned error at process start.
@@ -114,7 +122,11 @@ func ValidateStartup() error {
 	}
 	for _, o := range strings.Split(corsOrigin, ",") {
 		if strings.TrimSpace(o) == "*" {
-			return fmt.Errorf("CORS_ORIGIN wildcard '*' is not allowed")
+			if !SecurityV2Enabled() {
+				log.Printf("warning: CORS wildcard detected but SECURITY_V2 disabled — allowing")
+			} else {
+				return fmt.Errorf("CORS_ORIGIN wildcard '*' is not allowed")
+			}
 		}
 	}
 

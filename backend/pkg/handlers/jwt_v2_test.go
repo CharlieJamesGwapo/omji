@@ -42,6 +42,7 @@ func TestGenerateAccessToken_ContainsRequiredClaims(t *testing.T) {
 }
 
 func TestGenerateAccessToken_ShortLifetime(t *testing.T) {
+	t.Setenv("SECURITY_V2", "true")
 	setJWTEnv(t)
 	tok, _ := GenerateAccessToken(1, "a@b.c", "user", 1, "oneride-mobile")
 	parsed, _, _ := jwt.NewParser().ParseUnverified(tok, jwt.MapClaims{})

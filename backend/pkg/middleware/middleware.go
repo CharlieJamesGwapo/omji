@@ -279,6 +279,10 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 // revocations take effect quickly.
 func AdminFreshMiddleware(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !config.SecurityV2Enabled() {
+			c.Next()
+			return
+		}
 		uidRaw, ok := c.Get("userID")
 		if !ok {
 			c.AbortWithStatus(http.StatusForbidden)

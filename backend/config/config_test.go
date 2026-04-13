@@ -45,6 +45,7 @@ func TestValidateStartup_FailsWithoutSSLMode(t *testing.T) {
 }
 
 func TestValidateStartup_FailsOnCORSWildcard(t *testing.T) {
+	t.Setenv("SECURITY_V2", "true")
 	os.Setenv("JWT_SECRET", strings.Repeat("a", 32))
 	os.Setenv("REFRESH_TOKEN_PEPPER", strings.Repeat("b", 32))
 	os.Setenv("DATABASE_URL", "postgres://u:p@h/db?sslmode=require")
