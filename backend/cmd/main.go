@@ -355,6 +355,8 @@ func main() {
 
 		// Activity logs
 		admin.GET("/activity-logs", handlers.AdminGetActivityLogs(database))
+		// Audit logs (security-focused append-only trail)
+		admin.GET("/audit-logs", handlers.AdminGetAuditLogs(database))
 
 		// Notifications
 		admin.GET("/notifications", handlers.AdminGetNotifications(database))

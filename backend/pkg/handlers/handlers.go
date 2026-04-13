@@ -242,6 +242,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 				audit.Log(db, c, "auth.account_locked", "user", fmt.Sprintf("%d", user.ID), map[string]any{"user_id": user.ID})
 			}
 			db.Save(&user)
+			audit.Log(db, c, "auth.login_failed", "user", fmt.Sprintf("%d", user.ID), map[string]any{"reason": "bad_password"})
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
 			return
 		}
@@ -256,6 +257,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
 			return
 		}
+		audit.Log(db, c, "auth.login", "user", fmt.Sprintf("%d", user.ID), map[string]any{"role": user.Role})
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -3051,6 +3053,7 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
 			return
 		}
+		audit.Log(db, c, "admin.user.delete", "user", fmt.Sprintf("%d", id), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "User deleted"}, "timestamp": time.Now()})
 	}
 }
@@ -3093,6 +3096,7 @@ func VerifyDriver(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Model(&models.User{}).Where("id = ?", driver.UserID).Update("role", "driver").Error; err != nil {
 			log.Printf("Failed to update user role for driver %d (user %d): %v", driver.ID, driver.UserID, err)
 		}
+		audit.Log(db, c, "admin.driver.verify", "driver", fmt.Sprintf("%d", driver.ID), map[string]any{"new_status": "verified"})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Driver verified and approved"}, "timestamp": time.Now()})
 	}
 }
@@ -3135,6 +3139,7 @@ func DeleteDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete driver"})
 			return
 		}
+		audit.Log(db, c, "admin.driver.delete", "driver", fmt.Sprintf("%d", id), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Driver deleted"}, "timestamp": time.Now()})
 	}
 }
@@ -3182,6 +3187,7 @@ func CreateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create store"})
 			return
 		}
+		audit.Log(db, c, "admin.store.create", "store", fmt.Sprintf("%d", store.ID), map[string]any{"name": store.Name})
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -3210,6 +3216,7 @@ func UpdateStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.store.update", "store", fmt.Sprintf("%d", store.ID), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": store, "timestamp": time.Now()})
 	}
 }
@@ -3246,6 +3253,7 @@ func DeleteStore(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete store"})
 			return
 		}
+		audit.Log(db, c, "admin.store.delete", "store", fmt.Sprintf("%d", id), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Store deleted"}, "timestamp": time.Now()})
 	}
 }
@@ -3569,6 +3577,7 @@ func CreatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create promo"})
 			return
 		}
+		audit.Log(db, c, "admin.promo.create", "promo", fmt.Sprintf("%d", promo.ID), map[string]any{"code": promo.Code})
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -3597,6 +3606,7 @@ func UpdatePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.promo.update", "promo", fmt.Sprintf("%d", promo.ID), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": promo, "timestamp": time.Now()})
 	}
 }
@@ -3631,6 +3641,7 @@ func DeletePromo(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete promo"})
 			return
 		}
+		audit.Log(db, c, "admin.promo.delete", "promo", fmt.Sprintf("%d", id), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Promo deleted"}, "timestamp": time.Now()})
 	}
 }
@@ -3943,6 +3954,7 @@ func AdminSendNotification(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
+		audit.Log(db, c, "admin.notification.send", "notification", "", map[string]any{"target_type": input.TargetType, "sent_count": sentCount})
 		c.JSON(http.StatusCreated, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -4183,6 +4195,7 @@ func TopUpWallet(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
 			return
 		}
+		audit.Log(db, c, "wallet.topup", "user", fmt.Sprintf("%d", userID), map[string]any{"amount": input.Amount, "method": input.PaymentMethod})
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
@@ -4241,6 +4254,7 @@ func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
 			return
 		}
+		audit.Log(db, c, "wallet.withdraw", "user", fmt.Sprintf("%d", userID), map[string]any{"amount": input.Amount, "method": input.PaymentMethod})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "transaction": transaction}, "timestamp": time.Now()})
 	}
 }
@@ -4320,6 +4334,7 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
 			return
 		}
+		audit.Log(db, c, "driver.withdrawal_requested", "withdrawal", fmt.Sprintf("%d", withdrawal.ID), map[string]any{"amount": input.Amount, "method": input.Method})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "withdrawal": withdrawal}})
 	}
 }
@@ -4439,6 +4454,7 @@ func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update withdrawal"})
 			return
 		}
+		audit.Log(db, c, "admin.withdrawal.update", "withdrawal", id, map[string]any{"new_status": input.Status})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": withdrawal, "timestamp": time.Now()})
 	}
 }
@@ -5214,6 +5230,7 @@ func AdminCreateRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create rate config. A config for this service/vehicle may already exist."})
 			return
 		}
+		audit.Log(db, c, "admin.rate.create", "rate", fmt.Sprintf("%d", input.ID), map[string]any{"service_type": input.ServiceType, "vehicle_type": input.VehicleType})
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": input})
 	}
 }
@@ -5252,6 +5269,7 @@ func AdminUpdateRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.rate.update", "rate", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": rate})
 	}
 }
@@ -5268,6 +5286,7 @@ func AdminDeleteRate(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete rate config"})
 			return
 		}
+		audit.Log(db, c, "admin.rate.delete", "rate", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Rate config deleted"})
 	}
 }
@@ -5351,6 +5370,7 @@ func AdminUpdateUser(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.user.update", "user", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": user, "timestamp": time.Now()})
 	}
 }
@@ -5419,6 +5439,7 @@ func AdminUpdateDriver(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.driver.update", "driver", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": driver, "timestamp": time.Now()})
 	}
 }
@@ -5586,6 +5607,7 @@ func AdminCreatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create payment config. Type may already exist."})
 			return
 		}
+		audit.Log(db, c, "admin.payment_config.create", "payment_config", fmt.Sprintf("%d", config.ID), map[string]any{"type": config.Type})
 		c.JSON(http.StatusCreated, gin.H{"success": true, "data": config})
 	}
 }
@@ -5633,6 +5655,7 @@ func AdminUpdatePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve updated record"})
 			return
 		}
+		audit.Log(db, c, "admin.payment_config.update", "payment_config", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": config})
 	}
 }
@@ -5653,6 +5676,7 @@ func AdminDeletePaymentConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete payment config"})
 			return
 		}
+		audit.Log(db, c, "admin.payment_config.delete", "payment_config", id, nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment config deleted"})
 	}
 }
@@ -5887,6 +5911,7 @@ func AdminUpdateCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create commission config"})
 				return
 			}
+			audit.Log(db, c, "admin.commission.config.update", "commission_config", fmt.Sprintf("%d", config.ID), map[string]any{"percentage": input.Percentage})
 			c.JSON(http.StatusCreated, gin.H{"success": true, "data": config, "timestamp": time.Now()})
 			return
 		}
@@ -5895,6 +5920,7 @@ func AdminUpdateCommissionConfig(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update commission config"})
 			return
 		}
+		audit.Log(db, c, "admin.commission.config.update", "commission_config", fmt.Sprintf("%d", config.ID), map[string]any{"percentage": input.Percentage})
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": config, "timestamp": time.Now()})
 	}
 }
@@ -6899,6 +6925,7 @@ func AdminVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		// Push notify user that payment was verified
 		sendPushToUser(db, proof.UserID, "Payment Verified!", "Your payment has been confirmed.", map[string]interface{}{"type": "payment_update"})
 
+		audit.Log(db, c, "admin.payment_proof.verify", "payment_proof", proofID, map[string]any{"new_status": "verified", "service_type": proof.ServiceType})
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment verified by admin"})
 	}
 }
@@ -6944,6 +6971,55 @@ func AdminRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		// Push notify user that payment was rejected
 		sendPushToUser(db, proof.UserID, "Payment Rejected", "Your payment proof was rejected. Please resubmit.", map[string]interface{}{"type": "payment_update"})
 
+		audit.Log(db, c, "admin.payment_proof.reject", "payment_proof", proofID, map[string]any{"new_status": "rejected", "service_type": proof.ServiceType})
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payment proof rejected by admin"})
+	}
+}
+
+// AdminGetAuditLogs returns paginated audit_logs rows with optional filters.
+// This is distinct from AdminGetActivityLogs (which aggregates operational events
+// for the dashboard). AdminGetAuditLogs exposes the security-focused append-only
+// audit trail written by audit.Log throughout the application.
+func AdminGetAuditLogs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 200 {
+			pageSize = 50
+		}
+		offset := (page - 1) * pageSize
+
+		query := db.Model(&models.AuditLog{})
+
+		if action := c.Query("action"); action != "" {
+			query = query.Where("action = ?", action)
+		}
+		if targetType := c.Query("target_type"); targetType != "" {
+			query = query.Where("target_type = ?", targetType)
+		}
+		if actorUserID := c.Query("actor_user_id"); actorUserID != "" {
+			query = query.Where("actor_user_id = ?", actorUserID)
+		}
+
+		var total int64
+		query.Count(&total)
+
+		var logs []models.AuditLog
+		if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
+			log.Printf("AdminGetAuditLogs: query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch audit logs: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":   true,
+			"data":      logs,
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		})
 	}
 }
