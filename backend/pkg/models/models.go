@@ -27,6 +27,7 @@ type User struct {
 	DeliveryHistory    []Delivery
 	OrderHistory       []Order
 	ReferralCode       string    `gorm:"uniqueIndex" json:"referral_code,omitempty"`
+	TokenVersion       int       `gorm:"default:1;not null" json:"-"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }
@@ -433,6 +434,21 @@ type AuditLog struct {
 	CreatedAt   time.Time      `gorm:"index" json:"created_at"`
 }
 
+// RefreshToken tracks issued refresh tokens. The raw token is never stored;
+// only a salted SHA-256 hash. FamilyID groups rotated tokens so reuse of any
+// historical token can revoke the entire family (theft detection).
+type RefreshToken struct {
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	UserID    uint       `gorm:"index;not null" json:"user_id"`
+	FamilyID  string     `gorm:"index;not null" json:"family_id"`
+	TokenHash string     `gorm:"uniqueIndex;not null" json:"-"`
+	ExpiresAt time.Time  `gorm:"index;not null" json:"expires_at"`
+	RevokedAt *time.Time `gorm:"index" json:"revoked_at,omitempty"`
+	UserAgent string     `json:"user_agent"`
+	IP        string     `json:"ip"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
@@ -462,6 +478,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&Referral{},
 		&Announcement{},
 		&AuditLog{},
+		&RefreshToken{},
 	)
 }
 
