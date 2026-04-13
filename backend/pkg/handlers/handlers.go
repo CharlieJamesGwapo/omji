@@ -19,8 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"errors"
+
 	"oneride/pkg/audit"
 	"oneride/pkg/auth"
+	"oneride/pkg/authz"
 	"oneride/pkg/models"
 
 	"github.com/gin-gonic/gin"
@@ -757,14 +760,22 @@ func GetActiveRides(db *gorm.DB) gin.HandlerFunc {
 func GetRideDetails(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		// Allow both customer and driver to view ride details
-		var driverID uint
-		var driver models.Driver
-		if db.Where("user_id = ?", userID).First(&driver).Error == nil {
-			driverID = driver.ID
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
 		}
 		var ride models.Ride
-		if err := db.Preload("Driver").Preload("Driver.User").Where("id = ? AND (user_id = ? OR driver_id = ?)", c.Param("id"), userID, driverID).First(&ride).Error; err != nil {
+		if err := db.Preload("Driver").Preload("Driver.User").First(&ride, rideIDParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ride not found"})
 			return
 		}
@@ -779,6 +790,20 @@ func GetRideDetails(db *gorm.DB) gin.HandlerFunc {
 func CancelRide(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Reason string `json:"reason"`
 		}
@@ -838,6 +863,20 @@ func ProcessScheduledRides(db *gorm.DB) gin.HandlerFunc {
 func RateRide(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Rating float64 `json:"rating" binding:"required,min=1,max=5"`
 			Review string  `json:"review"`
@@ -879,6 +918,26 @@ func RateRide(db *gorm.DB) gin.HandlerFunc {
 func RatePassenger(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint) // the driver's user ID
+		// Driver-only: require role == "driver"
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
+		serviceIDStr := c.Param("id")
+		serviceIDParsed, err := strconv.ParseUint(serviceIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(serviceIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Rating  float64 `json:"rating" binding:"required,min=1,max=5"`
 			Comment string  `json:"comment"`
@@ -1258,14 +1317,33 @@ func GetActiveDeliveries(db *gorm.DB) gin.HandlerFunc {
 func GetDeliveryDetails(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		// Allow both customer and driver to view delivery details
-		var driverID uint
-		var driver models.Driver
-		if db.Where("user_id = ?", userID).First(&driver).Error == nil {
-			driverID = driver.ID
+		deliveryIDStr := c.Param("id")
+		deliveryIDParsed, err := strconv.ParseUint(deliveryIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid delivery ID"})
+			return
+		}
+		if err := authz.MustOwnDelivery(db, userID, uint(deliveryIDParsed)); err != nil {
+			// Also allow the assigned driver to view
+			var driverCheck models.Driver
+			allowed := false
+			if db.Where("user_id = ?", userID).First(&driverCheck).Error == nil {
+				var d models.Delivery
+				if db.Where("id = ? AND driver_id = ?", deliveryIDParsed, driverCheck.ID).First(&d).Error == nil {
+					allowed = true
+				}
+			}
+			if !allowed {
+				if errors.Is(err, authz.ErrNotFound) {
+					c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+				} else {
+					c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+				}
+				return
+			}
 		}
 		var d models.Delivery
-		if err := db.Preload("Driver").Preload("Driver.User").Where("id = ? AND (user_id = ? OR driver_id = ?)", c.Param("id"), userID, driverID).First(&d).Error; err != nil {
+		if err := db.Preload("Driver").Preload("Driver.User").First(&d, deliveryIDParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivery not found"})
 			return
 		}
@@ -1280,6 +1358,20 @@ func GetDeliveryDetails(db *gorm.DB) gin.HandlerFunc {
 func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		deliveryIDStr := c.Param("id")
+		deliveryIDParsed, err := strconv.ParseUint(deliveryIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid delivery ID"})
+			return
+		}
+		if err := authz.MustOwnDelivery(db, userID, uint(deliveryIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Reason string `json:"reason"`
 		}
@@ -1314,6 +1406,20 @@ func CancelDelivery(db *gorm.DB) gin.HandlerFunc {
 func RateDelivery(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		deliveryIDStr := c.Param("id")
+		deliveryIDParsed, err := strconv.ParseUint(deliveryIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid delivery ID"})
+			return
+		}
+		if err := authz.MustOwnDelivery(db, userID, uint(deliveryIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Rating float64 `json:"rating" binding:"required,min=1,max=5"`
 		}
@@ -1503,8 +1609,22 @@ func GetActiveOrders(db *gorm.DB) gin.HandlerFunc {
 func GetOrderDetails(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		orderIDStr := c.Param("id")
+		orderIDParsed, err := strconv.ParseUint(orderIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid order ID"})
+			return
+		}
+		if err := authz.MustOwnOrder(db, userID, uint(orderIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var order models.Order
-		if err := db.Preload("Store").Where("id = ? AND user_id = ?", c.Param("id"), userID).First(&order).Error; err != nil {
+		if err := db.Preload("Store").First(&order, orderIDParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Order not found"})
 			return
 		}
@@ -1515,6 +1635,20 @@ func GetOrderDetails(db *gorm.DB) gin.HandlerFunc {
 func CancelOrder(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		orderIDStr := c.Param("id")
+		orderIDParsed, err := strconv.ParseUint(orderIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid order ID"})
+			return
+		}
+		if err := authz.MustOwnOrder(db, userID, uint(orderIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var order models.Order
 		if err := db.Where("id = ? AND user_id = ? AND status IN ?", c.Param("id"), userID, []string{"pending", "confirmed"}).First(&order).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Order not found or cannot cancel"})
@@ -1531,6 +1665,20 @@ func CancelOrder(db *gorm.DB) gin.HandlerFunc {
 func RateOrder(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		orderIDStr := c.Param("id")
+		orderIDParsed, err := strconv.ParseUint(orderIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid order ID"})
+			return
+		}
+		if err := authz.MustOwnOrder(db, userID, uint(orderIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			Rating float64 `json:"rating" binding:"required,min=1,max=5"`
 		}
@@ -2024,6 +2172,12 @@ func GetDriverRequests(db *gorm.DB) gin.HandlerFunc {
 func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		// Driver-only route
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		var driver models.Driver
 		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
@@ -2316,6 +2470,12 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		// Driver-only route
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		var driver models.Driver
 		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Driver not found"})
@@ -2646,9 +2806,22 @@ func GetDeliveryHistory(db *gorm.DB) gin.HandlerFunc {
 func GetChatMessages(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		rideID := c.Param("id")
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var messages []models.ChatMessage
-		if err := db.Where("ride_id = ? AND (sender_id = ? OR receiver_id = ?)", rideID, userID, userID).Order("created_at ASC").Find(&messages).Error; err != nil {
+		if err := db.Where("ride_id = ? AND (sender_id = ? OR receiver_id = ?)", rideIDStr, userID, userID).Order("created_at ASC").Find(&messages).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch messages"})
 			return
 		}
@@ -2659,18 +2832,26 @@ func GetChatMessages(db *gorm.DB) gin.HandlerFunc {
 func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		var input struct {
 			ReceiverID uint   `json:"receiver_id" binding:"required"`
 			Message    string `json:"message" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-			return
-		}
-		rideIDStr := c.Param("id")
-		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
 			return
 		}
 		rideIDUint := uint(rideIDParsed)
@@ -4922,6 +5103,21 @@ func WebSocketChatHandler(db *gorm.DB) gin.HandlerFunc {
 // ChatImageUpload handles uploading chat images and returns a base64 data URL
 func ChatImageUpload(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		rideIDStr := c.Param("id")
+		rideIDParsed, err := strconv.ParseUint(rideIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ride ID"})
+			return
+		}
+		if err := authz.MustOwnOrDriveRide(db, userID, uint(rideIDParsed)); err != nil {
+			if errors.Is(err, authz.ErrNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			}
+			return
+		}
 		file, err := c.FormFile("image")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No file uploaded"})
@@ -6417,11 +6613,16 @@ func AdminGetReferrals(db *gorm.DB) gin.HandlerFunc {
 // RiderGetPaymentProof returns payment proof for a service assigned to the rider
 func RiderGetPaymentProof(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
+		uid := c.MustGet("userID").(uint)
+		// Driver-only route
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		serviceType := c.Param("serviceType")
 		serviceID := c.Param("serviceId")
 
-		uid := userID.(uint)
 		var driver models.Driver
 		if err := db.Where("user_id = ?", uid).First(&driver).Error; err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Driver profile not found"})
@@ -6461,12 +6662,53 @@ func RiderGetPaymentProof(db *gorm.DB) gin.HandlerFunc {
 // RiderVerifyPaymentProof marks a payment proof as verified by the rider
 func RiderVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
+		uid := c.MustGet("userID").(uint)
+		// Driver-only route
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		proofID := c.Param("id")
-		uid := userID.(uint)
+		proofIDParsed, err := strconv.ParseUint(proofID, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid proof ID"})
+			return
+		}
+		if err := authz.MustOwnPaymentProof(db, uid, uint(proofIDParsed)); err != nil {
+			// Drivers can verify proofs they don't own — verify driver is assigned
+			var proof2 models.PaymentProof
+			if db.First(&proof2, proofIDParsed).Error != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+				return
+			}
+			var drv models.Driver
+			if db.Where("user_id = ?", uid).First(&drv).Error != nil {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+				return
+			}
+			// Check driver is assigned to the referenced service
+			assigned := false
+			switch proof2.ServiceType {
+			case "ride":
+				var ride models.Ride
+				if db.Where("id = ? AND driver_id = ?", proof2.ServiceID, drv.ID).First(&ride).Error == nil {
+					assigned = true
+				}
+			case "delivery":
+				var delivery models.Delivery
+				if db.Where("id = ? AND driver_id = ?", proof2.ServiceID, drv.ID).First(&delivery).Error == nil {
+					assigned = true
+				}
+			}
+			if !assigned {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+				return
+			}
+		}
 
 		var proof models.PaymentProof
-		if err := db.First(&proof, proofID).Error; err != nil {
+		if err := db.First(&proof, proofIDParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
 			return
 		}
@@ -6502,7 +6744,47 @@ func RiderVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 // RiderRejectPaymentProof marks a payment proof as rejected with a reason
 func RiderRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		uid := c.MustGet("userID").(uint)
+		// Driver-only route
+		role, _ := c.Get("role")
+		if role != "driver" {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		proofID := c.Param("id")
+		proofIDParsed, err := strconv.ParseUint(proofID, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid proof ID"})
+			return
+		}
+		// Inline ownership: driver must be assigned to the service
+		var proof0 models.PaymentProof
+		if db.First(&proof0, proofIDParsed).Error != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "not found"})
+			return
+		}
+		var drv models.Driver
+		if db.Where("user_id = ?", uid).First(&drv).Error != nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
+		assigned := false
+		switch proof0.ServiceType {
+		case "ride":
+			var ride models.Ride
+			if db.Where("id = ? AND driver_id = ?", proof0.ServiceID, drv.ID).First(&ride).Error == nil {
+				assigned = true
+			}
+		case "delivery":
+			var delivery models.Delivery
+			if db.Where("id = ? AND driver_id = ?", proof0.ServiceID, drv.ID).First(&delivery).Error == nil {
+				assigned = true
+			}
+		}
+		if !assigned {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "forbidden"})
+			return
+		}
 		var input struct {
 			Reason string `json:"reason" binding:"required"`
 		}
@@ -6512,7 +6794,7 @@ func RiderRejectPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		var proof models.PaymentProof
-		if err := db.First(&proof, proofID).Error; err != nil {
+		if err := db.First(&proof, proofIDParsed).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Payment proof not found"})
 			return
 		}

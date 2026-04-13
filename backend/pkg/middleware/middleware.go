@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"oneride/config"
 	"oneride/pkg/auth"
+	"oneride/pkg/authz"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 // Simple in-memory rate limiter
@@ -265,6 +267,26 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
 		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Next()
+	}
+}
+
+// AdminFreshMiddleware re-checks the database on every admin request to confirm
+// the caller still has the admin role. Results are cached for 60 seconds per
+// userID (via authz.RequireAdminFresh) to limit DB load while ensuring
+// revocations take effect quickly.
+func AdminFreshMiddleware(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uidRaw, ok := c.Get("userID")
+		if !ok {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		uid, _ := uidRaw.(uint)
+		if err := authz.RequireAdminFresh(db, uid); err != nil {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin access revoked"})
+			return
+		}
 		c.Next()
 	}
 }

@@ -272,7 +272,7 @@ func main() {
 
 	// Admin routes
 	admin := router.Group("/api/v1/admin")
-	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware(), middleware.AdminFreshMiddleware(database))
 	{
 		// Server metrics (admin-only)
 		admin.GET("/metrics", func(c *gin.Context) {
