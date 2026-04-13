@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,13 +20,19 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// helper: generate a valid JWT for testing
+// helper: generate a valid JWT for testing using the new claim shape.
 func generateTestToken(userID uint, email, role string) string {
+	now := time.Now()
 	claims := jwt.MapClaims{
-		"user_id": float64(userID),
-		"email":   email,
-		"role":    role,
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		"sub":   fmt.Sprintf("%d", userID),
+		"email": email,
+		"role":  role,
+		"iss":   "oneride-api",
+		"aud":   "oneride-mobile",
+		"exp":   now.Add(time.Hour).Unix(),
+		"iat":   now.Unix(),
+		"jti":   "test-jti",
+		"tver":  float64(1),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	str, err := token.SignedString([]byte(testJWTSecret))
@@ -197,11 +204,17 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("expired token returns 401", func(t *testing.T) {
 		r := setupRouter()
 
+		now := time.Now()
 		claims := jwt.MapClaims{
-			"user_id": float64(1),
-			"email":   "expired@oneride.app",
-			"role":    "user",
-			"exp":     time.Now().Add(-time.Hour).Unix(),
+			"sub":   "1",
+			"email": "expired@oneride.app",
+			"role":  "user",
+			"iss":   "oneride-api",
+			"aud":   "oneride-mobile",
+			"exp":   now.Add(-time.Hour).Unix(),
+			"iat":   now.Add(-2 * time.Hour).Unix(),
+			"jti":   "expired-jti",
+			"tver":  float64(1),
 		}
 		tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		expiredToken, _ := tok.SignedString([]byte(testJWTSecret))

@@ -50,8 +50,9 @@ func TestGenerateToken(t *testing.T) {
 			t.Fatal("could not cast claims to MapClaims")
 		}
 
-		if got := uint(claims["user_id"].(float64)); got != userID {
-			t.Errorf("user_id = %d, want %d", got, userID)
+		subStr, _ := claims["sub"].(string)
+		if subStr != "42" {
+			t.Errorf("sub = %q, want %q", subStr, "42")
 		}
 		if got := claims["email"].(string); got != email {
 			t.Errorf("email = %q, want %q", got, email)

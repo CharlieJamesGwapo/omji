@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"oneride/config"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -132,10 +133,9 @@ func CORSMiddleware() gin.HandlerFunc {
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		// Fallback to query param for WebSocket connections (can't set custom headers)
 		if authHeader == "" {
-			if token := c.Query("token"); token != "" {
-				authHeader = "Bearer " + token
+			if t := c.Query("token"); t != "" {
+				authHeader = "Bearer " + t
 			}
 		}
 		if authHeader == "" {
@@ -151,13 +151,14 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		token, err := jwt.Parse(parts[1], func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
+		parser := jwt.NewParser(
+			jwt.WithValidMethods([]string{"HS256"}),
+			jwt.WithIssuer("oneride-api"),
+		)
+
+		token, err := parser.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
 			return []byte(getJWTSecret()), nil
 		})
-
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
@@ -171,10 +172,36 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userID", uint(claims["user_id"].(float64)))
-		c.Set("email", claims["email"])
-		c.Set("role", claims["role"])
-		
+		// Require exp claim explicitly (WithExpirationRequired not available in v5.0.0)
+		if _, hasExp := claims["exp"]; !hasExp {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token missing expiration"})
+			c.Abort()
+			return
+		}
+
+		subStr, _ := claims["sub"].(string)
+		if subStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid subject"})
+			c.Abort()
+			return
+		}
+		uid64, err := strconv.ParseUint(subStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid subject format"})
+			c.Abort()
+			return
+		}
+
+		role, _ := claims["role"].(string)
+		email, _ := claims["email"].(string)
+		tverFloat, _ := claims["tver"].(float64)
+
+		c.Set("userID", uint(uid64))
+		c.Set("email", email)
+		c.Set("role", role)
+		c.Set("tokenVersion", int(tverFloat))
+		c.Set("jti", claims["jti"])
+
 		c.Next()
 	}
 }
