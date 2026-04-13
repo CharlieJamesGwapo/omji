@@ -10,6 +10,7 @@ import (
 	"oneride/pkg/db"
 	"oneride/pkg/handlers"
 	"oneride/pkg/middleware"
+	"oneride/pkg/validate"
 	"os"
 	"os/signal"
 	"runtime"
@@ -60,6 +61,7 @@ func main() {
 	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.RateLimitMiddleware(120))
 	router.Use(middleware.RequestLoggerMiddleware())
+	router.Use(validate.BodySizeLimit(1 << 20)) // 1 MB default
 
 	// Upload directory (persistent disk on Render, local ./uploads in dev)
 	uploadDir := os.Getenv("UPLOAD_DIR")
