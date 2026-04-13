@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"oneride/pkg/auth"
 	"oneride/pkg/models"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,25 @@ func safeNotify(db *gorm.DB, userID *uint, title, body, notifType string) {
 	if err := db.Create(&models.Notification{UserID: *userID, Title: title, Body: body, Type: notifType}).Error; err != nil {
 		log.Printf("Failed to create notification (user=%d, type=%s): %v", *userID, notifType, err)
 	}
+}
+
+// issueAuthTokens mints a short-lived access token and a refresh token for a
+// user. Returns the access token, refresh token, and expires_in seconds.
+// Used by Register, Login, and VerifyOTP.
+func issueAuthTokens(db *gorm.DB, c *gin.Context, user *models.User) (access, refresh string, expiresIn int, err error) {
+	audience := AudienceMobile
+	if user.Role == "admin" {
+		audience = AudienceAdmin
+	}
+	access, err = GenerateAccessToken(user.ID, user.Email, user.Role, user.TokenVersion, audience)
+	if err != nil {
+		return "", "", 0, err
+	}
+	refresh, _, err = auth.Issue(db, user.ID, c.GetHeader("User-Agent"), c.ClientIP(), "")
+	if err != nil {
+		return "", "", 0, err
+	}
+	return access, refresh, int(AccessTokenLifetime.Seconds()), nil
 }
 
 // createCommissionRecord calculates and records commission for a completed service.
@@ -158,7 +178,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		SendOTPSMS(input.Phone, otp)
-		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		access, refresh, expiresIn, err := issueAuthTokens(db, c, &user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
 			return
@@ -166,8 +186,10 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusCreated, gin.H{
 			"success": true,
 			"data": gin.H{
-				"token": token,
-				"user":  gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "role": user.Role},
+				"token":         access,
+				"refresh_token": refresh,
+				"expires_in":    expiresIn,
+				"user":          gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "role": user.Role},
 			},
 			"timestamp": time.Now(),
 		})
@@ -206,7 +228,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
 			return
 		}
-		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		access, refresh, expiresIn, err := issueAuthTokens(db, c, &user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
 			return
@@ -214,7 +236,9 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data": gin.H{
-				"token": token,
+				"token":         access,
+				"refresh_token": refresh,
+				"expires_in":    expiresIn,
 				"user": gin.H{
 					"id": user.ID, "name": user.Name, "email": user.Email,
 					"phone": user.Phone, "role": user.Role, "is_verified": user.IsVerified,
@@ -253,14 +277,19 @@ func VerifyOTP(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to verify account"})
 			return
 		}
-		token, err := GenerateToken(user.ID, user.Email, user.Role)
+		access, refresh, expiresIn, err := issueAuthTokens(db, c, &user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate authentication token"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"success":   true,
-			"data":      gin.H{"token": token, "user": gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "role": user.Role, "is_verified": true}},
+			"success": true,
+			"data": gin.H{
+				"token":         access,
+				"refresh_token": refresh,
+				"expires_in":    expiresIn,
+				"user":          gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "role": user.Role, "is_verified": true},
+			},
 			"timestamp": time.Now(),
 		})
 	}
