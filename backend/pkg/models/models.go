@@ -417,6 +417,22 @@ type Announcement struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+// AuditLog is an append-only record of sensitive actions for security review.
+// Never update or delete rows in this table.
+type AuditLog struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	ActorUserID *uint          `gorm:"index" json:"actor_user_id"`
+	ActorRole   string         `gorm:"index" json:"actor_role"`
+	Action      string         `gorm:"index;not null" json:"action"`
+	TargetType  string         `gorm:"index" json:"target_type"`
+	TargetID    string         `gorm:"index" json:"target_id"`
+	Metadata    datatypes.JSON `json:"metadata"`
+	IP          string         `json:"ip"`
+	UserAgent   string         `json:"user_agent"`
+	RequestID   string         `gorm:"index" json:"request_id"`
+	CreatedAt   time.Time      `gorm:"index" json:"created_at"`
+}
+
 // AutoMigrate is used for database migrations
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
@@ -445,6 +461,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&PaymentProof{},
 		&Referral{},
 		&Announcement{},
+		&AuditLog{},
 	)
 }
 
