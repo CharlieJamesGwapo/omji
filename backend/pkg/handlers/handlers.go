@@ -122,10 +122,10 @@ func getUploadDir() string {
 // ===== AUTH HANDLERS =====
 
 type RegisterInput struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required"`
+	Name     string `json:"name" binding:"required,min=1,max=100"`
+	Email    string `json:"email" binding:"required,email,max=254"`
 	Phone    string `json:"phone" binding:"required"`
-	Password string `json:"password" binding:"required,min=6"`
+	Password string `json:"password" binding:"required,min=8,max=128"`
 }
 
 func Register(db *gorm.DB) gin.HandlerFunc {
@@ -141,6 +141,8 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid phone number format. Must be 10-15 digits, optionally starting with +"})
 			return
 		}
+		// Normalize email to prevent case-based duplicates
+		input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 		var existing models.User
 		if err := db.Where("email = ?", input.Email).First(&existing).Error; err == nil {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Email already registered"})
@@ -150,7 +152,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Phone already registered"})
 			return
 		}
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to process password"})
 			return
@@ -218,6 +220,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Email or phone required"})
 			return
 		}
+		input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 		var user models.User
 		q := db
 		if input.Email != "" {
@@ -226,7 +229,8 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			q = q.Where("phone = ?", input.Phone)
 		}
 		if err := q.First(&user).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "No account found with that phone number or email"})
+			audit.Log(db, c, "auth.login_failed", "user", "", map[string]any{"reason": "no_account"})
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid credentials"})
 			return
 		}
 		// Check if account is temporarily locked
@@ -244,7 +248,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			}
 			db.Save(&user)
 			audit.Log(db, c, "auth.login_failed", "user", fmt.Sprintf("%d", user.ID), map[string]any{"reason": "bad_password"})
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Incorrect password. Please try again."})
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid credentials"})
 			return
 		}
 		// Reset lockout fields on successful login
@@ -483,6 +487,17 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		if input.PickupLatitude < -90 || input.PickupLatitude > 90 ||
+			input.DropoffLatitude < -90 || input.DropoffLatitude > 90 ||
+			input.PickupLongitude < -180 || input.PickupLongitude > 180 ||
+			input.DropoffLongitude < -180 || input.DropoffLongitude > 180 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid coordinates"})
+			return
+		}
+		if input.Distance < 0 || input.Distance > 500 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid distance"})
+			return
+		}
 		if input.PaymentMethod == "" {
 			input.PaymentMethod = "cash"
 		}
@@ -490,9 +505,13 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 		if distance < 0.1 {
 			distance = 1.0
 		}
+		if distance > 500 {
+			distance = 500
+		}
 		fare := CalculateFareFromDB(db, distance, input.VehicleType)
-		// Use client-provided fare if it's higher (e.g. Pasabay with extra passengers)
-		if input.EstimatedFare > fare {
+		// Cap client-provided fare at 2x server fare to support Pasabay multi-passenger
+		// surcharge without allowing unbounded fare inflation by malicious clients.
+		if input.EstimatedFare > fare && input.EstimatedFare <= fare*2 {
 			fare = input.EstimatedFare
 		}
 		var promoID *uint
@@ -2866,15 +2885,39 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		var input struct {
-			ReceiverID uint   `json:"receiver_id" binding:"required"`
-			Message    string `json:"message" binding:"required"`
+			Message string `json:"message" binding:"required,max=2000"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
 		rideIDUint := uint(rideIDParsed)
-		msg := models.ChatMessage{SenderID: uintPtr(userID), ReceiverID: uintPtr(input.ReceiverID), RideID: &rideIDUint, Message: input.Message}
+		// Derive receiver from ride participants — never trust client-supplied ID.
+		var ride models.Ride
+		if err := db.Select("user_id", "driver_id").First(&ride, rideIDUint).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "ride not found"})
+			return
+		}
+		var receiverID *uint
+		if ride.UserID != nil && *ride.UserID == userID {
+			if ride.DriverID != nil {
+				var driverUser models.Driver
+				if err := db.Select("user_id").First(&driverUser, *ride.DriverID).Error; err == nil {
+					uid := driverUser.UserID
+					receiverID = &uid
+				}
+			}
+		} else if ride.DriverID != nil {
+			var driverUser models.Driver
+			if err := db.Select("user_id").First(&driverUser, *ride.DriverID).Error; err == nil && driverUser.UserID == userID {
+				receiverID = ride.UserID
+			}
+		}
+		if receiverID == nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "no chat peer for this ride"})
+			return
+		}
+		msg := models.ChatMessage{SenderID: uintPtr(userID), ReceiverID: receiverID, RideID: &rideIDUint, Message: input.Message}
 		if err := db.Create(&msg).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send message"})
 			return
@@ -2891,7 +2934,7 @@ func SendChatMessage(db *gorm.DB) gin.HandlerFunc {
 
 		// Send push notification to receiver
 		var receiverToken models.PushToken
-		if err := db.Where("user_id = ?", input.ReceiverID).First(&receiverToken).Error; err == nil {
+		if err := db.Where("user_id = ?", *receiverID).First(&receiverToken).Error; err == nil {
 			// Look up sender name
 			var sender models.User
 			senderName := "New message"
@@ -4160,119 +4203,32 @@ func GetWalletBalance(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// TopUpWallet previously credited the wallet balance directly from client input
+// with no payment gateway verification — a trivial money-minting path. It is now
+// disabled pending integration of a verified gateway callback (Xendit/PayMongo
+// webhook or admin-approved payment proof). Return 503 to signal this.
 func TopUpWallet(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		var input struct {
-			Amount        float64 `json:"amount" binding:"required"`
-			PaymentMethod string  `json:"payment_method" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-			return
-		}
-		if input.Amount < 10 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum top-up is ₱10"})
-			return
-		}
-		if input.Amount > 50000 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Maximum top-up is ₱50,000"})
-			return
-		}
-		dbTx := db.Begin()
-		var wallet models.Wallet
-		if err := dbTx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&wallet).Error; err != nil {
-			wallet = models.Wallet{UserID: userID, Balance: 0}
-			if err := dbTx.Create(&wallet).Error; err != nil {
-				dbTx.Rollback()
-				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create wallet"})
-				return
-			}
-		}
-		wallet.Balance += input.Amount
-		if err := dbTx.Save(&wallet).Error; err != nil {
-			dbTx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
-			return
-		}
-		transaction := models.WalletTransaction{
-			WalletID:    uintPtr(wallet.ID),
-			UserID:      uintPtr(userID),
-			Type:        "top_up",
-			Amount:      input.Amount,
-			Description: "Wallet top-up via " + input.PaymentMethod,
-			Reference:   "TU-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
-		}
-		if err := dbTx.Create(&transaction).Error; err != nil {
-			dbTx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
-			return
-		}
-		if err := dbTx.Commit().Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Top-up failed"})
-			return
-		}
-		audit.Log(db, c, "wallet.topup", "user", fmt.Sprintf("%d", userID), map[string]any{"amount": input.Amount, "method": input.PaymentMethod})
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data": gin.H{
-				"balance":     wallet.Balance,
-				"transaction": transaction,
-			},
-			"timestamp": time.Now(),
+		audit.Log(db, c, "wallet.topup.blocked", "user", fmt.Sprintf("%d", userID), nil)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"success": false,
+			"error":   "Direct wallet top-up is temporarily disabled. Please submit payment proof through the verified top-up flow.",
 		})
 	}
 }
 
+// WithdrawWallet previously let any authenticated user drain their wallet to any
+// PaymentMethod string with no admin review. Use /withdrawals (RequestWithdrawal)
+// which creates a pending withdrawal request reviewed by an admin.
 func WithdrawWallet(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
-		var input struct {
-			Amount        float64 `json:"amount" binding:"required"`
-			PaymentMethod string  `json:"payment_method" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-			return
-		}
-		if input.Amount < 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum withdrawal is ₱100"})
-			return
-		}
-		tx := db.Begin()
-		var wallet models.Wallet
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", userID).First(&wallet).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Wallet not found"})
-			return
-		}
-		if wallet.Balance < input.Amount {
-			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Insufficient balance"})
-			return
-		}
-		wallet.Balance -= input.Amount
-		if err := tx.Save(&wallet).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
-			return
-		}
-		transaction := models.WalletTransaction{
-			WalletID: uintPtr(wallet.ID), UserID: uintPtr(userID), Type: "withdrawal",
-			Amount: input.Amount, Description: "Withdrawal to " + input.PaymentMethod,
-			Reference: "WD-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
-		}
-		if err := tx.Create(&transaction).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
-			return
-		}
-		if err := tx.Commit().Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
-			return
-		}
-		audit.Log(db, c, "wallet.withdraw", "user", fmt.Sprintf("%d", userID), map[string]any{"amount": input.Amount, "method": input.PaymentMethod})
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"balance": wallet.Balance, "transaction": transaction}, "timestamp": time.Now()})
+		audit.Log(db, c, "wallet.withdraw.blocked", "user", fmt.Sprintf("%d", userID), nil)
+		c.JSON(http.StatusGone, gin.H{
+			"success": false,
+			"error":   "Direct withdrawals are disabled. Please submit a withdrawal request for admin review.",
+		})
 	}
 }
 
@@ -4402,9 +4358,9 @@ func AdminUpdateWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		validStatuses := map[string]bool{"approved": true, "rejected": true, "completed": true}
+		validStatuses := map[string]bool{"pending": true, "approved": true, "rejected": true, "completed": true}
 		if !validStatuses[input.Status] {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Status must be approved, rejected, or completed"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Status must be pending, approved, rejected, or completed"})
 			return
 		}
 		tx := db.Begin()
@@ -5756,13 +5712,13 @@ func UploadPaymentProof(db *gorm.DB) gin.HandlerFunc {
 // SubmitPaymentProof creates a payment proof record and updates service payment status
 func SubmitPaymentProof(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
+		uid := c.MustGet("userID").(uint)
 		var input struct {
 			ServiceType     string  `json:"service_type" binding:"required"`
 			ServiceID       uint    `json:"service_id" binding:"required"`
 			PaymentMethod   string  `json:"payment_method" binding:"required"`
-			ReferenceNumber string  `json:"reference_number" binding:"required"`
-			Amount          float64 `json:"amount" binding:"required"`
+			ReferenceNumber string  `json:"reference_number" binding:"required,min=4,max=64"`
+			Amount          float64 `json:"amount" binding:"required,gt=0"`
 			ProofImageURL   string  `json:"proof_image_url" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
@@ -5780,12 +5736,48 @@ func SubmitPaymentProof(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid payment_method. Must be gcash or maya"})
 			return
 		}
-		// Validate proof_image_url starts with data:image/
+		// Validate proof_image_url starts with data:image/ and cap size
 		if !strings.HasPrefix(input.ProofImageURL, "data:image/") {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid proof image format"})
 			return
 		}
-		uid := userID.(uint)
+		if len(input.ProofImageURL) > 3*1024*1024 { // ~2.25 MB decoded
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Proof image too large"})
+			return
+		}
+
+		// Verify claimed amount matches the service total owed by this user
+		var expectedAmount float64
+		switch input.ServiceType {
+		case "ride":
+			var r models.Ride
+			if err := db.Where("id = ? AND user_id = ?", input.ServiceID, uid).First(&r).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ride not found"})
+				return
+			}
+			expectedAmount = r.FinalFare
+			if expectedAmount == 0 {
+				expectedAmount = r.EstimatedFare
+			}
+		case "delivery":
+			var d models.Delivery
+			if err := db.Where("id = ? AND user_id = ?", input.ServiceID, uid).First(&d).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Delivery not found"})
+				return
+			}
+			expectedAmount = d.DeliveryFee
+		case "order":
+			var o models.Order
+			if err := db.Where("id = ? AND user_id = ?", input.ServiceID, uid).First(&o).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Order not found"})
+				return
+			}
+			expectedAmount = o.TotalAmount
+		}
+		if input.Amount+0.01 < expectedAmount || input.Amount > expectedAmount*1.01 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Amount does not match service total"})
+			return
+		}
 
 		// Check how many attempts already exist
 		var attemptCount int64
@@ -5832,11 +5824,11 @@ func GetPaymentProofStatus(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		serviceType := c.Param("serviceType")
 		serviceID := c.Param("serviceId")
-		userID, _ := c.Get("user_id")
+		uid := c.MustGet("userID").(uint)
 
 		var proof models.PaymentProof
 		err := db.Where("service_type = ? AND service_id = ? AND user_id = ?",
-			serviceType, serviceID, userID.(uint)).
+			serviceType, serviceID, uid).
 			Order("created_at DESC").First(&proof).Error
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No payment proof found"})
@@ -6866,9 +6858,8 @@ func AdminGetPaymentProofs(db *gorm.DB) gin.HandlerFunc {
 // AdminVerifyPaymentProof marks a payment proof as verified by admin
 func AdminVerifyPaymentProof(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
+		uid := c.MustGet("userID").(uint)
 		proofID := c.Param("id")
-		uid := userID.(uint)
 
 		var proof models.PaymentProof
 		if err := db.First(&proof, proofID).Error; err != nil {
