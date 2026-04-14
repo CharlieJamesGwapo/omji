@@ -156,6 +156,8 @@ func main() {
 		// User routes
 		protected.GET("/user/profile", handlers.GetUserProfile(database))
 		protected.PUT("/user/profile", handlers.UpdateUserProfile(database))
+		protected.POST("/user/password", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.ChangePassword(database))
+		protected.GET("/user/export", middleware.UserRateLimitMiddleware(5, time.Hour), handlers.ExportMyData(database))
 		protected.DELETE("/user/account", handlers.DeleteMyAccount(database))
 		protected.GET("/user/addresses", handlers.GetSavedAddresses(database))
 		protected.POST("/user/addresses", handlers.AddSavedAddress(database))

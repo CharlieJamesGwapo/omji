@@ -93,6 +93,9 @@ export const userService = {
   getSavedAddresses: () => api.get('/user/addresses'),
   addSavedAddress: (data: any) => api.post('/user/addresses', data),
   deleteSavedAddress: (id: number) => api.delete(`/user/addresses/${id}`),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/user/password', { current_password: currentPassword, new_password: newPassword }),
+  exportData: () => api.get('/user/export'),
   deleteAccount: () => api.delete('/user/account'),
 };
 

@@ -16,6 +16,11 @@ import RiderEarningsScreen from '../screens/Rider/RiderEarningsScreen';
 import RiderProfileScreen from '../screens/Rider/RiderProfileScreen';
 import TrackingScreen from '../screens/Main/TrackingScreen';
 import ChatScreen from '../screens/Main/ChatScreen';
+import EditProfileScreen from '../screens/Main/EditProfileScreen';
+import ChangePasswordScreen from '../screens/Main/ChangePasswordScreen';
+import NotificationsScreen from '../screens/Main/NotificationsScreen';
+import PrivacyScreen from '../screens/Main/PrivacyScreen';
+import EditVehicleScreen from '../screens/Rider/EditVehicleScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -103,6 +108,11 @@ export default function RiderNavigator() {
       <Stack.Screen name="RiderTabs" component={RiderTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Tracking" component={TrackingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="EditVehicle" component={EditVehicleScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

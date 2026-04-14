@@ -382,25 +382,63 @@ func UpdateUserProfile(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.MustGet("userID").(uint)
 		var input struct {
-			Name         string `json:"name"`
-			Phone        string `json:"phone"`
-			ProfileImage string `json:"profile_image"`
+			Name         *string `json:"name"`
+			Email        *string `json:"email"`
+			Phone        *string `json:"phone"`
+			ProfileImage *string `json:"profile_image"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request body"})
 			return
 		}
 		updates := map[string]interface{}{}
-		if input.Name != "" {
-			updates["name"] = input.Name
+		if input.Name != nil {
+			name := strings.TrimSpace(*input.Name)
+			if len(name) < 2 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name must be at least 2 characters"})
+				return
+			}
+			if len(name) > 80 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name is too long"})
+				return
+			}
+			updates["name"] = name
 		}
-		if input.Phone != "" {
-			updates["phone"] = input.Phone
+		if input.Email != nil {
+			email := strings.TrimSpace(strings.ToLower(*input.Email))
+			if email != "" && !strings.Contains(email, "@") {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid email address"})
+				return
+			}
+			if email != "" {
+				var existing models.User
+				if err := db.Where("email = ? AND id != ?", email, userID).First(&existing).Error; err == nil {
+					c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Email is already in use"})
+					return
+				}
+				updates["email"] = email
+			}
 		}
-		if input.ProfileImage != "" {
-			updates["profile_image"] = input.ProfileImage
+		if input.Phone != nil {
+			phone := strings.TrimSpace(*input.Phone)
+			if phone != "" {
+				var existing models.User
+				if err := db.Where("phone = ? AND id != ?", phone, userID).First(&existing).Error; err == nil {
+					c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Phone number is already in use"})
+					return
+				}
+				updates["phone"] = phone
+			}
+		}
+		if input.ProfileImage != nil {
+			updates["profile_image"] = *input.ProfileImage
+		}
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No fields to update"})
+			return
 		}
 		if err := db.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+			log.Printf("Failed to update user %d profile: %v", userID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update profile"})
 			return
 		}
@@ -410,6 +448,130 @@ func UpdateUserProfile(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": user.ID, "name": user.Name, "email": user.Email, "phone": user.Phone, "profile_image": user.ProfileImage, "role": user.Role}, "timestamp": time.Now()})
+	}
+}
+
+// ChangePassword lets an authenticated user change their password. Verifies
+// the current password, hashes the new one with bcrypt, and bumps TokenVersion
+// to invalidate all existing access tokens (forcing re-login on other devices).
+func ChangePassword(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var input struct {
+			CurrentPassword string `json:"current_password" binding:"required"`
+			NewPassword     string `json:"new_password" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "current_password and new_password are required"})
+			return
+		}
+		if len(input.NewPassword) < 8 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "New password must be at least 8 characters"})
+			return
+		}
+		if input.NewPassword == input.CurrentPassword {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "New password must be different from current password"})
+			return
+		}
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.CurrentPassword)); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Current password is incorrect"})
+			return
+		}
+		hashed, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), 12)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to hash password"})
+			return
+		}
+		if err := db.Model(&user).Updates(map[string]interface{}{
+			"password":      string(hashed),
+			"token_version": gorm.Expr("token_version + 1"),
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update password"})
+			return
+		}
+		audit.Log(db, c, "user.password.change", "user", fmt.Sprintf("%d", userID), nil)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Password updated. Other devices have been signed out."}, "timestamp": time.Now()})
+	}
+}
+
+// ExportMyData returns all personal data we hold for the authenticated user
+// as a single JSON document. Required by the Data Privacy Act (RA 10173) right
+// to data portability and Google Play's data export expectations.
+func ExportMyData(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.MustGet("userID").(uint)
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+			return
+		}
+		var (
+			addresses     []models.SavedAddress
+			payments      []models.PaymentMethod
+			rides         []models.Ride
+			deliveries    []models.Delivery
+			orders        []models.Order
+			notifications []models.Notification
+			favorites     []models.Favorite
+			referrals     []models.Referral
+			wallet        models.Wallet
+			walletTxs     []models.WalletTransaction
+			driver        models.Driver
+			withdrawals   []models.WithdrawalRequest
+		)
+		db.Where("user_id = ?", userID).Find(&addresses)
+		db.Where("user_id = ?", userID).Find(&payments)
+		db.Where("user_id = ?", userID).Order("created_at DESC").Find(&rides)
+		db.Where("user_id = ?", userID).Order("created_at DESC").Find(&deliveries)
+		db.Where("user_id = ?", userID).Order("created_at DESC").Find(&orders)
+		db.Where("user_id = ?", userID).Order("created_at DESC").Find(&notifications)
+		db.Where("user_id = ?", userID).Find(&favorites)
+		db.Where("referrer_id = ? OR referred_id = ?", userID, userID).Find(&referrals)
+		db.Where("user_id = ?", userID).First(&wallet)
+		db.Where("user_id = ?", userID).Order("created_at DESC").Find(&walletTxs)
+		hasDriver := db.Where("user_id = ?", userID).First(&driver).Error == nil
+		if hasDriver {
+			db.Where("driver_id = ?", driver.ID).Order("created_at DESC").Find(&withdrawals)
+		}
+		export := gin.H{
+			"export_generated_at": time.Now().Format(time.RFC3339),
+			"export_format":       "ONE RIDE Balingasag personal data export v1",
+			"profile": gin.H{
+				"id":            user.ID,
+				"name":          user.Name,
+				"email":         user.Email,
+				"phone":         user.Phone,
+				"profile_image": user.ProfileImage,
+				"role":          user.Role,
+				"is_verified":   user.IsVerified,
+				"rating":        user.Rating,
+				"total_ratings": user.TotalRatings,
+				"referral_code": user.ReferralCode,
+				"created_at":    user.CreatedAt,
+				"updated_at":    user.UpdatedAt,
+			},
+			"saved_addresses":      addresses,
+			"payment_methods":      payments,
+			"ride_history":         rides,
+			"delivery_history":     deliveries,
+			"order_history":        orders,
+			"notifications":        notifications,
+			"favorites":            favorites,
+			"referrals":            referrals,
+			"wallet":               wallet,
+			"wallet_transactions":  walletTxs,
+		}
+		if hasDriver {
+			export["driver_profile"] = driver
+			export["withdrawal_requests"] = withdrawals
+		}
+		audit.Log(db, c, "user.data.export", "user", fmt.Sprintf("%d", userID), nil)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": export, "timestamp": time.Now()})
 	}
 }
 

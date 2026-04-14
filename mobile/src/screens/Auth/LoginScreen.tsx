@@ -207,7 +207,7 @@ export default function LoginScreen({ navigation }: any) {
                 accessibilityLabel="Password"
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} accessibilityRole="button">
-                <Ionicons name={showPassword ? 'eye' : 'eye-off-outline'} size={18} color={COLORS.gray400} />
+                <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.gray400} />
               </TouchableOpacity>
             </View>
             {passwordError ? <Text style={styles.err}>{passwordError}</Text> : null}

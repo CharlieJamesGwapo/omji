@@ -27,6 +27,7 @@ import ChatScreen from '../screens/Main/ChatScreen';
 import WalletScreen from '../screens/Main/WalletScreen';
 import RideHistoryScreen from '../screens/Main/RideHistoryScreen';
 import EditProfileScreen from '../screens/Main/EditProfileScreen';
+import ChangePasswordScreen from '../screens/Main/ChangePasswordScreen';
 import SavedAddressesScreen from '../screens/Main/SavedAddressesScreen';
 import PaymentMethodsScreen from '../screens/Main/PaymentMethodsScreen';
 import FavoritesScreen from '../screens/Main/FavoritesScreen';
@@ -139,6 +140,7 @@ export default function MainNavigator() {
       <Stack.Screen name="RideHistory" component={RideHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="RiderRegistration" component={RiderRegistrationScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
       <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />

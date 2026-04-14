@@ -222,12 +222,21 @@ export default function EditProfileScreen({ navigation }: any) {
     try {
       setSaving(true);
 
-      const payload: any = {
-        name: name.trim(),
-        phone: phone.trim(),
-      };
+      const payload: Record<string, string> = {};
+      if (name.trim() !== originalName.current) {
+        payload.name = name.trim();
+      }
+      if (phone.trim() !== originalPhone.current) {
+        payload.phone = phone.trim();
+      }
       if (newImageUri === 'remove') {
         payload.profile_image = '';
+      }
+
+      if (Object.keys(payload).length === 0) {
+        Alert.alert('No Changes', 'You haven\'t changed anything yet.');
+        setSaving(false);
+        return;
       }
 
       const response = await userService.updateProfile(payload);

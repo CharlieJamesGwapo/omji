@@ -92,7 +92,7 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Vehicle',
       items: [
-        { icon: 'bicycle', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Vehicle Details', subtitle: `${riderProfile.vehicleType} - ${riderProfile.plateNumber}`, action: () => Alert.alert('Vehicle Details', `Type: ${riderProfile.vehicleType}\nPlate: ${riderProfile.plateNumber}\nModel: ${driverData.vehicle_model || '-'}\nLicense: ${riderProfile.licenseNumber}`) },
+        { icon: 'bicycle', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Vehicle Details', subtitle: `${riderProfile.vehicleType} - ${riderProfile.plateNumber}`, action: () => navigation.navigate('EditVehicle') },
         { icon: 'document-text', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Documents', subtitle: driverData.is_verified ? 'Verified & on file' : 'Pending verification', action: () => Alert.alert('Documents', driverData.is_verified ? 'Your documents have been verified and are on file.\n\nTo update documents, please contact support.' : 'Your documents are being reviewed.\n\nPlease wait for admin verification.') },
       ],
     },
@@ -106,9 +106,10 @@ export default function RiderProfileScreen({ navigation }: any) {
     {
       title: 'Account',
       items: [
-        { icon: 'person', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Edit Profile', subtitle: riderProfile.email, action: () => Alert.alert('Edit Profile', `Name: ${riderProfile.name}\nEmail: ${riderProfile.email}\nPhone: ${riderProfile.phone}\n\nContact support to update your profile information.`) },
-        { icon: 'card', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Bank Account', subtitle: 'Manage payout account', action: () => Alert.alert('Bank Account', 'Manage your payout account.\n\nCurrently using the account registered during signup.\nContact support to update your bank details.') },
-        { icon: 'shield-checkmark', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Privacy & Security', subtitle: 'Data protection settings', action: () => Alert.alert('Privacy & Security', 'Your data is encrypted and protected.\n\n\u2022 Location shared only during active rides\n\u2022 Personal info never shared with passengers\n\u2022 You can request data deletion anytime') },
+        { icon: 'person', iconColor: COLORS.accent, iconBg: COLORS.accentBg, label: 'Edit Profile', subtitle: riderProfile.email, action: () => navigation.navigate('EditProfile') },
+        { icon: 'lock-closed', iconColor: COLORS.warning, iconBg: COLORS.warningBg, label: 'Change Password', subtitle: 'Update account password', action: () => navigation.navigate('ChangePassword') },
+        { icon: 'notifications', iconColor: COLORS.info, iconBg: COLORS.infoBg, label: 'Notifications', subtitle: 'View alerts and updates', action: () => navigation.navigate('Notifications') },
+        { icon: 'shield-checkmark', iconColor: COLORS.success, iconBg: COLORS.successBg, label: 'Privacy & Data', subtitle: 'Manage your data and account', action: () => navigation.navigate('Privacy') },
       ],
     },
     {

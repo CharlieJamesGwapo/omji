@@ -38,13 +38,36 @@ export default function PrivacyScreen({ navigation }: any) {
   const showToast = (msg: string, type: ToastType = 'info') => setToast({ visible: true, message: msg, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
-  const handleExportData = () => {
-    Alert.alert(
-      'Export Data Request',
-      'Your data export request has been submitted. You will receive an email with your data within 48 hours.',
-      [{ text: 'OK' }]
-    );
-    showToast('Data export requested', 'success');
+  const [exporting, setExporting] = useState(false);
+  const handleExportData = async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      const response = await userService.exportData();
+      const data = response.data?.data || response.data;
+      const json = JSON.stringify(data, null, 2);
+      const fileName = `oneride-data-export-${Date.now()}.json`;
+      const FileSystem: any = await import('expo-file-system/legacy');
+      const Sharing = await import('expo-sharing');
+      const path = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(path, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save your ONE RIDE data export',
+          UTI: 'public.json',
+        });
+        showToast('Data export ready', 'success');
+      } else {
+        Alert.alert('Export Saved', `Your data was saved to ${path}`);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Failed to export data. Please try again.';
+      Alert.alert('Export Failed', msg);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const performDeletion = async () => {

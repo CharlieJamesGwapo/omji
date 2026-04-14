@@ -188,6 +188,7 @@ export default function ProfileScreen({ navigation }: any) {
       title: 'Account',
       items: [
         { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
+        { icon: 'lock-closed-outline', label: 'Change Password', screen: 'ChangePassword' },
         { icon: 'gift-outline', label: 'Refer & Earn', screen: 'Referral' },
         { icon: 'wallet-outline', label: 'Wallet', screen: 'Wallet' },
         { icon: 'location-outline', label: 'Saved Addresses', screen: 'SavedAddresses' },
