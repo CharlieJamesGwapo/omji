@@ -64,12 +64,28 @@ const RiderApprovalPage: React.FC = () => {
   // Reset page on filter/search change
   useEffect(() => { setCurrentPage(1); }, [debouncedSearch, filter]);
 
-  const loadRiders = async () => {
+  // Auto-poll every 15s so new applications surface without manual refresh.
+  // Pause polling while the detail modal is open or an action is in flight to
+  // avoid clobbering the user's current view.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!selectedRider && !actionLoading) {
+        loadRiders({ fresh: true, silent: true });
+      }
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [selectedRider, actionLoading]);
+
+  const loadRiders = async (opts?: { fresh?: boolean; silent?: boolean }) => {
     try {
-      const response = await adminService.getDrivers();
+      const response = opts?.fresh
+        ? await adminService.getDriversFresh()
+        : await adminService.getDrivers();
       setRiders(response.data.data || []);
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to load rider applications'));
+      if (!opts?.silent) {
+        toast.error(getErrorMessage(err, 'Failed to load rider applications'));
+      }
     }
     setLoading(false);
   };
@@ -79,8 +95,8 @@ const RiderApprovalPage: React.FC = () => {
     try {
       await adminService.verifyDriver(riderId);
       toast.success('Rider approved successfully! Their account is now active.');
-      loadRiders();
       setSelectedRider(null);
+      await loadRiders({ fresh: true });
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to approve rider'));
     } finally {
@@ -93,8 +109,8 @@ const RiderApprovalPage: React.FC = () => {
     try {
       await adminService.deleteDriver(riderId);
       toast.success('Rider application rejected');
-      loadRiders();
       setSelectedRider(null);
+      await loadRiders({ fresh: true });
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to reject rider'));
     } finally {
@@ -157,7 +173,7 @@ const RiderApprovalPage: React.FC = () => {
             className="w-full sm:w-64"
           />
           <button
-            onClick={loadRiders}
+            onClick={() => loadRiders({ fresh: true })}
             className="flex-shrink-0 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center gap-2"
             aria-label="Refresh rider list"
           >

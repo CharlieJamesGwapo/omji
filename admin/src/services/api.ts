@@ -54,15 +54,21 @@ API.interceptors.response.use(
     if (method && ['post', 'put', 'delete', 'patch'].includes(method)) {
       const url = response.config.url || '';
       const parts = url.split('/').filter(Boolean);
-      // Invalidate the collection endpoint for the mutated resource
+      // Invalidate the COLLECTION endpoint (first two segments only).
+      // E.g. POST /admin/drivers/123/verify must clear the cache key
+      // get:.../admin/drivers, not get:.../admin/drivers/123.
       if (parts.length >= 2) {
-        const resource = parts.slice(0, 3).join('/');
-        invalidateCache(resource);
+        const collection = parts.slice(0, 2).join('/');
+        invalidateCache(collection);
+        // Drivers and users mutate each other (verify-driver flips user role)
+        if (collection === 'admin/drivers') invalidateCache('admin/users');
+        if (collection === 'admin/users') invalidateCache('admin/drivers');
       }
       // Only invalidate analytics when the mutation affects data they aggregate
-      const analyticsAffecting = ['/admin/rides', '/admin/deliveries', '/admin/orders', '/admin/stores'];
+      const analyticsAffecting = ['/admin/rides', '/admin/deliveries', '/admin/orders', '/admin/stores', '/admin/drivers', '/admin/users'];
       if (analyticsAffecting.some(prefix => url.includes(prefix))) {
         invalidateCache('/admin/analytics');
+        invalidateCache('/admin/dashboard');
       }
     }
     return response;
@@ -143,6 +149,7 @@ export const adminService = {
 
   // Drivers
   getDrivers: () => cachedGet('/admin/drivers'),
+  getDriversFresh: () => freshGet('/admin/drivers'),
   verifyDriver: (id: number) => API.post(`/admin/drivers/${id}/verify`),
   deleteDriver: (id: number) => API.delete(`/admin/drivers/${id}`),
   updateDriver: (id: number, data: any) => API.put(`/admin/drivers/${id}`, data),
