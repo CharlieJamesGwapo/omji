@@ -3025,6 +3025,85 @@ func GetUserByID(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// deleteUserCascade removes a user and all dependent records in a single
+// transaction. Historical rows (rides, deliveries, orders, chats, wallet
+// transactions) have their user FKs nullified so financial/audit history is
+// preserved; owned records (addresses, favorites, wallet, push tokens) are
+// hard-deleted. Used by both admin DELETE and self-service account deletion.
+func deleteUserCascade(db *gorm.DB, id uint) error {
+	var user models.User
+	if err := db.First(&user, id).Error; err != nil {
+		return err
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		uid := id
+		if err := tx.Exec("UPDATE rides SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE deliveries SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE orders SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE chat_messages SET sender_id = NULL WHERE sender_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE chat_messages SET receiver_id = NULL WHERE receiver_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE wallet_transactions SET user_id = NULL, wallet_id = NULL WHERE user_id = ?", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE ride_shares SET driver_id = NULL WHERE driver_id IN (SELECT id FROM drivers WHERE user_id = ?)", uid).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.SavedAddress{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.PaymentMethod{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.Notification{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.Favorite{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.PushToken{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.Wallet{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.RefreshToken{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("referrer_id = ? OR referred_id = ?", uid, uid).Delete(&models.Referral{}).Error; err != nil {
+			return err
+		}
+		var driver models.Driver
+		if tx.Where("user_id = ?", uid).First(&driver).Error == nil {
+			if err := tx.Model(&models.Ride{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.Delivery{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.CommissionRecord{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.WithdrawalRequest{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Delete(&driver).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&user).Error
+	})
+}
+
 func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
@@ -3032,89 +3111,45 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid ID"})
 			return
 		}
-		// Verify user exists
-		var user models.User
-		if err := db.First(&user, id).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
-			return
-		}
-		// Delete in transaction to handle foreign key constraints
-		if err := db.Transaction(func(tx *gorm.DB) error {
-			uid := uint(id)
-			// Nullify user references on historical records (preserve history)
-			// Use raw SQL with NULL (not 0) to avoid FK violations
-			if err := tx.Exec("UPDATE rides SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
-				return err
+		if err := deleteUserCascade(db, uint(id)); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+				return
 			}
-			if err := tx.Exec("UPDATE deliveries SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
-				return err
-			}
-			if err := tx.Exec("UPDATE orders SET user_id = NULL WHERE user_id = ?", uid).Error; err != nil {
-				return err
-			}
-			if err := tx.Exec("UPDATE chat_messages SET sender_id = NULL WHERE sender_id = ?", uid).Error; err != nil {
-				return err
-			}
-			if err := tx.Exec("UPDATE chat_messages SET receiver_id = NULL WHERE receiver_id = ?", uid).Error; err != nil {
-				return err
-			}
-			if err := tx.Exec("UPDATE wallet_transactions SET user_id = NULL, wallet_id = NULL WHERE user_id = ?", uid).Error; err != nil {
-				return err
-			}
-			// Nullify rideshare references
-			if err := tx.Exec("UPDATE ride_shares SET driver_id = NULL WHERE driver_id IN (SELECT id FROM drivers WHERE user_id = ?)", uid).Error; err != nil {
-				return err
-			}
-			// Delete owned records
-			if err := tx.Where("user_id = ?", uid).Delete(&models.SavedAddress{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("user_id = ?", uid).Delete(&models.PaymentMethod{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("user_id = ?", uid).Delete(&models.Notification{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("user_id = ?", uid).Delete(&models.Favorite{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("user_id = ?", uid).Delete(&models.PushToken{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("user_id = ?", uid).Delete(&models.Wallet{}).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("referrer_id = ? OR referred_id = ?", uid, uid).Delete(&models.Referral{}).Error; err != nil {
-				return err
-			}
-			// Delete driver record if exists
-			var driver models.Driver
-			if tx.Where("user_id = ?", uid).First(&driver).Error == nil {
-				if err := tx.Model(&models.Ride{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
-					return err
-				}
-				if err := tx.Model(&models.Delivery{}).Where("driver_id = ?", driver.ID).Update("driver_id", nil).Error; err != nil {
-					return err
-				}
-				if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.CommissionRecord{}).Error; err != nil {
-					return err
-				}
-				if err := tx.Where("driver_id = ?", driver.ID).Delete(&models.WithdrawalRequest{}).Error; err != nil {
-					return err
-				}
-				if err := tx.Delete(&driver).Error; err != nil {
-					return err
-				}
-			}
-			// Delete user
-			return tx.Delete(&user).Error
-		}); err != nil {
 			log.Printf("Failed to delete user %d: %v", id, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete user"})
 			return
 		}
 		audit.Log(db, c, "admin.user.delete", "user", fmt.Sprintf("%d", id), nil)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "User deleted"}, "timestamp": time.Now()})
+	}
+}
+
+// DeleteMyAccount lets an authenticated user permanently delete their own
+// account. Required by Google Play's account deletion policy.
+func DeleteMyAccount(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uidVal, ok := c.Get("userID")
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
+			return
+		}
+		uid, ok := uidVal.(uint)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
+			return
+		}
+		if err := deleteUserCascade(db, uid); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Account not found"})
+				return
+			}
+			log.Printf("Failed to self-delete user %d: %v", uid, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete account"})
+			return
+		}
+		audit.Log(db, c, "user.account.delete", "user", fmt.Sprintf("%d", uid), nil)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Account deleted"}, "timestamp": time.Now()})
 	}
 }
 

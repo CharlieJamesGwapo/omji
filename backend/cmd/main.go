@@ -156,6 +156,7 @@ func main() {
 		// User routes
 		protected.GET("/user/profile", handlers.GetUserProfile(database))
 		protected.PUT("/user/profile", handlers.UpdateUserProfile(database))
+		protected.DELETE("/user/account", handlers.DeleteMyAccount(database))
 		protected.GET("/user/addresses", handlers.GetSavedAddresses(database))
 		protected.POST("/user/addresses", handlers.AddSavedAddress(database))
 		protected.DELETE("/user/addresses/:id", handlers.DeleteSavedAddress(database))

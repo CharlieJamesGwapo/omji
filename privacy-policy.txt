@@ -1,0 +1,180 @@
+ONE RIDE Balingasag — Privacy Policy
+
+Last Updated: April 15, 2026
+
+ONE RIDE Balingasag ("ONE RIDE", "we", "our", or "us") operates the ONE RIDE Balingasag mobile application (package: com.oneridebalingasag.app) and the ONE RIDE administrator portal. This Privacy Policy explains what information we collect, how we use it, who we share it with, and the rights you have over your data.
+
+By using ONE RIDE Balingasag you agree to the practices described in this Privacy Policy.
+
+1. INFORMATION WE COLLECT
+
+a) Account Information
+   - Full name
+   - Email address
+   - Phone number
+   - Hashed password (we never store plaintext passwords)
+   - Profile photo (optional, uploaded by you)
+
+b) Driver Verification Information (drivers only)
+   - Government-issued ID document
+   - Driver's licence
+   - Vehicle make, model, plate number, and vehicle photo
+   - Selfie used for liveness/identity verification
+   These documents are reviewed by our administrators for safety verification and are stored encrypted at rest. They are not shared with passengers.
+
+c) Location Data
+   - Real-time GPS location while you are booking, taking, or providing a ride, delivery, or pasabay (ride-share) service
+   - Drivers: continuous location while you are set as Online/available, so we can match you with nearby ride and delivery requests
+   - Riders: location only while a booking screen is open or a trip is active
+   We do not collect background location when the app is closed.
+
+d) Payment Information
+   - Payment method preference (Cash, GCash, Maya, or in-app Wallet)
+   - Wallet balance and transaction history
+   - Uploaded payment proof images for non-cash methods
+   We do not store your GCash or Maya credentials. Card numbers are not collected.
+
+e) Communications
+   - In-app chat messages between riders and drivers during an active trip
+   - Push notification tokens (Expo / FCM) used to deliver ride status alerts
+
+f) Service Activity
+   - Ride, delivery, and order history (origin, destination, fare, timestamp)
+   - Ratings and reviews you give and receive
+   - Referral codes used or generated
+   - Audit log entries (action type, IP address, user agent, request ID) generated when sensitive operations occur, used solely for security and abuse investigation
+
+g) Device & Technical Data
+   - Device model, OS version, and app version (via expo-device)
+   - Crash reports and error traces (via Sentry, when enabled)
+   - IP address of API requests
+
+h) Photos & Camera (optional)
+   - Profile photo uploads
+   - Driver document uploads
+   - Payment proof screenshots
+   The Camera and Photos permissions are only requested at the moment you tap an upload button.
+
+2. HOW WE USE YOUR INFORMATION
+
+We process your information to:
+   - Create and authenticate your account
+   - Match riders with nearby drivers
+   - Calculate fares, commission, and wallet balances
+   - Process and verify payments
+   - Display trip status, navigation, and ETAs
+   - Verify driver identity and vehicle eligibility
+   - Maintain safety through ratings, audit logs, and incident review
+   - Send transactional and operational push notifications
+   - Comply with legal obligations and respond to lawful requests
+   - Improve the service, debug crashes, and prevent abuse
+
+We do not use your data for advertising and we do not sell your personal information.
+
+3. INFORMATION SHARING
+
+We share information only in these limited situations:
+
+a) Between Riders and Drivers
+   When a ride or delivery is active, we share the rider's first name, contact phone, and pickup/drop-off locations with the matched driver — and the driver's first name, contact phone, vehicle, and live location with the rider — for the duration of the trip only.
+
+b) Service Providers (sub-processors)
+   - Render.com — backend hosting and managed PostgreSQL database (data stored in the United States)
+   - Vercel — admin web portal hosting
+   - Expo / Google Firebase Cloud Messaging — push notification delivery
+   - Sentry — crash and error monitoring (when enabled)
+   - GCash and Maya — handled by you directly through their own apps; we receive only the payment confirmation
+   These providers are bound by their own privacy and security commitments and may only process data on our behalf.
+
+c) Legal & Safety
+   We may disclose information when required by law, court order, or to protect the safety, rights, or property of users, drivers, or the public.
+
+d) Business Transfers
+   If ONE RIDE is acquired or merged, user data may be transferred to the successor entity, subject to this Privacy Policy.
+
+We do not sell or rent your personal information to third parties.
+
+4. INTERNATIONAL DATA TRANSFERS
+
+Our backend infrastructure is hosted on Render.com in the United States. By using ONE RIDE you consent to the transfer and storage of your personal data outside the Philippines. We use HTTPS in transit and require sslmode=require for the database connection.
+
+5. DATA SECURITY
+
+We take security seriously and apply the following measures:
+   - HTTPS/TLS for all client-server communication
+   - JWT-based authentication with rotating refresh tokens (theft-detection family revocation)
+   - Passwords hashed with bcrypt; never stored in plaintext
+   - Server-side validation, rate limiting, and abuse protection
+   - Row-level transaction locking for financial operations
+   - Audit logging of sensitive admin actions
+   - Database access restricted to our backend only
+
+No system is 100% secure, but we follow industry best practices to protect your data.
+
+6. DATA RETENTION
+
+   - Active account data: retained while your account exists.
+   - Ride, delivery, and order history: retained for 24 months for tax, dispute, and accounting purposes (user-identifying fields are nullified if you delete your account, while financial totals are preserved).
+   - Chat messages: retained for 90 days after the trip completes.
+   - Audit logs: retained for 12 months.
+   - When you delete your account, your profile, addresses, payment methods, wallet, push tokens, refresh tokens, favourites, and (if applicable) driver record are permanently deleted from our database. Historical trip and financial records are anonymised by nullifying the user reference.
+
+7. ACCOUNT DELETION
+
+You can permanently delete your ONE RIDE account at any time:
+
+   In the app:
+   1. Open ONE RIDE
+   2. Tap the side menu → Privacy & Data
+   3. Tap "Delete My Account"
+   4. Type DELETE to confirm
+
+   By email:
+   Send a deletion request from the email address registered on your account to support@oneridebalingasag.app and we will action it within 7 working days.
+
+Account deletion is irreversible.
+
+8. YOUR RIGHTS
+
+Subject to applicable Philippine law (Data Privacy Act of 2012, RA 10173), you have the right to:
+   - Access the personal information we hold about you
+   - Correct inaccurate or incomplete information
+   - Delete your account and associated personal information
+   - Object to certain processing
+   - Withdraw consent (which may limit your ability to use the service)
+   - File a complaint with the National Privacy Commission (privacy.gov.ph)
+
+You can exercise most of these rights directly inside the app, or by emailing support@oneridebalingasag.app.
+
+9. LOCATION PERMISSIONS
+
+We use the foreground location permission only.
+   - Riders: location is read while a booking or trip screen is open.
+   - Drivers: location is read while you are set Online/available, so we can route requests to you.
+You can revoke location access at any time in your device's Settings → Apps → ONE RIDE → Permissions. Location is required for core ride-hailing functionality and most features will not work without it.
+
+10. CAMERA, PHOTOS & STORAGE PERMISSIONS
+
+The Camera and Photos permissions are requested only when you tap an upload button (profile picture, driver document, payment proof). We do not access your camera or photo library at any other time.
+
+11. PUSH NOTIFICATIONS
+
+We send push notifications about ride and delivery status, wallet activity, and important account events. You can disable promotional notifications in the app or revoke notification permission entirely in your device settings.
+
+12. CHILDREN'S PRIVACY
+
+ONE RIDE Balingasag is intended for users 18 years of age or older. We do not knowingly collect personal information from anyone under the age of 13. If we become aware that we have collected personal information from a child under 13, we will delete it as soon as reasonably possible.
+
+13. CHANGES TO THIS POLICY
+
+We may update this Privacy Policy from time to time. The "Last Updated" date at the top reflects the latest revision. Material changes will be announced in-app and/or by email. Continued use of the service after changes take effect constitutes acceptance of the revised policy.
+
+14. CONTACT US
+
+If you have questions, complaints, or requests regarding this Privacy Policy or your personal data, contact us at:
+
+   ONE RIDE Balingasag
+   Email: support@oneridebalingasag.app
+   Address: Balingasag, Misamis Oriental, Philippines
+
+Data Protection Officer: support@oneridebalingasag.app

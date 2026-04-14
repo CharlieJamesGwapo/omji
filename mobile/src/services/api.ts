@@ -93,6 +93,7 @@ export const userService = {
   getSavedAddresses: () => api.get('/user/addresses'),
   addSavedAddress: (data: any) => api.post('/user/addresses', data),
   deleteSavedAddress: (id: number) => api.delete(`/user/addresses/${id}`),
+  deleteAccount: () => api.delete('/user/account'),
 };
 
 // Ride Services

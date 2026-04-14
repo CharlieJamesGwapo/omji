@@ -15,6 +15,7 @@ import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { ToastType } from '../../components/Toast';
+import { userService } from '../../services/api';
 
 const DATA_CATEGORIES = [
   { icon: 'person-outline', title: 'Profile Information', desc: 'Name, email, phone number, profile photo' },
@@ -46,6 +47,17 @@ export default function PrivacyScreen({ navigation }: any) {
     showToast('Data export requested', 'success');
   };
 
+  const performDeletion = async () => {
+    try {
+      await userService.deleteAccount();
+      showToast('Account permanently deleted', 'success');
+      await logout();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Failed to delete account. Please try again or contact support.';
+      Alert.alert('Deletion Failed', msg);
+    }
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -67,8 +79,7 @@ export default function PrivacyScreen({ navigation }: any) {
                     style: 'destructive',
                     onPress: async (text?: string) => {
                       if (text?.toUpperCase() === 'DELETE') {
-                        await logout();
-                        showToast('Account deletion requested', 'info');
+                        await performDeletion();
                       } else {
                         Alert.alert('Cancelled', 'Account deletion cancelled. You typed the wrong confirmation.');
                       }
@@ -78,7 +89,6 @@ export default function PrivacyScreen({ navigation }: any) {
                 'plain-text'
               );
             } else {
-              // Android: Alert.prompt is not available, use a second confirmation
               Alert.alert(
                 'Final Confirmation',
                 'Are you absolutely sure? This will permanently delete your account and all associated data. This cannot be undone.',
@@ -87,10 +97,7 @@ export default function PrivacyScreen({ navigation }: any) {
                   {
                     text: 'Delete Forever',
                     style: 'destructive',
-                    onPress: async () => {
-                      await logout();
-                      showToast('Account deletion requested', 'info');
-                    },
+                    onPress: performDeletion,
                   },
                 ]
               );
