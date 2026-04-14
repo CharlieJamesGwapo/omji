@@ -21,7 +21,10 @@ var DB *gorm.DB
 func InitDB(cfg *config.Config) *gorm.DB {
 	dsn := cfg.GetDSN()
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Warn),
 		SkipDefaultTransaction:                    true,
 		DisableForeignKeyConstraintWhenMigrating:   true,
