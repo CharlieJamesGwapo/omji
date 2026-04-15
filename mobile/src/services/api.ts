@@ -83,6 +83,12 @@ export const authService = {
   resendOTP: (data: { phone: string }) =>
     api.post('/public/auth/resend-otp', data),
 
+  forgotPassword: (phone: string) =>
+    api.post('/public/auth/forgot-password', { phone }),
+
+  resetPassword: (phone: string, otp: string, newPassword: string) =>
+    api.post('/public/auth/reset-password', { phone, otp, new_password: newPassword }),
+
   registerRider: (data: any) => api.post('/driver/register', data),
 };
 

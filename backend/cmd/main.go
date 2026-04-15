@@ -125,6 +125,8 @@ func main() {
 		public.POST("/auth/login", handlers.Login(database))
 		public.POST("/auth/verify-otp", handlers.VerifyOTP(database))
 		public.POST("/auth/resend-otp", handlers.ResendOTP(database))
+		public.POST("/auth/forgot-password", handlers.ForgotPassword(database))
+		public.POST("/auth/reset-password", handlers.ResetPassword(database))
 
 		// Auth refresh
 		public.POST("/auth/refresh", handlers.RefreshToken(database))

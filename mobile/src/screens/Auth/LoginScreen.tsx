@@ -184,7 +184,7 @@ export default function LoginScreen({ navigation }: any) {
             {/* Password */}
             <View style={styles.labelRow}>
               <Text style={styles.label}>Password</Text>
-              <TouchableOpacity onPress={() => Alert.alert('Reset Password', 'Contact infoomjisys@gmail.com or call +63 912 345 6789.')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Forgot password" accessibilityRole="button">
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Forgot password" accessibilityRole="button">
                 <Text style={styles.forgot}>Forgot?</Text>
               </TouchableOpacity>
             </View>

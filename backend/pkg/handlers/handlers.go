@@ -360,6 +360,93 @@ func ResendOTP(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// ForgotPassword starts a password-reset flow by generating a short-lived
+// OTP and sending it to the user's phone (via SMS in prod, logged in dev).
+// To avoid account enumeration, we always return success regardless of
+// whether the phone exists.
+func ForgotPassword(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input struct {
+			Phone string `json:"phone" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Phone number is required"})
+			return
+		}
+		phone := strings.TrimSpace(input.Phone)
+		var user models.User
+		if err := db.Where("phone = ?", phone).First(&user).Error; err == nil {
+			otp, otpErr := GenerateOTP()
+			if otpErr == nil {
+				if err := db.Model(&user).Updates(map[string]interface{}{
+					"otp_code":   otp,
+					"otp_expiry": time.Now().Add(15 * time.Minute),
+				}).Error; err == nil {
+					SendOTPSMS(phone, otp)
+				}
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success":   true,
+			"data":      gin.H{"message": "If an account exists for that phone, we've sent a reset code."},
+			"timestamp": time.Now(),
+		})
+	}
+}
+
+// ResetPassword verifies the OTP sent by ForgotPassword and sets a new
+// password. Clears the OTP and bumps TokenVersion so any existing sessions
+// are invalidated.
+func ResetPassword(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input struct {
+			Phone       string `json:"phone" binding:"required"`
+			OTP         string `json:"otp" binding:"required"`
+			NewPassword string `json:"new_password" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "phone, otp, and new_password are required"})
+			return
+		}
+		if len(input.NewPassword) < 8 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Password must be at least 8 characters"})
+			return
+		}
+		var user models.User
+		if err := db.Where("phone = ?", strings.TrimSpace(input.Phone)).First(&user).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid or expired reset code"})
+			return
+		}
+		if user.OTPCode == "" || user.OTPCode != input.OTP {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid or expired reset code"})
+			return
+		}
+		if !user.OTPExpiry.IsZero() && time.Now().After(user.OTPExpiry) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Reset code has expired. Please request a new one."})
+			return
+		}
+		hashed, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), 12)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to hash password"})
+			return
+		}
+		if err := db.Model(&user).Updates(map[string]interface{}{
+			"password":      string(hashed),
+			"otp_code":      "",
+			"token_version": gorm.Expr("token_version + 1"),
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reset password"})
+			return
+		}
+		audit.Log(db, c, "user.password.reset", "user", fmt.Sprintf("%d", user.ID), nil)
+		c.JSON(http.StatusOK, gin.H{
+			"success":   true,
+			"data":      gin.H{"message": "Password reset successfully. You can now log in with your new password."},
+			"timestamp": time.Now(),
+		})
+	}
+}
+
 // ===== USER HANDLERS =====
 
 func GetUserProfile(db *gorm.DB) gin.HandlerFunc {
