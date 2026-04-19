@@ -544,21 +544,20 @@ export default function TrackingScreen({ route, navigation }: any) {
     );
   }
 
-  // Use Balingasag default if coordinates are invalid (0,0)
-  const DEFAULT_LAT = 8.4343;
-  const DEFAULT_LNG = 124.7762;
-  const mapPickupLat = pickupLat !== 0 ? pickupLat : DEFAULT_LAT;
-  const mapPickupLng = pickupLng !== 0 ? pickupLng : DEFAULT_LNG;
-  const mapDropoffLat = dropoffLat !== 0 ? dropoffLat : DEFAULT_LAT + 0.005;
-  const mapDropoffLng = dropoffLng !== 0 ? dropoffLng : DEFAULT_LNG + 0.005;
+  // Validate coordinates: must be within real-world bounds and not the (0,0) sentinel.
+  const isValidCoord = (lat: number, lng: number) =>
+    Number.isFinite(lat) && Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 &&
+    !(lat === 0 && lng === 0);
+  const hasValidRoute = isValidCoord(pickupLat, pickupLng) && isValidCoord(dropoffLat, dropoffLng);
 
   return (
     <View style={styles.container}>
       {/* Map */}
-      {(mapPickupLat && mapPickupLng && mapDropoffLat && mapDropoffLng) ? (
+      {hasValidRoute ? (
         <WebView
           ref={webRef}
-          source={{ html: getTrackingMapHTML(mapPickupLat, mapPickupLng, mapDropoffLat, mapDropoffLng) }}
+          source={{ html: getTrackingMapHTML(pickupLat, pickupLng, dropoffLat, dropoffLng) }}
           style={styles.map}
           javaScriptEnabled
           domStorageEnabled
@@ -567,9 +566,11 @@ export default function TrackingScreen({ route, navigation }: any) {
           cacheMode={'LOAD_CACHE_ELSE_NETWORK' as any}
         />
       ) : (
-        <View style={[styles.map, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={[styles.map, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
           <Ionicons name="map-outline" size={48} color="#D1D5DB" />
-          <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Map loading...</Text>
+          <Text style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+            {loading ? 'Map loading...' : 'Trip coordinates unavailable. Map cannot be displayed for this booking.'}
+          </Text>
         </View>
       )}
 

@@ -97,6 +97,10 @@ export default function PasundoScreen({ navigation, route }: any) {
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
   const lastFetchRef = useRef<number>(0);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Schedule date options: today, tomorrow, day after tomorrow
   const getScheduleDates = () => {
@@ -154,6 +158,7 @@ export default function PasundoScreen({ navigation, route }: any) {
       (async () => {
         try {
           const res = await rideService.getActiveRides();
+          if (!mountedRef.current) return;
           const data = res.data?.data;
           if (Array.isArray(data) && data.length > 0) {
             setActiveRide(data[0]);
@@ -183,6 +188,7 @@ export default function PasundoScreen({ navigation, route }: any) {
     (async () => {
       try {
         const res = await ratesService.getRates();
+        if (!mountedRef.current) return;
         const rates = res.data?.data;
         if (Array.isArray(rates) && rates.length > 0) {
           const rideRates = rates.filter((r: any) => r.service_type === 'ride');
@@ -200,7 +206,7 @@ export default function PasundoScreen({ navigation, route }: any) {
       } catch (e) {
         // Keep fallback rates
       } finally {
-        setRatesLoading(false);
+        if (mountedRef.current) setRatesLoading(false);
       }
     })();
   }, []);

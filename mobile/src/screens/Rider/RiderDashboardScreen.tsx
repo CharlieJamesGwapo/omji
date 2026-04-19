@@ -447,6 +447,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
   };
 
   const handleAcceptRideRequest = async (rideId: number, requestData?: any) => {
+    if (acceptingJobId !== null) return; // Prevent double-tap on the modal
+    setAcceptingJobId(rideId);
     setShowRequestModal(false);
     try {
       await driverService.acceptRequest(rideId);
@@ -462,16 +464,18 @@ export default function RiderDashboardScreen({ navigation }: any) {
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to accept ride', 'error');
       fetchData();
+    } finally {
+      setAcceptingJobId(null);
+      setRideRequest(null);
     }
-    setRideRequest(null);
   };
 
   const handleDeclineRideRequest = async (rideId: number) => {
     setShowRequestModal(false);
+    setRideRequest(null); // Clear request state immediately to prevent re-tap
     try {
       await driverService.declineRideRequest(rideId);
     } catch {}
-    setRideRequest(null);
   };
 
   const onRefresh = async () => {
