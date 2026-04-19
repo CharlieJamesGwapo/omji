@@ -235,7 +235,10 @@ export default function RiderEarningsScreen({ navigation }: any) {
   };
 
   const handleWithdraw = () => {
-    const sanitized = withdrawAmount.replace(/[^0-9.]/g, '');
+    // Strip non-numerics, then collapse to a single decimal point.
+    const sanitized = withdrawAmount
+      .replace(/[^0-9.]/g, '')
+      .replace(/(\..*?)\..*/g, '$1');
     const amount = parseFloat(sanitized);
 
     if (!isFinite(amount) || amount <= 0 || amount < minimumWithdraw) {
