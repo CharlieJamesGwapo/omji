@@ -39,3 +39,19 @@ omji-7774e-firebase-adminsdk-*.json
 # Local Netlify folder
 .netlify
 google-play-key.json
+
+# Android signing — NEVER commit (private keys, upload certificates, build artifacts)
+*.jks
+*.keystore
+!mobile/android/app/debug.keystore
+*.aab
+*.apk
+upload_cert.pem
+mobile/upload_cert.pem
+
+# Local artifacts that shouldn't be tracked
+screenshot*.png
+ss_*.png
+store_ss_*.png
+screenshots/
+docs/RESUME_*
