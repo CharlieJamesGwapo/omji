@@ -4728,8 +4728,11 @@ var wsUpgrader = websocket.Upgrader{
 		if allowed == "" {
 			allowed = os.Getenv("CORS_ORIGIN")
 		}
+		// Wildcard or unset is not permitted for WebSocket: every browser origin
+		// must be explicitly listed (comma-separated) to prevent cross-origin hijacking.
 		if allowed == "" || allowed == "*" {
-			return true
+			log.Printf("WS origin %s rejected: ALLOWED_ORIGINS must be an explicit comma-separated list (wildcard not allowed)", origin)
+			return false
 		}
 		for _, o := range strings.Split(allowed, ",") {
 			if strings.TrimSpace(o) == origin {
@@ -6264,6 +6267,8 @@ func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
 			&summary.OrderCommission,
 		); err != nil {
 			log.Printf("Failed to scan commission summary: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load commission summary"})
+			return
 		}
 
 		// Current month commission
@@ -6275,6 +6280,8 @@ func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
 			Row()
 		if err := monthRow.Scan(&summary.CurrentMonthCommission); err != nil {
 			log.Printf("Failed to scan monthly commission: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to load monthly commission"})
+			return
 		}
 
 		// Get current percentage
