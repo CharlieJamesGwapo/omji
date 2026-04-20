@@ -786,14 +786,19 @@ func CreateRide(db *gorm.DB) gin.HandlerFunc {
 					} else {
 						discount = promo.DiscountValue
 					}
-					fare -= discount
-					if fare < 0 {
-						fare = 0
+					result := db.Model(&models.Promo{}).
+						Where("id = ? AND (usage_limit = 0 OR usage_count < usage_limit)", promo.ID).
+						Update("usage_count", gorm.Expr("usage_count + 1"))
+					if result.Error == nil && result.RowsAffected > 0 {
+						fare -= discount
+						if fare < 0 {
+							fare = 0
+						}
+						promoID = &promo.ID
+					} else if result.Error != nil {
+						log.Printf("Failed to update promo usage count for ride: %v", result.Error)
 					}
-					promoID = &promo.ID
-					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
-						log.Printf("Failed to update promo usage count: %v", err)
-					}
+					// If RowsAffected == 0, limit reached concurrently — skip discount silently.
 				}
 			}
 		}
@@ -1551,14 +1556,19 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 					} else {
 						discount = promo.DiscountValue
 					}
-					fee -= discount
-					if fee < 0 {
-						fee = 0
+					result := db.Model(&models.Promo{}).
+						Where("id = ? AND (usage_limit = 0 OR usage_count < usage_limit)", promo.ID).
+						Update("usage_count", gorm.Expr("usage_count + 1"))
+					if result.Error == nil && result.RowsAffected > 0 {
+						fee -= discount
+						if fee < 0 {
+							fee = 0
+						}
+						promoID = &promo.ID
+					} else if result.Error != nil {
+						log.Printf("Failed to update promo usage count for delivery: %v", result.Error)
 					}
-					promoID = &promo.ID
-					if err := db.Model(&promo).Update("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
-						log.Printf("Failed to update promo usage count: %v", err)
-					}
+					// If RowsAffected == 0, limit reached concurrently — skip discount silently.
 				}
 			}
 		}
