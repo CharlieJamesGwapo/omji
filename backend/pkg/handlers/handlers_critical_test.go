@@ -371,7 +371,7 @@ func TestCreateCommissionRecord_ActiveConfig(t *testing.T) {
 	db.Model(&driver).Update("total_earnings", 1000.0)
 
 	tx := db.Begin()
-	createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "cash")
+	require.NoError(t, createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "cash"))
 	tx.Commit()
 
 	var record models.CommissionRecord
@@ -392,7 +392,7 @@ func TestCreateCommissionRecord_InactiveConfig(t *testing.T) {
 	require.NoError(t, db.Model(&cfg).Update("is_active", false).Error)
 
 	tx := db.Begin()
-	createCommissionRecord(tx, "ride", 1, 1, 200.0, "cash")
+	require.NoError(t, createCommissionRecord(tx, "ride", 1, 1, 200.0, "cash"))
 	tx.Commit()
 
 	var count int64
@@ -404,7 +404,7 @@ func TestCreateCommissionRecord_NoConfig(t *testing.T) {
 	db := setupTestDB(t)
 
 	tx := db.Begin()
-	createCommissionRecord(tx, "ride", 1, 1, 200.0, "cash")
+	require.NoError(t, createCommissionRecord(tx, "ride", 1, 1, 200.0, "cash"))
 	tx.Commit()
 
 	var count int64
@@ -422,7 +422,7 @@ func TestCreateCommissionRecord_WalletPayment_DeductsFromDriver(t *testing.T) {
 	db.Model(&driver).Update("total_earnings", 500.0)
 
 	tx := db.Begin()
-	createCommissionRecord(tx, "ride", 1, driver.ID, 100.0, "wallet")
+	require.NoError(t, createCommissionRecord(tx, "ride", 1, driver.ID, 100.0, "wallet"))
 	tx.Commit()
 
 	var record models.CommissionRecord
@@ -443,7 +443,7 @@ func TestCreateCommissionRecord_LocksDriverRow(t *testing.T) {
 	db.Model(&driver).Update("total_earnings", 1000.0)
 
 	tx := db.Begin()
-	createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "wallet")
+	require.NoError(t, createCommissionRecord(tx, "ride", 1, driver.ID, 200.0, "wallet"))
 	tx.Commit()
 
 	var updated models.Driver

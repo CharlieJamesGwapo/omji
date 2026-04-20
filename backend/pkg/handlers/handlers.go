@@ -72,27 +72,30 @@ func issueAuthTokens(db *gorm.DB, c *gin.Context, user *models.User) (access, re
 // For wallet payments, it deducts commission from driver earnings.
 // For cash payments, it records as pending_collection.
 // Must be called within an existing transaction (tx).
-func createCommissionRecord(tx *gorm.DB, serviceType string, serviceID uint, driverID uint, totalFare float64, paymentMethod string) {
+// Returns an error if any database operation fails; callers must propagate
+// this so the outer transaction rolls back.
+func createCommissionRecord(tx *gorm.DB, serviceType string, serviceID uint, driverID uint, totalFare float64, paymentMethod string) error {
 	var config models.CommissionConfig
 	if err := tx.First(&config).Error; err != nil || !config.IsActive {
-		return // No config or inactive — skip commission
+		return nil // No config or inactive — skip commission
 	}
 	if config.Percentage <= 0 {
-		return
+		return nil
 	}
 
 	commissionAmount := math.Round(totalFare*config.Percentage) / 100 // totalFare * percentage / 100, rounded to 2 decimals
 
 	status := "pending_collection"
 	if paymentMethod == "wallet" {
-		status = "deducted"
 		// Lock driver row then deduct commission from total_earnings
 		var driver models.Driver
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&driver, driverID).Error; err != nil {
-			log.Printf("Failed to lock driver %d for commission deduction: %v", driverID, err)
-		} else if err := tx.Model(&driver).Update("total_earnings", gorm.Expr("total_earnings - ?", commissionAmount)).Error; err != nil {
-			log.Printf("Failed to deduct commission from driver %d earnings: %v", driverID, err)
+			return fmt.Errorf("lock driver %d for commission: %w", driverID, err)
 		}
+		if err := tx.Model(&driver).Update("total_earnings", gorm.Expr("total_earnings - ?", commissionAmount)).Error; err != nil {
+			return fmt.Errorf("deduct commission from driver %d: %w", driverID, err)
+		}
+		status = "deducted"
 	}
 
 	record := models.CommissionRecord{
@@ -106,8 +109,9 @@ func createCommissionRecord(tx *gorm.DB, serviceType string, serviceID uint, dri
 		Status:               status,
 	}
 	if err := tx.Create(&record).Error; err != nil {
-		log.Printf("Failed to create commission record for %s %d: %v", serviceType, serviceID, err)
+		return fmt.Errorf("create commission record for %s %d: %w", serviceType, serviceID, err)
 	}
+	return nil
 }
 
 // getUploadDir returns the upload directory from UPLOAD_DIR env var, defaulting to "./uploads"
@@ -2847,7 +2851,9 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 						fare = ride.EstimatedFare
 					}
 					if ride.DriverID != nil {
-						createCommissionRecord(tx, "ride", ride.ID, *ride.DriverID, fare, ride.PaymentMethod)
+						if err := createCommissionRecord(tx, "ride", ride.ID, *ride.DriverID, fare, ride.PaymentMethod); err != nil {
+							return err
+						}
 					}
 					// Process wallet payment inside same transaction
 					if ride.PaymentMethod == "wallet" {
@@ -2974,7 +2980,9 @@ func UpdateRideStatus(db *gorm.DB) gin.HandlerFunc {
 					}
 					// Record commission
 					if delivery.DriverID != nil {
-						createCommissionRecord(tx, "delivery", delivery.ID, *delivery.DriverID, delivery.DeliveryFee, delivery.PaymentMethod)
+						if err := createCommissionRecord(tx, "delivery", delivery.ID, *delivery.DriverID, delivery.DeliveryFee, delivery.PaymentMethod); err != nil {
+							return err
+						}
 					}
 					// Process wallet payment inside same transaction
 					if delivery.PaymentMethod == "wallet" {
@@ -5047,7 +5055,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 								if err := tx.Model(&models.Driver{}).Where("id = ?", *ride.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", ride.EstimatedFare), "is_available": true}).Error; err != nil {
 									log.Printf("Failed to update driver stats on ride completion: %v", err)
 								}
-								createCommissionRecord(tx, "ride", ride.ID, *ride.DriverID, ride.EstimatedFare, ride.PaymentMethod)
+								if err := createCommissionRecord(tx, "ride", ride.ID, *ride.DriverID, ride.EstimatedFare, ride.PaymentMethod); err != nil {
+									return err
+								}
 							}
 							// Process wallet payment via WebSocket
 							if ride.PaymentMethod == "wallet" {
@@ -5112,7 +5122,9 @@ func WebSocketTrackingHandler(db *gorm.DB) gin.HandlerFunc {
 									if err := tx.Model(&models.Driver{}).Where("id = ?", *delivery.DriverID).Updates(map[string]interface{}{"completed_rides": gorm.Expr("completed_rides + 1"), "total_earnings": gorm.Expr("total_earnings + ?", delivery.DeliveryFee), "is_available": true}).Error; err != nil {
 										log.Printf("Failed to update driver stats on delivery completion: %v", err)
 									}
-									createCommissionRecord(tx, "delivery", delivery.ID, *delivery.DriverID, delivery.DeliveryFee, delivery.PaymentMethod)
+									if err := createCommissionRecord(tx, "delivery", delivery.ID, *delivery.DriverID, delivery.DeliveryFee, delivery.PaymentMethod); err != nil {
+										return err
+									}
 								}
 								// Process wallet payment via WebSocket
 								if delivery.PaymentMethod == "wallet" {
