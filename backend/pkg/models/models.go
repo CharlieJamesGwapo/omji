@@ -403,10 +403,11 @@ type WithdrawalRequest struct {
 	Method        string    `json:"method"` // "gcash" or "maya"
 	AccountNumber string    `json:"account_number"`
 	AccountName   string    `json:"account_name"`
-	Status        string    `gorm:"default:pending" json:"status"` // pending, approved, rejected, completed
-	Note          string    `json:"note,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	Status         string    `gorm:"default:pending" json:"status"` // pending, approved, rejected, completed
+	Note           string    `json:"note,omitempty"`
+	IdempotencyKey string    `gorm:"type:varchar(64);uniqueIndex" json:"idempotency_key,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // Announcement model for in-app news/announcements

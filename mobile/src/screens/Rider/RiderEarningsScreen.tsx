@@ -1,3 +1,5 @@
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -31,6 +33,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
   const [earningsApiData, setEarningsApiData] = useState<any>({});
   const [walletBalance, setWalletBalance] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as ToastType });
   const showToast = (message: string, type: ToastType = 'info') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
@@ -254,6 +257,8 @@ export default function RiderEarningsScreen({ navigation }: any) {
       return;
     }
 
+    // Generate a fresh idempotency key for this withdrawal session
+    idempotencyKeyRef.current = uuidv4();
     // Open the withdrawal modal
     setWithdrawModalVisible(true);
   };
@@ -277,13 +282,15 @@ export default function RiderEarningsScreen({ navigation }: any) {
       return;
     }
     setWithdrawLoading(true);
+    const idemKey = idempotencyKeyRef.current ?? uuidv4();
     try {
       await driverService.requestWithdrawal({
         amount,
         method: withdrawMethod,
         account_number: accountNumber.trim(),
         account_name: accountName.trim(),
-      });
+      }, idemKey);
+      idempotencyKeyRef.current = null;
       setWithdrawAmount('');
       setAccountNumber('');
       setAccountName('');
@@ -640,7 +647,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
         visible={withdrawModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => !withdrawLoading && setWithdrawModalVisible(false)}
+        onRequestClose={() => { if (!withdrawLoading) { idempotencyKeyRef.current = null; setWithdrawModalVisible(false); } }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -651,7 +658,7 @@ export default function RiderEarningsScreen({ navigation }: any) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Withdraw Funds</Text>
               <TouchableOpacity
-                onPress={() => !withdrawLoading && setWithdrawModalVisible(false)}
+                onPress={() => { if (!withdrawLoading) { idempotencyKeyRef.current = null; setWithdrawModalVisible(false); } }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <Ionicons name="close" size={moderateScale(24)} color={COLORS.gray600} />

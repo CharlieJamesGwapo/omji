@@ -4540,6 +4540,24 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 			return
 		}
+		// Idempotency-Key dedup: check before any DB mutation
+		idemKey := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+		if idemKey != "" {
+			if len(idemKey) > 64 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Idempotency-Key too long (max 64 chars)"})
+				return
+			}
+			var existing models.WithdrawalRequest
+			if err := db.Where("idempotency_key = ?", idemKey).First(&existing).Error; err == nil {
+				var drv models.Driver
+				if err := db.Where("user_id = ?", userID).First(&drv).Error; err == nil && existing.DriverID == drv.ID {
+					c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"withdrawal": existing, "idempotent_replay": true}})
+					return
+				}
+				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Idempotency-Key already used"})
+				return
+			}
+		}
 		if input.Amount < 100 {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum withdrawal is ₱100"})
 			return
@@ -4583,12 +4601,13 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		withdrawal := models.WithdrawalRequest{
-			DriverID:      driver.ID,
-			Amount:        input.Amount,
-			Method:        input.Method,
-			AccountNumber: input.AccountNumber,
-			AccountName:   input.AccountName,
-			Status:        "pending",
+			DriverID:       driver.ID,
+			Amount:         input.Amount,
+			Method:         input.Method,
+			AccountNumber:  input.AccountNumber,
+			AccountName:    input.AccountName,
+			Status:         "pending",
+			IdempotencyKey: idemKey,
 		}
 		if err := tx.Create(&withdrawal).Error; err != nil {
 			tx.Rollback()

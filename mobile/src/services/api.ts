@@ -297,8 +297,8 @@ export const driverService = {
   rejectRequest: (id: number) => api.post(`/driver/requests/${id}/reject`, {}),
   declineRideRequest: (id: number) => api.post(`/driver/requests/${id}/decline-ride`, {}),
   getEarnings: () => api.get('/driver/earnings'),
-  requestWithdrawal: (data: { amount: number; method: string; account_number: string; account_name: string }) =>
-    api.post('/driver/withdraw', data),
+  requestWithdrawal: (data: { amount: number; method: string; account_number: string; account_name: string }, idempotencyKey: string) =>
+    api.post('/driver/withdraw', data, { headers: { 'Idempotency-Key': idempotencyKey } }),
   getWithdrawals: () => api.get('/driver/withdrawals'),
   setAvailability: (data: { available: boolean; latitude?: number; longitude?: number }) =>
     api.post('/driver/availability', data),
