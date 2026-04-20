@@ -367,7 +367,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
         setIsOnline(false);
         setOnlineSince(null);
         dismissedRequestIds.current.clear();
-        showToast('You are now offline.', 'info');
+        showToast('You are now offline. Any active rides have been cancelled.', 'info');
       } catch (error: any) {
         showToast(error.response?.data?.error || 'Failed to go offline', 'error');
       } finally {

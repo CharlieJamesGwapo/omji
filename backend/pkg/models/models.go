@@ -84,6 +84,7 @@ type Driver struct {
 	Rating           float64        `gorm:"default:0" json:"rating"`
 	TotalRatings     int            `gorm:"default:0" json:"total_ratings"`
 	Documents        datatypes.JSON `json:"documents"`
+	LastPing         time.Time      `json:"last_ping"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 }

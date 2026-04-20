@@ -445,6 +445,11 @@ func main() {
 		ws.GET("/chat/:rideId", handlers.WebSocketChatHandler(database))
 	}
 
+	// Start stale-driver reaper: every 30s, mark offline drivers whose last_ping
+	// is older than 90s and cancel their in-flight rides/deliveries.
+	stopReaper := make(chan struct{})
+	go handlers.StartStaleDriverReaper(database, 30*time.Second, 90*time.Second, stopReaper)
+
 	// Start server with graceful shutdown
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -470,6 +475,9 @@ func main() {
 	<-quit
 
 	slog.Info("Shutting down server...")
+
+	// Stop the stale-driver reaper before closing connections.
+	close(stopReaper)
 
 	// Close all WebSocket connections first
 	handlers.CloseAllWebSockets()

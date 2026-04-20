@@ -2755,21 +2755,70 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Your account is pending admin approval. You cannot go online yet."})
 			return
 		}
-		updates := map[string]interface{}{"is_available": input.Available}
 		if input.Latitude != 0 && input.Longitude != 0 {
 			if input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid coordinates"})
 				return
 			}
-			updates["current_latitude"] = input.Latitude
-			updates["current_longitude"] = input.Longitude
 		}
-		result := db.Model(&driver).Updates(updates)
-		if result.Error != nil {
+
+		var rowsAffected int64
+		txErr := db.Transaction(func(tx *gorm.DB) error {
+			// Cancel any in-flight rides/deliveries when driver goes offline.
+			if !input.Available {
+				if err := tx.Model(&models.Ride{}).
+					Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "in_progress"}).
+					Updates(map[string]interface{}{"status": "driver_offline", "cancellation_reason": "Driver went offline"}).
+					Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&models.Delivery{}).
+					Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "picked_up", "in_progress"}).
+					Updates(map[string]interface{}{"status": "driver_offline", "cancellation_reason": "Driver went offline"}).
+					Error; err != nil {
+					return err
+				}
+				// Notify affected passengers about the cancellation.
+				var affectedRides []models.Ride
+				if err := tx.Where("driver_id = ? AND status = ?", driver.ID, "driver_offline").
+					Find(&affectedRides).Error; err == nil {
+					for _, r := range affectedRides {
+						if r.UserID != nil {
+							notifyUser(tx, *r.UserID, "Ride Cancelled", "Your driver went offline. Please book again.", "ride_cancelled")
+						}
+					}
+				}
+				var affectedDeliveries []models.Delivery
+				if err := tx.Where("driver_id = ? AND status = ?", driver.ID, "driver_offline").
+					Find(&affectedDeliveries).Error; err == nil {
+					for _, d := range affectedDeliveries {
+						if d.UserID != nil {
+							notifyUser(tx, *d.UserID, "Delivery Cancelled", "Your driver went offline. Please book again.", "delivery_cancelled")
+						}
+					}
+				}
+			}
+
+			updates := map[string]interface{}{
+				"is_available": input.Available,
+				"last_ping":    time.Now(),
+			}
+			if input.Latitude != 0 && input.Longitude != 0 {
+				updates["current_latitude"] = input.Latitude
+				updates["current_longitude"] = input.Longitude
+			}
+			result := tx.Model(&driver).Updates(updates)
+			if result.Error != nil {
+				return result.Error
+			}
+			rowsAffected = result.RowsAffected
+			return nil
+		})
+		if txErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update availability"})
 			return
 		}
-		if result.RowsAffected == 0 {
+		if rowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "No changes to availability"})
 			return
 		}
