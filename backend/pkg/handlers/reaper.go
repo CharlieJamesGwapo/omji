@@ -28,6 +28,27 @@ func StartStaleDriverReaper(db *gorm.DB, interval time.Duration, staleAfter time
 			for _, d := range stale {
 				d := d // capture range variable
 				err := db.Transaction(func(tx *gorm.DB) error {
+					// Collect active ride/delivery (ID, UserID) pairs BEFORE the bulk
+					// update so notifications are scoped only to this invocation and do
+					// not bleed into rows already in driver_offline from prior events.
+					type idUser struct {
+						ID     uint
+						UserID *uint
+					}
+					var activeRides []idUser
+					if err := tx.Model(&models.Ride{}).
+						Select("id, user_id").
+						Where("driver_id = ? AND status IN ?", d.ID, []string{"accepted", "driver_arrived", "in_progress"}).
+						Scan(&activeRides).Error; err != nil {
+						return err
+					}
+					var activeDeliveries []idUser
+					if err := tx.Model(&models.Delivery{}).
+						Select("id, user_id").
+						Where("driver_id = ? AND status IN ?", d.ID, []string{"accepted", "driver_arrived", "picked_up", "in_progress"}).
+						Scan(&activeDeliveries).Error; err != nil {
+						return err
+					}
 					if err := tx.Model(&models.Ride{}).
 						Where("driver_id = ? AND status IN ?", d.ID, []string{"accepted", "driver_arrived", "in_progress"}).
 						Updates(map[string]interface{}{"status": "driver_offline", "cancellation_reason": "Driver connection lost"}).
@@ -41,22 +62,14 @@ func StartStaleDriverReaper(db *gorm.DB, interval time.Duration, staleAfter time
 						return err
 					}
 					// Notify affected passengers.
-					var affectedRides []models.Ride
-					if err := tx.Where("driver_id = ? AND status = ?", d.ID, "driver_offline").
-						Find(&affectedRides).Error; err == nil {
-						for _, r := range affectedRides {
-							if r.UserID != nil {
-								notifyUser(tx, *r.UserID, "Ride Cancelled", "Your driver disconnected. Please book again.", "ride_cancelled")
-							}
+					for _, r := range activeRides {
+						if r.UserID != nil {
+							notifyUser(tx, *r.UserID, "Ride Cancelled", "Your driver disconnected. Please book again.", "ride_cancelled")
 						}
 					}
-					var affectedDeliveries []models.Delivery
-					if err := tx.Where("driver_id = ? AND status = ?", d.ID, "driver_offline").
-						Find(&affectedDeliveries).Error; err == nil {
-						for _, del := range affectedDeliveries {
-							if del.UserID != nil {
-								notifyUser(tx, *del.UserID, "Delivery Cancelled", "Your driver disconnected. Please book again.", "delivery_cancelled")
-							}
+					for _, del := range activeDeliveries {
+						if del.UserID != nil {
+							notifyUser(tx, *del.UserID, "Delivery Cancelled", "Your driver disconnected. Please book again.", "delivery_cancelled")
 						}
 					}
 					return tx.Model(&d).Updates(map[string]interface{}{"is_available": false}).Error

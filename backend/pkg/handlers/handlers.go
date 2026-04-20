@@ -2766,6 +2766,27 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 		txErr := db.Transaction(func(tx *gorm.DB) error {
 			// Cancel any in-flight rides/deliveries when driver goes offline.
 			if !input.Available {
+				// Collect active ride/delivery (ID, UserID) pairs BEFORE the bulk
+				// update so notifications are scoped only to this invocation and do
+				// not bleed into rows already in driver_offline from prior events.
+				type idUser struct {
+					ID     uint
+					UserID *uint
+				}
+				var activeRides []idUser
+				if err := tx.Model(&models.Ride{}).
+					Select("id, user_id").
+					Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "in_progress"}).
+					Scan(&activeRides).Error; err != nil {
+					return err
+				}
+				var activeDeliveries []idUser
+				if err := tx.Model(&models.Delivery{}).
+					Select("id, user_id").
+					Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "picked_up", "in_progress"}).
+					Scan(&activeDeliveries).Error; err != nil {
+					return err
+				}
 				if err := tx.Model(&models.Ride{}).
 					Where("driver_id = ? AND status IN ?", driver.ID, []string{"accepted", "driver_arrived", "in_progress"}).
 					Updates(map[string]interface{}{"status": "driver_offline", "cancellation_reason": "Driver went offline"}).
@@ -2779,22 +2800,14 @@ func SetAvailability(db *gorm.DB) gin.HandlerFunc {
 					return err
 				}
 				// Notify affected passengers about the cancellation.
-				var affectedRides []models.Ride
-				if err := tx.Where("driver_id = ? AND status = ?", driver.ID, "driver_offline").
-					Find(&affectedRides).Error; err == nil {
-					for _, r := range affectedRides {
-						if r.UserID != nil {
-							notifyUser(tx, *r.UserID, "Ride Cancelled", "Your driver went offline. Please book again.", "ride_cancelled")
-						}
+				for _, r := range activeRides {
+					if r.UserID != nil {
+						notifyUser(tx, *r.UserID, "Ride Cancelled", "Your driver went offline. Please book again.", "ride_cancelled")
 					}
 				}
-				var affectedDeliveries []models.Delivery
-				if err := tx.Where("driver_id = ? AND status = ?", driver.ID, "driver_offline").
-					Find(&affectedDeliveries).Error; err == nil {
-					for _, d := range affectedDeliveries {
-						if d.UserID != nil {
-							notifyUser(tx, *d.UserID, "Delivery Cancelled", "Your driver went offline. Please book again.", "delivery_cancelled")
-						}
+				for _, d := range activeDeliveries {
+					if d.UserID != nil {
+						notifyUser(tx, *d.UserID, "Delivery Cancelled", "Your driver went offline. Please book again.", "delivery_cancelled")
 					}
 				}
 			}
