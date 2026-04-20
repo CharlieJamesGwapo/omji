@@ -79,7 +79,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const driverWsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const MAX_RECONNECTS = 5;
+  const [reconnecting, setReconnecting] = useState(false);
   const driverProfileId = useRef<number | null>(null);
   const [driverProfileIdState, setDriverProfileIdState] = useState<number | null>(null);
 
@@ -250,16 +250,20 @@ export default function RiderDashboardScreen({ navigation }: any) {
       };
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;
+        setReconnecting(false);
       };
       ws.onerror = (e: any) => {
         console.warn('RiderDashboard WS error:', e?.message || 'unknown');
       };
       ws.onclose = () => {
-        if (reconnectAttemptsRef.current < MAX_RECONNECTS) {
-          const delay = Math.min(5000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          reconnectAttemptsRef.current++;
-          reconnectTimeout = setTimeout(connect, delay);
-        }
+        // Indefinite reconnect with exponential backoff capped at 30s.
+        // No max-attempts cap — driver must stay reachable as long as the
+        // app is foregrounded. Banner surfaces prolonged outages.
+        const attempt = reconnectAttemptsRef.current;
+        const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
+        reconnectAttemptsRef.current = attempt + 1;
+        if (attempt >= 3) setReconnecting(true); // banner after ~7s+ of churn
+        reconnectTimeout = setTimeout(connect, delay);
       };
     };
 
@@ -703,6 +707,13 @@ export default function RiderDashboardScreen({ navigation }: any) {
           </View>
         </View>
       </View>
+
+      {reconnecting && (
+        <View style={styles.reconnectBanner}>
+          <ActivityIndicator size="small" color="#fff" />
+          <Text style={styles.reconnectText}>Reconnecting…</Text>
+        </View>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -1969,5 +1980,24 @@ const styles = StyleSheet.create({
   perfPeakTimesText: {
     fontSize: fontScale(12),
     color: COLORS.gray500,
+  },
+  reconnectBanner: {
+    position: 'absolute',
+    top: isIOS ? verticalScale(108) : verticalScale(94),
+    left: moderateScale(16),
+    right: moderateScale(16),
+    backgroundColor: '#1F2937',
+    borderRadius: moderateScale(10),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: moderateScale(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    zIndex: 10,
+  },
+  reconnectText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: fontScale(14),
   },
 });
