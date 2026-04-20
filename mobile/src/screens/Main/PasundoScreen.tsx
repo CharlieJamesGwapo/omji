@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -89,6 +89,7 @@ export default function PasundoScreen({ navigation, route }: any) {
   const [promoApplied, setPromoApplied] = useState(false);
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(true);
+  const [ratesError, setRatesError] = useState<string | null>(null);
   const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now');
   const [scheduleDateIndex, setScheduleDateIndex] = useState(0);
   const [scheduleHour, setScheduleHour] = useState<number | null>(null);
@@ -184,32 +185,34 @@ export default function PasundoScreen({ navigation, route }: any) {
     { id: 'car', name: 'Car', icon: 'car', base: 60, rate: 15 },
   ]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await ratesService.getRates();
-        if (!mountedRef.current) return;
-        const rates = res.data?.data;
-        if (Array.isArray(rates) && rates.length > 0) {
-          const rideRates = rates.filter((r: any) => r.service_type === 'ride');
-          if (rideRates.length > 0) {
-            const mapped = rideRates.map((r: any) => ({
-              id: r.vehicle_type || 'motorcycle',
-              name: r.vehicle_type === 'car' ? 'Car' : 'Motorcycle',
-              icon: r.vehicle_type === 'car' ? 'car' : 'bicycle',
-              base: r.base_fare || 40,
-              rate: r.rate_per_km || 10,
-            }));
-            setVehicleTypes(mapped);
-          }
+  const loadRates = useCallback(async () => {
+    setRatesError(null);
+    setRatesLoading(true);
+    try {
+      const res = await ratesService.getRates();
+      if (!mountedRef.current) return;
+      const rates = res.data?.data;
+      if (Array.isArray(rates) && rates.length > 0) {
+        const rideRates = rates.filter((r: any) => r.service_type === 'ride');
+        if (rideRates.length > 0) {
+          const mapped = rideRates.map((r: any) => ({
+            id: r.vehicle_type || 'motorcycle',
+            name: r.vehicle_type === 'car' ? 'Car' : 'Motorcycle',
+            icon: r.vehicle_type === 'car' ? 'car' : 'bicycle',
+            base: r.base_fare || 40,
+            rate: r.rate_per_km || 10,
+          }));
+          setVehicleTypes(mapped);
         }
-      } catch (e) {
-        // Keep fallback rates
-      } finally {
-        if (mountedRef.current) setRatesLoading(false);
       }
-    })();
+    } catch (e: any) {
+      if (mountedRef.current) setRatesError('Could not load current rates. Using last known prices.');
+    } finally {
+      if (mountedRef.current) setRatesLoading(false);
+    }
   }, []);
+
+  useEffect(() => { loadRates(); }, [loadRates]);
 
   const selectedVehicle = vehicleTypes.find(v => v.id === vehicleType) || vehicleTypes[0];
 
@@ -569,6 +572,14 @@ export default function PasundoScreen({ navigation, route }: any) {
           )}
         </View>
 
+        {/* Rates Error Banner */}
+        {ratesError && (
+          <TouchableOpacity onPress={loadRates} style={styles.rateErrorBanner} accessibilityRole="button">
+            <Ionicons name="warning-outline" size={moderateScale(14)} color="#92400E" />
+            <Text style={styles.rateErrorText}>{ratesError} Tap to retry.</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Vehicle Type */}
         <View style={styles.section}>
           <Text style={styles.label}>Vehicle Type</Text>
@@ -831,4 +842,23 @@ const styles = StyleSheet.create({
   scheduleChipActive: { borderColor: '#DC2626', backgroundColor: '#DC2626' },
   scheduleChipText: { fontSize: RESPONSIVE.fontSize.small, fontWeight: '600', color: '#6B7280' },
   scheduleChipTextActive: { color: '#ffffff' },
+  rateErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+    borderWidth: 1,
+    borderRadius: moderateScale(10),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: moderateScale(12),
+    marginHorizontal: RESPONSIVE.paddingHorizontal,
+    marginBottom: verticalScale(10),
+  },
+  rateErrorText: {
+    flex: 1,
+    fontSize: fontScale(12),
+    color: '#92400E',
+    fontWeight: '500',
+  },
 });
