@@ -23,6 +23,7 @@ import Toast, { ToastType } from '../../components/Toast';
 import { COLORS, SHADOWS, formatStatus } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { getRoadDistance } from '../../hooks/useDistance';
+import { isValidCoord } from '../../utils/geo';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,6 +66,13 @@ const getTrackingMapHTML = (pickupLat: number, pickupLng: number, dropoffLat: nu
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 20, keepBuffer: 6, subdomains: 'abcd', updateWhenZooming: false, updateWhenIdle: true
     }).addTo(map);
+
+    // Notify React Native once Leaflet is ready so buffered messages can be flushed.
+    map.whenReady(function() {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+      } catch (err) {}
+    });
 
     var pickup = [${pickupLat}, ${pickupLng}];
     var dropoff = [${dropoffLat}, ${dropoffLng}];
@@ -175,6 +183,38 @@ export default function TrackingScreen({ route, navigation }: any) {
   const mountedRef = useRef(true);
   const isFetchingRef = useRef(false);
   const cancelNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Map: ready handshake + pending message buffer + driver-staleness timestamp
+  const mapReadyRef = useRef(false);
+  const pendingMapMessages = useRef<string[]>([]);
+  const lastDriverPingRef = useRef<number>(0);
+  const [driverStale, setDriverStale] = useState(false);
+
+  const safePostMap = useCallback((msg: object) => {
+    const payload = JSON.stringify(msg);
+    if (mapReadyRef.current && webRef.current) {
+      webRef.current.postMessage(payload);
+    } else {
+      pendingMapMessages.current.push(payload);
+    }
+  }, []);
+
+  const handleMapMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'ready') {
+        mapReadyRef.current = true;
+        if (pendingMapMessages.current.length > 0 && webRef.current) {
+          for (const msg of pendingMapMessages.current) {
+            webRef.current.postMessage(msg);
+          }
+          pendingMapMessages.current = [];
+        }
+      }
+    } catch {
+      // Ignore malformed WebView messages
+    }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -461,12 +501,27 @@ export default function TrackingScreen({ route, navigation }: any) {
   // Fallback to static ETA if no driver location
   const estimatedEtaMinutes = liveEtaMinutes > 0 ? liveEtaMinutes : (rideDistance > 0 ? Math.round((rideDistance / 25) * 60) : 0);
 
-  // Send driver location to WebView map on every position update
+  // Send driver location to WebView map on every position update.
+  // Buffer messages until the WebView signals ready, then mark "fresh" and
+  // arm a 90s staleness watchdog so the UI can flag a frozen marker.
   useEffect(() => {
-    if (rideData && webRef.current && status !== 'pending' && driverLat && driverLng) {
-      webRef.current.postMessage(JSON.stringify({ type: 'driverLocation', lat: driverLat, lng: driverLng }));
+    if (rideData && status !== 'pending' && isValidCoord(driverLat, driverLng)) {
+      safePostMap({ type: 'driverLocation', lat: driverLat, lng: driverLng });
+      lastDriverPingRef.current = Date.now();
+      setDriverStale(false);
     }
-  }, [driverLat, driverLng, status]);
+  }, [driverLat, driverLng, status, rideData, safePostMap]);
+
+  // Driver staleness watchdog: if no fresh location ping in 90s, surface "stale" UI.
+  useEffect(() => {
+    if (status === 'pending' || status === 'completed' || status === 'cancelled') return;
+    const interval = setInterval(() => {
+      if (lastDriverPingRef.current === 0) return;
+      const ageMs = Date.now() - lastDriverPingRef.current;
+      if (mountedRef.current) setDriverStale(ageMs > 90_000);
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [status]);
 
   // Auto-show rating when ride completes (for both passengers and drivers)
   useEffect(() => {
@@ -564,6 +619,20 @@ export default function TrackingScreen({ route, navigation }: any) {
           scrollEnabled={false}
           cacheEnabled={true}
           cacheMode={'LOAD_CACHE_ELSE_NETWORK' as any}
+          onMessage={handleMapMessage}
+          onLoadEnd={() => {
+            // Fallback: if the in-page `whenReady` postMessage was missed
+            // (rare, but happens on slow devices), flush after page load.
+            if (!mapReadyRef.current) {
+              mapReadyRef.current = true;
+              if (pendingMapMessages.current.length > 0 && webRef.current) {
+                for (const msg of pendingMapMessages.current) {
+                  webRef.current.postMessage(msg);
+                }
+                pendingMapMessages.current = [];
+              }
+            }
+          }}
         />
       ) : (
         <View style={[styles.map, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
@@ -657,9 +726,15 @@ export default function TrackingScreen({ route, navigation }: any) {
                   </Text>
                 </View>
               </View>
-              <View style={styles.distanceBadge}>
-                <Ionicons name="time-outline" size={moderateScale(12)} color={COLORS.primaryDark} />
-                <Text style={styles.distanceBadgeText}>LIVE</Text>
+              <View style={[styles.distanceBadge, driverStale && { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons
+                  name={driverStale ? 'warning-outline' : 'time-outline'}
+                  size={moderateScale(12)}
+                  color={driverStale ? '#92400E' : COLORS.primaryDark}
+                />
+                <Text style={[styles.distanceBadgeText, driverStale && { color: '#92400E' }]}>
+                  {driverStale ? 'STALE' : 'LIVE'}
+                </Text>
               </View>
             </View>
           )}

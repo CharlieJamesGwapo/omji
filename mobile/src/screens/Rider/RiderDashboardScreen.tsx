@@ -279,22 +279,23 @@ export default function RiderDashboardScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, [isVerified, fetchDriverProfile]);
 
-  // Continuously update location while online (every 30s)
+  // Continuously update location while online (every 60s).
+  // Skip the post if the GPS reading is invalid so the backend never sees 0,0.
   useEffect(() => {
     if (!isOnline) return;
     const updateLocation = async () => {
       try {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        if (loc?.coords) {
-          await driverService.setAvailability({
-            available: true,
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const lat = loc?.coords?.latitude;
+        const lng = loc?.coords?.longitude;
+        if (
+          lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) &&
+          lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat === 0 && lng === 0)
+        ) {
+          await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
         }
       } catch {}
     };
-    // Update driver location every 60s to balance accuracy with battery life
     const interval = setInterval(updateLocation, 60000);
     return () => clearInterval(interval);
   }, [isOnline]);
@@ -320,7 +321,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
         try {
           const loc = await Promise.race([
-            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
           ]);
           if (loc && 'coords' in loc) {

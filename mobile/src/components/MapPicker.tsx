@@ -15,6 +15,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale } from '../utils/responsive';
+import { isValidCoord, BALINGASAG } from '../utils/geo';
 
 interface MapPickerProps {
   onLocationSelect: (location: {
@@ -29,9 +30,9 @@ interface MapPickerProps {
   title?: string;
 }
 
-// Default center: Balingasag
-const DEFAULT_LAT = 8.4343;
-const DEFAULT_LNG = 124.7762;
+// Default center: Balingasag (used only when neither initialLocation nor GPS is available)
+const DEFAULT_LAT = BALINGASAG.latitude;
+const DEFAULT_LNG = BALINGASAG.longitude;
 
 const getMapHTML = (lat: number, lng: number) => `
 <!DOCTYPE html>
@@ -135,19 +136,29 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
   const [resolving, setResolving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [coords, setCoords] = useState({
-    latitude: initialLocation?.latitude || DEFAULT_LAT,
-    longitude: initialLocation?.longitude || DEFAULT_LNG,
-  });
+  const initialCoords = isValidCoord(initialLocation?.latitude, initialLocation?.longitude)
+    ? { latitude: initialLocation!.latitude, longitude: initialLocation!.longitude }
+    : { latitude: DEFAULT_LAT, longitude: DEFAULT_LNG };
+  const [coords, setCoords] = useState(initialCoords);
   const [mapReady, setMapReady] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLocationSent = useRef(false);
+  // Buffer messages sent before the WebView signals "ready" so they aren't dropped.
+  const pendingMessages = useRef<string[]>([]);
+  const safePostMessage = useCallback((msg: object) => {
+    const payload = JSON.stringify(msg);
+    if (mapReady && webRef.current) {
+      webRef.current.postMessage(payload);
+    } else {
+      pendingMessages.current.push(payload);
+    }
+  }, [mapReady]);
 
-  // Memoize the HTML so WebView doesn't re-render unnecessarily
+  // Memoize HTML using the resolved initial coords (not stale defaults).
   const mapHTML = useMemo(
-    () => getMapHTML(coords.latitude, coords.longitude),
-    // Only generate HTML once with initial coords
+    () => getMapHTML(initialCoords.latitude, initialCoords.longitude),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -157,29 +168,40 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') { setInitializing(false); return; }
+        if (status !== 'granted') {
+          setPermissionDenied(true);
+          setInitializing(false);
+          return;
+        }
+        setPermissionDenied(false);
 
         // Try last known first (instant), then get fresh position
         const lastKnown = await Location.getLastKnownPositionAsync().catch(() => null);
-        if (lastKnown && 'coords' in lastKnown && !initialLocationSent.current) {
+        if (
+          lastKnown && 'coords' in lastKnown &&
+          isValidCoord(lastKnown.coords.latitude, lastKnown.coords.longitude) &&
+          !initialLocationSent.current
+        ) {
           const c = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
           setCoords(c);
           initialLocationSent.current = true;
-          webRef.current?.postMessage(JSON.stringify({ type: 'setView', ...c }));
+          safePostMessage({ type: 'setView', ...c });
           resolveAddress(c.latitude, c.longitude);
         }
 
-        // Then get accurate position in background
+        // Then get accurate position in background.
+        // Use High accuracy for pickup selection — passenger pickup precision matters more
+        // than the small extra battery cost during a single map session.
         const loc = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
           new Promise<null>((r) => setTimeout(() => r(null), 8000)),
         ]);
 
-        if (loc && 'coords' in loc) {
+        if (loc && 'coords' in loc && isValidCoord(loc.coords.latitude, loc.coords.longitude)) {
           const c = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setCoords(c);
           initialLocationSent.current = true;
-          webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
+          safePostMessage({ type: 'flyTo', ...c });
           resolveAddress(c.latitude, c.longitude);
         }
       } catch {
@@ -226,6 +248,13 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       } else if (data.type === 'ready') {
         setMapReady(true);
         setInitializing(false);
+        // Flush any messages buffered while the WebView was loading.
+        if (pendingMessages.current.length > 0 && webRef.current) {
+          for (const msg of pendingMessages.current) {
+            webRef.current.postMessage(msg);
+          }
+          pendingMessages.current = [];
+        }
       }
     } catch {
       // Ignore malformed WebView messages
@@ -242,7 +271,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       if (results?.[0]) {
         const { latitude, longitude } = results[0];
         setCoords({ latitude, longitude });
-        webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', latitude, longitude }));
+        safePostMessage({ type: 'flyTo', latitude, longitude });
         resolveAddress(latitude, longitude);
         return;
       }
@@ -257,7 +286,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         const latitude = parseFloat(data[0].lat);
         const longitude = parseFloat(data[0].lon);
         setCoords({ latitude, longitude });
-        webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', latitude, longitude }));
+        safePostMessage({ type: 'flyTo', latitude, longitude });
         resolveAddress(latitude, longitude);
       } else {
         Alert.alert('Not Found', 'Try a more specific address or place name.');
@@ -271,15 +300,29 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
 
   const goToMyLocation = async () => {
     try {
+      // Re-check permission in case the user granted it via system settings.
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        const req = await Location.requestForegroundPermissionsAsync();
+        if (req.status !== 'granted') {
+          setPermissionDenied(true);
+          Alert.alert(
+            'Location permission needed',
+            'To centre the map on your current location, please enable location access in Settings.',
+          );
+          return;
+        }
+        setPermissionDenied(false);
+      }
       setResolving(true);
       const loc = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
         new Promise<null>((r) => setTimeout(() => r(null), 8000)),
       ]);
       if (loc && 'coords' in loc) {
         const c = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         setCoords(c);
-        webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
+        safePostMessage({ type: 'flyTo', ...c });
         resolveAddress(c.latitude, c.longitude);
       } else {
         // Try last known position as fallback instead of showing alert
@@ -287,7 +330,7 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
         if (lastKnown && 'coords' in lastKnown) {
           const c = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
           setCoords(c);
-          webRef.current?.postMessage(JSON.stringify({ type: 'flyTo', ...c }));
+          safePostMessage({ type: 'flyTo', ...c });
           resolveAddress(c.latitude, c.longitude);
         }
       }
@@ -368,6 +411,21 @@ export default function MapPicker({ onLocationSelect, initialLocation, title }: 
       <TouchableOpacity style={styles.locationFab} onPress={goToMyLocation} activeOpacity={0.8}>
         <Ionicons name="navigate" size={moderateScale(20)} color="#3B82F6" />
       </TouchableOpacity>
+
+      {/* Permission denied banner — shown only when user has refused location access */}
+      {permissionDenied && (
+        <View style={styles.permissionBanner} pointerEvents="box-none">
+          <View style={styles.permissionBannerInner}>
+            <Ionicons name="location-outline" size={moderateScale(16)} color="#92400E" />
+            <Text style={styles.permissionBannerText}>
+              Location access is off — drag the pin manually or enable it to centre on you.
+            </Text>
+            <TouchableOpacity onPress={goToMyLocation} style={styles.permissionBannerBtn}>
+              <Text style={styles.permissionBannerBtnText}>Enable</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Bottom Card */}
       <View style={[styles.bottomCard, { paddingBottom: Math.max(insets.bottom, verticalScale(16)) + verticalScale(12) }]}>
@@ -469,6 +527,40 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
     zIndex: 10,
+  },
+  permissionBanner: {
+    position: 'absolute',
+    top: verticalScale(70),
+    left: RESPONSIVE.paddingHorizontal,
+    right: RESPONSIVE.paddingHorizontal,
+    zIndex: 20,
+  },
+  permissionBannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+    borderWidth: 1,
+    borderRadius: moderateScale(10),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: moderateScale(12),
+    gap: moderateScale(8),
+  },
+  permissionBannerText: {
+    flex: 1,
+    fontSize: fontScale(12),
+    color: '#92400E',
+  },
+  permissionBannerBtn: {
+    backgroundColor: '#92400E',
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: verticalScale(4),
+    borderRadius: moderateScale(6),
+  },
+  permissionBannerBtnText: {
+    color: '#fff',
+    fontSize: fontScale(12),
+    fontWeight: '600',
   },
   bottomCard: {
     position: 'absolute',
