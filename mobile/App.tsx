@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import './src/native/tripLocationTask';
 import React, { useEffect } from 'react';
 import { initSentry } from './src/utils/sentry';
 

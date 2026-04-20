@@ -26,6 +26,7 @@ import PaymentVerificationCard from '../../components/PaymentVerificationCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { accuracyForState, isValidCoord } from '../../utils/geo';
+import { startTripLocationService, stopTripLocationService } from '../../native/tripLocationTask';
 
 interface DriverRequest {
   id: number;
@@ -284,6 +285,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, [isVerified, fetchDriverProfile]);
 
+  // Stop the foreground-service location tracker when there are no active jobs.
+  // This is belt-and-suspenders: the primary stop is in handleToggleOnline and
+  // after job acceptance, but polling may reveal jobs that completed elsewhere.
+  useEffect(() => {
+    if (activeJobs.length === 0) {
+      stopTripLocationService().catch(() => {});
+    }
+  }, [activeJobs.length]);
+
   // Continuously update location while online (every 60s).
   // Skip the post if the GPS reading is invalid so the backend never sees 0,0.
   useEffect(() => {
@@ -369,6 +379,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
     } else {
       try {
         await driverService.setAvailability({ available: false });
+        // Stop foreground-service location tracking when the driver goes offline.
+        stopTripLocationService().catch(() => {});
         setIsOnline(false);
         setOnlineSince(null);
         dismissedRequestIds.current.clear();
@@ -402,6 +414,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
           try {
             await driverService.acceptRequest(request.id);
             showToast(`${jobLabel} accepted!`, 'success');
+            // Start foreground-service location tracking for the trip duration.
+            const locationStarted = await startTripLocationService();
+            if (!locationStarted) {
+              showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+            }
             fetchData();
             navigation.navigate('Tracking', {
               type: isDelivery ? 'delivery' : 'ride',
@@ -459,6 +476,11 @@ export default function RiderDashboardScreen({ navigation }: any) {
     try {
       await driverService.acceptRequest(rideId);
       showToast('Ride accepted!', 'success');
+      // Start foreground-service location tracking for the trip duration.
+      const locationStarted = await startTripLocationService();
+      if (!locationStarted) {
+        showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+      }
       fetchData();
       navigation.navigate('Tracking', {
         type: 'ride',
