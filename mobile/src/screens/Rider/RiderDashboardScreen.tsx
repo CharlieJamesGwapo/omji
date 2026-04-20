@@ -25,7 +25,7 @@ import RiderRequestModal from '../../components/RiderRequestModal';
 import PaymentVerificationCard from '../../components/PaymentVerificationCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
-import { accuracyForState, isValidCoord } from '../../utils/geo';
+import { accuracyForState, isValidCoord, isLikelyInPH } from '../../utils/geo';
 import { startTripLocationService, stopTripLocationService } from '../../native/tripLocationTask';
 
 interface DriverRequest {
@@ -306,7 +306,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
         const loc = await Location.getCurrentPositionAsync({ accuracy: accuracyForState(state) });
         const lat = loc?.coords?.latitude;
         const lng = loc?.coords?.longitude;
-        if (isValidCoord(lat, lng)) {
+        if (isValidCoord(lat, lng) && isLikelyInPH(lat, lng)) {
           await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
         }
       } catch {}
@@ -358,6 +358,12 @@ export default function RiderDashboardScreen({ navigation }: any) {
 
         if (latitude === 0 && longitude === 0) {
           showToast('Could not detect your location. Please enable GPS and try again.', 'error');
+          setTogglingOnline(false);
+          return;
+        }
+
+        if (!isLikelyInPH(latitude, longitude)) {
+          showToast('GPS location looks off — please check your location settings.', 'error');
           setTogglingOnline(false);
           return;
         }

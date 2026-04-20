@@ -72,3 +72,10 @@ export function accuracyForState(state: RiderTrackingState): Location.Accuracy {
             return Location.Accuracy.Balanced;
     }
 }
+
+// Rough Philippines bounding box. Anything outside this is either a GPS error,
+// an emulator sending a test fixture, or the driver traveling to Hong Kong —
+// all of which we want to reject rather than broadcast.
+export function isLikelyInPH(lat: number, lng: number): boolean {
+    return lat >= 4.5 && lat <= 21.5 && lng >= 116.0 && lng <= 127.0;
+}
