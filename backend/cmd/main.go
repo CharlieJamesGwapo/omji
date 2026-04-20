@@ -423,6 +423,8 @@ func main() {
 	{
 		userUpload.POST("/payment-proof/upload", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadPaymentProof(database))
 		userUpload.POST("/chats/:id/image", handlers.ChatImageUpload(database))
+		userUpload.POST("/user/profile/image", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadProfileImage(database))
+		userUpload.POST("/rider/profile/image", middleware.UserRateLimitMiddleware(10, time.Hour), handlers.UploadProfileImage(database))
 	}
 
 	// Admin upload routes (auth + admin required, 10 MB)
