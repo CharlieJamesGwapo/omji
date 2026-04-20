@@ -25,6 +25,7 @@ import RiderRequestModal from '../../components/RiderRequestModal';
 import PaymentVerificationCard from '../../components/PaymentVerificationCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
+import { accuracyForState, isValidCoord } from '../../utils/geo';
 
 interface DriverRequest {
   id: number;
@@ -289,13 +290,13 @@ export default function RiderDashboardScreen({ navigation }: any) {
     if (!isOnline) return;
     const updateLocation = async () => {
       try {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        // TODO: wire tier selection to active-ride state once activeRide / activeDelivery
+        // is lifted into this screen. For now, 'online' (High accuracy) is the safe default.
+        const state: import('../../utils/geo').RiderTrackingState = 'online';
+        const loc = await Location.getCurrentPositionAsync({ accuracy: accuracyForState(state) });
         const lat = loc?.coords?.latitude;
         const lng = loc?.coords?.longitude;
-        if (
-          lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) &&
-          lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat === 0 && lng === 0)
-        ) {
+        if (isValidCoord(lat, lng)) {
           await driverService.setAvailability({ available: true, latitude: lat, longitude: lng });
         }
       } catch {}

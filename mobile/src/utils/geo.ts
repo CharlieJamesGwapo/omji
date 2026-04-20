@@ -2,6 +2,8 @@
 // Centralizes the validation, clamping, and equality checks that were
 // previously reimplemented (often inconsistently) across map screens.
 
+import * as Location from 'expo-location';
+
 export const BALINGASAG = { latitude: 8.4343, longitude: 124.7762 } as const;
 
 export type LatLng = { latitude: number; longitude: number };
@@ -45,4 +47,28 @@ export function coordsEqual(a: LatLng, b: LatLng, eps = 0.00001): boolean {
 /** Format coords for human display, e.g. "8.4343, 124.7762". */
 export function formatCoord(lat: number, lng: number, precision = 4): string {
   return `${lat.toFixed(precision)}, ${lng.toFixed(precision)}`;
+}
+
+export type RiderTrackingState = 'en_route' | 'accepted' | 'online' | 'background';
+
+/**
+ * Pick the GPS accuracy tier that matches the driver's current tracking state.
+ * - During an active ride (`accepted` or `en_route`): best-available precision
+ *   because the passenger is watching the dot move.
+ * - Idle online: High accuracy — still useful for assignment matching,
+ *   lower battery draw than BestForNavigation.
+ * - Background / unknown: Balanced — app doesn't need the driver precise enough
+ *   to redraw a map marker they aren't watching.
+ */
+export function accuracyForState(state: RiderTrackingState): Location.Accuracy {
+    switch (state) {
+        case 'en_route':
+        case 'accepted':
+            return Location.Accuracy.BestForNavigation;
+        case 'online':
+            return Location.Accuracy.High;
+        case 'background':
+        default:
+            return Location.Accuracy.Balanced;
+    }
 }
