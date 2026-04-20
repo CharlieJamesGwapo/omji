@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/api';
+import { uploadMultipart } from '../../utils/upload';
 import { COLORS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 
@@ -30,6 +31,7 @@ export default function EditProfileScreen({ navigation }: any) {
   const [profileImage, setProfileImage] = useState<string | null>(user?.profile_image || null);
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Track original values for unsaved changes detection
   const originalName = useRef(user?.name || '');
@@ -219,50 +221,63 @@ export default function EditProfileScreen({ navigation }: any) {
       return;
     }
 
+    // "No changes" check: a picked image (or removal) also counts as a change.
+    const hasImageChange = newImageUri !== null;
+    const hasNameChange = name.trim() !== originalName.current;
+    const hasPhoneChange = phone.trim() !== originalPhone.current;
+    if (!hasImageChange && !hasNameChange && !hasPhoneChange) {
+      Alert.alert('No Changes', 'You haven\'t changed anything yet.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      setSaving(true);
-
-      const payload: Record<string, string> = {};
-      if (name.trim() !== originalName.current) {
-        payload.name = name.trim();
-      }
-      if (phone.trim() !== originalPhone.current) {
-        payload.phone = phone.trim();
-      }
-      if (newImageUri === 'remove') {
-        payload.profile_image = '';
-      }
-
-      if (Object.keys(payload).length === 0) {
-        Alert.alert('No Changes', 'You haven\'t changed anything yet.');
-        setSaving(false);
-        return;
-      }
-
-      const response = await userService.updateProfile(payload);
-      const updatedData = response.data?.data || response.data;
-
+      // 1. If a new image was picked, upload it first.
       if (newImageUri && newImageUri !== 'remove') {
-        // Image selected but profile photo upload requires server-side file handling
-        // For now, save name/phone and keep the local image preview
-        updateUser({
-          name: updatedData?.name || name.trim(),
-          phone: updatedData?.phone || phone.trim(),
-          profile_image: updatedData?.profile_image || user?.profile_image,
-        });
-      } else {
+        setUploadProgress(0);
+        const result = await uploadMultipart<{ profile_image: string }>(
+          '/user/profile/image',
+          newImageUri,
+          'image',
+          undefined,
+          (p) => setUploadProgress(p),
+        );
+        if (!result.ok) {
+          Alert.alert('Upload Failed', result.error);
+          setSaving(false);
+          setUploadProgress(0);
+          return;
+        }
+        // Merge the server URL into local user state now so no code below
+        // falls back to the local (now-invalid) file:// URI.
+        updateUser({ profile_image: result.data.profile_image });
+      }
+
+      // 2. Do the name/phone (and possibly explicit remove-image) update.
+      //    Does NOT include the local file URI under profile_image — the upload
+      //    above already set it.
+      const payload: any = {};
+      if (hasNameChange) payload.name = name.trim();
+      if (hasPhoneChange) payload.phone = phone.trim();
+      if (newImageUri === 'remove') payload.profile_image = '';
+
+      // If there were only image changes (no name/phone changes and not a removal),
+      // skip the second round-trip.
+      const hasTextChanges = Object.keys(payload).length > 0;
+      if (hasTextChanges) {
+        const response = await userService.updateProfile(payload);
+        const updatedData = response.data?.data || response.data;
         updateUser({
           name: updatedData?.name || name.trim(),
           phone: updatedData?.phone || phone.trim(),
           ...(newImageUri === 'remove' ? { profile_image: '' } : {}),
         });
+        originalName.current = name.trim();
+        originalPhone.current = phone.trim();
       }
 
-      // Reset originals so unsaved changes detection won't trigger
-      originalName.current = name.trim();
-      originalPhone.current = phone.trim();
       setNewImageUri(null);
-
+      setUploadProgress(0);
       Alert.alert('Success', 'Profile updated successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -526,6 +541,13 @@ export default function EditProfileScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
+          {saving && uploadProgress > 0 && uploadProgress < 100 && (
+            <View style={styles.progressRow}>
+              <ActivityIndicator size="small" />
+              <Text style={styles.progressText}>Uploading photo… {uploadProgress}%</Text>
+            </View>
+          )}
+
           <View style={{ height: verticalScale(40) }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -770,5 +792,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.white,
     marginLeft: moderateScale(8),
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: moderateScale(8),
+    marginTop: verticalScale(12),
+  },
+  progressText: {
+    fontSize: fontScale(13),
+    color: COLORS.gray500,
   },
 });
