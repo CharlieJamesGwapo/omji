@@ -35,6 +35,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// idempotencyKeyPattern restricts Idempotency-Key values to URL-safe chars only.
+var idempotencyKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_\-]{1,64}$`)
+
 // uintPtr converts a uint value to a *uint pointer (needed for nullable FK fields).
 func uintPtr(v uint) *uint { return &v }
 
@@ -646,16 +649,16 @@ func ExportMyData(db *gorm.DB) gin.HandlerFunc {
 				"created_at":    user.CreatedAt,
 				"updated_at":    user.UpdatedAt,
 			},
-			"saved_addresses":      addresses,
-			"payment_methods":      payments,
-			"ride_history":         rides,
-			"delivery_history":     deliveries,
-			"order_history":        orders,
-			"notifications":        notifications,
-			"favorites":            favorites,
-			"referrals":            referrals,
-			"wallet":               wallet,
-			"wallet_transactions":  walletTxs,
+			"saved_addresses":     addresses,
+			"payment_methods":     payments,
+			"ride_history":        rides,
+			"delivery_history":    deliveries,
+			"order_history":       orders,
+			"notifications":       notifications,
+			"favorites":           favorites,
+			"referrals":           referrals,
+			"wallet":              wallet,
+			"wallet_transactions": walletTxs,
 		}
 		if hasDriver {
 			export["driver_profile"] = driver
@@ -1563,7 +1566,13 @@ func CreateDelivery(db *gorm.DB) gin.HandlerFunc {
 			UserID: uintPtr(userID), PickupLocation: pickupLocation, PickupLatitude: pickupLat, PickupLongitude: pickupLng,
 			DropoffLocation: dropoffLocation, DropoffLatitude: dropoffLat, DropoffLongitude: dropoffLng,
 			ItemDescription: itemDescription, ItemPhoto: itemPhoto, Notes: notes, Weight: weight, Distance: distance, DeliveryFee: fee, Status: "pending",
-			PaymentMethod: paymentMethod, BarcodeNumber: func() string { b, err := GenerateOTP(); if err != nil { return fmt.Sprintf("%06d", 0) }; return b }(), PromoID: promoID,
+			PaymentMethod: paymentMethod, BarcodeNumber: func() string {
+				b, err := GenerateOTP()
+				if err != nil {
+					return fmt.Sprintf("%06d", 0)
+				}
+				return b
+			}(), PromoID: promoID,
 		}
 		if err := db.Create(&delivery).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create delivery"})
@@ -2503,14 +2512,14 @@ func AcceptRequest(db *gorm.DB) gin.HandlerFunc {
 				safePushNotify(db, ride.UserID, "Rider On The Way!", "A driver has accepted your ride and is heading to you.", map[string]interface{}{"type": "ride_accepted", "rideId": ride.ID})
 				rideIDStr := fmt.Sprintf("%d", ride.ID)
 				tracker.Broadcast(rideIDStr, map[string]interface{}{
-					"type":         "ride_accepted",
-					"ride_id":      ride.ID,
-					"driver_name":  driver.User.Name,
+					"type":          "ride_accepted",
+					"ride_id":       ride.ID,
+					"driver_name":   driver.User.Name,
 					"driver_rating": driver.Rating,
-					"vehicle_type": driver.VehicleType,
+					"vehicle_type":  driver.VehicleType,
 					"vehicle_plate": driver.VehiclePlate,
-					"driver_lat":   driver.CurrentLatitude,
-					"driver_lng":   driver.CurrentLongitude,
+					"driver_lat":    driver.CurrentLatitude,
+					"driver_lng":    driver.CurrentLongitude,
 				})
 			}
 			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Ride accepted", "ride_id": ride.ID, "type": "ride", "status": "accepted", "pickup": ride.PickupLocation, "dropoff": ride.DropoffLocation, "fare": ride.EstimatedFare}, "timestamp": time.Now()})
@@ -4107,8 +4116,8 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			logs = append(logs, ActivityLog{
 				ID: r.ID, Type: "ride", Action: action,
 				UserName: userName, UserEmail: userEmail,
-				Details:  r.PickupLocation + " → " + r.DropoffLocation,
-				Status:   r.Status, Amount: r.EstimatedFare,
+				Details: r.PickupLocation + " → " + r.DropoffLocation,
+				Status:  r.Status, Amount: r.EstimatedFare,
 				CreatedAt: r.CreatedAt,
 			})
 		}
@@ -4132,8 +4141,8 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			logs = append(logs, ActivityLog{
 				ID: d.ID, Type: "delivery", Action: action,
 				UserName: userName, UserEmail: userEmail,
-				Details:  d.ItemDescription + " — " + d.PickupLocation + " → " + d.DropoffLocation,
-				Status:   d.Status, Amount: d.DeliveryFee,
+				Details: d.ItemDescription + " — " + d.PickupLocation + " → " + d.DropoffLocation,
+				Status:  d.Status, Amount: d.DeliveryFee,
 				CreatedAt: d.CreatedAt,
 			})
 		}
@@ -4161,8 +4170,8 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			logs = append(logs, ActivityLog{
 				ID: o.ID, Type: "order", Action: action,
 				UserName: userName, UserEmail: userEmail,
-				Details:  "Order" + storeName + " — " + o.DeliveryLocation,
-				Status:   o.Status, Amount: o.TotalAmount,
+				Details: "Order" + storeName + " — " + o.DeliveryLocation,
+				Status:  o.Status, Amount: o.TotalAmount,
 				CreatedAt: o.CreatedAt,
 			})
 		}
@@ -4200,8 +4209,8 @@ func AdminGetActivityLogs(db *gorm.DB) gin.HandlerFunc {
 			logs = append(logs, ActivityLog{
 				ID: d.ID, Type: "driver", Action: action,
 				UserName: userName, UserEmail: userEmail,
-				Details:  d.VehicleType + " — " + d.VehiclePlate,
-				Status:   status,
+				Details:   d.VehicleType + " — " + d.VehiclePlate,
+				Status:    status,
 				CreatedAt: d.CreatedAt,
 			})
 		}
@@ -4542,21 +4551,32 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 		}
 		// Idempotency-Key dedup: check before any DB mutation
 		idemKey := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+		// driver is looked up once here so the scoped dedup query and the new
+		// row creation both use the same driver.ID.
+		var driver models.Driver
 		if idemKey != "" {
 			if len(idemKey) > 64 {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Idempotency-Key too long (max 64 chars)"})
 				return
 			}
-			var existing models.WithdrawalRequest
-			if err := db.Where("idempotency_key = ?", idemKey).First(&existing).Error; err == nil {
-				var drv models.Driver
-				if err := db.Where("user_id = ?", userID).First(&drv).Error; err == nil && existing.DriverID == drv.ID {
-					c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"withdrawal": existing, "idempotent_replay": true}})
-					return
-				}
-				c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Idempotency-Key already used"})
+			// Whitelist: UUIDs, nanoids, etc. Reject control chars / unicode weirdness.
+			if !idempotencyKeyPattern.MatchString(idemKey) {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Idempotency-Key must be [A-Za-z0-9_-] up to 64 chars"})
 				return
 			}
+			// Look up the driver once here — we need driver.ID both for the scoped
+			// query and the new row below.
+			if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Only drivers can request withdrawals"})
+				return
+			}
+			var existing models.WithdrawalRequest
+			if err := db.Where("idempotency_key = ? AND driver_id = ?", idemKey, driver.ID).First(&existing).Error; err == nil {
+				c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"withdrawal": existing, "idempotent_replay": true}})
+				return
+			}
+			// Fall through to normal flow below.
+			// The duplicate-key catch at Create handles the race window.
 		}
 		if input.Amount < 100 {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Minimum withdrawal is ₱100"})
@@ -4566,11 +4586,12 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Method must be gcash or maya"})
 			return
 		}
-		// Verify user is a driver
-		var driver models.Driver
-		if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Only drivers can request withdrawals"})
-			return
+		// Verify user is a driver (only if not already looked up in the idemKey block above)
+		if driver.ID == 0 {
+			if err := db.Where("user_id = ?", userID).First(&driver).Error; err != nil {
+				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Only drivers can request withdrawals"})
+				return
+			}
 		}
 		tx := db.Begin()
 		var wallet models.Wallet
@@ -4611,6 +4632,15 @@ func RequestWithdrawal(db *gorm.DB) gin.HandlerFunc {
 		}
 		if err := tx.Create(&withdrawal).Error; err != nil {
 			tx.Rollback()
+			// If the unique index on idempotency_key fired, another request with
+			// the same key won the race — return that request's existing row.
+			if idemKey != "" && (errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "UNIQUE constraint failed")) {
+				var existing models.WithdrawalRequest
+				if ferr := db.Where("idempotency_key = ? AND driver_id = ?", idemKey, driver.ID).First(&existing).Error; ferr == nil {
+					c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"withdrawal": existing, "idempotent_replay": true}})
+					return
+				}
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Withdrawal failed"})
 			return
 		}
@@ -6282,11 +6312,11 @@ func AdminGetCommissionSummary(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		row := db.Model(&models.CommissionRecord{}).Select(
-			"COALESCE(SUM(commission_amount), 0) as total_commission, "+
-				"COALESCE(SUM(CASE WHEN status = 'deducted' THEN commission_amount ELSE 0 END), 0) as total_deducted, "+
-				"COALESCE(SUM(CASE WHEN status = 'pending_collection' THEN commission_amount ELSE 0 END), 0) as total_pending_collection, "+
-				"COALESCE(SUM(CASE WHEN service_type = 'ride' THEN commission_amount ELSE 0 END), 0) as ride_commission, "+
-				"COALESCE(SUM(CASE WHEN service_type = 'delivery' THEN commission_amount ELSE 0 END), 0) as delivery_commission, "+
+			"COALESCE(SUM(commission_amount), 0) as total_commission, " +
+				"COALESCE(SUM(CASE WHEN status = 'deducted' THEN commission_amount ELSE 0 END), 0) as total_deducted, " +
+				"COALESCE(SUM(CASE WHEN status = 'pending_collection' THEN commission_amount ELSE 0 END), 0) as total_pending_collection, " +
+				"COALESCE(SUM(CASE WHEN service_type = 'ride' THEN commission_amount ELSE 0 END), 0) as ride_commission, " +
+				"COALESCE(SUM(CASE WHEN service_type = 'delivery' THEN commission_amount ELSE 0 END), 0) as delivery_commission, " +
 				"COALESCE(SUM(CASE WHEN service_type = 'order' THEN commission_amount ELSE 0 END), 0) as order_commission").
 			Row()
 		if err := row.Scan(

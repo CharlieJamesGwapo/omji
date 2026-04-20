@@ -281,8 +281,15 @@ export default function RiderEarningsScreen({ navigation }: any) {
       Alert.alert('Missing Info', 'Please enter the account holder name.');
       return;
     }
+    if (!idempotencyKeyRef.current) {
+      // Ref should always be set by the time the sheet is open. If we got here
+      // without one, bail — do not silently mint a fresh key and defeat dedup.
+      setWithdrawLoading(false);
+      Alert.alert('Error', 'Session error. Please reopen the withdrawal sheet.');
+      return;
+    }
+    const idemKey = idempotencyKeyRef.current;
     setWithdrawLoading(true);
-    const idemKey = idempotencyKeyRef.current ?? uuidv4();
     try {
       await driverService.requestWithdrawal({
         amount,
