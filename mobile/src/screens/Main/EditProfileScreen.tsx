@@ -32,6 +32,7 @@ export default function EditProfileScreen({ navigation }: any) {
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   // Track original values for unsaved changes detection
   const originalName = useRef(user?.name || '');
@@ -54,10 +55,15 @@ export default function EditProfileScreen({ navigation }: any) {
     );
   }, [name, phone, newImageUri]);
 
+  // Keep hasUnsavedChanges readable from the listener without re-registering
+  // it on every keystroke (avoids an unsubscribe/resubscribe race window).
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
+
   // Intercept back navigation for unsaved changes
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
-      if (!hasUnsavedChanges()) return;
+      if (!hasUnsavedChangesRef.current()) return;
 
       e.preventDefault();
       Alert.alert(
@@ -74,7 +80,7 @@ export default function EditProfileScreen({ navigation }: any) {
       );
     });
     return unsubscribe;
-  }, [navigation, hasUnsavedChanges]);
+  }, [navigation]);
 
   const animateLabel = (anim: Animated.Value, toValue: number) => {
     Animated.timing(anim, {
@@ -171,6 +177,7 @@ export default function EditProfileScreen({ navigation }: any) {
       const uri = result.assets[0].uri;
       setNewImageUri(uri);
       setProfileImage(uri);
+      setImageLoadFailed(false);
     }
   };
 
@@ -191,6 +198,7 @@ export default function EditProfileScreen({ navigation }: any) {
       const uri = result.assets[0].uri;
       setNewImageUri(uri);
       setProfileImage(uri);
+      setImageLoadFailed(false);
     }
   };
 
@@ -198,7 +206,7 @@ export default function EditProfileScreen({ navigation }: any) {
     Alert.alert('Profile Photo', 'Choose a photo source', [
       { text: 'Camera', onPress: takePhoto },
       { text: 'Photo Library', onPress: pickImage },
-      ...(profileImage ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => { setProfileImage(null); setNewImageUri('remove'); } }] : []),
+      ...(profileImage ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => { setProfileImage(null); setNewImageUri('remove'); setImageLoadFailed(false); } }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
@@ -251,6 +259,10 @@ export default function EditProfileScreen({ navigation }: any) {
         // Merge the server URL into local user state now so no code below
         // falls back to the local (now-invalid) file:// URI.
         updateUser({ profile_image: result.data.profile_image });
+        // Point the on-screen preview at the canonical server URL too, so
+        // we stop depending on the temp file:// URI that may be cleaned up.
+        setProfileImage(result.data.profile_image);
+        setImageLoadFailed(false);
       }
 
       // 2. Do the name/phone (and possibly explicit remove-image) update.
@@ -291,7 +303,7 @@ export default function EditProfileScreen({ navigation }: any) {
   };
 
   const getAvatarUri = () => {
-    if (profileImage) return profileImage;
+    if (profileImage && !imageLoadFailed) return profileImage;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=200`;
   };
 
@@ -355,6 +367,7 @@ export default function EditProfileScreen({ navigation }: any) {
               <Image
                 source={{ uri: getAvatarUri() }}
                 style={styles.avatar}
+                onError={() => setImageLoadFailed(true)}
               />
               <View style={styles.cameraOverlay}>
                 <Ionicons name="camera" size={moderateScale(20)} color={COLORS.white} />

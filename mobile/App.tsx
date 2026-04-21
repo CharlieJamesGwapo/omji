@@ -82,11 +82,7 @@ const RootNavigator = () => {
     checkVersion();
   }, []);
 
-  // Block app when no internet connection
-  if (!isConnected) {
-    return <NoInternetScreen />;
-  }
-
+  // Initial boot only — once loadUser() resolves, `loading` is false forever.
   if (loading) {
     return <LoadingScreen />;
   }
@@ -112,17 +108,29 @@ const RootNavigator = () => {
     );
   }
 
+  // NavigationContainer MUST stay mounted across connectivity flickers.
+  // Android NetInfo can emit spurious `isConnected: false` events, and
+  // unmounting the container here would reset the stack — users would
+  // silently lose the screen they were on (e.g. EditProfile → back to Profile).
+  // NoInternetScreen is rendered as an overlay so nav state survives.
   return (
-    <NavigationContainer linking={linking} onUnhandledAction={(action) => { console.warn('Unhandled navigation action:', action); }}>
-      <StatusBar style="auto" />
-      {!user ? (
-        <AuthNavigator />
-      ) : user.role === 'rider' || user.role === 'driver' ? (
-        <RiderNavigator />
-      ) : (
-        <MainNavigator />
+    <View style={{ flex: 1 }}>
+      <NavigationContainer linking={linking} onUnhandledAction={(action) => { console.warn('Unhandled navigation action:', action); }}>
+        <StatusBar style="auto" />
+        {!user ? (
+          <AuthNavigator />
+        ) : user.role === 'rider' || user.role === 'driver' ? (
+          <RiderNavigator />
+        ) : (
+          <MainNavigator />
+        )}
+      </NavigationContainer>
+      {!isConnected && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <NoInternetScreen />
+        </View>
       )}
-    </NavigationContainer>
+    </View>
   );
 };
 
