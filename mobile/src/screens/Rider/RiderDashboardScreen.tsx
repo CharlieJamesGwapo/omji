@@ -27,6 +27,7 @@ import { COLORS, SHADOWS } from '../../constants/theme';
 import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../../utils/responsive';
 import { accuracyForState, isValidCoord, isLikelyInPH } from '../../utils/geo';
 import { startTripLocationService, stopTripLocationService } from '../../native/tripLocationTask';
+import { useBackgroundLocationDisclosure } from '../../hooks/useBackgroundLocationDisclosure';
 
 interface DriverRequest {
   id: number;
@@ -84,6 +85,8 @@ export default function RiderDashboardScreen({ navigation }: any) {
   const [reconnecting, setReconnecting] = useState(false);
   const driverProfileId = useRef<number | null>(null);
   const [driverProfileIdState, setDriverProfileIdState] = useState<number | null>(null);
+  const { ensureDisclosed: ensureBgLocationDisclosed, disclosureElement: bgLocationDisclosure } =
+    useBackgroundLocationDisclosure();
 
   // Online timer
   useEffect(() => {
@@ -420,10 +423,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
           try {
             await driverService.acceptRequest(request.id);
             showToast(`${jobLabel} accepted!`, 'success');
-            // Start foreground-service location tracking for the trip duration.
-            const locationStarted = await startTripLocationService();
-            if (!locationStarted) {
-              showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+            // Play-required prominent disclosure before the background-location OS prompt.
+            const consented = await ensureBgLocationDisclosed();
+            if (consented) {
+              const locationStarted = await startTripLocationService();
+              if (!locationStarted) {
+                showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+              }
+            } else {
+              showToast('Background location is needed for live tracking. You can enable it before the next trip.', 'warning');
             }
             fetchData();
             navigation.navigate('Tracking', {
@@ -482,10 +490,15 @@ export default function RiderDashboardScreen({ navigation }: any) {
     try {
       await driverService.acceptRequest(rideId);
       showToast('Ride accepted!', 'success');
-      // Start foreground-service location tracking for the trip duration.
-      const locationStarted = await startTripLocationService();
-      if (!locationStarted) {
-        showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+      // Play-required prominent disclosure before the background-location OS prompt.
+      const consented = await ensureBgLocationDisclosed();
+      if (consented) {
+        const locationStarted = await startTripLocationService();
+        if (!locationStarted) {
+          showToast('Background location access is required for precise trip tracking. Please grant it in Settings.', 'warning');
+        }
+      } else {
+        showToast('Background location is needed for live tracking. You can enable it before the next trip.', 'warning');
       }
       fetchData();
       navigation.navigate('Tracking', {
@@ -1178,6 +1191,7 @@ export default function RiderDashboardScreen({ navigation }: any) {
         onAccept={handleAcceptRideRequest}
         onDecline={handleDeclineRideRequest}
       />
+      {bgLocationDisclosure}
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </Animated.View>
   );

@@ -4,3 +4,4 @@ export { usePromoCode } from './usePromoCode';
 export { useDebouncedFetch } from './useDebouncedFetch';
 export { useToast } from './useToast';
 export { usePushNotifications } from './usePushNotifications';
+export { useBackgroundLocationDisclosure } from './useBackgroundLocationDisclosure';
