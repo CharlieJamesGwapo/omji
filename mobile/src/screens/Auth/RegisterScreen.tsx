@@ -23,8 +23,8 @@ type PasswordStrength = 'none' | 'weak' | 'medium' | 'strong';
 const getPasswordStrength = (password: string): PasswordStrength => {
   if (!password) return 'none';
   let score = 0;
-  if (password.length >= 6) score++;
-  if (password.length >= 10) score++;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
   if (/[A-Z]/.test(password)) score++;
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
@@ -87,7 +87,7 @@ export default function RegisterScreen({ navigation }: any) {
       if (digits.length < 10 || digits.length > 15) errors.phone = 'Phone must be 10-15 digits';
     }
     if (!password) errors.password = 'Password is required';
-    else if (password.length < 6) errors.password = 'Password must be at least 6 characters';
+    else if (password.length < 8) errors.password = 'Password must be at least 8 characters';
     if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
     else if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
     if (!agreedToTerms) errors.terms = 'You must agree to the Terms & Privacy Policy';
@@ -122,17 +122,42 @@ export default function RegisterScreen({ navigation }: any) {
       showToast('Account created successfully! Welcome to ONE RIDE!', 'success');
     } catch (error: any) {
       shake();
-      const msg = error.message || 'Registration failed. Please try again.';
-      // Map server errors to specific fields
-      const lowerMsg = msg.toLowerCase();
-      if (lowerMsg.includes('email already')) {
+      const rawMsg = error.message || 'Registration failed. Please try again.';
+      let friendly = rawMsg;
+      const lowerMsg = rawMsg.toLowerCase();
+
+      // Translate Go validator messages like:
+      //   Key: 'RegisterInput.Password' Error:Field validation for 'Password' failed on the 'min' tag
+      // into human copy and attach to the right field.
+      const FIELD_LABELS: Record<string, string> = {
+        name: 'Full name', email: 'Email', phone: 'Phone number', password: 'Password',
+      };
+      const validatorMatch = rawMsg.match(/'[^.']+\.(\w+)'[^']*'(\w+)' tag/);
+      if (validatorMatch) {
+        const field = validatorMatch[1].toLowerCase();
+        const tag = validatorMatch[2];
+        const label = FIELD_LABELS[field] || field;
+        if (field === 'password' && tag === 'min') friendly = 'Password must be at least 8 characters';
+        else if (field === 'password' && tag === 'max') friendly = 'Password is too long';
+        else if (tag === 'email') friendly = 'Please enter a valid email address';
+        else if (tag === 'required') friendly = `${label} is required`;
+        else if (tag === 'min') friendly = `${label} is too short`;
+        else if (tag === 'max') friendly = `${label} is too long`;
+        else friendly = `${label} is invalid`;
+        if (FIELD_LABELS[field]) {
+          setFieldErrors(prev => ({ ...prev, [field]: friendly }));
+        }
+      } else if (lowerMsg.includes('email already')) {
         setFieldErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+        friendly = 'This email is already registered';
       } else if (lowerMsg.includes('phone already')) {
         setFieldErrors(prev => ({ ...prev, phone: 'This phone number is already registered' }));
+        friendly = 'This phone number is already registered';
       } else if (lowerMsg.includes('phone') && lowerMsg.includes('format')) {
         setFieldErrors(prev => ({ ...prev, phone: 'Invalid phone format. Use digits only (10-15)' }));
+        friendly = 'Invalid phone format. Use digits only (10-15)';
       }
-      showToast(msg, 'error');
+      showToast(friendly, 'error');
     } finally {
       setLoading(false);
     }
@@ -235,7 +260,7 @@ export default function RegisterScreen({ navigation }: any) {
             {/* Password Requirements Hint */}
             {focusedField === 'password' && passwordStrength !== 'strong' && (
               <Text style={styles.passwordHint}>
-                Min 6 characters. Use uppercase, numbers, and symbols for a stronger password.
+                Min 8 characters. Use uppercase, numbers, and symbols for a stronger password.
               </Text>
             )}
 
