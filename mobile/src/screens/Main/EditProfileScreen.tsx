@@ -24,8 +24,34 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 
 const NAME_MAX_LENGTH = 50;
 
+// Debug log shared across remounts of this screen — if the screen is
+// unmounting unexpectedly we can still see the prior events after it
+// mounts again. Capped so it can't leak memory.
+const DEBUG_LOG: { ts: number; msg: string }[] = [];
+let MOUNT_COUNT = 0;
+const dlog = (msg: string) => {
+  DEBUG_LOG.push({ ts: Date.now(), msg });
+  if (DEBUG_LOG.length > 40) DEBUG_LOG.shift();
+};
+
 export default function EditProfileScreen({ navigation }: any) {
   const { user, updateUser, refreshUser } = useAuth();
+
+  // Diagnostic: bump on every mount, display on screen.
+  const mountIdRef = useRef<number>(0);
+  const [, forceRerender] = useState(0);
+  useEffect(() => {
+    MOUNT_COUNT += 1;
+    mountIdRef.current = MOUNT_COUNT;
+    dlog(`mount #${MOUNT_COUNT}`);
+    forceRerender((n) => n + 1);
+    // Tick the UI so the debug panel stays in sync with DEBUG_LOG mutations.
+    const tick = setInterval(() => forceRerender((n) => n + 1), 500);
+    return () => {
+      clearInterval(tick);
+      dlog(`unmount #${mountIdRef.current}`);
+    };
+  }, []);
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -64,6 +90,7 @@ export default function EditProfileScreen({ navigation }: any) {
   // Intercept back navigation for unsaved changes
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      dlog(`beforeRemove type=${e?.data?.action?.type || '?'} dirty=${hasUnsavedChangesRef.current()}`);
       if (!hasUnsavedChangesRef.current()) return;
 
       e.preventDefault();
@@ -80,7 +107,9 @@ export default function EditProfileScreen({ navigation }: any) {
         ]
       );
     });
-    return unsubscribe;
+    const unsubFocus = navigation.addListener('focus', () => dlog('focus'));
+    const unsubBlur = navigation.addListener('blur', () => dlog('blur'));
+    return () => { unsubscribe(); unsubFocus(); unsubBlur(); };
   }, [navigation]);
 
   const animateLabel = (anim: Animated.Value, toValue: number) => {
@@ -92,11 +121,13 @@ export default function EditProfileScreen({ navigation }: any) {
   };
 
   const handleNameFocus = () => {
+    dlog('name focus');
     setNameFocused(true);
     animateLabel(nameLabelAnim, 1);
   };
 
   const handleNameBlur = () => {
+    dlog('name blur');
     setNameFocused(false);
     if (!name) animateLabel(nameLabelAnim, 0);
   };
@@ -244,6 +275,7 @@ export default function EditProfileScreen({ navigation }: any) {
       // 1. If a new image was picked, upload it first.
       if (newImageUri && newImageUri !== 'remove') {
         setUploadProgress(0);
+        dlog(`upload start uri=${newImageUri.slice(-30)}`);
         const result = await uploadMultipart<{ profile_image: string }>(
           '/user/profile/image',
           newImageUri,
@@ -251,7 +283,9 @@ export default function EditProfileScreen({ navigation }: any) {
           undefined,
           (p) => setUploadProgress(p),
         );
+        dlog(`upload result ok=${result.ok}`);
         if (!result.ok) {
+          dlog(`upload err: ${(result as any).error}`);
           Alert.alert('Upload Failed', result.error);
           setSaving(false);
           setUploadProgress(0);
@@ -259,6 +293,7 @@ export default function EditProfileScreen({ navigation }: any) {
         }
         // Validate the server actually returned a URL before updating state.
         const serverUrl = result.data?.profile_image;
+        dlog(`upload url=${String(serverUrl).slice(-60)}`);
         if (typeof serverUrl !== 'string' || !/^https?:\/\//.test(serverUrl)) {
           Alert.alert('Upload Failed', 'Server did not return a valid image URL.');
           setSaving(false);
@@ -268,6 +303,7 @@ export default function EditProfileScreen({ navigation }: any) {
         // Persist to user state and AsyncStorage before showing the success
         // alert — otherwise the next mount of this screen can read stale data.
         await updateUser({ profile_image: serverUrl });
+        dlog('user state updated with server url');
       }
 
       // 2. Do the name/phone (and possibly explicit remove-image) update.
@@ -381,7 +417,11 @@ export default function EditProfileScreen({ navigation }: any) {
               <Image
                 source={{ uri: getAvatarUri() }}
                 style={styles.avatar}
-                onError={() => setImageLoadFailed(true)}
+                onError={(e) => {
+                  dlog(`img onError ${e?.nativeEvent?.error || ''} url=${String(getAvatarUri()).slice(-60)}`);
+                  setImageLoadFailed(true);
+                }}
+                onLoad={() => dlog(`img onLoad ${String(getAvatarUri()).slice(-60)}`)}
               />
               <View style={styles.cameraOverlay}>
                 <Ionicons name="camera" size={moderateScale(20)} color={COLORS.white} />
@@ -542,8 +582,18 @@ export default function EditProfileScreen({ navigation }: any) {
             <Text style={styles.infoText}>
               Your profile information helps us personalize your experience and keeps your account secure.
               {'\n'}
-              <Text style={styles.buildStamp}>v{Constants.expoConfig?.version || '?'}</Text>
+              <Text style={styles.buildStamp}>v{Constants.expoConfig?.version || '?'} · mount #{mountIdRef.current}</Text>
             </Text>
+          </View>
+
+          {/* DIAGNOSTIC LOG — remove after bug is fixed */}
+          <View style={styles.debugPanel}>
+            <Text style={styles.debugTitle}>DEBUG LOG (tap to copy last 10):</Text>
+            {DEBUG_LOG.slice(-10).map((e, i) => (
+              <Text key={i} style={styles.debugLine} numberOfLines={1}>
+                +{((e.ts - (DEBUG_LOG[0]?.ts || e.ts)) / 1000).toFixed(1)}s {e.msg}
+              </Text>
+            ))}
           </View>
 
           {/* Save Button */}
@@ -796,6 +846,24 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     color: COLORS.gray400,
     fontWeight: '500',
+  },
+  debugPanel: {
+    marginHorizontal: RESPONSIVE.paddingHorizontal,
+    marginTop: verticalScale(8),
+    padding: moderateScale(8),
+    backgroundColor: '#111',
+    borderRadius: moderateScale(6),
+  },
+  debugTitle: {
+    color: '#aaa',
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    marginBottom: verticalScale(4),
+  },
+  debugLine: {
+    color: '#0f0',
+    fontSize: fontScale(10),
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
   // Save Button
