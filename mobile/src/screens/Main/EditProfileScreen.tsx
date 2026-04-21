@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/api';
 import { uploadMultipart } from '../../utils/upload';
@@ -24,7 +25,7 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 const NAME_MAX_LENGTH = 50;
 
 export default function EditProfileScreen({ navigation }: any) {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -256,13 +257,17 @@ export default function EditProfileScreen({ navigation }: any) {
           setUploadProgress(0);
           return;
         }
-        // Merge the server URL into local user state now so no code below
-        // falls back to the local (now-invalid) file:// URI.
-        updateUser({ profile_image: result.data.profile_image });
-        // Point the on-screen preview at the canonical server URL too, so
-        // we stop depending on the temp file:// URI that may be cleaned up.
-        setProfileImage(result.data.profile_image);
-        setImageLoadFailed(false);
+        // Validate the server actually returned a URL before updating state.
+        const serverUrl = result.data?.profile_image;
+        if (typeof serverUrl !== 'string' || !/^https?:\/\//.test(serverUrl)) {
+          Alert.alert('Upload Failed', 'Server did not return a valid image URL.');
+          setSaving(false);
+          setUploadProgress(0);
+          return;
+        }
+        // Persist to user state and AsyncStorage before showing the success
+        // alert — otherwise the next mount of this screen can read stale data.
+        await updateUser({ profile_image: serverUrl });
       }
 
       // 2. Do the name/phone (and possibly explicit remove-image) update.
@@ -279,7 +284,7 @@ export default function EditProfileScreen({ navigation }: any) {
       if (hasTextChanges) {
         const response = await userService.updateProfile(payload);
         const updatedData = response.data?.data || response.data;
-        updateUser({
+        await updateUser({
           name: updatedData?.name || name.trim(),
           phone: updatedData?.phone || phone.trim(),
           ...(newImageUri === 'remove' ? { profile_image: '' } : {}),
@@ -287,6 +292,11 @@ export default function EditProfileScreen({ navigation }: any) {
         originalName.current = name.trim();
         originalPhone.current = phone.trim();
       }
+
+      // Canonical re-sync with backend. Fire-and-forget — if this fails, the
+      // optimistic updates above are still valid, but when it succeeds we
+      // pick up anything the server normalised (e.g. trimmed whitespace).
+      refreshUser().catch(() => {});
 
       setNewImageUri(null);
       setUploadProgress(0);
@@ -303,7 +313,11 @@ export default function EditProfileScreen({ navigation }: any) {
   };
 
   const getAvatarUri = () => {
-    if (profileImage && !imageLoadFailed) return profileImage;
+    // Accept http(s) URLs and local file:// URIs (picker temp files).
+    const validPreview =
+      typeof profileImage === 'string' &&
+      (profileImage.startsWith('http') || profileImage.startsWith('file:'));
+    if (validPreview && !imageLoadFailed) return profileImage;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=200`;
   };
 
@@ -527,6 +541,8 @@ export default function EditProfileScreen({ navigation }: any) {
             <Ionicons name="information-circle" size={moderateScale(20)} color={COLORS.accent} />
             <Text style={styles.infoText}>
               Your profile information helps us personalize your experience and keeps your account secure.
+              {'\n'}
+              <Text style={styles.buildStamp}>v{Constants.expoConfig?.version || '?'}</Text>
             </Text>
           </View>
 
@@ -775,6 +791,11 @@ const styles = StyleSheet.create({
     color: COLORS.gray600,
     marginLeft: moderateScale(10),
     lineHeight: fontScale(18),
+  },
+  buildStamp: {
+    fontSize: fontScale(11),
+    color: COLORS.gray400,
+    fontWeight: '500',
   },
 
   // Save Button
