@@ -1,15 +1,10 @@
 What's new in 1.0.4:
-• Driver trips stay alive through long backgrounding
+• Trips stay alive through long backgrounding
 • Withdrawals can't be double-submitted
-• Profile photo changes now actually save
-• Crash recovery — no more reinstall for a single crash
-• Smarter GPS: precise during trips, battery-friendly when idle
-• Promo-code limits can't be bypassed by concurrent taps
-• Driver offline cancels phantom pickups for passengers
+• Profile photo saves actually persist
+• Crash recovery — no more white-screen reinstalls
+• Smarter GPS: precise in trips, light when idle
+• Promo-code limits no longer bypassable
+• Driver offline cancels phantom passenger pickups
 
-Please test: going online + a ride, backgrounding the app mid-ride,
-submitting a withdrawal, editing your profile photo, flipping
-airplane mode mid-trip, applying a near-limit promo code.
-
-Known: admin console improvements + low-end Android map
-performance are in flight.
+Please test: trip + backgrounding, withdrawal, profile photo, mid-trip airplane mode, near-limit promo.
