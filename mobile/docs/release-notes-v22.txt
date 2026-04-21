@@ -1,0 +1,20 @@
+<en-US>
+Major update from 1.0.0.
+
+New:
+- Live trip tracking (background location)
+- Profile photo upload and edit
+- Delivery rates retry banner
+
+Fixes:
+- Auto-cancel rides when driver goes offline
+- WebSocket reconnection
+- Wallet, referral, promo accuracy
+- Crashes: profile, tracking, map, payment
+- Register password rule matches server
+- Edit profile stable on flaky networks
+- Profile photo crop persists
+- Correct ONE RIDE launcher icon
+
+Thanks testers, please report bugs!
+</en-US>
