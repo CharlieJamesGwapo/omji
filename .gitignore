@@ -48,6 +48,7 @@ google-play-key.json
 *.apk
 upload_cert.pem
 mobile/upload_cert.pem
+mobile/credentials.json
 
 # Local artifacts that shouldn't be tracked
 screenshot*.png

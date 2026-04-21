@@ -93,12 +93,12 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 5000,
-      "url": "https://u.expo.dev/c4fd222b-e5b3-4f71-a6a5-3d0e429ebc70"
+      "url": "https://u.expo.dev/cab13cc8-1629-4a45-835d-6eb9a5ff9204"
     },
-    "owner": "bboydevzxczc",
+    "owner": "omjidev",
     "extra": {
       "eas": {
-        "projectId": "c4fd222b-e5b3-4f71-a6a5-3d0e429ebc70"
+        "projectId": "cab13cc8-1629-4a45-835d-6eb9a5ff9204"
       }
     },
     "runtimeVersion": "1.0.0"
