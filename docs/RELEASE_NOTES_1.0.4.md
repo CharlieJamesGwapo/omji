@@ -1,6 +1,6 @@
 # ONE RIDE 1.0.4 — Closed Testing Release
 
-**Build:** 1.0.4 / versionCode 14
+**Build:** 1.0.4 / versionCode 18
 **Date:** 2026-04-20
 **Track:** Play Console closed testing
 **Branch:** one-ride-balingasag
@@ -44,7 +44,3 @@ The `.aab` is NOT built as part of this commit. Build it locally with:
   Output: `mobile/android/app/build/outputs/bundle/release/app-release.aab`.
 
 Before uploading to the Play Console, verify the build by installing on a real device (convert `.aab → .apks` with `bundletool` or install via EAS).
-
-## Feedback
-
-File issues at <TO BE FILLED BY PROJECT OWNER>.
