@@ -24,6 +24,20 @@ import { RESPONSIVE, fontScale, verticalScale, moderateScale, isIOS } from '../.
 
 const NAME_MAX_LENGTH = 50;
 
+// Platform-specific wrapper: iOS gets KeyboardAvoidingView, Android gets a plain
+// View so the TextInput tree is NOT wrapped in a JS KAV that might cause layout
+// thrash on keyboard open.
+function KAVShim({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === 'ios') {
+    return (
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        {children}
+      </KeyboardAvoidingView>
+    );
+  }
+  return <View style={{ flex: 1 }}>{children}</View>;
+}
+
 // Debug log shared across remounts of this screen — if the screen is
 // unmounting unexpectedly we can still see the prior events after it
 // mounts again. Capped so it can't leak memory.
@@ -395,14 +409,15 @@ export default function EditProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* KeyboardAvoidingView wrapper used only on iOS. On Android,
+          android:windowSoftInputMode="adjustResize" in the manifest
+          handles keyboard avoidance natively, and the JS wrapper was
+          one of the suspects for the TextInput auto-blur bug. */}
+      <KAVShim>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           {/* Profile Photo Section */}
           <View style={styles.photoSection}>
@@ -434,42 +449,22 @@ export default function EditProfileScreen({ navigation }: any) {
 
           {/* Form Fields */}
           <View style={styles.formSection}>
-            {/* Name Field */}
+            {/* Name Field — MINIMAL for bisection. Plain label + TextInput,
+                no absolute-fill overlay, no floating animation. */}
             <View style={styles.fieldContainer}>
-              <View style={[
-                styles.floatingInputWrapper,
-                nameFocused && styles.floatingInputFocused,
-              ]}>
-                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                  <Text
-                    style={[
-                      styles.floatingLabelStatic,
-                      { color: nameFocused ? COLORS.accent : COLORS.gray500 },
-                    ]}
-                  >
-                    Full Name
-                  </Text>
-                </View>
-                <View style={styles.inputRow}>
-                  <Ionicons
-                    name="person-outline"
-                    size={moderateScale(18)}
-                    color={nameFocused ? COLORS.accent : COLORS.gray400}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.floatingInput}
-                    value={name}
-                    onChangeText={(text) => setName(text.slice(0, NAME_MAX_LENGTH))}
-                    onFocus={handleNameFocus}
-                    onBlur={handleNameBlur}
-                    autoCapitalize="words"
-                    editable={!saving}
-                    maxLength={NAME_MAX_LENGTH}
-                    accessibilityLabel="Full name"
-                  />
-                </View>
-              </View>
+              <Text style={styles.minimalLabel}>Full Name</Text>
+              <TextInput
+                style={styles.minimalInput}
+                value={name}
+                onChangeText={(text) => setName(text.slice(0, NAME_MAX_LENGTH))}
+                onFocus={handleNameFocus}
+                onBlur={handleNameBlur}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!saving}
+                maxLength={NAME_MAX_LENGTH}
+                accessibilityLabel="Full name"
+              />
               <View style={styles.fieldFooter}>
                 <Text style={styles.fieldHint}>Your display name</Text>
                 <Text style={[
@@ -510,46 +505,25 @@ export default function EditProfileScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* Phone Field */}
+            {/* Phone Field — MINIMAL for bisection. */}
             <View style={styles.fieldContainer}>
-              <View style={[
-                styles.floatingInputWrapper,
-                phoneFocused && styles.floatingInputFocused,
-              ]}>
-                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                  <Text
-                    style={[
-                      styles.floatingLabelStatic,
-                      { color: phoneFocused ? COLORS.accent : COLORS.gray500 },
-                    ]}
-                  >
-                    Phone Number
-                  </Text>
-                </View>
-                <View style={styles.inputRow}>
-                  <Ionicons
-                    name="call-outline"
-                    size={moderateScale(18)}
-                    color={phoneFocused ? COLORS.accent : COLORS.gray400}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.floatingInput}
-                    value={phone}
-                    onChangeText={handlePhoneChange}
-                    onFocus={handlePhoneFocus}
-                    accessibilityLabel="Phone number"
-                    onBlur={() => {
-                      handlePhoneBlur();
-                      if (phone.trim()) {
-                        setPhone(formatPhoneNumber(phone));
-                      }
-                    }}
-                    keyboardType="phone-pad"
-                    editable={!saving}
-                  />
-                </View>
-              </View>
+              <Text style={styles.minimalLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.minimalInput}
+                value={phone}
+                onChangeText={handlePhoneChange}
+                onFocus={handlePhoneFocus}
+                onBlur={() => {
+                  handlePhoneBlur();
+                  if (phone.trim()) {
+                    setPhone(formatPhoneNumber(phone));
+                  }
+                }}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+                editable={!saving}
+                accessibilityLabel="Phone number"
+              />
               <View style={styles.fieldFooter}>
                 <Text style={styles.fieldHint}>Format: +63 9XX XXX XXXX</Text>
               </View>
@@ -610,7 +584,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
           <View style={{ height: verticalScale(40) }} />
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KAVShim>
     </View>
   );
 }
@@ -740,6 +714,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: moderateScale(46),
     fontWeight: '500',
+  },
+  // Minimal label + input styles used to bisect the TextInput auto-blur bug.
+  minimalLabel: {
+    fontSize: RESPONSIVE.fontSize.small,
+    color: COLORS.gray500,
+    marginBottom: verticalScale(6),
+    fontWeight: '600',
+  },
+  minimalInput: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
+    borderRadius: RESPONSIVE.borderRadius.medium,
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: moderateScale(12),
+    fontSize: RESPONSIVE.fontSize.regular,
+    color: COLORS.gray800,
+    minHeight: moderateScale(48),
   },
   // Static base position matching the "focused" visual state. The transform
   // animation moves the label downward and scales it up to simulate the
