@@ -583,12 +583,13 @@ export default function EditProfileScreen({ navigation }: any) {
 
           {/* DIAGNOSTIC LOG — remove after bug is fixed */}
           <View style={styles.debugPanel}>
-            <Text style={styles.debugTitle}>DEBUG LOG (tap to copy last 10):</Text>
-            {DEBUG_LOG.slice(-10).map((e, i) => (
+            <Text style={styles.debugTitle}>DEBUG LOG (last 20):</Text>
+            {DEBUG_LOG.slice(-20).map((e, i) => (
               <Text key={i} style={styles.debugLine} numberOfLines={1}>
                 +{((e.ts - (DEBUG_LOG[0]?.ts || e.ts)) / 1000).toFixed(1)}s {e.msg}
               </Text>
             ))}
+            <Text style={styles.debugFooter}>tap name field NOW — screenshot everything below this line</Text>
           </View>
 
           {/* Save Button */}
@@ -867,6 +868,13 @@ const styles = StyleSheet.create({
     color: '#0f0',
     fontSize: fontScale(10),
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: fontScale(13),
+  },
+  debugFooter: {
+    color: '#ff0',
+    fontSize: fontScale(10),
+    marginTop: verticalScale(4),
+    fontStyle: 'italic',
   },
 
   // Save Button
