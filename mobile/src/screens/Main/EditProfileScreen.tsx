@@ -29,9 +29,14 @@ const NAME_MAX_LENGTH = 50;
 // mounts again. Capped so it can't leak memory.
 const DEBUG_LOG: { ts: number; msg: string }[] = [];
 let MOUNT_COUNT = 0;
+// Subscription-based rerender so the panel updates when a log entry
+// arrives — without a 500ms polling timer, which was re-rendering the
+// whole screen mid-focus and is a prime suspect for the auto-blur.
+const DLOG_LISTENERS = new Set<() => void>();
 const dlog = (msg: string) => {
   DEBUG_LOG.push({ ts: Date.now(), msg });
   if (DEBUG_LOG.length > 40) DEBUG_LOG.shift();
+  DLOG_LISTENERS.forEach((l) => l());
 };
 
 export default function EditProfileScreen({ navigation }: any) {
@@ -44,11 +49,12 @@ export default function EditProfileScreen({ navigation }: any) {
     MOUNT_COUNT += 1;
     mountIdRef.current = MOUNT_COUNT;
     dlog(`mount #${MOUNT_COUNT} user.profile_image=${String(user?.profile_image).slice(-50)}`);
-    forceRerender((n) => n + 1);
-    // Tick the UI so the debug panel stays in sync with DEBUG_LOG mutations.
-    const tick = setInterval(() => forceRerender((n) => n + 1), 500);
+    // Subscribe to log events so the panel redraws when something is
+    // logged — NOT on a timer.
+    const update = () => forceRerender((n) => n + 1);
+    DLOG_LISTENERS.add(update);
     return () => {
-      clearInterval(tick);
+      DLOG_LISTENERS.delete(update);
       dlog(`unmount #${mountIdRef.current}`);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,18 +119,11 @@ export default function EditProfileScreen({ navigation }: any) {
     return () => { unsubscribe(); unsubFocus(); unsubBlur(); };
   }, [navigation]);
 
-  const animateLabel = (anim: Animated.Value, toValue: number) => {
-    // useNativeDriver must be TRUE here. With false, the label's `top` and
-    // `fontSize` interpolations animate as layout props on the JS thread —
-    // that forces Yoga to re-measure the TextInput's parent every frame
-    // for 200ms, which on Android knocks focus off the input as soon as
-    // it gains it. Transform + scale are compositor-only and safe.
-    Animated.timing(anim, {
-      toValue,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  };
+  // Animation intentionally disabled to prove/disprove it is the auto-blur
+  // trigger. If auto-blur disappears in v1.0.9, animation was the cause
+  // even with useNativeDriver:true; if it persists, we know to look
+  // elsewhere (the setInterval tick that this build also removes).
+  const animateLabel = (_anim: Animated.Value, _toValue: number) => {};
 
   const handleNameFocus = () => {
     dlog('name focus');
@@ -442,21 +441,14 @@ export default function EditProfileScreen({ navigation }: any) {
                 nameFocused && styles.floatingInputFocused,
               ]}>
                 <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                  <Animated.Text
+                  <Text
                     style={[
-                      styles.floatingLabel,
-                      styles.floatingLabelFocusedBase,
-                      {
-                        color: nameFocused ? COLORS.accent : COLORS.gray500,
-                        transform: [
-                          { translateY: nameLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [verticalScale(12), 0] }) },
-                          { scale: nameLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 1] }) },
-                        ],
-                      },
+                      styles.floatingLabelStatic,
+                      { color: nameFocused ? COLORS.accent : COLORS.gray500 },
                     ]}
                   >
                     Full Name
-                  </Animated.Text>
+                  </Text>
                 </View>
                 <View style={styles.inputRow}>
                   <Ionicons
@@ -525,21 +517,14 @@ export default function EditProfileScreen({ navigation }: any) {
                 phoneFocused && styles.floatingInputFocused,
               ]}>
                 <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                  <Animated.Text
+                  <Text
                     style={[
-                      styles.floatingLabel,
-                      styles.floatingLabelFocusedBase,
-                      {
-                        color: phoneFocused ? COLORS.accent : COLORS.gray500,
-                        transform: [
-                          { translateY: phoneLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [verticalScale(12), 0] }) },
-                          { scale: phoneLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 1] }) },
-                        ],
-                      },
+                      styles.floatingLabelStatic,
+                      { color: phoneFocused ? COLORS.accent : COLORS.gray500 },
                     ]}
                   >
                     Phone Number
-                  </Animated.Text>
+                  </Text>
                 </View>
                 <View style={styles.inputRow}>
                   <Ionicons
