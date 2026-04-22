@@ -35,7 +35,7 @@ const dlog = (msg: string) => {
 };
 
 export default function EditProfileScreen({ navigation }: any) {
-  const { user, updateUser, refreshUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   // Diagnostic: bump on every mount, display on screen.
   const mountIdRef = useRef<number>(0);
@@ -43,7 +43,7 @@ export default function EditProfileScreen({ navigation }: any) {
   useEffect(() => {
     MOUNT_COUNT += 1;
     mountIdRef.current = MOUNT_COUNT;
-    dlog(`mount #${MOUNT_COUNT}`);
+    dlog(`mount #${MOUNT_COUNT} user.profile_image=${String(user?.profile_image).slice(-50)}`);
     forceRerender((n) => n + 1);
     // Tick the UI so the debug panel stays in sync with DEBUG_LOG mutations.
     const tick = setInterval(() => forceRerender((n) => n + 1), 500);
@@ -51,6 +51,7 @@ export default function EditProfileScreen({ navigation }: any) {
       clearInterval(tick);
       dlog(`unmount #${mountIdRef.current}`);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [name, setName] = useState(user?.name || '');
@@ -113,10 +114,15 @@ export default function EditProfileScreen({ navigation }: any) {
   }, [navigation]);
 
   const animateLabel = (anim: Animated.Value, toValue: number) => {
+    // useNativeDriver must be TRUE here. With false, the label's `top` and
+    // `fontSize` interpolations animate as layout props on the JS thread —
+    // that forces Yoga to re-measure the TextInput's parent every frame
+    // for 200ms, which on Android knocks focus off the input as soon as
+    // it gains it. Transform + scale are compositor-only and safe.
     Animated.timing(anim, {
       toValue,
       duration: 200,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   };
 
@@ -329,11 +335,6 @@ export default function EditProfileScreen({ navigation }: any) {
         originalPhone.current = phone.trim();
       }
 
-      // Canonical re-sync with backend. Fire-and-forget — if this fails, the
-      // optimistic updates above are still valid, but when it succeeds we
-      // pick up anything the server normalised (e.g. trimmed whitespace).
-      refreshUser().catch(() => {});
-
       setNewImageUri(null);
       setUploadProgress(0);
       Alert.alert('Success', 'Profile updated successfully.', [
@@ -444,16 +445,13 @@ export default function EditProfileScreen({ navigation }: any) {
                   <Animated.Text
                     style={[
                       styles.floatingLabel,
+                      styles.floatingLabelFocusedBase,
                       {
-                        top: nameLabelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [verticalScale(18), verticalScale(6)],
-                        }),
-                        fontSize: nameLabelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
-                        }),
                         color: nameFocused ? COLORS.accent : COLORS.gray500,
+                        transform: [
+                          { translateY: nameLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [verticalScale(12), 0] }) },
+                          { scale: nameLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 1] }) },
+                        ],
                       },
                     ]}
                   >
@@ -530,16 +528,13 @@ export default function EditProfileScreen({ navigation }: any) {
                   <Animated.Text
                     style={[
                       styles.floatingLabel,
+                      styles.floatingLabelFocusedBase,
                       {
-                        top: phoneLabelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [verticalScale(18), verticalScale(6)],
-                        }),
-                        fontSize: phoneLabelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [RESPONSIVE.fontSize.regular, RESPONSIVE.fontSize.small],
-                        }),
                         color: phoneFocused ? COLORS.accent : COLORS.gray500,
+                        transform: [
+                          { translateY: phoneLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [verticalScale(12), 0] }) },
+                          { scale: phoneLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 1] }) },
+                        ],
                       },
                     ]}
                   >
@@ -759,6 +754,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: moderateScale(46),
     fontWeight: '500',
+  },
+  // Static base position matching the "focused" visual state. The transform
+  // animation moves the label downward and scales it up to simulate the
+  // "unfocused" state, avoiding any layout re-measurement while animating.
+  floatingLabelFocusedBase: {
+    top: verticalScale(6),
+    fontSize: RESPONSIVE.fontSize.small,
+    transformOrigin: 'left center',
   },
   floatingLabelStatic: {
     position: 'absolute',

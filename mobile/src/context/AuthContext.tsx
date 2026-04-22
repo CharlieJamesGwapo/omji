@@ -127,11 +127,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateUser = async (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData };
+    // Use functional setState so the merge is atomic with current state.
+    // If two updateUser calls run in quick succession (e.g. upload then
+    // text-field save), the second one must merge on top of the FIRST's
+    // result — not a stale closure of user from two renders ago.
+    let merged: User | null = null;
+    setUser((current) => {
+      if (!current) return current;
+      merged = { ...current, ...userData };
+      return merged;
+    });
+    if (merged) {
       try {
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(merged));
       } catch (error) {
         console.error('Failed to persist updated user to AsyncStorage:', error);
       }
@@ -142,10 +150,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const res = await userService.getProfile();
       const freshData = res.data?.data;
-      if (freshData && user) {
-        const updatedUser = { ...user, ...freshData };
-        setUser(updatedUser);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      if (!freshData) return;
+      let merged: User | null = null;
+      setUser((current) => {
+        if (!current) return current;
+        merged = { ...current, ...freshData };
+        return merged;
+      });
+      if (merged) {
+        await AsyncStorage.setItem('user', JSON.stringify(merged));
       }
     } catch (error) {
       console.warn('Failed to refresh user profile:', error);
