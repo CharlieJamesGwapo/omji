@@ -164,28 +164,55 @@ export default function PaymentScreen({ route, navigation }: any) {
     const pkg = isGcash ? gcashPkg : mayaPkg;
     const deepLink = isGcash ? 'gcash://' : 'paymaya://';
 
-    // Try multiple approaches to open the app
-    const urlsToTry = isIOS
-      ? [deepLink]
-      : [
-          deepLink,
-          `intent://#Intent;package=${pkg};launchFlags=0x10000000;end`,
-          `market://details?id=${pkg}`, // fallback: opens Play Store to the app
-        ];
+    // Copy the exact amount to the clipboard BEFORE launching so the user can
+    // paste it directly into the GCash/Maya send field. GCash does not expose
+    // a public URL parameter to pre-fill the amount — this + the scannable QR
+    // below are the best legal options without a merchant API integration.
+    try {
+      await Clipboard.setStringAsync(totalAmount.toFixed(2));
+    } catch {
+      // Clipboard failure is non-fatal; user can still type the amount.
+    }
 
-    for (const url of urlsToTry) {
+    // Launch strategy:
+    //   iOS: `gcash://` resolves uniquely to one app; no chooser.
+    //   Android: the bare `gcash://` URI can trigger the system app chooser
+    //     ("Open with") when multiple apps claim the VIEW+scheme intent filter,
+    //     which is what the user was seeing. An explicit package intent URI
+    //     with action=MAIN + category=LAUNCHER + package=<pkg> tells Android
+    //     to start that specific app's main activity with no chooser dialog.
+    const androidIntentUrl =
+      `intent://#Intent;` +
+      `action=android.intent.action.MAIN;` +
+      `category=android.intent.category.LAUNCHER;` +
+      `package=${pkg};` +
+      `launchFlags=0x10000000;` + // FLAG_ACTIVITY_NEW_TASK — required from RN context
+      `end`;
+
+    const installed = await Linking.canOpenURL(deepLink).catch(() => false);
+
+    if (installed) {
       try {
-        const canOpen = await Linking.canOpenURL(url);
-        if (canOpen) {
-          await Linking.openURL(url);
-          return;
+        if (isIOS) {
+          await Linking.openURL(deepLink);
+        } else {
+          await Linking.openURL(androidIntentUrl);
         }
+        // Confirmation so the user knows the clipboard contains the amount.
+        // Delayed so the OS task switch completes before the alert renders.
+        setTimeout(() => {
+          Alert.alert(
+            `Amount copied: ₱${totalAmount.toFixed(2)}`,
+            `Paste it in the ${brandName} Send Money amount field. Send to ${config?.recipient_number || '09856122843'}, then come back here and tap "I have paid".`,
+          );
+        }, 400);
+        return;
       } catch {
-        // Try next URL
+        // Fall through to the install/fallback prompt below.
       }
     }
 
-    // All attempts failed — show install prompt
+    // Not installed, or launch failed.
     const storeLink = isGcash
       ? isIOS
         ? 'https://apps.apple.com/ph/app/gcash/id520020791'
@@ -194,12 +221,12 @@ export default function PaymentScreen({ route, navigation }: any) {
         ? 'https://apps.apple.com/ph/app/maya-savings-wallet-pay/id991907993'
         : `https://play.google.com/store/apps/details?id=${mayaPkg}`;
     Alert.alert(
-      `Could Not Open ${brandName}`,
-      `Make sure ${brandName} is installed and try again, or scan the QR code below.`,
+      `${brandName} not found`,
+      `We couldn't open ${brandName}. Install it and try again, or scan the QR code below with any ${brandName} app.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Get App', onPress: () => Linking.openURL(storeLink) },
-      ]
+        { text: `Get ${brandName}`, onPress: () => Linking.openURL(storeLink) },
+      ],
     );
   };
 
