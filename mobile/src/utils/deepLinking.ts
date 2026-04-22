@@ -1,7 +1,7 @@
 import { LinkingOptions } from '@react-navigation/native';
 
 export const linking: LinkingOptions<any> = {
-  prefixes: ['oneride://', 'https://oneride-balingasag.netlify.app'],
+  prefixes: ['oneride://', 'https://landing-oneride.vercel.app'],
   config: {
     screens: {
       Main: {

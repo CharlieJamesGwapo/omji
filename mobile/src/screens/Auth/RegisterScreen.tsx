@@ -320,14 +320,14 @@ export default function RegisterScreen({ navigation }: any) {
                 I agree to the{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://oneride-balingasag.netlify.app/terms')}
+                  onPress={() => Linking.openURL('https://landing-oneride.vercel.app/terms')}
                 >
                   Terms of Service
                 </Text>
                 {' '}and{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://oneride-balingasag.netlify.app/privacy')}
+                  onPress={() => Linking.openURL('https://landing-oneride.vercel.app/privacy')}
                 >
                   Privacy Policy
                 </Text>

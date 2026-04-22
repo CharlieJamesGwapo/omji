@@ -224,7 +224,7 @@ export default function ProfileScreen({ navigation }: any) {
       items: [
         { icon: 'help-circle-outline', label: 'Help Center', screen: null, action: () => Linking.openURL('mailto:infoomjisys@gmail.com?subject=Help%20Request') },
         { icon: 'chatbubble-outline', label: 'Contact Support', screen: null, action: () => Linking.openURL('tel:+639123456789') },
-        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Linking.openURL('https://oneride-balingasag.netlify.app/terms') },
+        { icon: 'document-text-outline', label: 'Terms & Privacy', screen: null, action: () => Linking.openURL('https://landing-oneride.vercel.app/privacy') },
         { icon: 'information-circle-outline', label: 'About ONE RIDE', screen: null, action: () => Alert.alert('About ONE RIDE', 'ONE RIDE - Balingasag & Salay\nYour ride-hailing and delivery app\n\nServices:\n- Pasundo (Pick-up)\n- Pasugo (Delivery)\n- Pasabay (Ride Sharing)\n- Store Orders\n\nVersion 1.0.0') },
       ],
     },
