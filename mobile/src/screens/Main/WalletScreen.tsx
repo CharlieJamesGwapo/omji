@@ -112,7 +112,7 @@ export default function WalletScreen({ navigation }: any) {
                 payment_method: selectedMethod,
               });
               const data = response.data?.data;
-              setBalance(data?.balance != null ? Number(data.balance) : balance + amount);
+              setBalance((prev) => (data?.balance != null ? Number(data.balance) : prev + amount));
               setShowTopUp(false);
               setTopUpAmount('');
               haptic.success();
@@ -464,7 +464,7 @@ export default function WalletScreen({ navigation }: any) {
                             payment_method: withdrawMethod,
                           });
                           const data = response.data?.data;
-                          setBalance(data?.balance != null ? Number(data.balance) : balance - amount);
+                          setBalance((prev) => (data?.balance != null ? Number(data.balance) : prev - amount));
                           setShowWithdraw(false);
                           setWithdrawAmount('');
                           haptic.success();
